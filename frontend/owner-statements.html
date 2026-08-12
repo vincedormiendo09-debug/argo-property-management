@@ -1,0 +1,1255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Owner Statements & Payout Ledger | ARGO Property Management</title>
+
+    <!-- Inter Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+    <style>
+        :root {
+            --primary: #2563EB;
+            --sidebar: #0F172A;
+            --active: #1E293B;
+            --canvas: #F3F4F6;
+            --white: #FFFFFF;
+            --border: #E5E7EB;
+            --text: #111827;
+            --muted: #6B7280;
+            --success: #059669;
+            --danger: #E11D48;
+            --warning: #D97706;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--canvas);
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        button, input, select, textarea {
+            font-family: inherit;
+        }
+
+        /* ================= SIDEBAR ================= */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 240px;
+            height: 100vh;
+            background: #0F172A;
+            color: white;
+            padding: 20px 14px;
+            z-index: 1000;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 5px 12px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .brand-logo {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: #2563EB;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 700;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .sidebar-brand h2 {
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .sidebar-brand span {
+            font-size: 9px;
+            color: #94A3B8;
+            margin-top: 1px;
+            display: block;
+            letter-spacing: 0.8px;
+        }
+
+        .sidebar-nav {
+            margin-top: 16px;
+            flex: 1;
+        }
+
+        .nav-section-title {
+            font-size: 10px;
+            font-weight: 700;
+            color: #64748B;
+            letter-spacing: 0.08em;
+            padding: 14px 10px 6px;
+            text-transform: uppercase;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            color: #CBD5E1;
+            text-decoration: none;
+            border-radius: 6px;
+            margin-bottom: 3px;
+            font-size: 13px;
+            transition: 0.15s ease;
+        }
+
+        .nav-item:hover {
+            background: #172033;
+            color: white;
+        }
+
+        .nav-item.active {
+            background: #1E293B;
+            color: white;
+            font-weight: 500;
+        }
+
+        .nav-item.active i {
+            color: #60A5FA;
+        }
+
+        .nav-item i {
+            width: 20px;
+            font-size: 16px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .sidebar-footer {
+            padding: 14px 10px 0;
+            border-top: 1px solid rgba(255,255,255,0.08);
+            font-size: 11px;
+            color: #64748B;
+        }
+
+        /* ================= TOP HEADER ================= */
+        .top-header {
+            position: fixed;
+            top: 0;
+            left: 240px;
+            right: 0;
+            height: 64px;
+            background: var(--sidebar);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 28px;
+            z-index: 900;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            color: white;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .organization-pill {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #1E293B;
+            border: 1px solid #334155;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #E5E7EB;
+        }
+
+        .organization-pill i { color: #60A5FA; }
+
+        .pov-selector {
+            background: #1E293B;
+            border: 1px solid #334155;
+            color: #60A5FA;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            outline: none;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+        }
+
+        .notification-header-link {
+            position: relative;
+            font-size: 18px;
+            color: #CBD5E1;
+            background: #1E293B;
+            border: 1px solid #334155;
+            width: 38px;
+            height: 38px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            transition: 0.2s ease;
+        }
+
+        .notification-header-link:hover {
+            background: #2563EB;
+            color: white;
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--danger);
+            color: white;
+            font-size: 9px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            border: 2px solid var(--sidebar);
+        }
+
+        /* USER PROFILE DROPDOWN */
+        .user-dropdown-container { position: relative; }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 6px;
+        }
+
+        .user-profile:hover { background: rgba(255,255,255,0.05); }
+
+        .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--success);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .user-info strong { display: block; font-size: 12px; }
+        .user-info span { display: block; color: #94A3B8; font-size: 10px; }
+
+        .dropdown-menu {
+            position: absolute;
+            right: 0;
+            top: 48px;
+            width: 180px;
+            background: white;
+            border: 1px solid #E5E7EB;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 1000;
+        }
+
+        .dropdown-menu.show { display: flex; }
+
+        .dropdown-item {
+            padding: 10px 14px;
+            color: #374151;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            transition: 0.15s;
+        }
+
+        .dropdown-item:hover { background: #F3F4F6; color: #111827; }
+        .dropdown-item.danger { color: var(--danger); }
+        .dropdown-item.danger:hover { background: #FFF1F2; }
+
+        /* ================= MAIN CONTENT ================= */
+        .main-content {
+            margin-left: 240px;
+            padding: 88px 28px 40px;
+            min-height: 100vh;
+            max-width: 1600px;
+        }
+
+        .page-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 22px;
+        }
+
+        .eyebrow {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--muted);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .page-header h1 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .page-header p {
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .primary-btn {
+            border: none;
+            background: var(--primary);
+            color: white;
+            border-radius: 6px;
+            padding: 9px 16px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: 0.2s ease;
+        }
+
+        .primary-btn:hover { background: #1D4ED8; }
+
+        .secondary-btn {
+            height: 38px;
+            border: 1px solid var(--border);
+            background: white;
+            border-radius: 6px;
+            padding: 0 13px;
+            font-size: 12px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            color: var(--text);
+        }
+
+        .secondary-btn:hover { background: #F9FAFB; }
+
+        /* ================= KPI CARDS ================= */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 22px;
+        }
+
+        .kpi-card {
+            background: var(--white);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 18px;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+        }
+
+        .kpi-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .kpi-label {
+            color: var(--muted);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .kpi-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: #ECFDF5;
+            color: var(--success);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .kpi-value {
+            font-size: 24px;
+            font-weight: 600;
+            color: #111827;
+        }
+
+        .kpi-description {
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 4px;
+        }
+
+        /* ================= FILTER BAR ================= */
+        .filter-bar {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .search-box {
+            position: relative;
+            flex: 1;
+            min-width: 220px;
+        }
+
+        .search-box i {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--muted);
+        }
+
+        .search-box input {
+            width: 100%;
+            height: 38px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0 12px 0 36px;
+            font-size: 12px;
+            outline: none;
+        }
+
+        .search-box input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+        }
+
+        .filter-select {
+            height: 38px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0 12px;
+            font-size: 12px;
+            color: var(--text);
+            background: white;
+            outline: none;
+        }
+
+        /* ================= TABLE CARDS ================= */
+        .table-card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+            margin-bottom: 24px;
+        }
+
+        .table-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .table-header h2 { font-size: 15px; font-weight: 600; }
+
+        .table-wrapper { overflow-x: auto; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 950px;
+        }
+
+        th {
+            background: #F9FAFB;
+            color: var(--muted);
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            text-align: left;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 14px 16px;
+            font-size: 12px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text);
+        }
+
+        tr:hover { background: #F9FAFB; }
+
+        .statement-id { font-weight: 600; color: var(--text); }
+        .property-title { font-weight: 600; color: var(--text); }
+        .property-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 8px;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .status-disbursed { background: #ECFDF5; color: #047857; }
+        .status-processing { background: #FEF3C7; color: #B45309; }
+
+        .action-button {
+            border: none;
+            background: transparent;
+            color: var(--muted);
+            font-size: 16px;
+            cursor: pointer;
+            padding: 4px 6px;
+            border-radius: 4px;
+        }
+
+        .action-button:hover { color: var(--primary); background: #EFF6FF; }
+
+        /* ================= MODAL ================= */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.55);
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            padding: 20px;
+        }
+
+        .modal-overlay.show { display: flex; }
+
+        .modal {
+            width: 100%;
+            max-width: 650px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+            overflow: hidden;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-header {
+            padding: 18px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: white;
+        }
+
+        .modal-header h2 { font-size: 16px; font-weight: 600; }
+
+        .close-btn {
+            border: none;
+            background: none;
+            font-size: 18px;
+            cursor: pointer;
+            color: var(--muted);
+        }
+
+        .modal-body { padding: 20px; overflow-y: auto; flex: 1; }
+
+        .ledger-box {
+            background: #F9FAFB;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px;
+            margin-bottom: 14px;
+        }
+
+        .ledger-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            font-size: 12px;
+            border-bottom: 1px solid #E5E7EB;
+        }
+
+        .ledger-row:last-child { border-bottom: none; }
+
+        .ledger-row.total {
+            font-weight: 700;
+            font-size: 14px;
+            color: var(--primary);
+            border-top: 2px solid #CBD5E1;
+            padding-top: 10px;
+            margin-top: 6px;
+        }
+
+        .modal-footer {
+            padding: 14px 20px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            background: #F9FAFB;
+        }
+
+        /* RESPONSIVE */
+        @media (max-width: 1000px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 768px) {
+            .sidebar { width: 70px; padding: 20px 8px; }
+            .sidebar-brand h2, .sidebar-brand span, .nav-section-title, .nav-item span { display: none; }
+            .nav-item { justify-content: center; padding: 12px; }
+            .top-header { left: 70px; padding: 0 15px; }
+            .organization-pill { display: none; }
+            .main-content { margin-left: 70px; padding: 85px 15px 30px; }
+            .page-header { flex-direction: column; gap: 14px; }
+            .filter-bar { flex-direction: column; align-items: stretch; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ================= SIDEBAR ================= -->
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-logo">A</div>
+            <div>
+                <h2>ARGO</h2>
+                <span>Owner Portal</span>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav">
+            <div class="nav-section-title">PORTFOLIO OVERVIEW</div>
+            <a href="owner-dashboard.html" class="nav-item">
+                <i class="bi bi-grid-1x2"></i>
+                <span>Executive Dashboard</span>
+            </a>
+            <a href="owner-properties.html" class="nav-item">
+                <i class="bi bi-buildings"></i>
+                <span>My Properties & Assets</span>
+            </a>
+            <a href="property-ownership.html" class="nav-item">
+                <i class="bi bi-pie-chart"></i>
+                <span>Equity & Cap Tables</span>
+            </a>
+            <a href="owner-statements.html" class="nav-item active">
+                <i class="bi bi-cash-stack"></i>
+                <span>Statements & Payouts</span>
+            </a>
+            <a href="documents.html" class="nav-item">
+                <i class="bi bi-folder2-open"></i>
+                <span>Titles & Tax Documents</span>
+            </a>
+
+            <div class="nav-section-title">SYSTEM</div>
+            <a href="settings.html" class="nav-item">
+                <i class="bi bi-gear"></i>
+                <span>Account Settings</span>
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <span>ARGO v0.5 (Owner POV)</span>
+        </div>
+    </aside>
+
+    <!-- ================= TOP HEADER ================= -->
+    <header class="top-header">
+        <div class="header-left">
+            <div class="organization-pill">
+                <i class="bi bi-building"></i>
+                <span>Sunrise Property Group</span>
+            </div>
+
+            <!-- DYNAMIC POV / ROLE SWITCHER FOR DB-LESS TESTING -->
+            <select class="pov-selector" id="povSelector" title="Switch User Role Perspective">
+                <option value="owner" selected>POV: Property Owner</option>
+                <option value="admin">POV: Admin / PM</option>
+                <option value="client">POV: Client / Tenant</option>
+            </select>
+        </div>
+
+        <div class="header-right">
+            <a href="notification.html" class="notification-header-link" title="Notifications Center">
+                <i class="bi bi-bell"></i>
+                <div class="notification-badge" id="ownerNotifBadge">0</div>
+            </a>
+
+            <div class="user-dropdown-container">
+                <div class="user-profile" id="userProfileBtn">
+                    <div class="avatar" id="userAvatar">RS</div>
+                    <div class="user-info">
+                        <strong id="userName">Don Ramon Santos</strong>
+                        <span id="userRoleBadge">Property Owner</span>
+                    </div>
+                    <i class="bi bi-chevron-down" style="font-size: 10px; color: #94A3B8;"></i>
+                </div>
+
+                <div class="dropdown-menu" id="userDropdown">
+                    <a href="account.html" class="dropdown-item">
+                        <i class="bi bi-person-gear"></i>
+                        <span>Account Settings</span>
+                    </a>
+                    <a href="logout.html" class="dropdown-item danger">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Log Out</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ================= MAIN CONTENT ================= -->
+    <main class="main-content">
+
+        <!-- PAGE HEADER -->
+        <div class="page-header">
+            <div>
+                <div class="eyebrow">POV 2: MONTHLY PAYOUT LEDGER & EXPENSES</div>
+                <h1>Owner Statements & Deductions</h1>
+                <p>Review itemized monthly income statements, operating expense deductions (10% PM commission + repairs), and net cash-flow yield records.</p>
+            </div>
+
+            <button class="secondary-btn" onclick="alert('Downloading annual consolidated owner tax statement...')">
+                <i class="bi bi-download"></i>
+                <span>Download Annual Statement</span>
+            </button>
+        </div>
+
+        <!-- KPI CARDS (RECALCULATED DYNAMICALLY BASED ON VERIFIED RENT & REPAIR EXPENSES) -->
+        <section class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-top">
+                    <span class="kpi-label">YTD Net Operating Yield (NOI)</span>
+                    <div class="kpi-icon"><i class="bi bi-cash-stack"></i></div>
+                </div>
+                <div class="kpi-value" id="kpiNetPayout" style="color:var(--success);">₱845,000.00</div>
+                <div class="kpi-description">Net funds transferred to registered BDO account</div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-top">
+                    <span class="kpi-label">YTD Gross Verified Rent</span>
+                    <div class="kpi-icon" style="background:#EFF6FF; color:var(--primary);"><i class="bi bi-graph-up-arrow"></i></div>
+                </div>
+                <div class="kpi-value" id="kpiGrossRent" style="color:var(--primary);">₱960,000.00</div>
+                <div class="kpi-description">Total verified tenant payments</div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-top">
+                    <span class="kpi-label">YTD Expense Deductions</span>
+                    <div class="kpi-icon" style="background:#FFF1F2; color:var(--danger);"><i class="bi bi-receipt"></i></div>
+                </div>
+                <div class="kpi-value" id="kpiDeductions" style="color:var(--danger);">₱115,000.00</div>
+                <div class="kpi-description">Repairs & 10% PM fee split</div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-top">
+                    <span class="kpi-label">Next Payout Cycle</span>
+                    <div class="kpi-icon" style="background:#FEF3C7; color:var(--warning);"><i class="bi bi-calendar-check"></i></div>
+                </div>
+                <div class="kpi-value" style="color:var(--warning);">Sep 05, 2026</div>
+                <div class="kpi-description">Scheduled monthly transfer</div>
+            </div>
+        </section>
+
+        <!-- FILTER BAR -->
+        <div class="filter-bar">
+            <div class="search-box">
+                <i class="bi bi-search"></i>
+                <input type="text" id="searchInput" placeholder="Search statement ID, property, or billing period..." onkeyup="filterTable()">
+            </div>
+
+            <select class="filter-select" id="propertyFilter" onchange="filterTable()">
+                <option value="">All Properties</option>
+                <option value="Sunrise Property">Sunrise Property</option>
+                <option value="Sunrise Residences">Sunrise Residences</option>
+                <option value="Central Business Center">Central Business Center</option>
+            </select>
+
+            <select class="filter-select" id="statusFilter" onchange="filterTable()">
+                <option value="">All Statuses</option>
+                <option value="Disbursed">Disbursed</option>
+                <option value="Processing">Processing</option>
+            </select>
+
+            <button class="secondary-btn" onclick="resetFilters()">
+                <i class="bi bi-arrow-counterclockwise"></i>
+                Reset
+            </button>
+        </div>
+
+        <!-- STATEMENTS TABLE -->
+        <div class="table-card">
+            <div class="table-header">
+                <h2>Itemized Monthly Payout Statements</h2>
+                <span style="font-size:12px; color:var(--muted);">Audit trail for Don Ramon Santos</span>
+            </div>
+
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>STATEMENT ID</th>
+                            <th>PROPERTY ASSET & LOCATION</th>
+                            <th>BILLING PERIOD</th>
+                            <th>GROSS INCOME</th>
+                            <th>DEDUCTIONS (10% PM + REPAIRS)</th>
+                            <th>NET PAYOUT (NOI)</th>
+                            <th>STATUS</th>
+                            <th>ACTIONS</th>
+                        </tr>
+                    </thead>
+                    <tbody id="statementTable">
+                        <!-- RENDERED DYNAMICALLY FROM LOCALSTORAGE -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- TABLE FOOTER -->
+            <div class="table-footer" style="padding:14px 16px; display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--border);">
+                <span id="showingCountText" style="font-size:12px; color:var(--muted);">Showing active statements</span>
+                <div class="pagination" style="display:flex; gap:4px;">
+                    <button class="secondary-btn" style="height:30px; padding:0 8px;"><i class="bi bi-chevron-left"></i></button>
+                    <button class="primary-btn" style="height:30px; padding:0 10px;">1</button>
+                    <button class="secondary-btn" style="height:30px; padding:0 8px;"><i class="bi bi-chevron-right"></i></button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- ================= MODAL: ITEMIZED STATEMENT LEDGER ================= -->
+    <div class="modal-overlay" id="statementModal">
+        <div class="modal">
+            <div class="modal-header">
+                <div>
+                    <span class="eyebrow">FINANCIAL STATEMENT LEDGER</span>
+                    <h2 id="modalStatementTitle">Itemized Statement — STM-2026-08</h2>
+                </div>
+                <button class="close-btn" onclick="closeModal()"><i class="bi bi-x-lg"></i></button>
+            </div>
+
+            <div class="modal-body">
+                <div style="margin-bottom:14px; font-size:12px; color:var(--muted);" id="modalStatementMeta">
+                    <strong>Owner:</strong> Don Ramon Santos &nbsp;|&nbsp; <strong>Period:</strong> August 2026 &nbsp;|&nbsp; <strong>Share:</strong> 100%
+                </div>
+
+                <!-- INCOME SECTION -->
+                <div class="ledger-box">
+                    <div style="font-weight:700; font-size:12px; margin-bottom:8px; color:var(--text);">INCOME REVENUES (VERIFIED RENTS)</div>
+                    <div id="incomeRowsContainer">
+                        <!-- DYNAMIC RENT REVENUE ROWS -->
+                    </div>
+                    <div class="ledger-row total"><span>Total Gross Rental Income</span><span id="modalGrossTotal">₱120,000.00</span></div>
+                </div>
+
+                <!-- DEDUCTIONS SECTION -->
+                <div class="ledger-box">
+                    <div style="font-weight:700; font-size:12px; margin-bottom:8px; color:var(--danger);">OPERATING EXPENSE DEDUCTIONS</div>
+                    <div class="ledger-row"><span>Property Management Commission (10% Split)</span><span id="modalPmFee">-₱12,000.00</span></div>
+                    <div id="expenseRowsContainer">
+                        <!-- DYNAMIC MAINTENANCE & REPAIR DEDUCTIONS -->
+                    </div>
+                    <div class="ledger-row total" style="color:var(--danger);"><span>Total Operating Deductions</span><span id="modalDeductionsTotal">-₱15,500.00</span></div>
+                </div>
+
+                <!-- CALCULATED NET YIELD -->
+                <div class="calc-box" style="background:#ECFDF5; border:1px solid #A7F3D0; display:flex; justify-content:space-between; align-items:center; padding:12px; border-radius:8px;">
+                    <div>
+                        <span style="font-size:11px; color:#065F46; font-weight:700; display:block;">NET OPERATING YIELD (NOI) TRANSFERRED</span>
+                        <span style="font-size:11px; color:#047857;">BDO Corporate Transfer • Account #0012-8849-1029</span>
+                    </div>
+                    <strong style="font-size:18px; color:#047857;" id="modalNetPayout">₱104,500.00</strong>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="secondary-btn" onclick="closeModal()">Close</button>
+                <button class="primary-btn" onclick="alert('Downloading official PDF statement receipt...')"><i class="bi bi-file-earmark-pdf"></i> Download Official Statement PDF</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= JAVASCRIPT ================= -->
+    <script>
+        // Default Base Statements
+        const DEFAULT_STATEMENTS = [
+            {
+                id: 'STM-2026-08',
+                property: 'Sunrise Property',
+                sub: '100.00% Share • Building 2 (Unit 101, 102, 103)',
+                period: 'August 2026 (Current)',
+                status: 'Processing',
+                baseGross: 120000,
+                baseRepairs: 0
+            },
+            {
+                id: 'STM-2026-07',
+                property: 'Sunrise Residences',
+                sub: '100.00% Share • PROP-001',
+                period: 'July 2026',
+                status: 'Disbursed',
+                baseGross: 120000,
+                baseRepairs: 5500
+            },
+            {
+                id: 'STM-2026-06',
+                property: 'Central Business Center',
+                sub: '50.00% Share • PROP-003',
+                period: 'June 2026',
+                status: 'Disbursed',
+                baseGross: 47500,
+                baseRepairs: 2500
+            }
+        ];
+
+        // Shared LocalStorage Accessors
+        function getInvoices() {
+            return JSON.parse(localStorage.getItem('argo_invoices') || '[]');
+        }
+
+        function getTickets() {
+            return JSON.parse(localStorage.getItem('argo_maintenance_tickets') || '[]');
+        }
+
+        function getNotifications() {
+            return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
+        }
+
+        function getStatements() {
+            const data = localStorage.getItem('argo_statements');
+            if (!data) {
+                localStorage.setItem('argo_statements', JSON.stringify(DEFAULT_STATEMENTS));
+                return DEFAULT_STATEMENTS;
+            }
+            return JSON.parse(data);
+        }
+
+        function saveStatements(statements) {
+            localStorage.setItem('argo_statements', JSON.stringify(statements));
+        }
+
+        // Initialize Page
+        document.addEventListener('DOMContentLoaded', () => {
+            renderStatementsTable();
+            updateOwnerKPIs();
+            updateHeaderBadge();
+        });
+
+        // LIVE LISTEN FOR CROSS-TAB LOCALSTORAGE CHANGES (e.g., when Admin dispatches or updates repair costs)
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'argo_maintenance_tickets' || e.key === 'argo_invoices' || e.key === 'argo_statements' || e.key === 'argo_notifications') {
+                renderStatementsTable();
+                updateOwnerKPIs();
+                updateHeaderBadge();
+            }
+        });
+
+        // Calculate verified rent additions dynamically from localStorage invoices
+        function calculateVerifiedRentAdditions() {
+            const invoices = getInvoices();
+            let verifiedSum = 0;
+            const verifiedList = [];
+
+            invoices.forEach(inv => {
+                if (inv.status === 'Paid') {
+                    verifiedSum += inv.amount;
+                    verifiedList.push(inv);
+                }
+            });
+
+            return { verifiedSum, verifiedList };
+        }
+
+        // Calculate dynamic maintenance & repair deductions from localStorage tickets
+        function calculateMaintenanceDeductions() {
+            const tickets = getTickets();
+            let repairSum = 0;
+            const repairList = [];
+
+            tickets.forEach(t => {
+                if (t.cost && t.cost > 0) {
+                    repairSum += t.cost;
+                    repairList.push(t);
+                }
+            });
+
+            return { repairSum, repairList };
+        }
+
+        // Render Statements Table
+        function renderStatementsTable() {
+            const statements = getStatements();
+            const { verifiedSum } = calculateVerifiedRentAdditions();
+            const { repairSum } = calculateMaintenanceDeductions();
+            const tbody = document.getElementById('statementTable');
+            tbody.innerHTML = '';
+
+            statements.forEach((stmt, index) => {
+                let gross = stmt.baseGross;
+                let repairs = stmt.baseRepairs || 0;
+
+                // August 2026 (Index 0) dynamically merges current verified rent & repair expenses
+                if (index === 0) {
+                    if (verifiedSum > 0) gross += verifiedSum;
+                    if (repairSum > 0) repairs += repairSum;
+                }
+
+                // 10% Management Fee Calculation
+                const pmFee = gross * 0.10;
+                const totalDeductions = pmFee + repairs;
+                const netPayout = gross - totalDeductions;
+
+                const tr = document.createElement('tr');
+                tr.dataset.property = stmt.property;
+                tr.dataset.status = stmt.status;
+
+                let badgeHtml = stmt.status === 'Disbursed' 
+                    ? `<span class="status-badge status-disbursed"><i class="bi bi-check-circle" style="margin-right:4px;"></i> Disbursed</span>`
+                    : `<span class="status-badge status-processing"><i class="bi bi-clock-history" style="margin-right:4px;"></i> Processing</span>`;
+
+                tr.innerHTML = `
+                    <td><div class="statement-id">${stmt.id}</div></td>
+                    <td>
+                        <div class="property-title">${stmt.property}</div>
+                        <div class="property-sub">${stmt.sub}</div>
+                    </td>
+                    <td>${stmt.period}</td>
+                    <td>₱${gross.toLocaleString('en-US', {minimumFractionDigits:2})}</td>
+                    <td><span style="color:var(--danger);">-₱${totalDeductions.toLocaleString('en-US', {minimumFractionDigits:2})}</span></td>
+                    <td><strong style="color:${stmt.status === 'Disbursed' ? 'var(--success)' : 'var(--primary)'};">₱${netPayout.toLocaleString('en-US', {minimumFractionDigits:2})}</strong></td>
+                    <td>${badgeHtml}</td>
+                    <td>
+                        <button class="action-button" title="View Itemized Statement" onclick="openStatementModal('${stmt.id}', ${gross}, ${repairs}, ${index === 0})"><i class="bi bi-eye"></i></button>
+                        <button class="action-button" title="Download PDF" onclick="alert('Downloading official statement PDF for ${stmt.id}')"><i class="bi bi-download"></i></button>
+                    </td>
+                `;
+
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('showingCountText').textContent = `Showing 1–${statements.length} of ${statements.length} payout statements`;
+        }
+
+        // Calculate and Update Top KPI Cards
+        function updateOwnerKPIs() {
+            const statements = getStatements();
+            const { verifiedSum } = calculateVerifiedRentAdditions();
+            const { repairSum } = calculateMaintenanceDeductions();
+
+            let ytdGross = 0;
+            let ytdDeductions = 0;
+            let ytdNet = 0;
+
+            statements.forEach((stmt, index) => {
+                let gross = stmt.baseGross;
+                let repairs = stmt.baseRepairs || 0;
+
+                if (index === 0) {
+                    if (verifiedSum > 0) gross += verifiedSum;
+                    if (repairSum > 0) repairs += repairSum;
+                }
+
+                const pmFee = gross * 0.10;
+                const deductions = pmFee + repairs;
+                const net = gross - deductions;
+
+                ytdGross += gross;
+                ytdDeductions += deductions;
+                ytdNet += net;
+            });
+
+            document.getElementById('kpiGrossRent').textContent = `₱${ytdGross.toLocaleString('en-US', {minimumFractionDigits:2})}`;
+            document.getElementById('kpiDeductions').textContent = `₱${ytdDeductions.toLocaleString('en-US', {minimumFractionDigits:2})}`;
+            document.getElementById('kpiNetPayout').textContent = `₱${ytdNet.toLocaleString('en-US', {minimumFractionDigits:2})}`;
+        }
+
+        function updateHeaderBadge() {
+            const currentPov = document.getElementById('povSelector').value;
+            const notifs = getNotifications().filter(n => n.pov === currentPov && n.status === 'unread');
+            document.getElementById('ownerNotifBadge').textContent = notifs.length;
+        }
+
+        // Open Modal with Itemized Financial Ledger Breakdown
+        function openStatementModal(stmtId, grossAmount, repairs, isCurrentPeriod) {
+            document.getElementById('modalStatementTitle').textContent = `Itemized Statement — ${stmtId}`;
+
+            const pmFee = grossAmount * 0.10;
+            const totalDeductions = pmFee + repairs;
+            const netPayout = grossAmount - totalDeductions;
+
+            const { verifiedList } = calculateVerifiedRentAdditions();
+            const { repairList } = calculateMaintenanceDeductions();
+
+            // 1. Populate Income Revenues
+            const incomeContainer = document.getElementById('incomeRowsContainer');
+            incomeContainer.innerHTML = `
+                <div class="ledger-row"><span>Unit 102 Rent Collection (Base Portfolio)</span><span>₱22,000.00</span></div>
+                <div class="ledger-row"><span>Unit 103 Rent Collection (Base Portfolio)</span><span>₱98,000.00</span></div>
+            `;
+
+            if (isCurrentPeriod && verifiedList.length > 0) {
+                verifiedList.forEach(v => {
+                    const row = document.createElement('div');
+                    row.className = 'ledger-row';
+                    row.innerHTML = `<span style="color:var(--success); font-weight:600;"><i class="bi bi-check2"></i> Verified Rent: ${v.tenantName || 'Maria Santos'} (${v.sub || 'Bldg 2 • Unit 101'})</span><span style="color:var(--success); font-weight:600;">+₱${v.amount.toLocaleString('en-US', {minimumFractionDigits:2})}</span>`;
+                    incomeContainer.appendChild(row);
+                });
+            }
+
+            // 2. Populate Operating Expenses / Repair Deductions
+            const expenseContainer = document.getElementById('expenseRowsContainer');
+            expenseContainer.innerHTML = '';
+
+            if (isCurrentPeriod && repairList.length > 0) {
+                repairList.forEach(r => {
+                    const row = document.createElement('div');
+                    row.className = 'ledger-row';
+                    row.innerHTML = `<span style="color:var(--danger);"><i class="bi bi-tools"></i> Repair Deduction: ${r.title} (${r.fullLocation || 'Unit 101'}) — ${r.technician || 'Contractor'}</span><span style="color:var(--danger);">-₱${r.cost.toLocaleString('en-US', {minimumFractionDigits:2})}</span>`;
+                    expenseContainer.appendChild(row);
+                });
+            } else {
+                expenseContainer.innerHTML = `<div class="ledger-row"><span>Common Area & Plumbing Maintenance (Routine)</span><span>-₱${repairs.toLocaleString('en-US', {minimumFractionDigits:2})}</span></div>`;
+            }
+
+            document.getElementById('modalGrossTotal').textContent = `₱${grossAmount.toLocaleString('en-US', {minimumFractionDigits:2})}`;
+            document.getElementById('modalPmFee').textContent = `-₱${pmFee.toLocaleString('en-US', {minimumFractionDigits:2})}`;
+            document.getElementById('modalDeductionsTotal').textContent = `-₱${totalDeductions.toLocaleString('en-US', {minimumFractionDigits:2})}`;
+            document.getElementById('modalNetPayout').textContent = `₱${netPayout.toLocaleString('en-US', {minimumFractionDigits:2})}`;
+
+            document.getElementById('statementModal').classList.add('show');
+        }
+
+        function closeModal() {
+            document.getElementById('statementModal').classList.remove('show');
+        }
+
+        window.onclick = function(event) {
+            const modal = document.getElementById("statementModal");
+            if (event.target === modal) closeModal();
+        };
+
+        // Table Filter
+        function filterTable() {
+            const searchValue = document.getElementById("searchInput").value.toLowerCase();
+            const propertyValue = document.getElementById("propertyFilter").value;
+            const statusValue = document.getElementById("statusFilter").value;
+
+            const rows = document.querySelectorAll("#statementTable tr");
+
+            rows.forEach(row => {
+                const text = row.innerText.toLowerCase();
+                const rowProperty = row.dataset.property;
+                const rowStatus = row.dataset.status;
+
+                const matchesSearch = text.includes(searchValue);
+                const matchesProperty = propertyValue === "" || rowProperty.includes(propertyValue);
+                const matchesStatus = statusValue === "" || rowStatus.includes(statusValue);
+
+                if (matchesSearch && matchesProperty && matchesStatus) {
+                    row.style.display = "";
+                } else {
+                    row.style.display = "none";
+                }
+            });
+        }
+
+        function resetFilters() {
+            document.getElementById("searchInput").value = "";
+            document.getElementById("propertyFilter").value = "";
+            document.getElementById("statusFilter").value = "";
+            filterTable();
+        }
+
+        // Profile Dropdown
+        const userProfileBtn = document.getElementById('userProfileBtn');
+        const userDropdown = document.getElementById('userDropdown');
+
+        userProfileBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            userDropdown.classList.toggle('show');
+        });
+
+        document.addEventListener('click', () => { userDropdown.classList.remove('show'); });
+
+        // POV Role Switcher
+        const povSelector = document.getElementById('povSelector');
+        const userName = document.getElementById('userName');
+        const userRoleBadge = document.getElementById('userRoleBadge');
+        const userAvatar = document.getElementById('userAvatar');
+
+        povSelector.addEventListener('change', (e) => {
+            const role = e.target.value;
+
+            if (role === 'admin') {
+                window.location.href = 'dashboard.html';
+            } else if (role === 'owner') {
+                userName.textContent = 'Don Ramon Santos';
+                userRoleBadge.textContent = 'Property Owner';
+                userAvatar.textContent = 'RS';
+                userAvatar.style.background = '#059669';
+            } else if (role === 'client') {
+                window.location.href = 'client-dashboard.html';
+            }
+
+            updateHeaderBadge();
+        });
+    </script>
+</body>
+</html>

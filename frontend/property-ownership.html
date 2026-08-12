@@ -1,0 +1,1199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fractional Ownership Manager | ARGO Property Management</title>
+
+    <!-- Inter Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+    <style>
+        :root {
+            --primary: #2563EB;
+            --sidebar: #0F172A;
+            --active: #1E293B;
+            --canvas: #F3F4F6;
+            --white: #FFFFFF;
+            --border: #E5E7EB;
+            --text: #111827;
+            --muted: #6B7280;
+            --success: #059669;
+            --danger: #E11D48;
+            --warning: #D97706;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Inter", sans-serif;
+            background: var(--canvas);
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        button, input, select, textarea {
+            font-family: inherit;
+        }
+
+        /* ================= SIDEBAR ================= */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 240px;
+            height: 100vh;
+            background: #0F172A;
+            color: white;
+            padding: 20px 14px;
+            z-index: 1000;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 5px 12px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .brand-logo {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: #2563EB;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 700;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .sidebar-brand h2 {
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .sidebar-brand span {
+            font-size: 9px;
+            color: #94A3B8;
+            margin-top: 1px;
+            display: block;
+            letter-spacing: 0.8px;
+        }
+
+        .sidebar-nav {
+            margin-top: 16px;
+            flex: 1;
+        }
+
+        .nav-section-title {
+            font-size: 10px;
+            font-weight: 700;
+            color: #64748B;
+            letter-spacing: 0.08em;
+            padding: 14px 10px 6px;
+            text-transform: uppercase;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            color: #CBD5E1;
+            text-decoration: none;
+            border-radius: 6px;
+            margin-bottom: 3px;
+            font-size: 13px;
+            transition: 0.15s ease;
+        }
+
+        .nav-item:hover {
+            background: #172033;
+            color: white;
+        }
+
+        .nav-item.active {
+            background: #1E293B;
+            color: white;
+            font-weight: 500;
+        }
+
+        .nav-item.active i {
+            color: #60A5FA;
+        }
+
+        .nav-item i {
+            width: 20px;
+            font-size: 16px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .sidebar-footer {
+            padding: 14px 10px 0;
+            border-top: 1px solid rgba(255,255,255,0.08);
+            font-size: 11px;
+            color: #64748B;
+        }
+
+        /* ================= HEADER ================= */
+        .top-header {
+            position: fixed;
+            top: 0;
+            left: 240px;
+            right: 0;
+            height: 64px;
+            background: var(--sidebar);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 28px;
+            z-index: 900;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            color: white;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .organization-pill {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #1E293B;
+            border: 1px solid #334155;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #E5E7EB;
+        }
+
+        .organization-pill i { color: #60A5FA; }
+
+        .pov-selector {
+            background: #1E293B;
+            border: 1px solid #334155;
+            color: #60A5FA;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            outline: none;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+        }
+
+        .notification {
+            position: relative;
+            font-size: 18px;
+            color: #CBD5E1;
+            cursor: pointer;
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: -4px;
+            right: -6px;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background: var(--danger);
+            color: white;
+            font-size: 9px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+        }
+
+        /* USER PROFILE DROPDOWN */
+        .user-dropdown-container { position: relative; }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 6px;
+        }
+
+        .user-profile:hover { background: rgba(255,255,255,0.05); }
+
+        .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .user-info strong { display: block; font-size: 12px; }
+        .user-info span { display: block; color: #94A3B8; font-size: 10px; }
+
+        .dropdown-menu {
+            position: absolute;
+            right: 0;
+            top: 48px;
+            width: 180px;
+            background: white;
+            border: 1px solid #E5E7EB;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 1000;
+        }
+
+        .dropdown-menu.show { display: flex; }
+
+        .dropdown-item {
+            padding: 10px 14px;
+            color: #374151;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            transition: 0.15s;
+        }
+
+        .dropdown-item:hover { background: #F3F4F6; color: #111827; }
+        .dropdown-item.danger { color: var(--danger); }
+        .dropdown-item.danger:hover { background: #FFF1F2; }
+
+        /* ================= MAIN CONTENT ================= */
+        .main-content {
+            margin-left: 240px;
+            padding: 88px 28px 40px;
+            min-height: 100vh;
+            max-width: 1600px;
+        }
+
+        .page-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 22px;
+        }
+
+        .eyebrow {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--muted);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .page-header h1 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .page-header p {
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .primary-btn {
+            border: none;
+            background: var(--primary);
+            color: white;
+            border-radius: 6px;
+            padding: 9px 16px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: 0.2s ease;
+        }
+
+        .primary-btn:hover {
+            background: #1D4ED8;
+        }
+
+        .secondary-btn {
+            height: 38px;
+            border: 1px solid var(--border);
+            background: white;
+            border-radius: 6px;
+            padding: 0 13px;
+            font-size: 12px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            color: var(--text);
+        }
+
+        .secondary-btn:hover {
+            background: #F9FAFB;
+        }
+
+        /* ================= KPI CARDS ================= */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 22px;
+        }
+
+        .kpi-card {
+            background: var(--white);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 18px;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+        }
+
+        .kpi-label {
+            color: var(--muted);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .kpi-value {
+            font-size: 24px;
+            font-weight: 600;
+            color: #111827;
+        }
+
+        .kpi-description {
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 4px;
+        }
+
+        /* ================= FILTER BAR ================= */
+        .filter-bar {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .search-box {
+            position: relative;
+            flex: 1;
+            min-width: 220px;
+        }
+
+        .search-box i {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--muted);
+        }
+
+        .search-box input {
+            width: 100%;
+            height: 38px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0 12px 0 36px;
+            font-size: 12px;
+            outline: none;
+        }
+
+        .search-box input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+        }
+
+        .filter-select {
+            height: 38px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0 12px;
+            font-size: 12px;
+            color: var(--text);
+            background: white;
+            outline: none;
+        }
+
+        /* ================= TABLE ================= */
+        .table-card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+        }
+
+        .table-wrapper { overflow-x: auto; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 950px;
+        }
+
+        th {
+            background: #F9FAFB;
+            color: var(--muted);
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            text-align: left;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 14px 16px;
+            font-size: 12px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text);
+        }
+
+        tr:hover { background: #F9FAFB; }
+
+        .prop-name { font-weight: 600; color: var(--text); }
+        .prop-code { font-size: 11px; color: var(--muted); margin-top: 2px; }
+        .owner-name { font-weight: 500; color: var(--text); }
+
+        /* PROGRESS BAR FOR SHARE % */
+        .share-cell {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .share-bar-bg {
+            flex: 1;
+            height: 6px;
+            background: #E5E7EB;
+            border-radius: 999px;
+            overflow: hidden;
+            max-width: 100px;
+        }
+
+        .share-bar-fill {
+            height: 100%;
+            background: var(--primary);
+            border-radius: 999px;
+        }
+
+        .role-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 8px;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: 500;
+        }
+
+        .role-primary { background: #ECFDF5; color: #047857; }
+        .role-coowner { background: #EFF6FF; color: #1D4ED8; }
+
+        .action-button {
+            border: none;
+            background: transparent;
+            color: var(--muted);
+            font-size: 16px;
+            cursor: pointer;
+            padding: 4px 6px;
+            border-radius: 4px;
+        }
+
+        .action-button:hover { color: var(--primary); background: #EFF6FF; }
+        .action-button.delete:hover { color: var(--danger); background: #FFF1F2; }
+
+        .table-footer {
+            padding: 14px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: var(--muted);
+            font-size: 12px;
+            border-top: 1px solid var(--border);
+        }
+
+        .pagination { display: flex; align-items: center; gap: 4px; }
+
+        .page-button {
+            min-width: 30px;
+            height: 30px;
+            border: 1px solid var(--border);
+            background: white;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .page-button.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        /* ================= MODAL ================= */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.55);
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            padding: 20px;
+        }
+
+        .modal-overlay.show { display: flex; }
+
+        .modal {
+            width: 100%;
+            max-width: 520px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+            overflow: hidden;
+        }
+
+        .modal-header {
+            padding: 18px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 { font-size: 16px; font-weight: 600; }
+
+        .close-btn {
+            border: none;
+            background: none;
+            font-size: 18px;
+            cursor: pointer;
+            color: var(--muted);
+        }
+
+        .modal-body { padding: 20px; }
+        .form-group { margin-bottom: 14px; }
+
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 8px 10px;
+            font-size: 13px;
+            outline: none;
+        }
+
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .modal-footer {
+            padding: 14px 20px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            background: #F9FAFB;
+        }
+
+        /* RESPONSIVE */
+        @media (max-width: 1000px) {
+            .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar { width: 70px; padding: 20px 8px; }
+            .sidebar-brand h2, .sidebar-brand span, .nav-section-title, .nav-item span { display: none; }
+            .nav-item { justify-content: center; padding: 12px; }
+            .top-header { left: 70px; padding: 0 15px; }
+            .organization-pill { display: none; }
+            .main-content { margin-left: 70px; padding: 85px 15px 30px; }
+            .page-header { flex-direction: column; gap: 14px; }
+            .filter-bar { flex-direction: column; align-items: stretch; }
+            .table-footer { flex-direction: column; gap: 12px; align-items: flex-start; }
+        }
+
+        @media (max-width: 500px) {
+            .kpi-grid { grid-template-columns: 1fr; }
+            .form-row { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ================= SIDEBAR ================= -->
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-logo">A</div>
+            <div>
+                <h2>ARGO</h2>
+                <span>Property Management</span>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav">
+            <div class="nav-section-title">OVERVIEW</div>
+            <a href="dashboard.html" class="nav-item">
+                <i class="bi bi-grid-1x2"></i>
+                <span>Dashboard</span>
+            </a>
+
+            <div class="nav-section-title">PROPERTY OPERATIONS</div>
+            <a href="properties.html" class="nav-item">
+                <i class="bi bi-buildings"></i>
+                <span>Properties</span>
+            </a>
+            <a href="buildings.html" class="nav-item">
+                <i class="bi bi-building"></i>
+                <span>Buildings</span>
+            </a>
+            <a href="units.html" class="nav-item">
+                <i class="bi bi-door-open"></i>
+                <span>Units</span>
+            </a>
+            <a href="tenants.html" class="nav-item">
+                <i class="bi bi-people"></i>
+                <span>Tenants</span>
+            </a>
+            <a href="owners.html" class="nav-item">
+                <i class="bi bi-person-badge"></i>
+                <span>Owners</span>
+            </a>
+            <a href="property-ownership.html" class="nav-item active">
+                <i class="bi bi-pie-chart"></i>
+                <span>Fractional Ownership</span>
+            </a>
+            <a href="leases.html" class="nav-item">
+                <i class="bi bi-file-earmark-text"></i>
+                <span>Leases</span>
+            </a>
+
+            <div class="nav-section-title">FINANCE & SERVICES</div>
+            <a href="rent-collection.html" class="nav-item">
+                <i class="bi bi-cash-stack"></i>
+                <span>Rent Collection</span>
+            </a>
+	    <a href="transaction.html" class="nav-item">
+                <i class="bi bi-receipt-cutoff"></i>
+                <span>Transactions & Ledger</span>
+            </a>
+
+            <a href="utilities.html" class="nav-item">
+                <i class="bi bi-lightning-charge"></i>
+                <span>Utilities</span>
+            </a>
+            <a href="maintenance.html" class="nav-item">
+                <i class="bi bi-tools"></i>
+                <span>Maintenance</span>
+            </a>
+
+            <div class="nav-section-title">RECORDS & REPORTS</div>
+            <a href="inspections.html" class="nav-item">
+                <i class="bi bi-clipboard-check"></i>
+                <span>Inspections</span>
+            </a>
+            <a href="documents.html" class="nav-item">
+                <i class="bi bi-folder2-open"></i>
+                <span>Documents</span>
+            </a>
+            <a href="reports.html" class="nav-item">
+                <i class="bi bi-bar-chart"></i>
+                <span>Reports</span>
+            </a>
+
+            <div class="nav-section-title">SYSTEM</div>
+            <a href="settings.html" class="nav-item">
+                <i class="bi bi-gear"></i>
+                <span>Settings</span>
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <span>ARGO v0.5</span>
+        </div>
+    </aside>
+
+    <!-- ================= TOP HEADER ================= -->
+    <header class="top-header">
+        <div class="header-left">
+            <div class="organization-pill">
+                <i class="bi bi-building"></i>
+                <span>Sunrise Property Group</span>
+            </div>
+
+            <!-- DYNAMIC POV / ROLE SWITCHER FOR DB-FREE TESTING -->
+            <select class="pov-selector" id="povSelector" title="Switch User Role Perspective">
+                <option value="admin">POV: Admin / PM</option>
+                <option value="owner">POV: Property Owner</option>
+                <option value="client">POV: Client / Tenant</option>
+            </select>
+        </div>
+
+        <div class="header-right">
+            <div class="notification" title="Notifications">
+                <i class="bi bi-bell"></i>
+                <div class="notification-badge">3</div>
+            </div>
+
+            <div class="user-dropdown-container">
+                <div class="user-profile" id="userProfileBtn">
+                    <div class="avatar" id="userAvatar">JD</div>
+                    <div class="user-info">
+                        <strong id="userName">Juan Dela Cruz</strong>
+                        <span id="userRoleBadge">Property Manager</span>
+                    </div>
+                    <i class="bi bi-chevron-down" style="font-size: 10px; color: #94A3B8;"></i>
+                </div>
+
+                <div class="dropdown-menu" id="userDropdown">
+                    <a href="account.html" class="dropdown-item">
+                        <i class="bi bi-person-gear"></i>
+                        <span>Account Settings</span>
+                    </a>
+                    <a href="logout.html" class="dropdown-item danger">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Log Out</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ================= MAIN CONTENT ================= -->
+    <main class="main-content">
+
+        <!-- PAGE HEADER -->
+        <div class="page-header">
+            <div>
+                <div class="eyebrow">CAPITAL STRUCTURE & CAP TABLES</div>
+                <h1>Fractional Ownership Manager</h1>
+                <p>Manage co-ownership distributions, fractional equity shares, and primary property owners.</p>
+            </div>
+
+            <button class="primary-btn admin-action" onclick="openShareModal()">
+                <i class="bi bi-plus-lg"></i>
+                <span>Allocate Equity Share</span>
+            </button>
+        </div>
+
+        <!-- KPI CARDS -->
+        <section class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-label">Active Property Assets</div>
+                <div class="kpi-value" style="color:#2563EB;">24</div>
+                <div class="kpi-description">Registered properties</div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-label">100% Allocated Assets</div>
+                <div class="kpi-value" style="color:#059669;">22</div>
+                <div class="kpi-description">Cap tables balanced</div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-label">Unallocated Equity Assets</div>
+                <div class="kpi-value" style="color:#D97706;">2</div>
+                <div class="kpi-description">Under 100% total share</div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-label">Average Owners / Asset</div>
+                <div class="kpi-value">1.8</div>
+                <div class="kpi-description">Co-ownership density</div>
+            </div>
+        </section>
+
+        <!-- FILTER BAR -->
+        <div class="filter-bar">
+            <div class="search-box">
+                <i class="bi bi-search"></i>
+                <input type="text" id="searchInput" placeholder="Search property code, owner name, or share %..." onkeyup="filterTable()">
+            </div>
+
+            <select class="filter-select" id="propertyFilter" onchange="filterTable()">
+                <option value="">All Properties</option>
+                <option value="Sunrise Residences">Sunrise Residences</option>
+                <option value="Central Business Center">Central Business Center</option>
+                <option value="Greenfield Apartments">Greenfield Apartments</option>
+                <option value="Parkside Homes">Parkside Homes</option>
+            </select>
+
+            <select class="filter-select" id="roleFilter" onchange="filterTable()">
+                <option value="">All Ownership Roles</option>
+                <option value="Primary">Primary Managing Owner</option>
+                <option value="Co-Owner">Co-Owner / Fractional Share</option>
+            </select>
+
+            <button class="secondary-btn" onclick="resetFilters()">
+                <i class="bi bi-arrow-counterclockwise"></i>
+                Reset
+            </button>
+
+            <button class="secondary-btn">
+                <i class="bi bi-download"></i>
+                Export Cap Table
+            </button>
+        </div>
+
+        <!-- TABLE -->
+        <div class="table-card">
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>PROPERTY & CODE</th>
+                            <th>OWNER / ENTITY</th>
+                            <th>EQUITY SHARE (%)</th>
+                            <th>MANAGEMENT ROLE</th>
+                            <th>EFFECTIVE START DATE</th>
+                            <th>CONTRACT STATUS</th>
+                            <th class="admin-action">ACTIONS</th>
+                        </tr>
+                    </thead>
+                    <tbody id="shareTable">
+                        <tr data-property="Sunrise Residences" data-role="Primary">
+                            <td>
+                                <div class="prop-name">Sunrise Residences</div>
+                                <div class="prop-code">PROP-001</div>
+                            </td>
+                            <td>
+                                <div class="owner-name">Don Ramon Santos</div>
+                                <div class="prop-code">Individual Owner</div>
+                            </td>
+                            <td>
+                                <div class="share-cell">
+                                    <strong>100.00%</strong>
+                                    <div class="share-bar-bg"><div class="share-bar-fill" style="width: 100%;"></div></div>
+                                </div>
+                            </td>
+                            <td><span class="role-badge role-primary">Primary Managing Owner</span></td>
+                            <td>Jan 01, 2024</td>
+                            <td><span class="role-badge role-primary">Active</span></td>
+                            <td class="admin-action">
+                                <div class="actions">
+                                    <button class="action-button" title="Edit Share"><i class="bi bi-pencil"></i></button>
+                                    <button class="action-button delete" title="Remove Share"><i class="bi bi-trash"></i></button>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr data-property="Central Business Center" data-role="Primary">
+                            <td>
+                                <div class="prop-name">Central Business Center</div>
+                                <div class="prop-code">PROP-003</div>
+                            </td>
+                            <td>
+                                <div class="owner-name">Metro Investment Holdings Inc.</div>
+                                <div class="prop-code">Corporate Entity</div>
+                            </td>
+                            <td>
+                                <div class="share-cell">
+                                    <strong>50.00%</strong>
+                                    <div class="share-bar-bg"><div class="share-bar-fill" style="width: 50%;"></div></div>
+                                </div>
+                            </td>
+                            <td><span class="role-badge role-primary">Primary Managing Owner</span></td>
+                            <td>Mar 15, 2025</td>
+                            <td><span class="role-badge role-primary">Active</span></td>
+                            <td class="admin-action">
+                                <div class="actions">
+                                    <button class="action-button" title="Edit Share"><i class="bi bi-pencil"></i></button>
+                                    <button class="action-button delete" title="Remove Share"><i class="bi bi-trash"></i></button>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr data-property="Central Business Center" data-role="Co-Owner">
+                            <td>
+                                <div class="prop-name">Central Business Center</div>
+                                <div class="prop-code">PROP-003</div>
+                            </td>
+                            <td>
+                                <div class="owner-name">Don Ramon Santos</div>
+                                <div class="prop-code">Individual Owner</div>
+                            </td>
+                            <td>
+                                <div class="share-cell">
+                                    <strong>50.00%</strong>
+                                    <div class="share-bar-bg"><div class="share-bar-fill" style="width: 50%; background:#2563EB;"></div></div>
+                                </div>
+                            </td>
+                            <td><span class="role-badge role-coowner">Co-Owner / Fractional</span></td>
+                            <td>Mar 15, 2025</td>
+                            <td><span class="role-badge role-primary">Active</span></td>
+                            <td class="admin-action">
+                                <div class="actions">
+                                    <button class="action-button" title="Edit Share"><i class="bi bi-pencil"></i></button>
+                                    <button class="action-button delete" title="Remove Share"><i class="bi bi-trash"></i></button>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr data-property="Greenfield Apartments" data-role="Primary">
+                            <td>
+                                <div class="prop-name">Greenfield Apartments</div>
+                                <div class="prop-code">PROP-002</div>
+                            </td>
+                            <td>
+                                <div class="owner-name">Alicia Tan-Sy</div>
+                                <div class="prop-code">Individual Owner</div>
+                            </td>
+                            <td>
+                                <div class="share-cell">
+                                    <strong>100.00%</strong>
+                                    <div class="share-bar-bg"><div class="share-bar-fill" style="width: 100%;"></div></div>
+                                </div>
+                            </td>
+                            <td><span class="role-badge role-primary">Primary Managing Owner</span></td>
+                            <td>Jun 01, 2023</td>
+                            <td><span class="role-badge role-primary">Active</span></td>
+                            <td class="admin-action">
+                                <div class="actions">
+                                    <button class="action-button" title="Edit Share"><i class="bi bi-pencil"></i></button>
+                                    <button class="action-button delete" title="Remove Share"><i class="bi bi-trash"></i></button>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- TABLE FOOTER -->
+            <div class="table-footer">
+                <span>Showing 1–4 of 26 share records</span>
+                <div class="pagination">
+                    <button class="page-button"><i class="bi bi-chevron-left"></i></button>
+                    <button class="page-button active">1</button>
+                    <button class="page-button">2</button>
+                    <button class="page-button"><i class="bi bi-chevron-right"></i></button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- ================= MODAL: ASSIGN EQUITY SHARE ================= -->
+    <div class="modal-overlay" id="shareModal">
+        <div class="modal">
+            <div class="modal-header">
+                <div>
+                    <span class="eyebrow">CAP TABLE ALLOCATION</span>
+                    <h2>Allocate Equity Share</h2>
+                </div>
+                <button class="close-btn" onclick="closeModal('shareModal')"><i class="bi bi-x-lg"></i></button>
+            </div>
+
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Target Property</label>
+                    <select id="modalPropertySelect">
+                        <option value="">Select Property...</option>
+                        <option>Sunrise Residences (Available: 0%)</option>
+                        <option>Central Business Center (Available: 0%)</option>
+                        <option>Parkside Homes (Available: 25.00%)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Target Owner / Capital Partner</label>
+                    <select id="modalOwnerSelect">
+                        <option value="">Select Registered Owner...</option>
+                        <option>Don Ramon Santos (Individual)</option>
+                        <option>Metro Investment Holdings Inc. (Organization)</option>
+                        <option>Alicia Tan-Sy (Individual)</option>
+                        <option>Pacific Crest Realty Corp. (Organization)</option>
+                    </select>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Equity Share Percentage (%)</label>
+                        <input type="number" min="0.01" max="100" step="0.01" placeholder="e.g. 50.00">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Primary Owner Flag</label>
+                        <select>
+                            <option value="true">Yes — Primary Managing Owner</option>
+                            <option value="false">No — Fractional Co-Owner</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Effective Start Date</label>
+                        <input type="date">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Effective End Date (Optional)</label>
+                        <input type="date">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Contract / Deed Reference</label>
+                    <input type="text" placeholder="e.g. Deed of Assignment Ref #2026-991A">
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="secondary-btn" onclick="closeModal('shareModal')">Cancel</button>
+                <button class="primary-btn" onclick="saveShare()"><i class="bi bi-check-lg"></i> Save Share Allocation</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= JAVASCRIPT ================= -->
+    <script>
+        // Profile Dropdown Toggle
+        const userProfileBtn = document.getElementById('userProfileBtn');
+        const userDropdown = document.getElementById('userDropdown');
+
+        userProfileBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            userDropdown.classList.toggle('show');
+        });
+
+        document.addEventListener('click', () => {
+            userDropdown.classList.remove('show');
+        });
+
+        // Modal Controls
+        function openShareModal() { document.getElementById("shareModal").classList.add("show"); }
+        function closeModal(modalId) { document.getElementById(modalId).classList.remove("show"); }
+
+        function saveShare() {
+            alert("Equity share allocated successfully!");
+            closeModal("shareModal");
+        }
+
+        window.onclick = function(event) {
+            if (event.target.classList.contains('modal-overlay')) {
+                event.target.classList.remove("show");
+            }
+        };
+
+        // Live Filtering Logic
+        function filterTable() {
+            const searchValue = document.getElementById("searchInput").value.toLowerCase();
+            const propertyValue = document.getElementById("propertyFilter").value;
+            const roleValue = document.getElementById("roleFilter").value;
+
+            const rows = document.querySelectorAll("#shareTable tr");
+
+            rows.forEach(row => {
+                const text = row.innerText.toLowerCase();
+                const rowProperty = row.dataset.property;
+                const rowRole = row.dataset.role;
+
+                const matchesSearch = text.includes(searchValue);
+                const matchesProperty = propertyValue === "" || rowProperty === propertyValue;
+                const matchesRole = roleValue === "" || rowRole === roleValue;
+
+                if (matchesSearch && matchesProperty && matchesRole) {
+                    row.style.display = "";
+                } else {
+                    row.style.display = "none";
+                }
+            });
+        }
+
+        function resetFilters() {
+            document.getElementById("searchInput").value = "";
+            document.getElementById("propertyFilter").value = "";
+            document.getElementById("roleFilter").value = "";
+            filterTable();
+        }
+
+        // Role/POV Switcher for DB-less Testing
+        const povSelector = document.getElementById('povSelector');
+        const userName = document.getElementById('userName');
+        const userRoleBadge = document.getElementById('userRoleBadge');
+        const userAvatar = document.getElementById('userAvatar');
+        const adminActions = document.querySelectorAll('.admin-action');
+
+        povSelector.addEventListener('change', (e) => {
+            const role = e.target.value;
+
+            if (role === 'admin') {
+                userName.textContent = 'Juan Dela Cruz';
+                userRoleBadge.textContent = 'Property Manager';
+                userAvatar.textContent = 'JD';
+                adminActions.forEach(el => el.style.display = '');
+            } else if (role === 'owner') {
+                userName.textContent = 'Don Ramon Santos';
+                userRoleBadge.textContent = 'Property Owner';
+                userAvatar.textContent = 'RS';
+                adminActions.forEach(el => el.style.display = 'none');
+            } else if (role === 'client') {
+                userName.textContent = 'Maria Clara';
+                userRoleBadge.textContent = 'Tenant (Unit 101)';
+                userAvatar.textContent = 'MC';
+                adminActions.forEach(el => el.style.display = 'none');
+            }
+        });
+    </script>
+</body>
+</html>

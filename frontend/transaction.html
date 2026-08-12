@@ -1,0 +1,1359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transaction Ledger & Audit Engine | ARGO Property Management</title>
+
+    <!-- Inter Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+    <style>
+        :root {
+            --primary: #2563EB;
+            --sidebar: #0F172A;
+            --active: #1E293B;
+            --canvas: #F3F4F6;
+            --white: #FFFFFF;
+            --border: #E5E7EB;
+            --text: #111827;
+            --muted: #6B7280;
+            --success: #059669;
+            --danger: #E11D48;
+            --warning: #D97706;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--canvas);
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        button, input, select, textarea {
+            font-family: inherit;
+        }
+
+        /* ================= SIDEBAR ================= */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 240px;
+            height: 100vh;
+            background: #0F172A;
+            color: white;
+            padding: 20px 14px;
+            z-index: 1000;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 5px 12px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .brand-logo {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: #2563EB;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 700;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .sidebar-brand h2 {
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .sidebar-brand span {
+            font-size: 9px;
+            color: #94A3B8;
+            margin-top: 1px;
+            display: block;
+            letter-spacing: 0.8px;
+        }
+
+        .sidebar-nav {
+            margin-top: 16px;
+            flex: 1;
+        }
+
+        .nav-section-title {
+            font-size: 10px;
+            font-weight: 700;
+            color: #64748B;
+            letter-spacing: 0.08em;
+            padding: 14px 10px 6px;
+            text-transform: uppercase;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            color: #CBD5E1;
+            text-decoration: none;
+            border-radius: 6px;
+            margin-bottom: 3px;
+            font-size: 13px;
+            transition: 0.15s ease;
+        }
+
+        .nav-item:hover {
+            background: #172033;
+            color: white;
+        }
+
+        .nav-item.active {
+            background: #1E293B;
+            color: white;
+            font-weight: 500;
+        }
+
+        .nav-item.active i {
+            color: #60A5FA;
+        }
+
+        .nav-item i {
+            width: 20px;
+            font-size: 16px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .sidebar-footer {
+            padding: 14px 10px 0;
+            border-top: 1px solid rgba(255,255,255,0.08);
+            font-size: 11px;
+            color: #64748B;
+        }
+
+        /* ================= TOP HEADER ================= */
+        .top-header {
+            position: fixed;
+            top: 0;
+            left: 240px;
+            right: 0;
+            height: 64px;
+            background: var(--sidebar);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 28px;
+            z-index: 900;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            color: white;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .organization-pill {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #1E293B;
+            border: 1px solid #334155;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #E5E7EB;
+        }
+
+        .organization-pill i { color: #60A5FA; }
+
+        .pov-selector {
+            background: #1E293B;
+            border: 1px solid #334155;
+            color: #60A5FA;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            outline: none;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+        }
+
+        .notification-header-link {
+            position: relative;
+            font-size: 18px;
+            color: #CBD5E1;
+            background: #1E293B;
+            border: 1px solid #334155;
+            width: 38px;
+            height: 38px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            transition: 0.2s ease;
+        }
+
+        .notification-header-link:hover {
+            background: #2563EB;
+            color: white;
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--danger);
+            color: white;
+            font-size: 9px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            border: 2px solid var(--sidebar);
+        }
+
+        /* USER PROFILE DROPDOWN */
+        .user-dropdown-container { position: relative; }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 6px;
+        }
+
+        .user-profile:hover { background: rgba(255,255,255,0.05); }
+
+        .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .user-info strong { display: block; font-size: 12px; }
+        .user-info span { display: block; color: #94A3B8; font-size: 10px; }
+
+        .dropdown-menu {
+            position: absolute;
+            right: 0;
+            top: 48px;
+            width: 180px;
+            background: white;
+            border: 1px solid #E5E7EB;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 1000;
+        }
+
+        .dropdown-menu.show { display: flex; }
+
+        .dropdown-item {
+            padding: 10px 14px;
+            color: #374151;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            transition: 0.15s;
+        }
+
+        .dropdown-item:hover { background: #F3F4F6; color: #111827; }
+        .dropdown-item.danger { color: var(--danger); }
+        .dropdown-item.danger:hover { background: #FFF1F2; }
+
+        /* ================= MAIN CONTENT ================= */
+        .main-content {
+            margin-left: 240px;
+            padding: 88px 28px 40px;
+            min-height: 100vh;
+            max-width: 1600px;
+        }
+
+        .page-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 22px;
+        }
+
+        .eyebrow {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--muted);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .page-header h1 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .page-header p {
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .primary-btn {
+            border: none;
+            background: var(--primary);
+            color: white;
+            border-radius: 6px;
+            padding: 9px 16px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: 0.2s ease;
+        }
+
+        .primary-btn:hover { background: #1D4ED8; }
+
+        .secondary-btn {
+            height: 38px;
+            border: 1px solid var(--border);
+            background: white;
+            border-radius: 6px;
+            padding: 0 13px;
+            font-size: 12px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            color: var(--text);
+        }
+
+        .secondary-btn:hover { background: #F9FAFB; }
+
+        /* ================= KPI CARDS ================= */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 22px;
+        }
+
+        .kpi-card {
+            background: var(--white);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 18px;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+        }
+
+        .kpi-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .kpi-label {
+            color: var(--muted);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .kpi-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: #EFF6FF;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .kpi-value {
+            font-size: 24px;
+            font-weight: 600;
+            color: #111827;
+        }
+
+        .kpi-description {
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 4px;
+        }
+
+        /* ================= SEARCH & FILTER BAR ================= */
+        .filter-bar {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .search-box {
+            position: relative;
+            flex: 1;
+            min-width: 280px;
+        }
+
+        .search-box i {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--muted);
+        }
+
+        .search-box input {
+            width: 100%;
+            height: 38px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0 12px 0 36px;
+            font-size: 12px;
+            outline: none;
+        }
+
+        .search-box input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+        }
+
+        .filter-select {
+            height: 38px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0 12px;
+            font-size: 12px;
+            color: var(--text);
+            background: white;
+            outline: none;
+        }
+
+        /* ================= TABLE ================= */
+        .table-card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+            margin-bottom: 24px;
+        }
+
+        .table-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .table-header h2 { font-size: 15px; font-weight: 600; }
+
+        .table-wrapper { overflow-x: auto; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 1100px;
+        }
+
+        th {
+            background: #F9FAFB;
+            color: var(--muted);
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            text-align: left;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 14px 16px;
+            font-size: 12px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text);
+        }
+
+        tr:hover { background: #F9FAFB; }
+
+        .ref-code {
+            font-family: monospace;
+            font-weight: 700;
+            color: var(--primary);
+            font-size: 13px;
+        }
+
+        .direction-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .inflow { background: #ECFDF5; color: #047857; }
+        .outflow { background: #FFF1F2; color: #BE123C; }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 8px;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .status-verified { background: #ECFDF5; color: #047857; }
+        .status-pending { background: #FEF3C7; color: #B45309; }
+        .status-disbursed { background: #EFF6FF; color: #1D4ED8; }
+
+        .action-button {
+            border: none;
+            background: transparent;
+            color: var(--muted);
+            font-size: 16px;
+            cursor: pointer;
+            padding: 4px 6px;
+            border-radius: 4px;
+            transition: 0.15s;
+        }
+
+        .action-button:hover { color: var(--primary); background: #EFF6FF; }
+
+        /* ================= MODAL ================= */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.55);
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            padding: 20px;
+        }
+
+        .modal-overlay.show { display: flex; }
+
+        .modal {
+            width: 100%;
+            max-width: 650px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            max-height: 90vh;
+        }
+
+        .modal-header {
+            padding: 18px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 { font-size: 16px; font-weight: 600; }
+
+        .close-btn {
+            border: none;
+            background: none;
+            font-size: 18px;
+            cursor: pointer;
+            color: var(--muted);
+        }
+
+        .modal-body { padding: 20px; overflow-y: auto; flex: 1; }
+
+        .audit-card {
+            background: #F9FAFB;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px;
+            margin-bottom: 14px;
+        }
+
+        .audit-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            font-size: 12px;
+        }
+
+        .audit-field label { color: var(--muted); font-size: 10px; text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 2px; }
+        .audit-field span { font-weight: 600; color: var(--text); }
+
+        .lifecycle-steps {
+            margin-top: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .step-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            font-size: 12px;
+        }
+
+        .step-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #ECFDF5;
+            color: #047857;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            flex-shrink: 0;
+        }
+
+        .modal-footer {
+            padding: 14px 20px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            background: #F9FAFB;
+        }
+
+        /* RESPONSIVE */
+        @media (max-width: 1000px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 768px) {
+            .sidebar { width: 70px; padding: 20px 8px; }
+            .sidebar-brand h2, .sidebar-brand span, .nav-section-title, .nav-item span { display: none; }
+            .nav-item { justify-content: center; padding: 12px; }
+            .top-header { left: 70px; padding: 0 15px; }
+            .organization-pill { display: none; }
+            .main-content { margin-left: 70px; padding: 85px 15px 30px; }
+            .page-header { flex-direction: column; gap: 14px; }
+            .filter-bar { flex-direction: column; align-items: stretch; }
+        }
+    </style>
+</head>
+
+<body>
+
+     <!-- ================= SIDEBAR ================= -->
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-logo">A</div>
+            <div>
+                <h2>ARGO</h2>
+                <span>Property Management</span>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav">
+            <div class="nav-section-title">OVERVIEW</div>
+            <a href="dashboard.html" class="nav-item">
+                <i class="bi bi-grid-1x2"></i>
+                <span>Dashboard</span>
+            </a>
+
+            <div class="nav-section-title">PROPERTY OPERATIONS</div>
+            <a href="properties.html" class="nav-item">
+                <i class="bi bi-buildings"></i>
+                <span>Properties</span>
+            </a>
+            <a href="buildings.html" class="nav-item">
+                <i class="bi bi-building"></i>
+                <span>Buildings</span>
+            </a>
+            <a href="units.html" class="nav-item">
+                <i class="bi bi-door-open"></i>
+                <span>Units</span>
+            </a>
+            <a href="tenants.html" class="nav-item">
+                <i class="bi bi-people"></i>
+                <span>Tenants</span>
+            </a>
+            <a href="owners.html" class="nav-item">
+                <i class="bi bi-person-badge"></i>
+                <span>Owners</span>
+            </a>
+            <a href="property-ownership.html" class="nav-item">
+                <i class="bi bi-pie-chart"></i>
+                <span>Fractional Ownership</span>
+            </a>
+            <a href="leases.html" class="nav-item">
+                <i class="bi bi-file-earmark-text"></i>
+                <span>Leases</span>
+            </a>
+
+            <div class="nav-section-title">FINANCE & SERVICES</div>
+            <a href="rent-collection.html" class="nav-item">
+                <i class="bi bi-cash-stack"></i>
+                <span>Rent Collection</span>
+            </a>
+	    <a href="transaction.html" class="nav-item active">
+                <i class="bi bi-receipt-cutoff"></i>
+                <span>Transactions & Ledger</span>
+            </a>
+
+            <a href="utilities.html" class="nav-item">
+                <i class="bi bi-lightning-charge"></i>
+                <span>Utilities</span>
+            </a>
+            <a href="maintenance.html" class="nav-item">
+                <i class="bi bi-tools"></i>
+                <span>Maintenance</span>
+            </a>
+
+            <div class="nav-section-title">RECORDS & REPORTS</div>
+            <a href="inspections.html" class="nav-item">
+                <i class="bi bi-clipboard-check"></i>
+                <span>Inspections</span>
+            </a>
+            <a href="documents.html" class="nav-item">
+                <i class="bi bi-folder2-open"></i>
+                <span>Documents</span>
+            </a>
+            <a href="reports.html" class="nav-item">
+                <i class="bi bi-bar-chart"></i>
+                <span>Reports</span>
+            </a>
+
+            <div class="nav-section-title">SYSTEM</div>
+            <a href="settings.html" class="nav-item">
+                <i class="bi bi-gear"></i>
+                <span>Settings</span>
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <span>ARGO v0.5</span>
+        </div>
+    </aside>
+
+    <!-- ================= TOP HEADER ================= -->
+    <header class="top-header">
+        <div class="header-left">
+            <div class="organization-pill">
+                <i class="bi bi-building"></i>
+                <span>Sunrise Property Group</span>
+            </div>
+
+            <!-- DYNAMIC POV / ROLE SWITCHER FOR DB-LESS TESTING -->
+            <select class="pov-selector" id="povSelector" title="Switch User Role Perspective">
+                <option value="admin" selected>POV: Admin / PM</option>
+                <option value="owner">POV: Property Owner</option>
+                <option value="client">POV: Client / Tenant</option>
+            </select>
+        </div>
+
+        <div class="header-right">
+            <!-- EXCLUSIVE BELL ENTRY POINT LINKING DIRECTLY TO NOTIFICATION.HTML -->
+            <a href="notification.html" class="notification-header-link" title="Notifications Center">
+                <i class="bi bi-bell"></i>
+                <div class="notification-badge" id="headerNotifBadge">0</div>
+            </a>
+
+            <!-- USER PROFILE DROPDOWN -->
+            <div class="user-dropdown-container">
+                <div class="user-profile" id="userProfileBtn">
+                    <div class="avatar" id="userAvatar">JD</div>
+                    <div class="user-info">
+                        <strong id="userName">Juan Dela Cruz</strong>
+                        <span id="userRoleBadge">Property Manager</span>
+                    </div>
+                    <i class="bi bi-chevron-down" style="font-size: 10px; color: #94A3B8;"></i>
+                </div>
+
+                <div class="dropdown-menu" id="userDropdown">
+                    <a href="account.html" class="dropdown-item">
+                        <i class="bi bi-person-gear"></i>
+                        <span>Account Settings</span>
+                    </a>
+                    <a href="logout.html" class="dropdown-item danger">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Log Out</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ================= MAIN CONTENT ================= -->
+    <main class="main-content">
+
+        <!-- PAGE HEADER -->
+        <div class="page-header">
+            <div>
+                <div class="eyebrow">FINANCIAL AUDIT ENGINE</div>
+                <h1>Master Transaction Ledger & Reference Search</h1>
+                <p>Track multi-party payments, verify unique gateway reference codes, and inspect 3-POV lifecycle trails.</p>
+            </div>
+
+            <button class="primary-btn admin-action" onclick="alert('Exporting complete audit trail CSV...')">
+                <i class="bi bi-download"></i>
+                <span>Export Audit Trail</span>
+            </button>
+        </div>
+
+        <!-- KPI CARDS (RECALCULATED DYNAMICALLY FROM LOCALSTORAGE) -->
+        <section class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-top">
+                    <span class="kpi-label">YTD Inflows Collected</span>
+                    <div class="kpi-icon"><i class="bi bi-arrow-down-left-circle"></i></div>
+                </div>
+                <div class="kpi-value" id="kpiYtdInflows" style="color:var(--success);">₱1,120,500.00</div>
+                <div class="kpi-description">Across 24 active properties</div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-top">
+                    <span class="kpi-label">Verified Transactions</span>
+                    <div class="kpi-icon" style="background:#ECFDF5; color:var(--success);"><i class="bi bi-shield-check"></i></div>
+                </div>
+                <div class="kpi-value" id="kpiVerifiedCount" style="color:var(--success);">0 Records</div>
+                <div class="kpi-description">Audit matched reference codes</div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-top">
+                    <span class="kpi-label">Pending Reference Audits</span>
+                    <div class="kpi-icon" style="background:#FEF3C7; color:var(--warning);"><i class="bi bi-clock-history"></i></div>
+                </div>
+                <div class="kpi-value" id="kpiPendingCount" style="color:var(--warning);">0 Records</div>
+                <div class="kpi-description">Awaiting Admin hash match</div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-top">
+                    <span class="kpi-label">Owner Payouts Disbursed</span>
+                    <div class="kpi-icon" style="background:#EFF6FF; color:var(--primary);"><i class="bi bi-cash-stack"></i></div>
+                </div>
+                <div class="kpi-value" id="kpiDisbursedTotal" style="color:var(--primary);">₱845,000.00</div>
+                <div class="kpi-description">Net yield paid to owners</div>
+            </div>
+        </section>
+
+        <!-- FILTER BAR & UNIQUE REFERENCE LOOKUP -->
+        <div class="filter-bar">
+            <div class="search-box">
+                <i class="bi bi-search"></i>
+                <input type="text" id="searchInput" placeholder="Search unique reference code (e.g. #GCASH-987212), tenant, or location..." onkeyup="filterTable()">
+            </div>
+
+            <select class="filter-select" id="channelFilter" onchange="filterTable()">
+                <option value="">All Channels</option>
+                <option value="GCash">GCash</option>
+                <option value="MariBank">MariBank</option>
+                <option value="Maya">Maya</option>
+                <option value="BDO Bank Transfer">BDO Bank Transfer</option>
+            </select>
+
+            <select class="filter-select" id="statusFilter" onchange="filterTable()">
+                <option value="">All Statuses</option>
+                <option value="Verified">Verified</option>
+                <option value="Pending Audit">Pending Audit</option>
+                <option value="Disbursed">Disbursed to Owner</option>
+            </select>
+
+            <button class="secondary-btn" onclick="resetFilters()">
+                <i class="bi bi-arrow-counterclockwise"></i>
+                Reset
+            </button>
+        </div>
+
+        <!-- MASTER TRANSACTION TABLE -->
+        <div class="table-card">
+            <div class="table-header">
+                <h2>Master Audit Ledger</h2>
+                <span style="font-size:12px; color:var(--muted);">Synced with Tenant Portal & Owner Statements</span>
+            </div>
+
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>GATEWAY REF CODE</th>
+                            <th>INTERNAL TXN ID</th>
+                            <th>PAYER & PROPERTY LOCATION</th>
+                            <th>CATEGORY & DIRECTION</th>
+                            <th>GROSS AMOUNT</th>
+                            <th>CHANNEL</th>
+                            <th>TIMESTAMP</th>
+                            <th>STATUS</th>
+                            <th>ACTIONS</th>
+                        </tr>
+                    </thead>
+                    <tbody id="transactionTable">
+                        <!-- POPULATED DYNAMICALLY FROM LOCALSTORAGE -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- TABLE FOOTER -->
+            <div style="padding:14px 16px; display:flex; justify-content:space-between; align-items:center; color:var(--muted); font-size:12px; border-top:1px solid var(--border);">
+                <span id="showingCountText">Showing active ledger records</span>
+                <div style="display:flex; gap:4px;">
+                    <button class="secondary-btn" style="height:30px; padding:0 8px;"><i class="bi bi-chevron-left"></i></button>
+                    <button class="primary-btn" style="height:30px; padding:0 10px;">1</button>
+                    <button class="secondary-btn" style="height:30px; padding:0 8px;"><i class="bi bi-chevron-right"></i></button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- ================= MODAL: 11-POINT TRANSACTION AUDIT TRAIL ================= -->
+    <div class="modal-overlay" id="auditModal">
+        <div class="modal">
+            <div class="modal-header">
+                <div>
+                    <span class="eyebrow">11-POINT TRANSACTION AUDIT SCHEMA</span>
+                    <h2>Transaction Inspection Details</h2>
+                </div>
+                <button class="close-btn" onclick="closeModal()"><i class="bi bi-x-lg"></i></button>
+            </div>
+
+            <div class="modal-body">
+                <div class="audit-card">
+                    <div class="audit-grid">
+                        <div class="audit-field"><label>Gateway Ref Code</label><span id="mRef">#GCASH-987212</span></div>
+                        <div class="audit-field"><label>Internal System ID</label><span id="mTxnId">TXN-2026-0803-001</span></div>
+                        <div class="audit-field"><label>Payer Name</label><span id="mPayer">Maria Santos</span></div>
+                        <div class="audit-field"><label>Property & Unit Location</label><span id="mUnit">Sunrise Property • Bldg 2 • Unit 101</span></div>
+                        <div class="audit-field"><label>Category</label><span id="mCat">Monthly Base Rent</span></div>
+                        <div class="audit-field"><label>Direction</label><span id="mDir">INFLOW</span></div>
+                        <div class="audit-field"><label>Gross Amount</label><span id="mAmt" style="color:var(--success);">₱15,000.00</span></div>
+                        <div class="audit-field"><label>Payment Channel</label><span id="mChan">GCash</span></div>
+                    </div>
+                </div>
+
+                <div class="audit-card">
+                    <label style="color:var(--muted); font-size:10px; text-transform:uppercase; font-weight:700; display:block; margin-bottom:8px;">5-STAGE LIFECYCLE AUDIT TRAIL</label>
+                    <div class="lifecycle-steps">
+                        <div class="step-item">
+                            <div class="step-icon"><i class="bi bi-check"></i></div>
+                            <div>
+                                <strong>Stage 1: Tenant Submission (POV 3)</strong>
+                                <div style="color:var(--muted);" id="sStage1">Payment receipt submitted via client-billing.html</div>
+                            </div>
+                        </div>
+                        <div class="step-item">
+                            <div class="step-icon"><i class="bi bi-check"></i></div>
+                            <div>
+                                <strong>Stage 2: Header Alert Triggered</strong>
+                                <div style="color:var(--muted);">Notification bell incremented counter for Admin inspection</div>
+                            </div>
+                        </div>
+                        <div class="step-item">
+                            <div class="step-icon"><i class="bi bi-check"></i></div>
+                            <div>
+                                <strong>Stage 3: Gateway Verification (POV 1)</strong>
+                                <div style="color:var(--muted);">Property Manager matched reference code with payment gateway</div>
+                            </div>
+                        </div>
+                        <div class="step-item">
+                            <div class="step-icon"><i class="bi bi-check"></i></div>
+                            <div>
+                                <strong>Stage 4: Tenant Ledger Settlement</strong>
+                                <div style="color:var(--muted);">Tenant balance set to ₱0.00; PDF receipt generated</div>
+                            </div>
+                        </div>
+                        <div class="step-item">
+                            <div class="step-icon"><i class="bi bi-check"></i></div>
+                            <div>
+                                <strong>Stage 5: Owner Yield Split (POV 2)</strong>
+                                <div style="color:var(--muted);">Net yield credited to owner payout statement (10% PM fee split)</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="secondary-btn" onclick="closeModal()">Close Audit View</button>
+                <button class="primary-btn" onclick="alert('Downloading official verified transaction PDF...')"><i class="bi bi-file-earmark-pdf"></i> Download PDF Receipt</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= JAVASCRIPT ================= -->
+    <script>
+        // Seed Transactions
+        const DEFAULT_TRANSACTIONS = [
+            {
+                refCode: '#GCASH-987212',
+                txnId: 'TXN-2026-0803-001',
+                payer: 'Maria Santos',
+                fullLocation: 'Sunrise Property • Building 2 • Unit 101',
+                category: 'Monthly Base Rent',
+                direction: 'INFLOW',
+                grossAmount: '₱15,000.00',
+                amountVal: 15000,
+                channel: 'GCash',
+                status: 'Verified',
+                timestamp: 'Aug 03, 2026 — 02:10 PM'
+            },
+            {
+                refCode: '#MARI-TRF8812',
+                txnId: 'TXN-2026-0802-005',
+                payer: 'Maria Santos',
+                fullLocation: 'Sunrise Property • Building 2 • Unit 101',
+                category: 'Utilities (Water & Meralco)',
+                direction: 'INFLOW',
+                grossAmount: '₱4,850.00',
+                amountVal: 4850,
+                channel: 'MariBank',
+                status: 'Verified',
+                timestamp: 'Aug 02, 2026 — 11:20 AM'
+            },
+            {
+                refCode: '#BDO-TRF8812',
+                txnId: 'TXN-2026-0802-009',
+                payer: 'Sunrise Property Group',
+                fullLocation: 'To: Don Ramon Santos (Owner)',
+                category: 'Owner Net Yield Disbursement',
+                direction: 'OUTFLOW',
+                grossAmount: '₱13,500.00',
+                amountVal: 13500,
+                channel: 'BDO Bank Transfer',
+                status: 'Disbursed',
+                timestamp: 'Aug 02, 2026 — 05:30 PM'
+            }
+        ];
+
+        // Shared LocalStorage Accessors
+        function getTransactions() {
+            const data = localStorage.getItem('argo_transactions');
+            if (!data) {
+                localStorage.setItem('argo_transactions', JSON.stringify(DEFAULT_TRANSACTIONS));
+                return DEFAULT_TRANSACTIONS;
+            }
+            return JSON.parse(data);
+        }
+
+        function saveTransactions(transactions) {
+            localStorage.setItem('argo_transactions', JSON.stringify(transactions));
+        }
+
+        function getInvoices() {
+            return JSON.parse(localStorage.getItem('argo_invoices') || '[]');
+        }
+
+        function saveInvoices(invoices) {
+            localStorage.setItem('argo_invoices', JSON.stringify(invoices));
+        }
+
+        function getNotifications() {
+            return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
+        }
+
+        function saveNotifications(notifications) {
+            localStorage.setItem('argo_notifications', JSON.stringify(notifications));
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            renderTransactionTable();
+            updateKPIs();
+            updateHeaderBadge();
+        });
+
+        // Dynamic Table Render
+        function renderTransactionTable() {
+            const transactions = getTransactions();
+            const tbody = document.getElementById('transactionTable');
+            tbody.innerHTML = '';
+
+            if (transactions.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:var(--muted); padding:30px;">No transaction records found.</td></tr>`;
+                return;
+            }
+
+            transactions.forEach(t => {
+                const tr = document.createElement('tr');
+                tr.dataset.channel = t.channel;
+                tr.dataset.status = t.status;
+
+                const isOutflow = t.direction === 'OUTFLOW';
+                const directionBadge = isOutflow 
+                    ? `<span class="direction-badge outflow"><i class="bi bi-arrow-up-right"></i> OUTFLOW</span>`
+                    : `<span class="direction-badge inflow"><i class="bi bi-arrow-down-left"></i> INFLOW</span>`;
+
+                let statusBadge = '';
+                if (t.status === 'Verified') {
+                    statusBadge = `<span class="status-badge status-verified"><i class="bi bi-check-circle" style="margin-right:4px;"></i> Verified</span>`;
+                } else if (t.status === 'Pending Audit' || t.status === 'Pending') {
+                    statusBadge = `<span class="status-badge status-pending"><i class="bi bi-clock-history" style="margin-right:4px;"></i> Pending Audit</span>`;
+                } else {
+                    statusBadge = `<span class="status-badge status-disbursed"><i class="bi bi-box-arrow-up-right" style="margin-right:4px;"></i> ${t.status}</span>`;
+                }
+
+                const refColor = isOutflow ? '#6D28D9' : (t.status === 'Pending Audit' ? 'var(--warning)' : 'var(--primary)');
+                const amountColor = isOutflow ? 'var(--danger)' : (t.status === 'Pending Audit' ? 'var(--warning)' : 'var(--success)');
+
+                let actionsHtml = `
+                    <button class="action-button" title="Inspect Full 11-Point Audit Trail" onclick="openAuditModal('${t.refCode}', '${t.txnId}', '${t.payer}', '${t.fullLocation || t.unit || 'Sunrise Property'}', '${t.category}', '${t.direction}', '${t.grossAmount}', '${t.channel}', '${t.status}', '${t.timestamp}')"><i class="bi bi-eye"></i></button>
+                `;
+
+                if (t.status === 'Pending Audit' || t.status === 'Pending') {
+                    actionsHtml += `
+                        <button class="action-button admin-action" title="Approve & Verify Transaction" onclick="approveTransaction('${t.refCode}')"><i class="bi bi-check2-square" style="color:var(--success); font-size:18px;"></i></button>
+                    `;
+                }
+
+                tr.innerHTML = `
+                    <td><div class="ref-code" style="color:${refColor}">${t.refCode}</div></td>
+                    <td style="font-family:monospace; color:var(--muted);">${t.txnId}</td>
+                    <td>
+                        <strong>${t.payer}</strong>
+                        <div style="font-size:11px; color:var(--muted);">${t.fullLocation || t.unit || 'Sunrise Property • Bldg 2 • Unit 101'}</div>
+                    </td>
+                    <td>
+                        <div>${t.category}</div>
+                        ${directionBadge}
+                    </td>
+                    <td><strong style="color:${amountColor};">${t.grossAmount}</strong></td>
+                    <td>${t.channel}</td>
+                    <td>${t.timestamp}</td>
+                    <td>${statusBadge}</td>
+                    <td>
+                        <div style="display:flex; gap:6px;">${actionsHtml}</div>
+                    </td>
+                `;
+
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('showingCountText').textContent = `Showing 1–${transactions.length} of ${transactions.length} historical ledger records`;
+        }
+
+        // ONE-CLICK DIRECT APPROVAL FROM MASTER LEDGER
+        function approveTransaction(refCode) {
+            if (!confirm(`Verify transaction ${refCode} and clear tenant ledger?`)) return;
+
+            // 1. Update Transaction
+            let transactions = getTransactions();
+            transactions = transactions.map(t => {
+                if (t.refCode === refCode) return { ...t, status: 'Verified' };
+                return t;
+            });
+            saveTransactions(transactions);
+
+            // 2. Update Invoice
+            let invoices = getInvoices();
+            invoices = invoices.map(i => {
+                if (i.refNo === refCode) return { ...i, status: 'Paid' };
+                return i;
+            });
+            saveInvoices(invoices);
+
+            // 3. Add Notification
+            let notifications = getNotifications();
+            notifications.unshift({
+                id: `NOTIF-${Date.now()}`,
+                pov: 'client',
+                category: 'payment',
+                status: 'unread',
+                title: 'Transaction Verified in Master Ledger',
+                time: 'Just now',
+                description: `Payment ${refCode} has been verified and permanently recorded in the master ledger.`,
+                property: 'Sunrise Property • Building 2 • Unit 101'
+            });
+            saveNotifications(notifications);
+
+            renderTransactionTable();
+            updateKPIs();
+            updateHeaderBadge();
+
+            alert(`Transaction ${refCode} verified! Synced with Tenant Portal and Owner Yield Statements.`);
+        }
+
+        // Dynamic KPI Recalculation
+        function updateKPIs() {
+            const transactions = getTransactions();
+
+            let verifiedCount = 0;
+            let pendingCount = 0;
+            let totalInflows = 1120500; // Base historical
+            let totalDisbursed = 845000;
+
+            transactions.forEach(t => {
+                if (t.status === 'Verified') {
+                    verifiedCount++;
+                } else if (t.status === 'Pending Audit' || t.status === 'Pending') {
+                    pendingCount++;
+                }
+            });
+
+            document.getElementById('kpiVerifiedCount').textContent = `${verifiedCount} Records`;
+            document.getElementById('kpiPendingCount').textContent = `${pendingCount} Records`;
+            document.getElementById('kpiYtdInflows').textContent = `₱${totalInflows.toLocaleString('en-US', {minimumFractionDigits:2})}`;
+            document.getElementById('kpiDisbursedTotal').textContent = `₱${totalDisbursed.toLocaleString('en-US', {minimumFractionDigits:2})}`;
+        }
+
+        function updateHeaderBadge() {
+            const currentPov = document.getElementById('povSelector').value;
+            const notifs = getNotifications().filter(n => n.pov === currentPov && n.status === 'unread');
+            document.getElementById('headerNotifBadge').textContent = notifs.length;
+        }
+
+        // Modal Handler
+        function openAuditModal(ref, txnId, payer, unit, cat, dir, amt, chan, status, time) {
+            document.getElementById("mRef").textContent = ref;
+            document.getElementById("mTxnId").textContent = txnId;
+            document.getElementById("mPayer").textContent = payer;
+            document.getElementById("mUnit").textContent = unit;
+            document.getElementById("mCat").textContent = cat;
+            document.getElementById("mDir").textContent = dir;
+            document.getElementById("mAmt").textContent = amt;
+            document.getElementById("mChan").textContent = chan;
+
+            document.getElementById("sStage1").textContent = `${payer} submitted payment via client-billing.html`;
+
+            document.getElementById("auditModal").classList.add("show");
+        }
+
+        function closeModal() { document.getElementById("auditModal").classList.remove("show"); }
+
+        window.onclick = function(event) {
+            const modal = document.getElementById("auditModal");
+            if (event.target === modal) closeModal();
+        };
+
+        // Table Filter
+        function filterTable() {
+            const searchValue = document.getElementById("searchInput").value.toLowerCase();
+            const channelValue = document.getElementById("channelFilter").value;
+            const statusValue = document.getElementById("statusFilter").value;
+
+            const rows = document.querySelectorAll("#transactionTable tr");
+
+            rows.forEach(row => {
+                const text = row.innerText.toLowerCase();
+                const rowChannel = row.dataset.channel;
+                const rowStatus = row.dataset.status;
+
+                const matchesSearch = text.includes(searchValue);
+                const matchesChannel = channelValue === "" || rowChannel.includes(channelValue);
+                const matchesStatus = statusValue === "" || rowStatus.includes(statusValue);
+
+                if (matchesSearch && matchesChannel && matchesStatus) {
+                    row.style.display = "";
+                } else {
+                    row.style.display = "none";
+                }
+            });
+        }
+
+        function resetFilters() {
+            document.getElementById("searchInput").value = "";
+            document.getElementById("channelFilter").value = "";
+            document.getElementById("statusFilter").value = "";
+            filterTable();
+        }
+
+        // Dropdown Toggles
+        const userProfileBtn = document.getElementById('userProfileBtn');
+        const userDropdown = document.getElementById('userDropdown');
+
+        userProfileBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            userDropdown.classList.toggle('show');
+        });
+
+        document.addEventListener('click', () => { userDropdown.classList.remove('show'); });
+
+        // POV Selector Switcher
+        const povSelector = document.getElementById('povSelector');
+        const userName = document.getElementById('userName');
+        const userRoleBadge = document.getElementById('userRoleBadge');
+        const userAvatar = document.getElementById('userAvatar');
+        const adminActions = document.querySelectorAll('.admin-action');
+
+        povSelector.addEventListener('change', (e) => {
+            const role = e.target.value;
+
+            if (role === 'admin') {
+                userName.textContent = 'Juan Dela Cruz';
+                userRoleBadge.textContent = 'Property Manager';
+                userAvatar.textContent = 'JD';
+                userAvatar.style.background = '#2563EB';
+                adminActions.forEach(el => el.style.display = '');
+            } else if (role === 'owner') {
+                userName.textContent = 'Don Ramon Santos';
+                userRoleBadge.textContent = 'Property Owner';
+                userAvatar.textContent = 'RS';
+                userAvatar.style.background = '#059669';
+                adminActions.forEach(el => el.style.display = 'none');
+            } else if (role === 'client') {
+                userName.textContent = 'Maria Santos';
+                userRoleBadge.textContent = 'Tenant (Unit 101)';
+                userAvatar.textContent = 'MS';
+                userAvatar.style.background = '#D97706';
+                adminActions.forEach(el => el.style.display = 'none');
+            }
+
+            updateHeaderBadge();
+        });
+    </script>
+</body>
+</html>

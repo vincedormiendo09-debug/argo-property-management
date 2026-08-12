@@ -1,0 +1,1067 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Operations Command Center | ARGO Property Management</title>
+
+    <!-- Inter Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        :root {
+            --primary: #2563EB;
+            --sidebar: #0F172A;
+            --active: #1E293B;
+            --canvas: #F3F4F6;
+            --white: #FFFFFF;
+            --border: #E5E7EB;
+            --text: #111827;
+            --muted: #6B7280;
+            --success: #059669;
+            --danger: #E11D48;
+            --warning: #D97706;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--canvas);
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        button, input, select, textarea {
+            font-family: inherit;
+        }
+
+        /* ================= SIDEBAR ================= */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 240px;
+            height: 100vh;
+            background: #0F172A;
+            color: white;
+            padding: 20px 14px;
+            z-index: 1000;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 5px 12px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .brand-logo {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: #2563EB;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 700;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .sidebar-brand h2 {
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .sidebar-brand span {
+            font-size: 9px;
+            color: #94A3B8;
+            margin-top: 1px;
+            display: block;
+            letter-spacing: 0.8px;
+        }
+
+        .sidebar-nav {
+            margin-top: 16px;
+            flex: 1;
+        }
+
+        .nav-section-title {
+            font-size: 10px;
+            font-weight: 700;
+            color: #64748B;
+            letter-spacing: 0.08em;
+            padding: 14px 10px 6px;
+            text-transform: uppercase;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            color: #CBD5E1;
+            text-decoration: none;
+            border-radius: 6px;
+            margin-bottom: 3px;
+            font-size: 13px;
+            transition: 0.15s ease;
+        }
+
+        .nav-item:hover {
+            background: #172033;
+            color: white;
+        }
+
+        .nav-item.active {
+            background: #1E293B;
+            color: white;
+            font-weight: 500;
+        }
+
+        .nav-item.active i {
+            color: #60A5FA;
+        }
+
+        .nav-item i {
+            width: 20px;
+            font-size: 16px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .sidebar-footer {
+            padding: 14px 10px 0;
+            border-top: 1px solid rgba(255,255,255,0.08);
+            font-size: 11px;
+            color: #64748B;
+        }
+
+        /* ================= TOP HEADER ================= */
+        .top-header {
+            position: fixed;
+            top: 0;
+            left: 240px;
+            right: 0;
+            height: 64px;
+            background: var(--sidebar);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 28px;
+            z-index: 900;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            color: white;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .organization-pill {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #1E293B;
+            border: 1px solid #334155;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #E5E7EB;
+        }
+
+        .organization-pill i { color: #60A5FA; }
+
+        .pov-selector {
+            background: #1E293B;
+            border: 1px solid #334155;
+            color: #60A5FA;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            outline: none;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+        }
+
+        .notification-header-link {
+            position: relative;
+            font-size: 18px;
+            color: #CBD5E1;
+            background: #1E293B;
+            border: 1px solid #334155;
+            width: 38px;
+            height: 38px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            transition: 0.2s ease;
+        }
+
+        .notification-header-link:hover {
+            background: #2563EB;
+            color: white;
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--danger);
+            color: white;
+            font-size: 9px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            border: 2px solid var(--sidebar);
+        }
+
+        /* USER PROFILE DROPDOWN */
+        .user-dropdown-container { position: relative; }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 6px;
+        }
+
+        .user-profile:hover { background: rgba(255,255,255,0.05); }
+
+        .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .user-info strong { display: block; font-size: 12px; }
+        .user-info span { display: block; color: #94A3B8; font-size: 10px; }
+
+        .dropdown-menu {
+            position: absolute;
+            right: 0;
+            top: 48px;
+            width: 180px;
+            background: white;
+            border: 1px solid #E5E7EB;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 1000;
+        }
+
+        .dropdown-menu.show { display: flex; }
+
+        .dropdown-item {
+            padding: 10px 14px;
+            color: #374151;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            transition: 0.15s;
+        }
+
+        .dropdown-item:hover { background: #F3F4F6; color: #111827; }
+        .dropdown-item.danger { color: var(--danger); }
+        .dropdown-item.danger:hover { background: #FFF1F2; }
+
+        /* ================= MAIN CONTENT ================= */
+        .main-content {
+            margin-left: 240px;
+            padding: 88px 28px 40px;
+            min-height: 100vh;
+            max-width: 1600px;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 22px;
+        }
+
+        .eyebrow {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--muted);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .page-header h1 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .page-header p {
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .primary-button {
+            border: none;
+            background: var(--primary);
+            color: white;
+            padding: 9px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: 0.2s ease;
+        }
+
+        .primary-button:hover { background: #1D4ED8; }
+
+        /* ================= KPI CARDS ================= */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 22px;
+        }
+
+        .kpi-card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 18px;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+        }
+
+        .kpi-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .kpi-label {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--muted);
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .kpi-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: #EFF6FF;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .kpi-value {
+            font-size: 24px;
+            font-weight: 600;
+            color: #111827;
+        }
+
+        .kpi-description {
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 4px;
+        }
+
+        .positive { color: var(--success); font-weight: 500; }
+        .warning { color: var(--warning); font-weight: 500; }
+        .danger { color: var(--danger); font-weight: 500; }
+
+        /* ================= CHARTS & PANELS ================= */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 16px;
+            margin-bottom: 22px;
+        }
+
+        .card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .card-header h2 { font-size: 15px; font-weight: 600; }
+        .card-header span { font-size: 12px; color: var(--muted); }
+
+        .chart-container {
+            height: 250px;
+            position: relative;
+        }
+
+        /* ================= TABLES & ACTIVITY ================= */
+        .bottom-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 16px;
+        }
+
+        .table-wrapper { overflow-x: auto; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            text-align: left;
+            font-size: 10px;
+            color: var(--muted);
+            font-weight: 600;
+            padding: 12px 10px;
+            border-bottom: 1px solid var(--border);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        td {
+            padding: 14px 10px;
+            font-size: 12px;
+            border-bottom: 1px solid #F3F4F6;
+        }
+
+        tbody tr:hover { background: #F9FAFB; }
+
+        .status {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .status-active { background: #ECFDF5; color: #047857; }
+        .status-pending { background: #FEF3C7; color: #B45309; }
+        .status-maintenance { background: #FFF1F2; color: #BE123C; }
+
+        .activity-item {
+            display: flex;
+            gap: 12px;
+            padding: 12px 0;
+            border-bottom: 1px solid #F3F4F6;
+        }
+
+        .activity-item:last-child { border-bottom: none; }
+
+        .activity-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: #EFF6FF;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: 16px;
+        }
+
+        .activity-content p { font-size: 12px; margin-bottom: 2px; }
+        .activity-content span { font-size: 10px; color: var(--muted); }
+
+        /* RESPONSIVE */
+        @media (max-width: 1100px) {
+            .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+            .charts-grid, .bottom-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar { width: 70px; padding: 20px 8px; }
+            .sidebar-brand h2, .sidebar-brand span, .nav-section-title, .nav-item span { display: none; }
+            .nav-item { justify-content: center; padding: 12px; }
+            .top-header { left: 70px; padding: 0 15px; }
+            .organization-pill { display: none; }
+            .main-content { margin-left: 70px; padding: 85px 15px 30px; }
+            .kpi-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ================= SIDEBAR ================= -->
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-logo">A</div>
+            <div>
+                <h2>ARGO</h2>
+                <span>Property Management</span>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav" id="sidebarNav">
+            <!-- POPULATED DYNAMICALLY BY JAVASCRIPT -->
+        </nav>
+
+        <div class="sidebar-footer">
+            <span>ARGO v0.5</span>
+        </div>
+    </aside>
+
+    <!-- ================= TOP HEADER ================= -->
+    <header class="top-header">
+        <div class="header-left">
+            <div class="organization-pill">
+                <i class="bi bi-building"></i>
+                <span>Sunrise Property Group</span>
+            </div>
+
+            <!-- DYNAMIC POV / ROLE SWITCHER FOR DB-LESS TESTING -->
+            <select class="pov-selector" id="povSelector" title="Switch User Role Perspective">
+                <option value="admin" selected>POV: Admin / PM</option>
+                <option value="owner">POV: Property Owner</option>
+                <option value="client">POV: Client / Tenant</option>
+            </select>
+        </div>
+
+        <div class="header-right">
+            <!-- HEADER NOTIFICATION BELL LINK -->
+            <a href="notification.html" class="notification-header-link" title="Notifications Center">
+                <i class="bi bi-bell"></i>
+                <div class="notification-badge" id="headerNotifBadge">0</div>
+            </a>
+
+            <div class="user-dropdown-container">
+                <div class="user-profile" id="userProfileBtn">
+                    <div class="avatar" id="userAvatar">JD</div>
+                    <div class="user-info">
+                        <strong id="userName">Juan Dela Cruz</strong>
+                        <span id="userRoleBadge">Property Manager</span>
+                    </div>
+                    <i class="bi bi-chevron-down" style="font-size: 10px; color: #94A3B8;"></i>
+                </div>
+
+                <div class="dropdown-menu" id="userDropdown">
+                    <a href="account.html" class="dropdown-item">
+                        <i class="bi bi-person-gear"></i>
+                        <span>Account Settings</span>
+                    </a>
+                    <a href="logout.html" class="dropdown-item danger">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Log Out</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ================= MAIN CONTENT ================= -->
+    <main class="main-content">
+        <div class="page-header">
+            <div>
+                <div class="eyebrow">PROPERTY OPERATIONS</div>
+                <h1>Operations Command Center</h1>
+                <p>Real-time overview of managed properties, unit occupancy, rent collections, and maintenance tickets.</p>
+            </div>
+            <button class="primary-button" onclick="window.location.href='properties.html'">
+                <i class="bi bi-plus-lg"></i>
+                <span>Add Property</span>
+            </button>
+        </div>
+
+        <!-- KPI CARDS (RECALCULATED DYNAMICALLY FROM LOCALSTORAGE) -->
+        <section class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-top">
+                    <span class="kpi-label">Total Properties</span>
+                    <div class="kpi-icon"><i class="bi bi-buildings"></i></div>
+                </div>
+                <div class="kpi-value" id="kpiProperties">24</div>
+                <div class="kpi-description"><span class="positive">+2</span> added this year</div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-top">
+                    <span class="kpi-label">Total Units</span>
+                    <div class="kpi-icon"><i class="bi bi-door-open"></i></div>
+                </div>
+                <div class="kpi-value" id="kpiUnits">312</div>
+                <div class="kpi-description">Across all active assets</div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-top">
+                    <span class="kpi-label">Occupancy Rate</span>
+                    <div class="kpi-icon"><i class="bi bi-pie-chart"></i></div>
+                </div>
+                <div class="kpi-value" id="kpiOccupancy">86.5%</div>
+                <div class="kpi-description"><span class="positive">+4.2%</span> from last month</div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-top">
+                    <span class="kpi-label">Pending / Overdue Rent</span>
+                    <div class="kpi-icon" style="background:#FFF1F2; color:#E11D48;"><i class="bi bi-exclamation-circle"></i></div>
+                </div>
+                <div class="kpi-value" id="kpiOverdue" style="color:#E11D48;">₱18,160.75</div>
+                <div class="kpi-description" id="kpiOverdueSub"><span class="danger">Action required</span> in rent collection</div>
+            </div>
+        </section>
+
+        <!-- CHARTS GRID -->
+        <section class="charts-grid">
+            <div class="card">
+                <div class="card-header">
+                    <h2>Rent Collection Overview</h2>
+                    <span>Last 6 months</span>
+                </div>
+                <div class="chart-container">
+                    <canvas id="adminRentChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2>Unit Occupancy Breakdown</h2>
+                    <span>Real-time State</span>
+                </div>
+                <div class="chart-container">
+                    <canvas id="adminOccupancyChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- BOTTOM GRID: MANAGED PROPERTIES & LIVE SYSTEM ACTIVITY -->
+        <section class="bottom-grid">
+            <div class="card">
+                <div class="card-header">
+                    <h2>Managed Properties Summary</h2>
+                    <a href="properties.html" style="font-size:12px; color:#2563EB; text-decoration:none; font-weight:600;">View all</a>
+                </div>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>PROPERTY</th>
+                                <th>TYPE</th>
+                                <th>UNITS</th>
+                                <th>OCCUPANCY</th>
+                                <th>STATUS</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>Sunrise Property (Bldg 2)</strong></td>
+                                <td>Residential Condominium</td>
+                                <td>120</td>
+                                <td>92%</td>
+                                <td><span class="status status-active">Active</span></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Greenfield Apartments</strong></td>
+                                <td>Residential Complex</td>
+                                <td>86</td>
+                                <td>84%</td>
+                                <td><span class="status status-active">Active</span></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Central Business Center</strong></td>
+                                <td>Commercial Office</td>
+                                <td>64</td>
+                                <td>75%</td>
+                                <td><span class="status status-pending">Pending Audit</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2>System Activity Feed</h2>
+                    <span>Live Operations Log</span>
+                </div>
+                <div id="liveActivityFeed">
+                    <!-- POPULATED DYNAMICALLY FROM LOCALSTORAGE NOTIFICATIONS & TRANSACTIONS -->
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- ================= JAVASCRIPT ================= -->
+    <script>
+        // Dynamic Admin Sidebar Renderer & Role Guard
+        function renderSidebar() {
+            const pov = localStorage.getItem('argo_pov') || 'admin';
+
+            // Route Guard: Bounce non-admins to their respective portals
+            if (pov === 'owner') {
+                window.location.href = 'owner-dashboard.html';
+                return;
+            } else if (pov === 'client') {
+                window.location.href = 'client-dashboard.html';
+                return;
+            }
+
+            const nav = document.getElementById('sidebarNav');
+            nav.innerHTML = `
+                <div class="nav-section-title">OVERVIEW</div>
+                <a href="dashboard.html" class="nav-item active">
+                    <i class="bi bi-grid-1x2"></i>
+                    <span>Dashboard</span>
+                </a>
+
+                <div class="nav-section-title">PROPERTY OPERATIONS</div>
+                <a href="properties.html" class="nav-item">
+                    <i class="bi bi-buildings"></i>
+                    <span>Properties</span>
+                </a>
+                <a href="buildings.html" class="nav-item">
+                    <i class="bi bi-building"></i>
+                    <span>Buildings</span>
+                </a>
+                <a href="units.html" class="nav-item">
+                    <i class="bi bi-door-open"></i>
+                    <span>Units</span>
+                </a>
+                <a href="tenants.html" class="nav-item">
+                    <i class="bi bi-people"></i>
+                    <span>Tenants</span>
+                </a>
+                <a href="owners.html" class="nav-item">
+                    <i class="bi bi-person-badge"></i>
+                    <span>Owners</span>
+                </a>
+                <a href="property-ownership.html" class="nav-item">
+                    <i class="bi bi-pie-chart"></i>
+                    <span>Fractional Ownership</span>
+                </a>
+                <a href="leases.html" class="nav-item">
+                    <i class="bi bi-file-earmark-text"></i>
+                    <span>Leases</span>
+                </a>
+
+                <div class="nav-section-title">FINANCE & SERVICES</div>
+                <a href="rent-collection.html" class="nav-item">
+                    <i class="bi bi-cash-stack"></i>
+                    <span>Rent Collection</span>
+                </a>
+                <a href="transaction.html" class="nav-item">
+                    <i class="bi bi-receipt-cutoff"></i>
+                    <span>Transactions & Ledger</span>
+                </a>
+                <a href="utilities.html" class="nav-item">
+                    <i class="bi bi-lightning-charge"></i>
+                    <span>Utilities</span>
+                </a>
+                <a href="maintenance.html" class="nav-item">
+                    <i class="bi bi-tools"></i>
+                    <span>Maintenance</span>
+                </a>
+
+                <div class="nav-section-title">RECORDS & REPORTS</div>
+                <a href="inspections.html" class="nav-item">
+                    <i class="bi bi-clipboard-check"></i>
+                    <span>Inspections</span>
+                </a>
+                <a href="documents.html" class="nav-item">
+                    <i class="bi bi-folder2-open"></i>
+                    <span>Documents</span>
+                </a>
+                <a href="reports.html" class="nav-item">
+                    <i class="bi bi-bar-chart"></i>
+                    <span>Reports</span>
+                </a>
+
+                <div class="nav-section-title">SYSTEM</div>
+                <a href="settings.html" class="nav-item">
+                    <i class="bi bi-gear"></i>
+                    <span>Settings</span>
+                </a>
+            `;
+        }
+
+        // Shared LocalStorage Accessors
+        function getInvoices() {
+            return JSON.parse(localStorage.getItem('argo_invoices') || '[]');
+        }
+
+        function getTickets() {
+            return JSON.parse(localStorage.getItem('argo_maintenance_tickets') || '[]');
+        }
+
+        function getNotifications() {
+            return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
+        }
+
+        function getTransactions() {
+            return JSON.parse(localStorage.getItem('argo_transactions') || '[]');
+        }
+
+        // Initialize Page Data & Charts
+        document.addEventListener('DOMContentLoaded', () => {
+            renderSidebar();
+            syncPOV();
+            updateDashboardMetrics();
+            renderCharts();
+            renderLiveActivityFeed();
+            updateHeaderBadge();
+        });
+
+        // Cross-tab LocalStorage Synchronizer
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'argo_invoices' || e.key === 'argo_notifications' || e.key === 'argo_pov' || e.key === 'argo_user') {
+                renderSidebar();
+                syncPOV();
+                updateDashboardMetrics();
+                renderLiveActivityFeed();
+                updateHeaderBadge();
+            }
+        });
+
+        // Recalculate Live KPIs from Ecosystem LocalStorage
+        function updateDashboardMetrics() {
+            const invoices = getInvoices();
+            let pendingOverdueSum = 0;
+            let pendingCount = 0;
+
+            invoices.forEach(inv => {
+                if (inv.status === 'Unpaid' || inv.status === 'Pending Verification' || inv.status === 'Overdue') {
+                    pendingOverdueSum += inv.amount;
+                    pendingCount++;
+                }
+            });
+
+            document.getElementById('kpiOverdue').textContent = `₱${pendingOverdueSum.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+            document.getElementById('kpiOverdueSub').innerHTML = `<span class="danger">${pendingCount} item(s)</span> pending verification / unpaid`;
+        }
+
+        // Render Live System Activity Feed
+        function renderLiveActivityFeed() {
+            const notifications = getNotifications().filter(n => n.pov === 'admin').slice(0, 4);
+            const container = document.getElementById('liveActivityFeed');
+            container.innerHTML = '';
+
+            if (notifications.length === 0) {
+                container.innerHTML = `
+                    <div class="activity-item">
+                        <div class="activity-icon"><i class="bi bi-info-circle"></i></div>
+                        <div class="activity-content">
+                            <p><strong>System initialized</strong></p>
+                            <span>Operations running smoothly</span>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            notifications.forEach(n => {
+                let iconBi = 'bi-bell';
+                let iconStyle = 'background:#EFF6FF; color:#2563EB;';
+
+                if (n.category === 'payment') {
+                    iconBi = 'bi-cash-stack';
+                    iconStyle = 'background:#ECFDF5; color:#059669;';
+                } else if (n.category === 'maintenance') {
+                    iconBi = 'bi-tools';
+                    iconStyle = 'background:#FFF1F2; color:#E11D48;';
+                } else if (n.category === 'asset') {
+                    iconBi = 'bi-building';
+                    iconStyle = 'background:#F3E8FF; color:#7E22CE;';
+                }
+
+                const item = document.createElement('div');
+                item.className = 'activity-item';
+                item.innerHTML = `
+                    <div class="activity-icon" style="${iconStyle}"><i class="bi ${iconBi}"></i></div>
+                    <div class="activity-content">
+                        <p><strong>${n.title}</strong></p>
+                        <span>${n.time} • ${n.property || 'Sunrise Group'}</span>
+                    </div>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        function updateHeaderBadge() {
+            const currentPov = localStorage.getItem('argo_pov') || 'admin';
+            const notifs = getNotifications().filter(n => n.pov === currentPov && n.status === 'unread');
+            document.getElementById('headerNotifBadge').textContent = notifs.length;
+        }
+
+        // Initialize Admin Charts
+        function renderCharts() {
+            const invoices = getInvoices();
+            let paidSum = 0;
+            let unpaidSum = 0;
+
+            invoices.forEach(inv => {
+                if (inv.status === 'Paid') paidSum += inv.amount;
+                else unpaidSum += inv.amount;
+            });
+
+            // 1. Rent Collection Line Chart
+            const ctx1 = document.getElementById('adminRentChart').getContext('2d');
+            new Chart(ctx1, {
+                type: 'line',
+                data: {
+                    labels: ['March', 'April', 'May', 'June', 'July', 'August'],
+                    datasets: [
+                        {
+                            label: 'Collected Rent (₱)',
+                            data: [465000, 490000, 520000, 550000, 585000, paidSum > 0 ? paidSum : 610000],
+                            borderColor: '#2563EB',
+                            backgroundColor: 'rgba(37, 99, 235, 0.08)',
+                            borderWidth: 2,
+                            tension: 0.3,
+                            fill: true
+                        },
+                        {
+                            label: 'Pending / Unpaid Dues (₱)',
+                            data: [72000, 90000, 65000, 58000, 45000, unpaidSum > 0 ? unpaidSum : 18160],
+                            borderColor: '#E11D48',
+                            backgroundColor: 'rgba(225, 29, 72, 0.08)',
+                            borderWidth: 2,
+                            tension: 0.3,
+                            fill: true
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' } },
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+
+            // 2. Unit Occupancy Doughnut Chart
+            const ctx2 = document.getElementById('adminOccupancyChart').getContext('2d');
+            new Chart(ctx2, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Occupied (Maria Santos)', 'Vacant Ready', 'Maintenance'],
+                    datasets: [{
+                        data: [270, 30, 12],
+                        backgroundColor: ['#059669', '#D97706', '#E11D48'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '65%',
+                    plugins: { legend: { position: 'bottom' } }
+                }
+            });
+        }
+
+        // Profile Dropdown Toggle
+        const userProfileBtn = document.getElementById('userProfileBtn');
+        const userDropdown = document.getElementById('userDropdown');
+
+        userProfileBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            userDropdown.classList.toggle('show');
+        });
+
+        document.addEventListener('click', () => { userDropdown.classList.remove('show'); });
+
+        // POV Sync & Switcher
+        const povSelector = document.getElementById('povSelector');
+        const userName = document.getElementById('userName');
+        const userRoleBadge = document.getElementById('userRoleBadge');
+        const userAvatar = document.getElementById('userAvatar');
+
+        function syncPOV() {
+            const role = localStorage.getItem('argo_pov') || 'admin';
+            povSelector.value = role;
+
+            if (role === 'admin') {
+                userName.textContent = 'Juan Dela Cruz';
+                userRoleBadge.textContent = 'Property Manager';
+                userAvatar.textContent = 'JD';
+                userAvatar.style.background = '#2563EB';
+            } else if (role === 'owner') {
+                userName.textContent = 'Don Ramon Santos';
+                userRoleBadge.textContent = 'Property Owner';
+                userAvatar.textContent = 'RS';
+                userAvatar.style.background = '#059669';
+            } else if (role === 'client') {
+                userName.textContent = 'Maria Santos';
+                userRoleBadge.textContent = 'Sunrise Property • Bldg 2 • Unit 101';
+                userAvatar.textContent = 'MS';
+                userAvatar.style.background = '#D97706';
+            }
+        }
+
+        povSelector.addEventListener('change', (e) => {
+            const role = e.target.value;
+            localStorage.setItem('argo_pov', role);
+
+            if (role === 'owner') {
+                window.location.href = 'owner-dashboard.html';
+            } else if (role === 'client') {
+                window.location.href = 'client-dashboard.html';
+            } else {
+                syncPOV();
+                updateHeaderBadge();
+            }
+        });
+    </script>
+</body>
+</html>

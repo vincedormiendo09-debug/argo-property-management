@@ -1,0 +1,1456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maintenance Service Desk | ARGO Tenant Portal</title>
+
+    <!-- Inter Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+    <style>
+        :root {
+            --primary: #2563EB;
+            --sidebar: #0F172A;
+            --active: #1E293B;
+            --canvas: #F3F4F6;
+            --white: #FFFFFF;
+            --border: #E5E7EB;
+            --text: #111827;
+            --muted: #6B7280;
+            --success: #059669;
+            --danger: #E11D48;
+            --warning: #D97706;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--canvas);
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        button, input, select, textarea {
+            font-family: inherit;
+        }
+
+        /* ================= SIDEBAR ================= */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 240px;
+            height: 100vh;
+            background: #0F172A;
+            color: white;
+            padding: 20px 14px;
+            z-index: 1000;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 5px 12px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .brand-logo {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: #2563EB;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 700;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .sidebar-brand h2 {
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .sidebar-brand span {
+            font-size: 9px;
+            color: #94A3B8;
+            margin-top: 1px;
+            display: block;
+            letter-spacing: 0.8px;
+        }
+
+        .sidebar-nav {
+            margin-top: 16px;
+            flex: 1;
+        }
+
+        .nav-section-title {
+            font-size: 10px;
+            font-weight: 700;
+            color: #64748B;
+            letter-spacing: 0.08em;
+            padding: 14px 10px 6px;
+            text-transform: uppercase;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            color: #CBD5E1;
+            text-decoration: none;
+            border-radius: 6px;
+            margin-bottom: 3px;
+            font-size: 13px;
+            transition: 0.15s ease;
+        }
+
+        .nav-item:hover {
+            background: #172033;
+            color: white;
+        }
+
+        .nav-item.active {
+            background: #1E293B;
+            color: white;
+            font-weight: 500;
+        }
+
+        .nav-item.active i {
+            color: #60A5FA;
+        }
+
+        .nav-item i {
+            width: 20px;
+            font-size: 16px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .sidebar-footer {
+            padding: 14px 10px 0;
+            border-top: 1px solid rgba(255,255,255,0.08);
+            font-size: 11px;
+            color: #64748B;
+        }
+
+        /* ================= TOP HEADER ================= */
+        .top-header {
+            position: fixed;
+            top: 0;
+            left: 240px;
+            right: 0;
+            height: 64px;
+            background: var(--sidebar);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 28px;
+            z-index: 900;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            color: white;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .organization-pill {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #1E293B;
+            border: 1px solid #334155;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #E5E7EB;
+        }
+
+        .organization-pill i { color: #60A5FA; }
+
+        .pov-selector {
+            background: #1E293B;
+            border: 1px solid #334155;
+            color: #60A5FA;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            outline: none;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+        }
+
+        .notification-header-link {
+            position: relative;
+            font-size: 18px;
+            color: #CBD5E1;
+            background: #1E293B;
+            border: 1px solid #334155;
+            width: 38px;
+            height: 38px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            transition: 0.2s ease;
+        }
+
+        .notification-header-link:hover {
+            background: #2563EB;
+            color: white;
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--danger);
+            color: white;
+            font-size: 9px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            border: 2px solid var(--sidebar);
+        }
+
+        /* USER PROFILE DROPDOWN */
+        .user-dropdown-container { position: relative; }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 6px;
+        }
+
+        .user-profile:hover { background: rgba(255,255,255,0.05); }
+
+        .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--warning);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .user-info strong { display: block; font-size: 12px; }
+        .user-info span { display: block; color: #94A3B8; font-size: 10px; }
+
+        .dropdown-menu {
+            position: absolute;
+            right: 0;
+            top: 48px;
+            width: 180px;
+            background: white;
+            border: 1px solid #E5E7EB;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 1000;
+        }
+
+        .dropdown-menu.show { display: flex; }
+
+        .dropdown-item {
+            padding: 10px 14px;
+            color: #374151;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            transition: 0.15s;
+        }
+
+        .dropdown-item:hover { background: #F3F4F6; color: #111827; }
+        .dropdown-item.danger { color: var(--danger); }
+        .dropdown-item.danger:hover { background: #FFF1F2; }
+
+        /* ================= MAIN CONTENT ================= */
+        .main-content {
+            margin-left: 240px;
+            padding: 88px 28px 40px;
+            min-height: 100vh;
+            max-width: 1600px;
+        }
+
+        .page-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 22px;
+        }
+
+        .eyebrow {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--muted);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .page-header h1 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .page-header p {
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .primary-btn {
+            border: none;
+            background: var(--primary);
+            color: white;
+            border-radius: 6px;
+            padding: 9px 16px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: 0.2s ease;
+        }
+
+        .primary-btn:hover { background: #1D4ED8; }
+
+        .secondary-btn {
+            height: 38px;
+            border: 1px solid var(--border);
+            background: white;
+            border-radius: 6px;
+            padding: 0 13px;
+            font-size: 12px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            color: var(--text);
+        }
+
+        .secondary-btn:hover { background: #F9FAFB; }
+
+        /* ================= LIVE DISPATCH BANNER ================= */
+        .live-dispatch-banner {
+            background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
+            border: 1px solid #BFDBFE;
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-bottom: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 4px rgba(37, 99, 235, 0.06);
+        }
+
+        .live-dispatch-left {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .live-pulse-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 10px;
+            background: #2563EB;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.2);
+            animation: pulse-ring 2s infinite;
+        }
+
+        @keyframes pulse-ring {
+            0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(37, 99, 235, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
+        }
+
+        .banner-title {
+            font-weight: 700;
+            font-size: 14px;
+            color: #1E3A8A;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .banner-sub {
+            font-size: 12px;
+            color: #1E40AF;
+            margin-top: 2px;
+        }
+
+        /* ================= KPI CARDS ================= */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 22px;
+        }
+
+        .kpi-card {
+            background: var(--white);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 18px;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+        }
+
+        .kpi-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .kpi-label {
+            color: var(--muted);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .kpi-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: #EFF6FF;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .kpi-value {
+            font-size: 24px;
+            font-weight: 600;
+            color: #111827;
+        }
+
+        .kpi-description {
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 4px;
+        }
+
+        /* ================= FILTER BAR ================= */
+        .filter-bar {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .search-box {
+            position: relative;
+            flex: 1;
+            min-width: 220px;
+        }
+
+        .search-box i {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--muted);
+        }
+
+        .search-box input {
+            width: 100%;
+            height: 38px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0 12px 0 36px;
+            font-size: 12px;
+            outline: none;
+        }
+
+        .search-box input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+        }
+
+        .filter-select {
+            height: 38px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0 12px;
+            font-size: 12px;
+            color: var(--text);
+            background: white;
+            outline: none;
+        }
+
+        /* ================= TABLE ================= */
+        .table-card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+        }
+
+        .table-wrapper { overflow-x: auto; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 950px;
+        }
+
+        th {
+            background: #F9FAFB;
+            color: var(--muted);
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            text-align: left;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 14px 16px;
+            font-size: 12px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text);
+        }
+
+        tr:hover { background: #F9FAFB; }
+
+        .ticket-id { font-weight: 600; color: var(--text); }
+        .ticket-title { font-weight: 600; color: var(--text); }
+        .ticket-sub { color: var(--muted); font-size: 11px; margin-top: 2px; }
+
+        /* STATUS & PRIORITY BADGES */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .status-submitted { background: #EFF6FF; color: #1D4ED8; }
+        .status-progress { background: #DBEAFE; color: #1E40AF; border: 1px solid #BFDBFE; }
+        .status-resolved { background: #ECFDF5; color: #047857; }
+
+        .priority-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .priority-high { background: #FFF1F2; color: #BE123C; }
+        .priority-normal { background: #F3F4F6; color: #374151; }
+
+        .action-button {
+            border: none;
+            background: transparent;
+            color: var(--muted);
+            font-size: 16px;
+            cursor: pointer;
+            padding: 4px 6px;
+            border-radius: 4px;
+        }
+
+        .action-button:hover { color: var(--primary); background: #EFF6FF; }
+
+        .table-footer {
+            padding: 14px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: var(--muted);
+            font-size: 12px;
+            border-top: 1px solid var(--border);
+        }
+
+        .pagination { display: flex; align-items: center; gap: 4px; }
+
+        .page-button {
+            min-width: 30px;
+            height: 30px;
+            border: 1px solid var(--border);
+            background: white;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .page-button.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        /* ================= MODAL ================= */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.55);
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            padding: 20px;
+        }
+
+        .modal-overlay.show { display: flex; }
+
+        .modal {
+            width: 100%;
+            max-width: 540px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            max-height: 90vh;
+        }
+
+        .modal-header {
+            padding: 18px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 { font-size: 16px; font-weight: 600; }
+
+        .close-btn {
+            border: none;
+            background: none;
+            font-size: 18px;
+            cursor: pointer;
+            color: var(--muted);
+        }
+
+        .modal-body { padding: 20px; overflow-y: auto; flex: 1; }
+        .form-group { margin-bottom: 14px; }
+
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 8px 10px;
+            font-size: 13px;
+            outline: none;
+        }
+
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+        }
+
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+        .location-tag-box {
+            background: #EFF6FF;
+            border: 1px solid #BFDBFE;
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 11px;
+            color: #1E40AF;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .modal-footer {
+            padding: 14px 20px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            background: #F9FAFB;
+        }
+
+        /* RESPONSIVE */
+        @media (max-width: 1000px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 768px) {
+            .sidebar { width: 70px; padding: 20px 8px; }
+            .sidebar-brand h2, .sidebar-brand span, .nav-section-title, .nav-item span { display: none; }
+            .nav-item { justify-content: center; padding: 12px; }
+            .top-header { left: 70px; padding: 0 15px; }
+            .organization-pill { display: none; }
+            .main-content { margin-left: 70px; padding: 85px 15px 30px; }
+            .page-header { flex-direction: column; gap: 14px; }
+            .filter-bar { flex-direction: column; align-items: stretch; }
+            .form-row { grid-template-columns: 1fr; }
+            .live-dispatch-banner { flex-direction: column; align-items: flex-start; gap: 12px; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ================= SIDEBAR ================= -->
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-logo">A</div>
+            <div>
+                <h2>ARGO</h2>
+                <span>Tenant Portal</span>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav">
+            <div class="nav-section-title">SELF-SERVICE HOME</div>
+            <a href="client-dashboard.html" class="nav-item">
+                <i class="bi bi-house-door"></i>
+                <span>My Tenancy Home</span>
+            </a>
+            <a href="client-billing.html" class="nav-item">
+                <i class="bi bi-cash-stack"></i>
+                <span>Pay Rent & Dues</span>
+            </a>
+            <a href="client-utilities.html" class="nav-item">
+                <i class="bi bi-lightning-charge"></i>
+                <span>My Utilities & Meters</span>
+            </a>
+            <a href="client-maintenance.html" class="nav-item active">
+                <i class="bi bi-tools"></i>
+                <span>Submit Maintenance</span>
+            </a>
+            <a href="inspections.html" class="nav-item">
+                <i class="bi bi-clipboard-check"></i>
+                <span>Move-In & Inspections</span>
+            </a>
+            <a href="documents.html" class="nav-item">
+                <i class="bi bi-folder2-open"></i>
+                <span>My Lease & Receipts</span>
+            </a>
+
+            <div class="nav-section-title">SYSTEM</div>
+            <a href="settings.html" class="nav-item">
+                <i class="bi bi-gear"></i>
+                <span>Account Settings</span>
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <span>ARGO v0.5 (Tenant POV)</span>
+        </div>
+    </aside>
+
+
+    <!-- ================= TOP HEADER ================= -->
+    <header class="top-header">
+        <div class="header-left">
+            <div class="organization-pill">
+                <i class="bi bi-building"></i>
+                <span>Sunrise Property Group</span>
+            </div>
+
+            <!-- DYNAMIC POV / ROLE SWITCHER FOR DB-LESS TESTING -->
+            <select class="pov-selector" id="povSelector" title="Switch User Role Perspective">
+                <option value="client" selected>POV: Client / Tenant</option>
+                <option value="admin">POV: Admin / PM</option>
+                <option value="owner">POV: Property Owner</option>
+            </select>
+        </div>
+
+        <div class="header-right">
+            <!-- EXCLUSIVE HEADER NOTIFICATION LINK -->
+            <a href="notification.html" class="notification-header-link" title="Notifications Center">
+                <i class="bi bi-bell"></i>
+                <div class="notification-badge" id="clientHeaderNotifBadge">0</div>
+            </a>
+
+            <!-- USER PROFILE DROPDOWN -->
+            <div class="user-dropdown-container">
+                <div class="user-profile" id="userProfileBtn">
+                    <div class="avatar" id="userAvatar">MS</div>
+                    <div class="user-info">
+                        <strong id="userName">Maria Santos</strong>
+                        <span id="userRoleBadge">Sunrise Property • Bldg 2 • Unit 101</span>
+                    </div>
+                    <i class="bi bi-chevron-down" style="font-size: 10px; color: #94A3B8;"></i>
+                </div>
+
+                <div class="dropdown-menu" id="userDropdown">
+                    <a href="account.html" class="dropdown-item">
+                        <i class="bi bi-person-gear"></i>
+                        <span>Account Settings</span>
+                    </a>
+                    <a href="logout.html" class="dropdown-item danger">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Log Out</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ================= MAIN CONTENT ================= -->
+    <main class="main-content">
+
+        <!-- PAGE HEADER -->
+        <div class="page-header">
+            <div>
+                <div class="eyebrow">POV 3: SERVICE DESK & REPAIR TRACKER</div>
+                <h1>Maintenance Service Desk</h1>
+                <p>Report unit repair issues, upload supporting photos, and track live technician dispatch in real-time.</p>
+            </div>
+
+            <button class="primary-btn" onclick="openMaintenanceModal()">
+                <i class="bi bi-plus-lg"></i>
+                <span>Report New Issue</span>
+            </button>
+        </div>
+
+        <!-- LIVE TECHNICIAN DISPATCH BANNER (POPULATED DYNAMICALLY WHEN CONTRACTOR IS DISPATCHED) -->
+        <div id="liveDispatchBanner" class="live-dispatch-banner" style="display: none;">
+            <div class="live-dispatch-left">
+                <div class="live-pulse-icon">
+                    <i class="bi bi-tools"></i>
+                </div>
+                <div>
+                    <div class="banner-title">
+                        <span>Technician Scheduled for Arrival!</span>
+                        <span style="font-size: 10px; background: #2563EB; color: white; padding: 2px 8px; border-radius: 999px;">LIVE DISPATCH</span>
+                    </div>
+                    <div class="banner-sub" id="bannerDetails">
+                        Property Manager Juan Dela Cruz assigned <strong>Roldan HVAC Services</strong>. Scheduled Arrival: <strong>Today at 02:00 PM</strong>.
+                    </div>
+                </div>
+            </div>
+            <button class="primary-btn" style="background:#1D4ED8; white-space:nowrap;" onclick="openActiveDispatchModal()">
+                <i class="bi bi-clock-history"></i> Inspect Arrival Schedule
+            </button>
+        </div>
+
+        <!-- KPI CARDS (DYNAMICALLY RECALCULATED) -->
+        <section class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-top">
+                    <span class="kpi-label">Total Tickets Filed</span>
+                    <div class="kpi-icon"><i class="bi bi-tools"></i></div>
+                </div>
+                <div class="kpi-value" id="kpiTotalTickets">0 Tickets</div>
+                <div class="kpi-description">Historical service requests</div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-top">
+                    <span class="kpi-label">Active / In Progress</span>
+                    <div class="kpi-icon" style="background:#FEF3C7; color:var(--warning);"><i class="bi bi-clock-history"></i></div>
+                </div>
+                <div class="kpi-value" id="kpiActiveTickets" style="color:var(--warning);">0 Active</div>
+                <div class="kpi-description" id="kpiActiveDesc">Awaiting technician arrival</div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-top">
+                    <span class="kpi-label">Resolved Tickets</span>
+                    <div class="kpi-icon" style="background:#ECFDF5; color:var(--success);"><i class="bi bi-check-circle"></i></div>
+                </div>
+                <div class="kpi-value" id="kpiResolvedTickets" style="color:var(--success);">0 Completed</div>
+                <div class="kpi-description">Signed off & closed</div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-top">
+                    <span class="kpi-label">Avg Response Speed</span>
+                    <div class="kpi-icon" style="background:#EFF6FF; color:var(--primary);"><i class="bi bi-speedometer2"></i></div>
+                </div>
+                <div class="kpi-value" style="color:var(--primary);">1.5 Hours</div>
+                <div class="kpi-description">Property manager dispatch speed</div>
+            </div>
+        </section>
+
+        <!-- FILTER BAR -->
+        <div class="filter-bar">
+            <div class="search-box">
+                <i class="bi bi-search"></i>
+                <input type="text" id="searchInput" placeholder="Search ticket ID, category, or issue description..." onkeyup="filterTable()">
+            </div>
+
+            <select class="filter-select" id="statusFilter" onchange="filterTable()">
+                <option value="">All Statuses</option>
+                <option value="Open">Open / Submitted</option>
+                <option value="In Progress">In Progress / Dispatched</option>
+                <option value="Resolved">Resolved</option>
+            </select>
+
+            <select class="filter-select" id="categoryFilter" onchange="filterTable()">
+                <option value="">All Categories</option>
+                <option value="Plumbing">Plumbing</option>
+                <option value="Electrical">Electrical</option>
+                <option value="HVAC">HVAC / Aircon</option>
+                <option value="Appliance">Appliance</option>
+            </select>
+
+            <button class="secondary-btn" onclick="resetFilters()">
+                <i class="bi bi-arrow-counterclockwise"></i>
+                Reset
+            </button>
+        </div>
+
+        <!-- TICKETS TABLE -->
+        <div class="table-card">
+            <div class="table-header" style="padding:16px 20px; border-bottom:1px solid var(--border);">
+                <h2>My Service Requests</h2>
+                <span style="font-size:12px; color:var(--muted);">Sunrise Property • Building 2 • Unit 101</span>
+            </div>
+
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>TICKET ID</th>
+                            <th>ISSUE CATEGORY & DESCRIPTION</th>
+                            <th>DATE FILED</th>
+                            <th>PRIORITY</th>
+                            <th>LIVE PROGRESS TRACKER</th>
+                            <th>ACTIONS</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ticketTable">
+                        <!-- POPULATED DYNAMICALLY FROM LOCALSTORAGE -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- TABLE FOOTER -->
+            <div class="table-footer">
+                <span id="showingCountText">Showing active tickets</span>
+                <div class="pagination">
+                    <button class="page-button"><i class="bi bi-chevron-left"></i></button>
+                    <button class="page-button active">1</button>
+                    <button class="page-button"><i class="bi bi-chevron-right"></i></button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- ================= MODAL: REPORT NEW MAINTENANCE ISSUE ================= -->
+    <div class="modal-overlay" id="maintenanceModal">
+        <div class="modal">
+            <div class="modal-header">
+                <div>
+                    <span class="eyebrow">SERVICE DESK TICKET</span>
+                    <h2>Report Maintenance Issue</h2>
+                </div>
+                <button class="close-btn" onclick="closeMaintenanceModal()"><i class="bi bi-x-lg"></i></button>
+            </div>
+
+            <div class="modal-body">
+                <!-- EXPLICIT TENANT LOCATION TAG -->
+                <div class="location-tag-box">
+                    <i class="bi bi-geo-alt-fill"></i>
+                    <span><strong>Location Auto-Tagged:</strong> Maria Santos — Sunrise Property (Building 2, Unit 101)</span>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Issue Category</label>
+                        <select id="modalCategory">
+                            <option value="Plumbing">Plumbing & Leaks</option>
+                            <option value="Electrical">Electrical & Lighting</option>
+                            <option value="HVAC" selected>HVAC / Air Conditioning</option>
+                            <option value="Appliance">Home Appliance</option>
+                            <option value="Other">Other Building Issue</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Priority Level</label>
+                        <select id="modalPriority">
+                            <option value="Normal">Normal (Within 48 hours)</option>
+                            <option value="High" selected>High Priority / Urgent (Same day)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Issue Title / Short Summary</label>
+                    <input type="text" id="modalTitle" placeholder="e.g. Aircon Water Leakage under cabinet" value="Aircon Water Leakage under cabinet">
+                </div>
+
+                <div class="form-group">
+                    <label>Detailed Description</label>
+                    <textarea id="modalDescription" rows="3" placeholder="Describe the problem, exact location in unit...">Split-type AC unit in living room dripping water steadily under cabinet.</textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Upload Photo / Video Proof (Optional)</label>
+                    <input type="file" id="modalFile">
+                </div>
+
+                <div class="form-group">
+                    <label><input type="checkbox" id="modalPermission" checked style="margin-right:6px;"> Property management/technician has permission to enter unit if I am not home.</label>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="secondary-btn" onclick="closeMaintenanceModal()">Cancel</button>
+                <button class="primary-btn" onclick="submitTicket()"><i class="bi bi-send"></i> Submit Service Ticket</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= MODAL: VIEW TICKET DETAILS ================= -->
+    <div class="modal-overlay" id="viewTicketModal">
+        <div class="modal">
+            <div class="modal-header">
+                <div>
+                    <span class="eyebrow">TICKET INSPECTION</span>
+                    <h2 id="vTicketId">MNT-2026-003</h2>
+                </div>
+                <button class="close-btn" onclick="closeViewModal()"><i class="bi bi-x-lg"></i></button>
+            </div>
+
+            <div class="modal-body">
+                <div style="background:#F8FAFC; border:1px solid var(--border); border-radius:8px; padding:14px; margin-bottom:14px; font-size:12px;">
+                    <div style="font-weight:700; font-size:14px; margin-bottom:4px; color:var(--text);" id="vTitle">Aircon Water Leakage</div>
+                    <div style="color:var(--muted); margin-bottom:8px;" id="vLocation"><i class="bi bi-geo-alt"></i> Sunrise Property • Building 2 • Unit 101</div>
+                    <div style="line-height:1.5; color:#374151;" id="vDesc">Split-type AC unit in living room dripping water steadily under cabinet.</div>
+                </div>
+
+                <div style="border-top:1px solid var(--border); padding-top:12px;">
+                    <div style="font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; margin-bottom:8px;">DISPATCH STATUS DETAILS</div>
+                    <div style="display:flex; justify-content:space-between; font-size:12px; padding:8px 0; border-bottom:1px dashed var(--border);">
+                        <span>Status:</span>
+                        <strong id="vStatus" style="color:var(--primary);">In Progress</strong>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; font-size:12px; padding:8px 0; border-bottom:1px dashed var(--border);">
+                        <span>Assigned Contractor:</span>
+                        <strong id="vTech" style="color:#1E3A8A;">Roldan HVAC Services</strong>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; font-size:12px; padding:8px 0;">
+                        <span>Scheduled Arrival:</span>
+                        <strong id="vTime" style="color:var(--primary);">Today at 02:00 PM</strong>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="secondary-btn" onclick="closeViewModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= JAVASCRIPT ================= -->
+    <script>
+        // Explicit Tenant Identity Context
+        const TENANT_CONTEXT = {
+            tenantId: 'TNT-2026-101',
+            tenantName: 'Maria Santos',
+            property: 'Sunrise Property',
+            building: 'Building 2',
+            unit: 'Unit 101',
+            fullLocationTag: 'Sunrise Property • Building 2 • Unit 101'
+        };
+
+        // Default Seed Tickets (With Juan Dela Cruz assigning Roldan HVAC Services to Maria Santos)
+        const DEFAULT_TICKETS = [
+            {
+                id: 'MNT-2026-003',
+                tenantName: 'Maria Santos',
+                property: 'Sunrise Property',
+                building: 'Building 2',
+                unit: 'Unit 101',
+                fullLocation: 'Sunrise Property • Building 2 • Unit 101',
+                category: 'HVAC',
+                title: 'Aircon Water Leakage',
+                description: 'Split-type AC unit in living room dripping water steadily under cabinet.',
+                priority: 'High',
+                status: 'In Progress',
+                technician: 'Roldan HVAC Services',
+                scheduledTime: 'Today at 02:00 PM',
+                dateFiled: 'Aug 05, 2026'
+            },
+            {
+                id: 'MNT-2026-002',
+                tenantName: 'Maria Santos',
+                property: 'Sunrise Property',
+                building: 'Building 2',
+                unit: 'Unit 101',
+                fullLocation: 'Sunrise Property • Building 2 • Unit 101',
+                category: 'Plumbing',
+                title: 'Kitchen Faucet Leakage',
+                description: 'Water dripping steadily from under the main sink basin faucet.',
+                priority: 'Normal',
+                status: 'Resolved',
+                technician: 'Roldan Plumbing Services',
+                scheduledTime: 'Completed on Jul 12',
+                dateFiled: 'Jul 10, 2026'
+            }
+        ];
+
+        // LocalStorage Shared Functions
+        function getTickets() {
+            const data = localStorage.getItem('argo_maintenance_tickets');
+            if (!data) {
+                localStorage.setItem('argo_maintenance_tickets', JSON.stringify(DEFAULT_TICKETS));
+                return DEFAULT_TICKETS;
+            }
+            return JSON.parse(data);
+        }
+
+        function saveTickets(tickets) {
+            localStorage.setItem('argo_maintenance_tickets', JSON.stringify(tickets));
+        }
+
+        function getNotifications() {
+            return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
+        }
+
+        function saveNotifications(notifications) {
+            localStorage.setItem('argo_notifications', JSON.stringify(notifications));
+        }
+
+        // Initialize Page
+        document.addEventListener('DOMContentLoaded', () => {
+            renderTicketsTable();
+            checkLiveDispatchBanner();
+            updateKPIs();
+            updateHeaderBadge();
+        });
+
+        // LIVE LISTEN FOR CROSS-TAB LOCALSTORAGE CHANGES (e.g. when Admin dispatches in maintenance.html)
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'argo_maintenance_tickets' || e.key === 'argo_notifications') {
+                renderTicketsTable();
+                checkLiveDispatchBanner();
+                updateKPIs();
+                updateHeaderBadge();
+            }
+        });
+
+        // Render Live Dispatch Banner
+        function checkLiveDispatchBanner() {
+            const tickets = getTickets().filter(t => t.tenantName === TENANT_CONTEXT.tenantName || t.unit.includes('101'));
+            const activeDispatched = tickets.find(t => (t.status === 'In Progress' || t.status === 'Assigned') && t.technician && t.technician !== 'Awaiting Dispatch');
+
+            const banner = document.getElementById('liveDispatchBanner');
+            const details = document.getElementById('bannerDetails');
+
+            if (activeDispatched) {
+                details.innerHTML = `Property Manager Juan Dela Cruz assigned <strong>${activeDispatched.technician}</strong> for <i>"${activeDispatched.title}"</i>. Scheduled Arrival: <strong>${activeDispatched.scheduledTime || 'Today at 02:00 PM'}</strong>.`;
+                banner.style.display = 'flex';
+            } else {
+                banner.style.display = 'none';
+            }
+        }
+
+        function openActiveDispatchModal() {
+            const tickets = getTickets().filter(t => t.tenantName === TENANT_CONTEXT.tenantName || t.unit.includes('101'));
+            const activeDispatched = tickets.find(t => (t.status === 'In Progress' || t.status === 'Assigned') && t.technician && t.technician !== 'Awaiting Dispatch');
+            if (activeDispatched) {
+                viewTicketDetails(activeDispatched.id);
+            }
+        }
+
+        // Render Dynamic Tickets Table
+        function renderTicketsTable() {
+            const tickets = getTickets().filter(t => t.tenantName === TENANT_CONTEXT.tenantName || t.unit.includes('101'));
+            const tbody = document.getElementById('ticketTable');
+            tbody.innerHTML = '';
+
+            if (tickets.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--muted); padding:30px;">No service requests filed yet.</td></tr>`;
+                return;
+            }
+
+            tickets.forEach(t => {
+                const tr = document.createElement('tr');
+                tr.dataset.status = t.status;
+                tr.dataset.category = t.category;
+
+                // Status Badge
+                let statusHtml = '';
+                if (t.status === 'Resolved' || t.status === 'Completed') {
+                    statusHtml = `<span class="status-badge status-resolved"><i class="bi bi-check-circle" style="margin-right:4px;"></i> Resolved & Completed</span>`;
+                } else if (t.status === 'In Progress' || t.status === 'Assigned') {
+                    statusHtml = `<span class="status-badge status-progress"><i class="bi bi-clock-history" style="margin-right:4px;"></i> Dispatched: <strong>${t.technician || 'Roldan HVAC Services'}</strong> (${t.scheduledTime || 'Today 02:00 PM'})</span>`;
+                } else {
+                    statusHtml = `<span class="status-badge status-submitted"><i class="bi bi-send" style="margin-right:4px;"></i> Submitted / Open</span>`;
+                }
+
+                // Priority Badge
+                const priorityHtml = (t.priority === 'High' || t.priority === 'Urgent')
+                    ? `<span class="priority-badge priority-high">High Priority</span>`
+                    : `<span class="priority-badge priority-normal">Normal Priority</span>`;
+
+                tr.innerHTML = `
+                    <td><div class="ticket-id">${t.id}</div></td>
+                    <td>
+                        <div class="ticket-title">${t.title}</div>
+                        <div class="ticket-sub">${t.description}</div>
+                    </td>
+                    <td>${t.dateFiled || 'Aug 05, 2026'}</td>
+                    <td>${priorityHtml}</td>
+                    <td>${statusHtml}</td>
+                    <td>
+                        <button class="action-button" title="View Inspection Details" onclick="viewTicketDetails('${t.id}')"><i class="bi bi-eye"></i></button>
+                    </td>
+                `;
+
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('showingCountText').textContent = `Showing 1–${tickets.length} of ${tickets.length} service requests`;
+        }
+
+        // Recalculate KPI Numbers
+        function updateKPIs() {
+            const tickets = getTickets().filter(t => t.tenantName === TENANT_CONTEXT.tenantName || t.unit.includes('101'));
+
+            const total = tickets.length;
+            const active = tickets.filter(t => t.status === 'In Progress' || t.status === 'Open' || t.status === 'Submitted' || t.status === 'Assigned').length;
+            const resolved = tickets.filter(t => t.status === 'Resolved' || t.status === 'Completed').length;
+
+            document.getElementById('kpiTotalTickets').textContent = `${total} ${total === 1 ? 'Ticket' : 'Tickets'}`;
+            document.getElementById('kpiActiveTickets').textContent = `${active} Active`;
+            document.getElementById('kpiResolvedTickets').textContent = `${resolved} Completed`;
+
+            document.getElementById('kpiActiveDesc').textContent = active > 0 ? 'Technician dispatch active' : 'No open issues';
+        }
+
+        function updateHeaderBadge() {
+            const currentPov = document.getElementById('povSelector').value;
+            const notifs = getNotifications().filter(n => n.pov === currentPov && n.status === 'unread');
+            document.getElementById('clientHeaderNotifBadge').textContent = notifs.length;
+        }
+
+        // Modal Controls
+        function openMaintenanceModal() { document.getElementById("maintenanceModal").classList.add("show"); }
+        function closeMaintenanceModal() { document.getElementById("maintenanceModal").classList.remove("show"); }
+
+        function closeViewModal() { document.getElementById("viewTicketModal").classList.remove("show"); }
+
+        // Inspect Ticket
+        function viewTicketDetails(ticketId) {
+            const tickets = getTickets();
+            const selected = tickets.find(t => t.id === ticketId);
+            if (!selected) return;
+
+            document.getElementById('vTicketId').textContent = selected.id;
+            document.getElementById('vTitle').textContent = selected.title;
+            document.getElementById('vLocation').innerHTML = `<i class="bi bi-geo-alt"></i> ${selected.fullLocation || TENANT_CONTEXT.fullLocationTag}`;
+            document.getElementById('vDesc').textContent = selected.description;
+            document.getElementById('vStatus').textContent = selected.status;
+            document.getElementById('vTech').textContent = selected.technician || 'Pending PM Assignment';
+            document.getElementById('vTime').textContent = selected.scheduledTime || 'Awaiting Schedule';
+
+            document.getElementById('viewTicketModal').classList.add('show');
+        }
+
+        // Submit Ticket Function (Pushes to localStorage)
+        function submitTicket() {
+            const category = document.getElementById('modalCategory').value;
+            const priority = document.getElementById('modalPriority').value;
+            const title = document.getElementById('modalTitle').value.trim();
+            const description = document.getElementById('modalDescription').value.trim();
+
+            if (!title) {
+                alert("Please enter an issue title summary.");
+                return;
+            }
+
+            const ticketId = `MNT-2026-00${Math.floor(4 + Math.random() * 90)}`;
+
+            // 1. Add Ticket to LocalStorage
+            let tickets = getTickets();
+            const newTicket = {
+                id: ticketId,
+                tenantName: TENANT_CONTEXT.tenantName,
+                property: TENANT_CONTEXT.property,
+                building: TENANT_CONTEXT.building,
+                unit: TENANT_CONTEXT.unit,
+                fullLocation: TENANT_CONTEXT.fullLocationTag,
+                category: category,
+                title: title,
+                description: description || 'No detailed notes provided.',
+                priority: priority,
+                status: 'Open',
+                technician: 'Awaiting Dispatch',
+                scheduledTime: 'Pending PM Review',
+                dateFiled: 'Aug 05, 2026'
+            };
+            tickets.unshift(newTicket);
+            saveTickets(tickets);
+
+            // 2. Push Notification to Admin
+            let notifications = getNotifications();
+            const newNotif = {
+                id: `NOTIF-${Date.now()}`,
+                pov: 'admin',
+                category: 'maintenance',
+                status: 'unread',
+                title: `New Maintenance Ticket: ${title}`,
+                time: 'Just now',
+                description: `Tenant <strong>${TENANT_CONTEXT.tenantName}</strong> (${TENANT_CONTEXT.fullLocationTag}) filed a <strong>${priority}</strong> priority ticket: "${description}".`,
+                property: TENANT_CONTEXT.fullLocationTag,
+                tag: `Ticket ${ticketId}`,
+                tagColor: priority === 'High' ? 'var(--danger)' : 'var(--primary)',
+                urgent: priority === 'High',
+                actionUrl: 'maintenance.html',
+                actionText: 'Dispatch Technician'
+            };
+            notifications.unshift(newNotif);
+            saveNotifications(notifications);
+
+            // 3. Refresh Page
+            renderTicketsTable();
+            checkLiveDispatchBanner();
+            updateKPIs();
+            closeMaintenanceModal();
+
+            alert(`Service Ticket (${ticketId}) submitted successfully!\n\nTagged Location:\n${TENANT_CONTEXT.fullLocationTag}\n\nProperty Manager Juan Dela Cruz has been notified.`);
+        }
+
+        window.onclick = function(event) {
+            const modal1 = document.getElementById("maintenanceModal");
+            const modal2 = document.getElementById("viewTicketModal");
+            if (event.target === modal1) closeMaintenanceModal();
+            if (event.target === modal2) closeViewModal();
+        };
+
+        // Table Filtering
+        function filterTable() {
+            const searchValue = document.getElementById("searchInput").value.toLowerCase();
+            const statusValue = document.getElementById("statusFilter").value;
+            const categoryValue = document.getElementById("categoryFilter").value;
+
+            const rows = document.querySelectorAll("#ticketTable tr");
+
+            rows.forEach(row => {
+                const text = row.innerText.toLowerCase();
+                const rowStatus = row.dataset.status;
+                const rowCategory = row.dataset.category;
+
+                const matchesSearch = text.includes(searchValue);
+                const matchesStatus = statusValue === "" || rowStatus.includes(statusValue);
+                const matchesCategory = categoryValue === "" || rowCategory.includes(categoryValue);
+
+                if (matchesSearch && matchesStatus && matchesCategory) {
+                    row.style.display = "";
+                } else {
+                    row.style.display = "none";
+                }
+            });
+        }
+
+        function resetFilters() {
+            document.getElementById("searchInput").value = "";
+            document.getElementById("statusFilter").value = "";
+            document.getElementById("categoryFilter").value = "";
+            filterTable();
+        }
+
+        // Profile Dropdown
+        const userProfileBtn = document.getElementById('userProfileBtn');
+        const userDropdown = document.getElementById('userDropdown');
+
+        userProfileBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            userDropdown.classList.toggle('show');
+        });
+
+        document.addEventListener('click', () => { userDropdown.classList.remove('show'); });
+
+        // POV Role Switcher
+        const povSelector = document.getElementById('povSelector');
+        const userName = document.getElementById('userName');
+        const userRoleBadge = document.getElementById('userRoleBadge');
+        const userAvatar = document.getElementById('userAvatar');
+
+        povSelector.addEventListener('change', (e) => {
+            const role = e.target.value;
+
+            if (role === 'admin') {
+                window.location.href = 'dashboard.html';
+            } else if (role === 'owner') {
+                window.location.href = 'owner-dashboard.html';
+            } else if (role === 'client') {
+                userName.textContent = TENANT_CONTEXT.tenantName;
+                userRoleBadge.textContent = 'Sunrise Property • Bldg 2 • Unit 101';
+                userAvatar.textContent = 'MS';
+                userAvatar.style.background = '#D97706';
+            }
+
+            updateHeaderBadge();
+        });
+    </script>
+</body>
+</html>

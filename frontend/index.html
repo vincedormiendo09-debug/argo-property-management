@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In & Role Router | ARGO Property Management</title>
+
+    <!-- Inter Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+    <style>
+        :root {
+            --primary: #2563EB;
+            --primary-dark: #1D4ED8;
+            --sidebar: #0F172A;
+            --canvas: #F8FAFC;
+            --white: #FFFFFF;
+            --border: #E2E8F0;
+            --text: #1E293B;
+            --muted: #64748B;
+            --success: #059669;
+            --danger: #E11D48;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--canvas);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .auth-container {
+            width: 100%;
+            max-width: 440px;
+            background: var(--white);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+            overflow: hidden;
+        }
+
+        .auth-header {
+            background: var(--sidebar);
+            color: white;
+            padding: 28px 24px;
+            text-align: center;
+            position: relative;
+        }
+
+        .brand-logo-large {
+            width: 52px;
+            height: 52px;
+            background: var(--primary);
+            color: white;
+            border-radius: 12px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        }
+
+        .auth-header h1 {
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .auth-header p {
+            font-size: 12px;
+            color: #94A3B8;
+            letter-spacing: 0.5px;
+        }
+
+        /* BACKEND STATUS BADGE */
+        .db-status-badge {
+            margin-top: 12px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            background: rgba(255, 255, 255, 0.1);
+            color: #CBD5E1;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #94A3B8;
+        }
+
+        .status-dot.online { background: #10B981; box-shadow: 0 0 8px #10B981; }
+        .status-dot.offline { background: #F59E0B; }
+
+        .auth-body {
+            padding: 28px 24px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: #334155;
+            margin-bottom: 6px;
+        }
+
+        .input-with-icon {
+            position: relative;
+        }
+
+        .input-with-icon i {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--muted);
+            font-size: 16px;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            height: 42px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0 14px 0 42px;
+            font-size: 13px;
+            outline: none;
+            transition: 0.2s;
+            background: #F8FAFC;
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            border-color: var(--primary);
+            background: white;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        .auth-options {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            margin-bottom: 20px;
+        }
+
+        .auth-options label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--muted);
+            cursor: pointer;
+        }
+
+        .auth-options a {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .auth-options a:hover { text-decoration: underline; }
+
+        .btn-submit {
+            width: 100%;
+            height: 42px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+        }
+
+        .btn-submit:hover { background: var(--primary-dark); }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            text-align: center;
+            margin: 20px 0;
+            color: var(--muted);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .divider::before, .divider::after {
+            content: '';
+            flex: 1;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .divider::before { margin-right: 10px; }
+        .divider::after { margin-left: 10px; }
+
+        .demo-roles {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 8px;
+        }
+
+        .demo-btn {
+            width: 100%;
+            height: 38px;
+            border: 1px solid var(--border);
+            background: white;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: 0.15s;
+        }
+
+        .demo-btn:hover { background: #F1F5F9; border-color: #CBD5E1; }
+        .demo-btn i { font-size: 14px; color: var(--primary); }
+
+        .auth-footer {
+            padding: 16px 24px;
+            background: #F8FAFC;
+            border-top: 1px solid var(--border);
+            text-align: center;
+            font-size: 11px;
+            color: var(--muted);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="auth-container">
+        <!-- HEADER -->
+        <div class="auth-header">
+            <div class="brand-logo-large">A</div>
+            <h1>ARGO Property Management</h1>
+            <p>Auth Gateway & Role Router</p>
+            
+            <!-- PostgreSQL DB Connection Status -->
+            <div class="db-status-badge">
+                <span id="dbStatusDot" class="status-dot"></span>
+                <span id="dbStatusText">Checking PostgreSQL connection...</span>
+            </div>
+        </div>
+
+        <!-- FORM BODY -->
+        <div class="auth-body">
+            <form id="loginForm" onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label>Select Portal Role / POV</label>
+                    <div class="input-with-icon">
+                        <i class="bi bi-shield-lock"></i>
+                        <select id="roleSelect" onchange="updateDefaultEmail()">
+                            <option value="admin" selected>Admin / Property Manager (POV 1)</option>
+                            <option value="owner">Property Owner (POV 2)</option>
+                            <option value="client">Client / Tenant (POV 3)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Email Address</label>
+                    <div class="input-with-icon">
+                        <i class="bi bi-envelope"></i>
+                        <input type="email" id="emailInput" value="admin@sunriseproperties.ph" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Password</label>
+                    <div class="input-with-icon">
+                        <i class="bi bi-key"></i>
+                        <input type="password" value="••••••••" required>
+                    </div>
+                </div>
+
+                <div class="auth-options">
+                    <label><input type="checkbox" checked> Remember this device</label>
+                    <a href="#" onclick="alert('Password reset link sent to registered email.')">Forgot password?</a>
+                </div>
+
+                <button type="submit" class="btn-submit">
+                    <span>Sign In & Route</span>
+                    <i class="bi bi-arrow-right"></i>
+                </button>
+            </form>
+
+            <div class="divider">Or Launch Portals Directly</div>
+
+            <!-- QUICK DEMO ROUTING BUTTONS -->
+            <div class="demo-roles">
+                <button class="demo-btn" onclick="routeToPortal('admin')">
+                    <i class="bi bi-speedometer2"></i>
+                    <span>Launch Admin Command Center (dashboard.html)</span>
+                </button>
+                <button class="demo-btn" onclick="routeToPortal('owner')">
+                    <i class="bi bi-graph-up-arrow"></i>
+                    <span>Launch Owner Portal (owner-dashboard.html)</span>
+                </button>
+                <button class="demo-btn" onclick="routeToPortal('client')">
+                    <i class="bi bi-house-door"></i>
+                    <span>Launch Tenant Portal (client-dashboard.html)</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- FOOTER -->
+        <div class="auth-footer">
+            ARGO v0.5 • PostgreSQL + FastAPI Multi-Tenant Architecture
+        </div>
+    </div>
+
+    <!-- ROUTING LOGIC & SYSTEM INITIALIZER -->
+    <script>
+        // Standard Sandbox Organization UUID matching FastAPI routers
+        const DEFAULT_ORG_ID = "00000000-0000-0000-0000-000000000001";
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initSystemStorage();
+            checkBackendHealth();
+        });
+
+        // 1. Initialize Local Storage Session Scope
+        function initSystemStorage() {
+            localStorage.setItem('organization_id', DEFAULT_ORG_ID);
+
+            if (!localStorage.getItem('argo_org_settings')) {
+                localStorage.setItem('argo_org_settings', JSON.stringify({
+                    orgId: DEFAULT_ORG_ID,
+                    orgName: 'Sunrise Property Group',
+                    currency: 'PHP',
+                    pmFee: 10,
+                    email: 'support@argoproperty.com'
+                }));
+            }
+        }
+
+        // 2. Health Check Handshake with FastAPI & PostgreSQL
+        async function checkBackendHealth() {
+            const statusDot = document.getElementById('dbStatusDot');
+            const statusText = document.getElementById('dbStatusText');
+
+            try {
+                const response = await fetch(`/api/properties/?organization_id=${DEFAULT_ORG_ID}`);
+                if (response.ok) {
+                    statusDot.className = 'status-dot online';
+                    statusText.textContent = 'PostgreSQL & FastAPI Online';
+                } else {
+                    statusDot.className = 'status-dot offline';
+                    statusText.textContent = 'FastAPI Reachable (Init Sandbox)';
+                }
+            } catch (err) {
+                statusDot.className = 'status-dot offline';
+                statusText.textContent = 'Offline / Local Sandbox Mode';
+            }
+        }
+
+        // 3. Update Email Suggestion based on Selected Role
+        function updateDefaultEmail() {
+            const role = document.getElementById('roleSelect').value;
+            const emailInput = document.getElementById('emailInput');
+            if (role === 'admin') emailInput.value = 'admin@sunriseproperties.ph';
+            else if (role === 'owner') emailInput.value = 'ramon.santos@sunriseproperty.ph';
+            else if (role === 'client') emailInput.value = 'maria.santos@tenant.ph';
+        }
+
+        // 4. Form Submit Handler
+        function handleLogin(event) {
+            event.preventDefault();
+            const role = document.getElementById('roleSelect').value;
+            routeToPortal(role);
+        }
+
+        // 5. Centralized Portal Router
+        function routeToPortal(role) {
+            // Lock Organization & Role Context in LocalStorage
+            localStorage.setItem('organization_id', DEFAULT_ORG_ID);
+            localStorage.setItem('argo_pov', role);
+            localStorage.setItem('user_role', role.toUpperCase());
+            localStorage.setItem('token', 'sandbox-bearer-token-12345');
+
+            if (role === 'admin') {
+                localStorage.setItem('argo_user', JSON.stringify({
+                    id: '00000000-0000-0000-0000-000000000002',
+                    name: 'Juan Dela Cruz',
+                    role: 'Property Manager',
+                    avatar: 'JD',
+                    avatarBg: '#2563EB'
+                }));
+                window.location.href = 'dashboard.html';
+            } else if (role === 'owner') {
+                localStorage.setItem('argo_user', JSON.stringify({
+                    id: '00000000-0000-0000-0000-000000000003',
+                    name: 'Don Ramon Santos',
+                    role: 'Property Owner',
+                    avatar: 'RS',
+                    avatarBg: '#059669'
+                }));
+                window.location.href = 'owner-dashboard.html';
+            } else if (role === 'client') {
+                localStorage.setItem('argo_user', JSON.stringify({
+                    id: '00000000-0000-0000-0000-000000000004',
+                    name: 'Maria Santos',
+                    role: 'Tenant (Unit 101)',
+                    avatar: 'MS',
+                    avatarBg: '#D97706'
+                }));
+                window.location.href = 'client-dashboard.html';
+            }
+        }
+    </script>
+</body>
+</html>

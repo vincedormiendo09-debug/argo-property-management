@@ -1,0 +1,991 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Settings | ARGO Property Management</title>
+
+    <!-- Inter Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+    <style>
+        :root {
+            --primary: #2563EB;
+            --sidebar: #0F172A;
+            --active: #1E293B;
+            --canvas: #F3F4F6;
+            --white: #FFFFFF;
+            --border: #E5E7EB;
+            --text: #111827;
+            --muted: #6B7280;
+            --success: #059669;
+            --danger: #E11D48;
+            --warning: #D97706;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--canvas);
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        button, input, select, textarea {
+            font-family: inherit;
+        }
+
+        /* ================= SIDEBAR ================= */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 240px;
+            height: 100vh;
+            background: #0F172A;
+            color: white;
+            padding: 20px 14px;
+            z-index: 1000;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 5px 12px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .brand-logo {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: #2563EB;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 700;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .sidebar-brand h2 {
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .sidebar-brand span {
+            font-size: 9px;
+            color: #94A3B8;
+            margin-top: 1px;
+            display: block;
+            letter-spacing: 0.8px;
+        }
+
+        .sidebar-nav {
+            margin-top: 16px;
+            flex: 1;
+        }
+
+        .nav-section-title {
+            font-size: 10px;
+            font-weight: 700;
+            color: #64748B;
+            letter-spacing: 0.08em;
+            padding: 14px 10px 6px;
+            text-transform: uppercase;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            color: #CBD5E1;
+            text-decoration: none;
+            border-radius: 6px;
+            margin-bottom: 3px;
+            font-size: 13px;
+            transition: 0.15s ease;
+        }
+
+        .nav-item:hover {
+            background: #172033;
+            color: white;
+        }
+
+        .nav-item.active {
+            background: #1E293B;
+            color: white;
+            font-weight: 500;
+        }
+
+        .nav-item.active i {
+            color: #60A5FA;
+        }
+
+        .nav-item i {
+            width: 20px;
+            font-size: 16px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .sidebar-footer {
+            padding: 14px 10px 0;
+            border-top: 1px solid rgba(255,255,255,0.08);
+            font-size: 11px;
+            color: #64748B;
+        }
+
+        /* ================= TOP HEADER ================= */
+        .top-header {
+            position: fixed;
+            top: 0;
+            left: 240px;
+            right: 0;
+            height: 64px;
+            background: var(--sidebar);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 28px;
+            z-index: 900;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            color: white;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .organization-pill {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #1E293B;
+            border: 1px solid #334155;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #E5E7EB;
+        }
+
+        .organization-pill i { color: #60A5FA; }
+
+        .pov-selector {
+            background: #1E293B;
+            border: 1px solid #334155;
+            color: #60A5FA;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            outline: none;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+        }
+
+        .notification {
+            position: relative;
+            font-size: 18px;
+            color: #CBD5E1;
+            cursor: pointer;
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: -4px;
+            right: -6px;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background: var(--danger);
+            color: white;
+            font-size: 9px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+        }
+
+        /* USER PROFILE DROPDOWN */
+        .user-dropdown-container { position: relative; }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 6px;
+        }
+
+        .user-profile:hover { background: rgba(255,255,255,0.05); }
+
+        .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .user-info strong { display: block; font-size: 12px; }
+        .user-info span { display: block; color: #94A3B8; font-size: 10px; }
+
+        .dropdown-menu {
+            position: absolute;
+            right: 0;
+            top: 48px;
+            width: 180px;
+            background: white;
+            border: 1px solid #E5E7EB;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 1000;
+        }
+
+        .dropdown-menu.show { display: flex; }
+
+        .dropdown-item {
+            padding: 10px 14px;
+            color: #374151;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            transition: 0.15s;
+        }
+
+        .dropdown-item:hover { background: #F3F4F6; color: #111827; }
+        .dropdown-item.danger { color: var(--danger); }
+        .dropdown-item.danger:hover { background: #FFF1F2; }
+
+        /* ================= MAIN CONTENT ================= */
+        .main-content {
+            margin-left: 240px;
+            padding: 88px 28px 40px;
+            min-height: 100vh;
+            max-width: 1600px;
+        }
+
+        .page-header {
+            margin-bottom: 22px;
+        }
+
+        .eyebrow {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--muted);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .page-header h1 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .page-header p {
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        /* ================= SETTINGS LAYOUT ================= */
+        .settings-layout {
+            display: grid;
+            grid-template-columns: 240px 1fr;
+            gap: 20px;
+            align-items: start;
+        }
+
+        .settings-tabs {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 8px;
+        }
+
+        .settings-tab {
+            width: 100%;
+            border: none;
+            background: transparent;
+            color: var(--muted);
+            padding: 11px 12px;
+            border-radius: 6px;
+            text-align: left;
+            font-family: inherit;
+            font-size: 13px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 3px;
+            transition: 0.15s;
+        }
+
+        .settings-tab:hover {
+            background: #F3F4F6;
+            color: var(--text);
+        }
+
+        .settings-tab.active {
+            background: #EFF6FF;
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .settings-tab i { font-size: 16px; width: 18px; text-align: center; }
+
+        .settings-card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+        }
+
+        .settings-section { display: none; }
+        .settings-section.active { display: block; }
+
+        .section-header {
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 20px;
+        }
+
+        .section-header h2 { font-size: 16px; font-weight: 600; }
+        .section-header p { color: var(--muted); font-size: 12px; margin-top: 4px; }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 14px;
+        }
+
+        .form-group.full-width { grid-column: 1 / -1; }
+
+        .form-group label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 9px 12px;
+            font-size: 13px;
+            outline: none;
+        }
+
+        .form-group textarea { min-height: 80px; resize: vertical; }
+
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+        }
+
+        .settings-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 20px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border);
+        }
+
+        .primary-btn {
+            border: none;
+            background: var(--primary);
+            color: white;
+            padding: 9px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .primary-btn:hover { background: #1D4ED8; }
+
+        .danger-btn {
+            border: none;
+            background: var(--danger);
+            color: white;
+            padding: 9px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .danger-btn:hover { background: #BE123C; }
+
+        .secondary-btn {
+            border: 1px solid var(--border);
+            background: white;
+            color: #374151;
+            padding: 9px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .secondary-btn:hover { background: #F9FAFB; }
+
+        /* SWITCHES */
+        .setting-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 0;
+            border-bottom: 1px solid #F3F4F6;
+        }
+
+        .setting-row:last-child { border-bottom: none; }
+        .setting-info h3 { font-size: 13px; font-weight: 600; }
+        .setting-info p { color: var(--muted); font-size: 11px; margin-top: 2px; }
+
+        .switch { position: relative; width: 40px; height: 22px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute;
+            inset: 0;
+            background: #D1D5DB;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .slider::before {
+            content: "";
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            left: 3px;
+            top: 3px;
+            background: white;
+            border-radius: 50%;
+            transition: 0.2s;
+        }
+        .switch input:checked + .slider { background: var(--primary); }
+        .switch input:checked + .slider::before { transform: translateX(18px); }
+
+        /* RESPONSIVE */
+        @media (max-width: 850px) {
+            .settings-layout { grid-template-columns: 1fr; }
+            .settings-tabs { display: flex; overflow-x: auto; gap: 4px; }
+            .settings-tab { width: auto; white-space: nowrap; margin-bottom: 0; }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar { width: 70px; padding: 20px 8px; }
+            .sidebar-brand h2, .sidebar-brand span, .nav-section-title, .nav-item span { display: none; }
+            .nav-item { justify-content: center; padding: 12px; }
+            .top-header { left: 70px; padding: 0 15px; }
+            .organization-pill { display: none; }
+            .main-content { margin-left: 70px; padding: 85px 15px 30px; }
+            .form-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ================= SIDEBAR ================= -->
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-logo">A</div>
+            <div>
+                <h2>ARGO</h2>
+                <span>Property Management</span>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav">
+            <div class="nav-section-title">OVERVIEW</div>
+            <a href="dashboard.html" class="nav-item">
+                <i class="bi bi-grid-1x2"></i>
+                <span>Dashboard</span>
+            </a>
+
+            <div class="nav-section-title">PROPERTY OPERATIONS</div>
+            <a href="properties.html" class="nav-item">
+                <i class="bi bi-buildings"></i>
+                <span>Properties</span>
+            </a>
+            <a href="buildings.html" class="nav-item">
+                <i class="bi bi-building"></i>
+                <span>Buildings</span>
+            </a>
+            <a href="units.html" class="nav-item">
+                <i class="bi bi-door-open"></i>
+                <span>Units</span>
+            </a>
+            <a href="tenants.html" class="nav-item">
+                <i class="bi bi-people"></i>
+                <span>Tenants</span>
+            </a>
+            <a href="owners.html" class="nav-item">
+                <i class="bi bi-person-badge"></i>
+                <span>Owners</span>
+            </a>
+            <a href="property-ownership.html" class="nav-item">
+                <i class="bi bi-pie-chart"></i>
+                <span>Fractional Ownership</span>
+            </a>
+            <a href="leases.html" class="nav-item">
+                <i class="bi bi-file-earmark-text"></i>
+                <span>Leases</span>
+            </a>
+
+            <div class="nav-section-title">FINANCE & SERVICES</div>
+            <a href="rent-collection.html" class="nav-item">
+                <i class="bi bi-cash-stack"></i>
+                <span>Rent Collection</span>
+            </a>
+	    <a href="transaction.html" class="nav-item">
+                <i class="bi bi-receipt-cutoff"></i>
+                <span>Transactions & Ledger</span>
+            </a>
+
+            <a href="utilities.html" class="nav-item">
+                <i class="bi bi-lightning-charge"></i>
+                <span>Utilities</span>
+            </a>
+            <a href="maintenance.html" class="nav-item">
+                <i class="bi bi-tools"></i>
+                <span>Maintenance</span>
+            </a>
+
+            <div class="nav-section-title">RECORDS & REPORTS</div>
+            <a href="inspections.html" class="nav-item">
+                <i class="bi bi-clipboard-check"></i>
+                <span>Inspections</span>
+            </a>
+            <a href="documents.html" class="nav-item">
+                <i class="bi bi-folder2-open"></i>
+                <span>Documents</span>
+            </a>
+            <a href="reports.html" class="nav-item">
+                <i class="bi bi-bar-chart"></i>
+                <span>Reports</span>
+            </a>
+
+            <div class="nav-section-title">SYSTEM</div>
+            <a href="settings.html" class="nav-item active">
+                <i class="bi bi-gear"></i>
+                <span>Settings</span>
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <span>ARGO v0.5</span>
+        </div>
+    </aside>
+
+    <!-- ================= TOP HEADER ================= -->
+    <header class="top-header">
+        <div class="header-left">
+            <div class="organization-pill">
+                <i class="bi bi-building"></i>
+                <span>Sunrise Property Group</span>
+            </div>
+
+            <!-- DYNAMIC POV / ROLE SWITCHER FOR DB-LESS TESTING -->
+            <select class="pov-selector" id="povSelector" title="Switch User Role Perspective">
+                <option value="admin" selected>POV: Admin / PM</option>
+                <option value="owner">POV: Property Owner</option>
+                <option value="client">POV: Client / Tenant</option>
+            </select>
+        </div>
+
+        <div class="header-right">
+            <!-- NOTIFICATION LINK TO NOTIFICATION.HTML -->
+            <a href="notification.html" class="notification-header-link" title="Notifications Center" style="position:relative; font-size:18px; color:#CBD5E1; background:#1E293B; border:1px solid #334155; width:38px; height:38px; border-radius:8px; display:flex; align-items:center; justify-content:center; text-decoration:none;">
+                <i class="bi bi-bell"></i>
+                <div class="notification-badge" id="headerNotifBadge">0</div>
+            </a>
+
+            <div class="user-dropdown-container">
+                <div class="user-profile" id="userProfileBtn">
+                    <div class="avatar" id="userAvatar">JD</div>
+                    <div class="user-info">
+                        <strong id="userName">Juan Dela Cruz</strong>
+                        <span id="userRoleBadge">Property Manager</span>
+                    </div>
+                    <i class="bi bi-chevron-down" style="font-size: 10px; color: #94A3B8;"></i>
+                </div>
+
+                <div class="dropdown-menu" id="userDropdown">
+                    <a href="account.html" class="dropdown-item">
+                        <i class="bi bi-person-gear"></i>
+                        <span>Account Settings</span>
+                    </a>
+                    <a href="logout.html" class="dropdown-item danger">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Log Out</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ================= MAIN CONTENT ================= -->
+    <main class="main-content">
+
+        <!-- PAGE HEADER -->
+        <div class="page-header">
+            <div class="eyebrow">SYSTEM CONFIGURATION</div>
+            <h1>Settings & Demo Controls</h1>
+            <p>Manage organization preferences, unit types, notifications, and local state testing vaults.</p>
+        </div>
+
+        <div class="settings-layout">
+
+            <!-- SETTINGS TABS -->
+            <div class="settings-tabs">
+                <button class="settings-tab active" onclick="showSettings('organization', this)">
+                    <i class="bi bi-building"></i> Organization
+                </button>
+                <button class="settings-tab" onclick="showSettings('property', this)">
+                    <i class="bi bi-buildings"></i> Unit Types & Rules
+                </button>
+                <button class="settings-tab" onclick="showSettings('rbac', this)">
+                    <i class="bi bi-shield-lock"></i> RBAC Rules
+                </button>
+                <button class="settings-tab" onclick="showSettings('notifications', this)">
+                    <i class="bi bi-bell"></i> Notifications
+                </button>
+                <button class="settings-tab" onclick="showSettings('demo', this)" style="color:var(--danger);">
+                    <i class="bi bi-database-exclamation"></i> Demo State & Reset
+                </button>
+            </div>
+
+            <!-- SETTINGS CONTENT -->
+            <div class="settings-card">
+
+                <!-- 1. ORGANIZATION SETTINGS -->
+                <section id="organization" class="settings-section active">
+                    <div class="section-header">
+                        <h2>Organization Information</h2>
+                        <p>Manage the legal entity name and operational contact details.</p>
+                    </div>
+
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Organization Name</label>
+                            <input type="text" id="settingOrgName" value="Sunrise Property Group">
+                        </div>
+                        <div class="form-group">
+                            <label>Base Currency</label>
+                            <select id="settingCurrency">
+                                <option value="PHP" selected>Philippine Peso (₱ PHP)</option>
+                                <option value="USD">US Dollar ($ USD)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Default Property Management Fee (%)</label>
+                            <input type="number" id="settingPmFee" value="10" min="0" max="100">
+                        </div>
+                        <div class="form-group">
+                            <label>Support Contact Email</label>
+                            <input type="email" id="settingEmail" value="support@argoproperty.com">
+                        </div>
+                        <div class="form-group full-width">
+                            <label>Registered Address</label>
+                            <textarea>Parañaque City, Metro Manila, Philippines</textarea>
+                        </div>
+                    </div>
+
+                    <div class="settings-actions admin-action">
+                        <button class="secondary-btn">Cancel</button>
+                        <button class="primary-btn" onclick="saveOrgSettings()">Save Changes</button>
+                    </div>
+                </section>
+
+                <!-- 2. PROPERTY & UNIT TYPES -->
+                <section id="property" class="settings-section">
+                    <div class="section-header">
+                        <h2>Unit Types & Property Rules</h2>
+                        <p>Configure default currency, lease terms, and allowed unit classification types.</p>
+                    </div>
+
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Default Rent Due Day</label>
+                            <select>
+                                <option>1st of the month</option>
+                                <option selected>5th of the month</option>
+                                <option>15th of the month</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Default Area Measurement</label>
+                            <select>
+                                <option selected>Square Meter (sqm)</option>
+                                <option>Square Feet (sq ft)</option>
+                            </select>
+                        </div>
+                        <div class="form-group full-width">
+                            <label>Allowed Unit Types (Comma separated)</label>
+                            <input type="text" value="Apartment, Condominium, House, Commercial, Office, Retail, Parking, Warehouse">
+                        </div>
+                    </div>
+
+                    <div class="settings-actions admin-action">
+                        <button class="secondary-btn">Cancel</button>
+                        <button class="primary-btn" onclick="saveSettings()">Save Configuration</button>
+                    </div>
+                </section>
+
+                <!-- 3. RBAC RULES -->
+                <section id="rbac" class="settings-section">
+                    <div class="section-header">
+                        <h2>Role-Based Access Control (RBAC) Rules</h2>
+                        <p>Define permissions for Admin, Property Owner, and Client / Tenant roles.</p>
+                    </div>
+
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <h3>Property Owner: Read-Only Portfolio Access</h3>
+                            <p>Allows owners to inspect NOI, yield charts, and occupancy states without mutating core records.</p>
+                        </div>
+                        <label class="switch"><input type="checkbox" checked><span class="slider"></span></label>
+                    </div>
+
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <h3>Tenant Portal: Maintenance Ticket Creation</h3>
+                            <p>Allows verified tenants in active units to log repair requests and view live status.</p>
+                        </div>
+                        <label class="switch"><input type="checkbox" checked><span class="slider"></span></label>
+                    </div>
+
+                    <div class="settings-actions admin-action">
+                        <button class="primary-btn" onclick="saveSettings()">Save RBAC Policies</button>
+                    </div>
+                </section>
+
+                <!-- 4. NOTIFICATIONS -->
+                <section id="notifications" class="settings-section">
+                    <div class="section-header">
+                        <h2>Notification Preferences</h2>
+                        <p>Choose which system events trigger email or in-app notification badges.</p>
+                    </div>
+
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <h3>New Maintenance Requests</h3>
+                            <p>Notify property managers immediately when tickets are submitted.</p>
+                        </div>
+                        <label class="switch"><input type="checkbox" checked><span class="slider"></span></label>
+                    </div>
+
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <h3>Rent Payment Logs</h3>
+                            <p>Alert when tenants upload GCash receipts or bank transfers.</p>
+                        </div>
+                        <label class="switch"><input type="checkbox" checked><span class="slider"></span></label>
+                    </div>
+
+                    <div class="settings-actions admin-action">
+                        <button class="primary-btn" onclick="saveSettings()">Save Preferences</button>
+                    </div>
+                </section>
+
+                <!-- 5. DEMO STATE & LOCALSTORAGE CONTROLS -->
+                <section id="demo" class="settings-section">
+                    <div class="section-header" style="border-color:#FECDD3;">
+                        <h2 style="color:var(--danger);">Demo State & LocalStorage Controls</h2>
+                        <p>Instantly reset or re-seed all ARGO state data across invoices, leases, tickets, and sub-meters.</p>
+                    </div>
+
+                    <div style="background:#FFF1F2; border:1px solid #FECDD3; border-radius:8px; padding:16px; margin-bottom:20px;">
+                        <div style="font-weight:600; color:#9F1239; margin-bottom:4px;"><i class="bi bi-exclamation-triangle-fill" style="margin-right:6px;"></i> Testing Vault Caution</div>
+                        <div style="font-size:12px; color:#881337; line-height:1.5;">
+                            Resetting demo data clears custom testing changes and restores original pre-seeded baseline records (such as Maria Santos's lease and maintenance logs).
+                        </div>
+                    </div>
+
+                    <div style="display:flex; gap:12px; flex-wrap:wrap;">
+                        <button class="danger-btn" onclick="resetDemoData()"><i class="bi bi-arrow-counterclockwise"></i> Reset System to Factory Demo State</button>
+                        <button class="secondary-btn" onclick="clearAllStorage()"><i class="bi bi-trash"></i> Wipe Entire LocalStorage Vault</button>
+                    </div>
+                </section>
+
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- ================= JAVASCRIPT ================= -->
+    <script>
+        // Initialize Page
+        document.addEventListener('DOMContentLoaded', () => {
+            loadSettings();
+            updateHeaderBadge();
+        });
+
+        function loadSettings() {
+            const settings = JSON.parse(localStorage.getItem('argo_org_settings') || '{}');
+            if (settings.orgName) document.getElementById('settingOrgName').value = settings.orgName;
+            if (settings.currency) document.getElementById('settingCurrency').value = settings.currency;
+            if (settings.pmFee) document.getElementById('settingPmFee').value = settings.pmFee;
+            if (settings.email) document.getElementById('settingEmail').value = settings.email;
+        }
+
+        function saveOrgSettings() {
+            const orgName = document.getElementById('settingOrgName').value.trim();
+            const currency = document.getElementById('settingCurrency').value;
+            const pmFee = parseFloat(document.getElementById('settingPmFee').value) || 10;
+            const email = document.getElementById('settingEmail').value.trim();
+
+            const settings = { orgName, currency, pmFee, email };
+            localStorage.setItem('argo_org_settings', JSON.stringify(settings));
+
+            alert("Organization preferences and management fee rules saved successfully!");
+        }
+
+        function saveSettings() {
+            alert("Settings updated successfully!");
+        }
+
+        function resetDemoData() {
+            if (!confirm("Are you sure you want to reset all ARGO system modules to the factory demo state?")) return;
+
+            localStorage.removeItem('argo_invoices');
+            localStorage.removeItem('argo_leases');
+            localStorage.removeItem('argo_maintenance_tickets');
+            localStorage.removeItem('argo_units');
+            localStorage.removeItem('argo_tenants');
+            localStorage.removeItem('argo_documents');
+            localStorage.removeItem('argo_transactions');
+            localStorage.removeItem('argo_notifications');
+            localStorage.removeItem('argo_meter_readings');
+            localStorage.removeItem('argo_org_settings');
+
+            alert("System successfully reset to default demo state! All modules have been re-seeded.");
+            window.location.reload();
+        }
+
+        function clearAllStorage() {
+            if (!confirm("WARNING: Wiping the LocalStorage vault will clear all data. Proceed?")) return;
+            localStorage.clear();
+            alert("Storage vault wiped clean!");
+            window.location.reload();
+        }
+
+        function updateHeaderBadge() {
+            const currentPov = document.getElementById('povSelector').value;
+            const notifs = JSON.parse(localStorage.getItem('argo_notifications') || '[]').filter(n => n.pov === currentPov && n.status === 'unread');
+            document.getElementById('headerNotifBadge').textContent = notifs.length;
+        }
+
+        // Profile Dropdown Toggle
+        const userProfileBtn = document.getElementById('userProfileBtn');
+        const userDropdown = document.getElementById('userDropdown');
+
+        userProfileBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            userDropdown.classList.toggle('show');
+        });
+
+        document.addEventListener('click', () => { userDropdown.classList.remove('show'); });
+
+        // Tab Switching logic
+        function showSettings(sectionId, clickedButton) {
+            document.querySelectorAll('.settings-section').forEach(sec => sec.classList.remove('active'));
+            document.querySelectorAll('.settings-tab').forEach(tab => tab.classList.remove('active'));
+
+            document.getElementById(sectionId).classList.add('active');
+            clickedButton.classList.add('active');
+        }
+
+        // Role/POV Switcher for DB-less Testing
+        const povSelector = document.getElementById('povSelector');
+        const userName = document.getElementById('userName');
+        const userRoleBadge = document.getElementById('userRoleBadge');
+        const userAvatar = document.getElementById('userAvatar');
+        const adminActions = document.querySelectorAll('.admin-action');
+
+        povSelector.addEventListener('change', (e) => {
+            const role = e.target.value;
+
+            if (role === 'admin') {
+                userName.textContent = 'Juan Dela Cruz';
+                userRoleBadge.textContent = 'Property Manager';
+                userAvatar.textContent = 'JD';
+                userAvatar.style.background = '#2563EB';
+                adminActions.forEach(el => el.style.display = '');
+            } else if (role === 'owner') {
+                userName.textContent = 'Don Ramon Santos';
+                userRoleBadge.textContent = 'Property Owner';
+                userAvatar.textContent = 'RS';
+                userAvatar.style.background = '#059669';
+                adminActions.forEach(el => el.style.display = 'none');
+            } else if (role === 'client') {
+                userName.textContent = 'Maria Santos';
+                userRoleBadge.textContent = 'Sunrise Property • Bldg 2 • Unit 101';
+                userAvatar.textContent = 'MS';
+                userAvatar.style.background = '#D97706';
+                adminActions.forEach(el => el.style.display = 'none');
+            }
+
+            updateHeaderBadge();
+        });
+    </script>
+</body>
+</html>
