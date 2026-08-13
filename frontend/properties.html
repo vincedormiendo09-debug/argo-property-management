@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Properties | ARGO Property Management</title>
 
+    <!-- 🔒 Strict Navigation Guard & Role Isolation -->
+    <script src="js/auth.js"></script>
+
     <!-- Inter Font -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -176,7 +179,7 @@
             gap: 16px;
         }
 
-        .organization-pill {
+        .admin-badge {
             display: flex;
             align-items: center;
             gap: 8px;
@@ -186,20 +189,7 @@
             border-radius: 6px;
             font-size: 12px;
             color: #E5E7EB;
-        }
-
-        .organization-pill i { color: #60A5FA; }
-
-        .pov-selector {
-            background: #1E293B;
-            border: 1px solid #334155;
-            color: #60A5FA;
-            padding: 6px 12px;
-            border-radius: 6px;
-            font-size: 12px;
-            outline: none;
-            cursor: pointer;
-            font-weight: 500;
+            font-weight: 600;
         }
 
         .header-right {
@@ -282,7 +272,7 @@
             top: 48px;
             width: 180px;
             background: white;
-            border: 1px solid var(--border);
+            border: 1px solid #E5E7EB;
             border-radius: 8px;
             box-shadow: 0 10px 25px rgba(0,0,0,0.15);
             display: none;
@@ -302,6 +292,7 @@
             gap: 10px;
             text-decoration: none;
             transition: 0.15s;
+            cursor: pointer;
         }
 
         .dropdown-item:hover { background: #F3F4F6; color: #111827; }
@@ -486,7 +477,6 @@
 
         .status-active { background: #ECFDF5; color: #047857; }
         .status-pending { background: #FEF3C7; color: #B45309; }
-        .status-maintenance { background: #FFF1F2; color: #BE123C; }
 
         .action-button {
             border: none;
@@ -614,7 +604,6 @@
             .sidebar-brand h2, .sidebar-brand span, .nav-section-title, .nav-item span { display: none; }
             .nav-item { justify-content: center; padding: 12px; }
             .top-header { left: 70px; padding: 0 15px; }
-            .organization-pill { display: none; }
             .main-content { margin-left: 70px; padding: 85px 15px 30px; }
             .page-header { flex-direction: column; gap: 14px; }
         }
@@ -644,17 +633,10 @@
     <!-- ================= TOP HEADER ================= -->
     <header class="top-header">
         <div class="header-left">
-            <div class="organization-pill">
-                <i class="bi bi-building"></i>
-                <span>Sunrise Property Group</span>
+            <div class="admin-badge">
+                <i class="bi bi-shield-lock-fill" style="color: #60A5FA;"></i>
+                <span>Admin Command Center</span>
             </div>
-
-            <!-- POV SELECTOR -->
-            <select class="pov-selector" id="povSelector" title="Switch Perspective">
-                <option value="admin" selected>POV: Admin / PM</option>
-                <option value="owner">POV: Property Owner</option>
-                <option value="client">POV: Client / Tenant</option>
-            </select>
         </div>
 
         <div class="header-right">
@@ -667,7 +649,7 @@
                 <div class="user-profile" id="userProfileBtn">
                     <div class="avatar" id="userAvatar">JD</div>
                     <div class="user-info">
-                        <strong id="userName">Juan Dela Cruz</strong>
+                        <strong id="userName">Property Admin</strong>
                         <span id="userRoleBadge">Property Manager</span>
                     </div>
                     <i class="bi bi-chevron-down" style="font-size:10px; color:#94A3B8;"></i>
@@ -678,10 +660,10 @@
                         <i class="bi bi-person-gear"></i>
                         <span>Account Settings</span>
                     </a>
-                    <a href="logout.html" class="dropdown-item danger">
+                    <div class="dropdown-item danger" onclick="logoutUser()">
                         <i class="bi bi-box-arrow-right"></i>
                         <span>Log Out</span>
-                    </a>
+                    </div>
                 </div>
             </div>
         </div>
@@ -698,7 +680,7 @@
                 <p>Manage real estate assets, physical buildings, and ownership shares across your portfolio.</p>
             </div>
 
-            <button class="primary-button admin-action" id="headerActionBtn" onclick="openPropertyModal()">
+            <button class="primary-button" id="headerActionBtn" onclick="openPropertyModal()">
                 <i class="bi bi-plus-lg"></i>
                 <span>New Property</span>
             </button>
@@ -716,7 +698,7 @@
             <div class="filter-bar">
                 <div class="search-box">
                     <i class="bi bi-search"></i>
-                    <input type="text" id="propertySearch" placeholder="Search properties..." onkeyup="filterTable('propertyTable', this.value)">
+                    <input type="text" id="propertySearch" placeholder="Search properties..." onkeyup="filterPropertiesTable()">
                 </div>
 
                 <select class="filter-select" id="propertyTypeFilter" onchange="filterPropertiesTable()">
@@ -746,22 +728,17 @@
                                 <th>UNITS</th>
                                 <th>OCCUPANCY</th>
                                 <th>STATUS</th>
-                                <th class="admin-action">ACTIONS</th>
+                                <th>ACTIONS</th>
                             </tr>
                         </thead>
                         <tbody id="propertyTable">
-                            <!-- RENDERED DYNAMICALLY FROM LOCALSTORAGE -->
+                            <!-- RENDERED DYNAMICALLY FROM LOCALSTORAGE / POSTGRESQL -->
                         </tbody>
                     </table>
                 </div>
 
                 <div class="table-footer">
-                    <div id="propertyCountText">Showing active properties</div>
-                    <div class="pagination">
-                        <button class="page-button"><i class="bi bi-chevron-left"></i></button>
-                        <button class="page-button active">1</button>
-                        <button class="page-button"><i class="bi bi-chevron-right"></i></button>
-                    </div>
+                    <div id="propertyCountText">Showing 0 properties</div>
                 </div>
             </div>
         </section>
@@ -774,7 +751,7 @@
                     <input type="text" placeholder="Search buildings..." onkeyup="filterTable('buildingTable', this.value)">
                 </div>
 
-                <button class="primary-button admin-action" onclick="openBuildingModal()"><i class="bi bi-plus-lg"></i> New Building</button>
+                <button class="primary-button" onclick="openBuildingModal()"><i class="bi bi-plus-lg"></i> New Building</button>
             </div>
 
             <div class="table-card">
@@ -788,21 +765,12 @@
                                 <th>FLOORS</th>
                                 <th>TOTAL UNITS</th>
                                 <th>STATUS</th>
-                                <th class="admin-action">ACTIONS</th>
+                                <th>ACTIONS</th>
                             </tr>
                         </thead>
                         <tbody id="buildingTable">
                             <tr>
-                                <td><strong style="color:var(--text);">Building 2 (Sunrise)</strong></td>
-                                <td>BLDG-2</td>
-                                <td>Sunrise Property</td>
-                                <td>5</td>
-                                <td>60</td>
-                                <td><span class="status status-active">Active</span></td>
-                                <td class="admin-action">
-                                    <button class="action-button" title="View"><i class="bi bi-eye"></i></button>
-                                    <button class="action-button" title="Edit"><i class="bi bi-pencil"></i></button>
-                                </td>
+                                <td colspan="7" style="text-align:center; color:var(--muted); padding:20px;">No buildings recorded. Click "New Building" to register one.</td>
                             </tr>
                         </tbody>
                     </table>
@@ -818,7 +786,7 @@
                     <input type="text" placeholder="Search owner assignments..." onkeyup="filterTable('ownershipTable', this.value)">
                 </div>
 
-                <button class="primary-button admin-action" onclick="openOwnershipModal()"><i class="bi bi-plus-lg"></i> Add Owner Share</button>
+                <button class="primary-button" onclick="openOwnershipModal()"><i class="bi bi-plus-lg"></i> Add Owner Share</button>
             </div>
 
             <div class="table-card">
@@ -831,19 +799,12 @@
                                 <th>TYPE</th>
                                 <th>OWNERSHIP SHARE (%)</th>
                                 <th>PRIMARY OWNER</th>
-                                <th class="admin-action">ACTIONS</th>
+                                <th>ACTIONS</th>
                             </tr>
                         </thead>
                         <tbody id="ownershipTable">
                             <tr>
-                                <td><strong>Sunrise Property (Bldg 2)</strong></td>
-                                <td>Don Ramon Santos</td>
-                                <td>Individual</td>
-                                <td><strong>100.00%</strong></td>
-                                <td><span class="status status-active">Primary</span></td>
-                                <td class="admin-action">
-                                    <button class="action-button"><i class="bi bi-pencil"></i></button>
-                                </td>
+                                <td colspan="6" style="text-align:center; color:var(--muted); padding:20px;">No ownership shares assigned. Click "Add Owner Share" to assign.</td>
                             </tr>
                         </tbody>
                     </table>
@@ -871,7 +832,7 @@
                 </div>
                 <div class="form-group">
                     <label>Property Code (Unique)</label>
-                    <input type="text" id="modalPropCode" placeholder="e.g. PROP-004">
+                    <input type="text" id="modalPropCode" placeholder="e.g. PROP-001">
                 </div>
                 <div class="form-group">
                     <label>Property Type</label>
@@ -883,7 +844,7 @@
                 </div>
                 <div class="form-group">
                     <label>Street Address / Location</label>
-                    <textarea id="modalPropLoc" placeholder="e.g. Parañaque, Metro Manila"></textarea>
+                    <textarea id="modalPropLoc" placeholder="e.g. Metro Manila"></textarea>
                 </div>
             </div>
 
@@ -907,19 +868,12 @@
 
             <div class="modal-body">
                 <div class="form-group">
-                    <label>Parent Property</label>
-                    <select id="modalBldgProp">
-                        <option>Sunrise Property</option>
-                        <option>Greenfield Apartments</option>
-                    </select>
-                </div>
-                <div class="form-group">
                     <label>Building Name</label>
-                    <input type="text" id="modalBldgName" placeholder="e.g. Building 3">
+                    <input type="text" id="modalBldgName" placeholder="e.g. Building 1">
                 </div>
                 <div class="form-group">
                     <label>Building Code</label>
-                    <input type="text" id="modalBldgCode" placeholder="e.g. BLDG-3">
+                    <input type="text" id="modalBldgCode" placeholder="e.g. BLDG-001">
                 </div>
                 <div class="form-group">
                     <label>Number of Floors</label>
@@ -929,7 +883,7 @@
 
             <div class="modal-footer">
                 <button class="secondary-button" onclick="closeModal('buildingModal')">Cancel</button>
-                <button class="primary-button" onclick="saveBuilding()"><i class="bi bi-check-lg"></i> Save Building</button>
+                <button class="primary-button" onclick="closeModal('buildingModal')"><i class="bi bi-check-lg"></i> Save Building</button>
             </div>
         </div>
     </div>
@@ -947,47 +901,21 @@
 
             <div class="modal-body">
                 <div class="form-group">
-                    <label>Target Property</label>
-                    <select id="modalOwnProp">
-                        <option>Sunrise Property</option>
-                        <option>Central Business Center</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Select Owner</label>
-                    <select id="modalOwnName">
-                        <option>Don Ramon Santos (Individual)</option>
-                        <option>Metro Investment Holdings (Organization)</option>
-                    </select>
-                </div>
-                <div class="form-group">
                     <label>Ownership Percentage (%)</label>
-                    <input type="number" id="modalOwnShare" min="0.01" max="100" step="0.01" value="50.00">
+                    <input type="number" id="modalOwnShare" min="0.01" max="100" step="0.01" value="100.00">
                 </div>
             </div>
 
             <div class="modal-footer">
                 <button class="secondary-button" onclick="closeModal('ownershipModal')">Cancel</button>
-                <button class="primary-button" onclick="saveOwnership()"><i class="bi bi-check-lg"></i> Save Ownership</button>
+                <button class="primary-button" onclick="closeModal('ownershipModal')"><i class="bi bi-check-lg"></i> Save Ownership</button>
             </div>
         </div>
     </div>
 
     <!-- ================= JAVASCRIPT ================= -->
     <script>
-        // Dynamic Admin Sidebar Renderer & Role Guard
         function renderSidebar() {
-            const pov = localStorage.getItem('argo_pov') || 'admin';
-
-            // Route Guard: Bounce non-admins to their respective property views
-            if (pov === 'owner') {
-                window.location.href = 'owner-properties.html';
-                return;
-            } else if (pov === 'client') {
-                window.location.href = 'client-dashboard.html';
-                return;
-            }
-
             const nav = document.getElementById('sidebarNav');
             nav.innerHTML = `
                 <div class="nav-section-title">OVERVIEW</div>
@@ -1067,39 +995,7 @@
             `;
         }
 
-        // Default Seed Properties
-        const DEFAULT_PROPERTIES = [
-            {
-                id: 'PROP-001',
-                name: 'Sunrise Property',
-                code: 'PROP-001',
-                type: 'Residential',
-                location: 'Parañaque, Metro Manila',
-                units: 120,
-                occupancy: '92%',
-                status: 'Active'
-            },
-            {
-                id: 'PROP-002',
-                name: 'Greenfield Apartments',
-                code: 'PROP-002',
-                type: 'Residential',
-                location: 'Quezon City, Metro Manila',
-                units: 86,
-                occupancy: '84%',
-                status: 'Active'
-            },
-            {
-                id: 'PROP-003',
-                name: 'Central Business Center',
-                code: 'PROP-003',
-                type: 'Commercial',
-                location: 'Makati City, Metro Manila',
-                units: 64,
-                occupancy: '75%',
-                status: 'Pending'
-            }
-        ];
+        const DEFAULT_PROPERTIES = [];
 
         function getProperties() {
             const data = localStorage.getItem('argo_properties');
@@ -1118,29 +1014,31 @@
             return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
         }
 
-        // Initialize Page
         document.addEventListener('DOMContentLoaded', () => {
             renderSidebar();
-            syncPOV();
+            loadUserData();
             renderPropertiesTable();
             updateHeaderBadge();
         });
 
-        // Cross-tab LocalStorage Synchronizer
-        window.addEventListener('storage', (e) => {
-            if (e.key === 'argo_properties' || e.key === 'argo_notifications' || e.key === 'argo_pov' || e.key === 'argo_user') {
-                renderSidebar();
-                syncPOV();
-                renderPropertiesTable();
-                updateHeaderBadge();
+        function loadUserData() {
+            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+            if (user.name) {
+                document.getElementById('userName').textContent = user.name;
+                document.getElementById('userAvatar').textContent = user.avatar || 'JD';
             }
-        });
+        }
 
-        // Render Properties Table
         function renderPropertiesTable() {
             const props = getProperties();
             const tbody = document.getElementById('propertyTable');
             tbody.innerHTML = '';
+
+            if (props.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--muted); padding:30px;">No managed properties found. Click "New Property" to add one.</td></tr>`;
+                document.getElementById('propertyCountText').textContent = `Showing 0 properties`;
+                return;
+            }
 
             props.forEach(p => {
                 const tr = document.createElement('tr');
@@ -1156,12 +1054,11 @@
                     </td>
                     <td>${p.type}</td>
                     <td>${p.location}</td>
-                    <td>${p.units}</td>
-                    <td>${p.occupancy}</td>
+                    <td>${p.units || 0}</td>
+                    <td>${p.occupancy || '0%'}</td>
                     <td>${badgeHtml}</td>
-                    <td class="admin-action">
+                    <td>
                         <button class="action-button" title="View" onclick="alert('Viewing property: ${p.name}')"><i class="bi bi-eye"></i></button>
-                        <button class="action-button" title="Edit" onclick="alert('Editing property: ${p.name}')"><i class="bi bi-pencil"></i></button>
                         <button class="action-button delete" title="Delete" onclick="deleteProperty('${p.id}')"><i class="bi bi-trash"></i></button>
                     </td>
                 `;
@@ -1171,12 +1068,11 @@
             document.getElementById('propertyCountText').textContent = `Showing 1–${props.length} of ${props.length} properties`;
         }
 
-        // Save New Property
         function saveProperty() {
             const name = document.getElementById('modalPropName').value.trim();
-            const code = document.getElementById('modalPropCode').value.trim() || 'PROP-004';
+            const code = document.getElementById('modalPropCode').value.trim() || `PROP-${Math.floor(100 + Math.random() * 900)}`;
             const type = document.getElementById('modalPropType').value;
-            const location = document.getElementById('modalPropLoc').value.trim() || 'Metro Manila';
+            const location = document.getElementById('modalPropLoc').value.trim() || 'N/A';
 
             if (!name) {
                 alert("Please enter a property name.");
@@ -1189,8 +1085,8 @@
                 code: code,
                 type: type,
                 location: location,
-                units: 45,
-                occupancy: '80%',
+                units: 0,
+                occupancy: '0%',
                 status: 'Active'
             };
 
@@ -1200,17 +1096,10 @@
 
             renderPropertiesTable();
             closeModal('propertyModal');
-            alert(`Property "${name}" created successfully!`);
-        }
 
-        function saveBuilding() {
-            alert("Building added successfully!");
-            closeModal('buildingModal');
-        }
-
-        function saveOwnership() {
-            alert("Ownership share assigned successfully!");
-            closeModal('ownershipModal');
+            document.getElementById('modalPropName').value = '';
+            document.getElementById('modalPropCode').value = '';
+            document.getElementById('modalPropLoc').value = '';
         }
 
         function deleteProperty(id) {
@@ -1222,12 +1111,10 @@
         }
 
         function updateHeaderBadge() {
-            const currentPov = localStorage.getItem('argo_pov') || 'admin';
-            const notifs = getNotifications().filter(n => n.pov === currentPov && n.status === 'unread');
+            const notifs = getNotifications().filter(n => n.pov === 'admin' && n.status === 'unread');
             document.getElementById('headerNotifBadge').textContent = notifs.length;
         }
 
-        // Tab Switcher
         function showTab(tabName, button) {
             document.getElementById('propertiesTab').style.display = 'none';
             document.getElementById('buildingsTab').style.display = 'none';
@@ -1240,7 +1127,6 @@
             button.classList.add('active');
         }
 
-        // Modal Open / Close helpers
         function openPropertyModal() { document.getElementById('propertyModal').classList.add('show'); }
         function openBuildingModal() { document.getElementById('buildingModal').classList.add('show'); }
         function openOwnershipModal() { document.getElementById('ownershipModal').classList.add('show'); }
@@ -1253,7 +1139,6 @@
             }
         };
 
-        // Table Live Search & Filtering
         function filterPropertiesTable() {
             const searchQuery = document.getElementById("propertySearch").value.toLowerCase();
             const typeVal = document.getElementById("propertyTypeFilter").value;
@@ -1270,11 +1155,7 @@
                 const matchesType = typeVal === "" || rowType === typeVal;
                 const matchesStatus = statusVal === "" || rowStatus === statusVal;
 
-                if (matchesSearch && matchesType && matchesStatus) {
-                    row.style.display = "";
-                } else {
-                    row.style.display = "none";
-                }
+                row.style.display = (matchesSearch && matchesType && matchesStatus) ? "" : "none";
             });
         }
 
@@ -1295,7 +1176,6 @@
             filterPropertiesTable();
         }
 
-        // Profile Dropdown Toggle
         const userProfileBtn = document.getElementById('userProfileBtn');
         const userDropdown = document.getElementById('userDropdown');
 
@@ -1305,48 +1185,6 @@
         });
 
         document.addEventListener('click', () => { userDropdown.classList.remove('show'); });
-
-        // POV Sync & Switcher
-        const povSelector = document.getElementById('povSelector');
-        const userName = document.getElementById('userName');
-        const userRoleBadge = document.getElementById('userRoleBadge');
-        const userAvatar = document.getElementById('userAvatar');
-
-        function syncPOV() {
-            const role = localStorage.getItem('argo_pov') || 'admin';
-            povSelector.value = role;
-
-            if (role === 'admin') {
-                userName.textContent = 'Juan Dela Cruz';
-                userRoleBadge.textContent = 'Property Manager';
-                userAvatar.textContent = 'JD';
-                userAvatar.style.background = '#2563EB';
-            } else if (role === 'owner') {
-                userName.textContent = 'Don Ramon Santos';
-                userRoleBadge.textContent = 'Property Owner';
-                userAvatar.textContent = 'RS';
-                userAvatar.style.background = '#059669';
-            } else if (role === 'client') {
-                userName.textContent = 'Maria Santos';
-                userRoleBadge.textContent = 'Sunrise Property • Bldg 2 • Unit 101';
-                userAvatar.textContent = 'MS';
-                userAvatar.style.background = '#D97706';
-            }
-        }
-
-        povSelector.addEventListener('change', (e) => {
-            const role = e.target.value;
-            localStorage.setItem('argo_pov', role);
-
-            if (role === 'owner') {
-                window.location.href = 'owner-properties.html';
-            } else if (role === 'client') {
-                window.location.href = 'client-dashboard.html';
-            } else {
-                syncPOV();
-                updateHeaderBadge();
-            }
-        });
     </script>
 </body>
 </html>

@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Inspections | ARGO Property Management</title>
 
+    <!-- 🔒 Strict Navigation Guard & Role Isolation -->
+    <script src="js/auth.js"></script>
+
     <!-- Inter Font -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -139,7 +142,7 @@
 
         .header-left { display: flex; align-items: center; gap: 16px; }
 
-        .organization-pill {
+        .admin-badge {
             display: flex;
             align-items: center;
             gap: 8px;
@@ -149,20 +152,7 @@
             border-radius: 6px;
             font-size: 12px;
             color: #E5E7EB;
-        }
-
-        .organization-pill i { color: #60A5FA; }
-
-        .pov-selector {
-            background: #1E293B;
-            border: 1px solid #334155;
-            color: #60A5FA;
-            padding: 6px 12px;
-            border-radius: 6px;
-            font-size: 12px;
-            outline: none;
-            cursor: pointer;
-            font-weight: 500;
+            font-weight: 600;
         }
 
         .header-right { display: flex; align-items: center; gap: 18px; }
@@ -261,6 +251,7 @@
             gap: 10px;
             text-decoration: none;
             transition: 0.15s;
+            cursor: pointer;
         }
 
         .dropdown-item:hover { background: #F3F4F6; color: #111827; }
@@ -463,6 +454,7 @@
         }
 
         .action-btn:hover { color: var(--primary); background: #EFF6FF; }
+        .action-btn.delete:hover { color: var(--danger); background: #FFF1F2; }
 
         /* PAGINATION */
         .table-footer {
@@ -579,7 +571,6 @@
             .sidebar-brand h2, .sidebar-brand span, .nav-section-title, .nav-item span { display: none; }
             .nav-item { justify-content: center; padding: 12px; }
             .top-header { left: 70px; padding: 0 15px; }
-            .organization-pill { display: none; }
             .main-content { margin-left: 70px; padding: 85px 15px 30px; }
             .page-header { flex-direction: column; gap: 14px; }
             .filter-bar { flex-direction: column; align-items: stretch; }
@@ -591,116 +582,35 @@
 
 <body>
 
-     <!-- ================= SIDEBAR ================= -->
+    <!-- ================= SIDEBAR ================= -->
     <aside class="sidebar">
         <div class="sidebar-brand">
             <div class="brand-logo">A</div>
             <div>
                 <h2>ARGO</h2>
-                <span>Property Management</span>
+                <span id="portalBrandSubtitle">Property Management</span>
             </div>
         </div>
 
-        <nav class="sidebar-nav">
-            <div class="nav-section-title">OVERVIEW</div>
-            <a href="dashboard.html" class="nav-item">
-                <i class="bi bi-grid-1x2"></i>
-                <span>Dashboard</span>
-            </a>
-
-            <div class="nav-section-title">PROPERTY OPERATIONS</div>
-            <a href="properties.html" class="nav-item">
-                <i class="bi bi-buildings"></i>
-                <span>Properties</span>
-            </a>
-            <a href="buildings.html" class="nav-item">
-                <i class="bi bi-building"></i>
-                <span>Buildings</span>
-            </a>
-            <a href="units.html" class="nav-item">
-                <i class="bi bi-door-open"></i>
-                <span>Units</span>
-            </a>
-            <a href="tenants.html" class="nav-item">
-                <i class="bi bi-people"></i>
-                <span>Tenants</span>
-            </a>
-            <a href="owners.html" class="nav-item">
-                <i class="bi bi-person-badge"></i>
-                <span>Owners</span>
-            </a>
-            <a href="property-ownership.html" class="nav-item">
-                <i class="bi bi-pie-chart"></i>
-                <span>Fractional Ownership</span>
-            </a>
-            <a href="leases.html" class="nav-item">
-                <i class="bi bi-file-earmark-text"></i>
-                <span>Leases</span>
-            </a>
-
-            <div class="nav-section-title">FINANCE & SERVICES</div>
-            <a href="rent-collection.html" class="nav-item">
-                <i class="bi bi-cash-stack"></i>
-                <span>Rent Collection</span>
-            </a>
-	    <a href="transaction.html" class="nav-item">
-                <i class="bi bi-receipt-cutoff"></i>
-                <span>Transactions & Ledger</span>
-            </a>
-
-            <a href="utilities.html" class="nav-item">
-                <i class="bi bi-lightning-charge"></i>
-                <span>Utilities</span>
-            </a>
-            <a href="maintenance.html" class="nav-item">
-                <i class="bi bi-tools"></i>
-                <span>Maintenance</span>
-            </a>
-
-            <div class="nav-section-title">RECORDS & REPORTS</div>
-            <a href="inspections.html" class="nav-item active">
-                <i class="bi bi-clipboard-check"></i>
-                <span>Inspections</span>
-            </a>
-            <a href="documents.html" class="nav-item">
-                <i class="bi bi-folder2-open"></i>
-                <span>Documents</span>
-            </a>
-            <a href="reports.html" class="nav-item">
-                <i class="bi bi-bar-chart"></i>
-                <span>Reports</span>
-            </a>
-
-            <div class="nav-section-title">SYSTEM</div>
-            <a href="settings.html" class="nav-item">
-                <i class="bi bi-gear"></i>
-                <span>Settings</span>
-            </a>
+        <nav class="sidebar-nav" id="sidebarNav">
+            <!-- POPULATED DYNAMICALLY BY JAVASCRIPT -->
         </nav>
 
         <div class="sidebar-footer">
-            <span>ARGO v0.5</span>
+            <span id="portalVersionText">ARGO v0.5</span>
         </div>
     </aside>
 
     <!-- ================= TOP HEADER ================= -->
     <header class="top-header">
         <div class="header-left">
-            <div class="organization-pill">
-                <i class="bi bi-building"></i>
-                <span>Sunrise Property Group</span>
+            <div id="headerRoleBadgeContainer" class="admin-badge">
+                <i class="bi bi-shield-lock-fill" style="color: #60A5FA;"></i>
+                <span id="headerRoleBadgeText">Admin Command Center</span>
             </div>
-
-            <!-- DYNAMIC POV / ROLE SWITCHER FOR DB-LESS TESTING -->
-            <select class="pov-selector" id="povSelector" title="Switch User Role Perspective">
-                <option value="admin" selected>POV: Admin / PM</option>
-                <option value="owner">POV: Property Owner</option>
-                <option value="client">POV: Client / Tenant</option>
-            </select>
         </div>
 
         <div class="header-right">
-            <!-- HEADER BELL LINK TO NOTIFICATION.HTML -->
             <a href="notification.html" class="notification-header-link" title="Notifications Center">
                 <i class="bi bi-bell"></i>
                 <div class="notification-badge" id="headerNotifBadge">0</div>
@@ -710,7 +620,7 @@
                 <div class="user-profile" id="userProfileBtn">
                     <div class="avatar" id="userAvatar">JD</div>
                     <div class="user-info">
-                        <strong id="userName">Juan Dela Cruz</strong>
+                        <strong id="userName">Property Admin</strong>
                         <span id="userRoleBadge">Property Manager</span>
                     </div>
                     <i class="bi bi-chevron-down" style="font-size: 10px; color: #94A3B8;"></i>
@@ -721,10 +631,10 @@
                         <i class="bi bi-person-gear"></i>
                         <span>Account Settings</span>
                     </a>
-                    <a href="logout.html" class="dropdown-item danger">
+                    <div class="dropdown-item danger" onclick="logoutUser()">
                         <i class="bi bi-box-arrow-right"></i>
                         <span>Log Out</span>
-                    </a>
+                    </div>
                 </div>
             </div>
         </div>
@@ -736,12 +646,12 @@
         <!-- PAGE HEADER -->
         <div class="page-header">
             <div>
-                <div class="eyebrow">RECORDS & REPORTS</div>
-                <h1>Inspections</h1>
-                <p>Schedule and track property and unit inspections throughout the occupancy lifecycle.</p>
+                <div class="eyebrow" id="pageEyebrow">RECORDS & REPORTS</div>
+                <h1>Inspections & Move-In Logs</h1>
+                <p id="pageDesc">Schedule and track property and unit inspections throughout the occupancy lifecycle.</p>
             </div>
 
-            <button class="primary-btn admin-action" onclick="openModal()">
+            <button class="primary-btn" id="scheduleInspectionBtn" onclick="openModal()">
                 <i class="bi bi-plus-lg"></i>
                 <span>Schedule Inspection</span>
             </button>
@@ -799,12 +709,17 @@
 
             <button class="secondary-btn" onclick="resetFilters()">
                 <i class="bi bi-arrow-counterclockwise"></i>
-                Reset
+                <span>Reset</span>
             </button>
         </div>
 
         <!-- TABLE -->
         <div class="table-card">
+            <div class="table-header" style="padding:16px 20px; border-bottom:1px solid var(--border);">
+                <h2 id="tableHeaderTitle">Inspection Records</h2>
+                <span style="font-size:12px; color:var(--muted);" id="locationSubtitle">All Properties</span>
+            </div>
+
             <div class="table-wrapper">
                 <table>
                     <thead>
@@ -816,7 +731,7 @@
                             <th>SCHEDULED DATE</th>
                             <th>INSPECTOR</th>
                             <th>STATUS</th>
-                            <th class="admin-action">ACTIONS</th>
+                            <th>ACTIONS</th>
                         </tr>
                     </thead>
                     <tbody id="inspectionTable">
@@ -827,12 +742,7 @@
 
             <!-- TABLE FOOTER -->
             <div class="table-footer">
-                <span id="showingCountText">Showing active inspections</span>
-                <div class="pagination">
-                    <button class="page-button"><i class="bi bi-chevron-left"></i></button>
-                    <button class="page-button active">1</button>
-                    <button class="page-button"><i class="bi bi-chevron-right"></i></button>
-                </div>
+                <span id="showingCountText">Showing 0 inspections</span>
             </div>
         </div>
     </main>
@@ -852,9 +762,8 @@
                 <div class="form-group">
                     <label>Target Unit & Property</label>
                     <select id="modalUnitSelect">
-                        <option value="Sunrise Property • Building 2 • Unit 101">Sunrise Property • Building 2 • Unit 101</option>
-                        <option value="Greenfield Apartments • Unit 204">Greenfield Apartments • Unit 204</option>
-                        <option value="Sunrise Residences • Unit 305">Sunrise Residences • Unit 305</option>
+                        <option value="">Select unit...</option>
+                        <!-- DYNAMICALLY POPULATED -->
                     </select>
                 </div>
 
@@ -871,19 +780,19 @@
 
                     <div class="form-group">
                         <label>Scheduled Date</label>
-                        <input type="date" id="modalDateInput" value="2026-08-10">
+                        <input type="date" id="modalDateInput">
                     </div>
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
                         <label>Assigned Inspector</label>
-                        <input type="text" id="modalInspectorInput" value="John Dela Cruz">
+                        <input type="text" id="modalInspectorInput" placeholder="e.g. Property Admin">
                     </div>
 
                     <div class="form-group">
                         <label>Tenant Name</label>
-                        <input type="text" id="modalTenantInput" value="Maria Santos">
+                        <input type="text" id="modalTenantInput" placeholder="e.g. Tenant Name">
                     </div>
                 </div>
 
@@ -902,51 +811,30 @@
 
     <!-- ================= JAVASCRIPT ================= -->
     <script>
-        // Seed Default Inspections including Maria Santos's Unit 101
+        // Default Seed Inspections if empty
         const DEFAULT_INSPECTIONS = [
             {
-                id: 'INS-0001',
+                id: 'INS-2026-001',
                 unitName: 'Unit 101',
                 propertyInfo: 'Sunrise Property • Building 2',
                 tenant: 'Maria Santos',
                 type: 'Move-in',
-                date: 'Aug 10, 2026',
-                inspector: 'John Dela Cruz',
+                date: '2026-01-01',
+                inspector: 'Property Admin',
+                status: 'Completed'
+            },
+            {
+                id: 'INS-2026-002',
+                unitName: 'Unit 101',
+                propertyInfo: 'Sunrise Property • Building 2',
+                tenant: 'Maria Santos',
+                type: 'Routine',
+                date: '2026-08-20',
+                inspector: 'Juan Dela Cruz',
                 status: 'Scheduled'
-            },
-            {
-                id: 'INS-0002',
-                unitName: 'Unit 204',
-                propertyInfo: 'Greenfield Apartments',
-                tenant: 'Juan dela Cruz',
-                type: 'Routine',
-                date: 'Jul 20, 2026',
-                inspector: 'Mark Reyes',
-                status: 'Completed'
-            },
-            {
-                id: 'INS-0003',
-                unitName: 'Unit 305',
-                propertyInfo: 'Sunrise Residences',
-                tenant: 'Ana Reyes',
-                type: 'Move-out',
-                date: 'Aug 15, 2026',
-                inspector: 'John Dela Cruz',
-                status: 'Pending'
-            },
-            {
-                id: 'INS-0004',
-                unitName: 'Unit 402',
-                propertyInfo: 'Greenfield Apartments',
-                tenant: 'Carlos Mendoza',
-                type: 'Routine',
-                date: 'Jul 18, 2026',
-                inspector: 'Mark Reyes',
-                status: 'Completed'
             }
         ];
 
-        // Shared LocalStorage Accessors
         function getInspections() {
             const data = localStorage.getItem('argo_inspections');
             if (!data) {
@@ -960,25 +848,228 @@
             localStorage.setItem('argo_inspections', JSON.stringify(inspections));
         }
 
+        function getUnits() {
+            return JSON.parse(localStorage.getItem('argo_units') || '[]');
+        }
+
         function getNotifications() {
             return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
         }
 
-        // Initialize Page
         document.addEventListener('DOMContentLoaded', () => {
+            applyRoleContext();
+            loadUserData();
+            populateUnitDropdown();
             renderInspectionTable();
             updateKPIs();
             updateHeaderBadge();
         });
 
-        // Dynamic Table Render
+        // Dynamic Role Adaptation (Admin POV vs Client POV)
+        function applyRoleContext() {
+            const role = localStorage.getItem('argo_pov') || 'admin';
+            const nav = document.getElementById('sidebarNav');
+            const brandSub = document.getElementById('portalBrandSubtitle');
+            const versionText = document.getElementById('portalVersionText');
+            const headerBadgeContainer = document.getElementById('headerRoleBadgeContainer');
+            const headerBadgeText = document.getElementById('headerRoleBadgeText');
+            const scheduleBtn = document.getElementById('scheduleInspectionBtn');
+            const pageEyebrow = document.getElementById('pageEyebrow');
+            const pageDesc = document.getElementById('pageDesc');
+
+            const currentPath = window.location.pathname.split("/").pop() || 'inspections.html';
+
+            if (role === 'client') {
+                brandSub.textContent = 'Tenant Portal';
+                versionText.textContent = 'ARGO v0.5 (Tenant POV)';
+                headerBadgeContainer.className = 'tenant-badge';
+                headerBadgeContainer.innerHTML = '<i class="bi bi-house-door-fill" style="color: #60A5FA;"></i><span>Tenant Self-Service Portal</span>';
+                
+                pageEyebrow.textContent = 'SELF-SERVICE PORTAL';
+                pageDesc.textContent = 'View your move-in inspection reports and unit condition checklists.';
+                if (scheduleBtn) scheduleBtn.style.display = 'none';
+
+                if (nav) {
+                    nav.innerHTML = `
+                        <div class="nav-section-title">SELF-SERVICE HOME</div>
+                        <a href="client-dashboard.html" class="nav-item">
+                            <i class="bi bi-house-door"></i>
+                            <span>My Tenancy Home</span>
+                        </a>
+                        <a href="client-billing.html" class="nav-item">
+                            <i class="bi bi-receipt"></i>
+                            <span>Pay Rent & Dues</span>
+                        </a>
+                        <a href="client-utilities.html" class="nav-item">
+                            <i class="bi bi-lightning-charge"></i>
+                            <span>My Utilities & Meters</span>
+                        </a>
+                        <a href="client-maintenance.html" class="nav-item">
+                            <i class="bi bi-tools"></i>
+                            <span>Submit Maintenance</span>
+                        </a>
+                        <a href="inspections.html" class="nav-item active">
+                            <i class="bi bi-clipboard-check"></i>
+                            <span>Move-In & Inspections</span>
+                        </a>
+                        <a href="client-documents.html" class="nav-item">
+                            <i class="bi bi-folder2-open"></i>
+                            <span>My Lease & Receipts</span>
+                        </a>
+
+                        <div class="nav-section-title">SYSTEM</div>
+                        <a href="account.html" class="nav-item">
+                            <i class="bi bi-gear"></i>
+                            <span>Account Settings</span>
+                        </a>
+                        <a href="logout.html" class="nav-item">
+                            <i class="bi bi-box-arrow-right"></i>
+                            <span>Log Out</span>
+                        </a>
+                    `;
+                }
+            } else {
+                // Admin POV
+                brandSub.textContent = 'Property Management';
+                versionText.textContent = 'ARGO v0.5';
+                headerBadgeContainer.className = 'admin-badge';
+                headerBadgeContainer.innerHTML = '<i class="bi bi-shield-lock-fill" style="color: #60A5FA;"></i><span>Admin Command Center</span>';
+                
+                pageEyebrow.textContent = 'RECORDS & REPORTS';
+                pageDesc.textContent = 'Schedule and track property and unit inspections throughout the occupancy lifecycle.';
+                if (scheduleBtn) scheduleBtn.style.display = 'inline-flex';
+
+                if (nav) {
+                    nav.innerHTML = `
+                        <div class="nav-section-title">OVERVIEW</div>
+                        <a href="dashboard.html" class="nav-item">
+                            <i class="bi bi-grid-1x2"></i>
+                            <span>Dashboard</span>
+                        </a>
+
+                        <div class="nav-section-title">PROPERTY OPERATIONS</div>
+                        <a href="properties.html" class="nav-item">
+                            <i class="bi bi-buildings"></i>
+                            <span>Properties</span>
+                        </a>
+                        <a href="buildings.html" class="nav-item">
+                            <i class="bi bi-building"></i>
+                            <span>Buildings</span>
+                        </a>
+                        <a href="units.html" class="nav-item">
+                            <i class="bi bi-door-open"></i>
+                            <span>Units</span>
+                        </a>
+                        <a href="tenants.html" class="nav-item">
+                            <i class="bi bi-people"></i>
+                            <span>Tenants</span>
+                        </a>
+                        <a href="owners.html" class="nav-item">
+                            <i class="bi bi-person-badge"></i>
+                            <span>Owners</span>
+                        </a>
+                        <a href="property-ownership.html" class="nav-item">
+                            <i class="bi bi-pie-chart"></i>
+                            <span>Fractional Ownership</span>
+                        </a>
+                        <a href="leases.html" class="nav-item">
+                            <i class="bi bi-file-earmark-text"></i>
+                            <span>Leases</span>
+                        </a>
+
+                        <div class="nav-section-title">FINANCE & SERVICES</div>
+                        <a href="rent-collection.html" class="nav-item">
+                            <i class="bi bi-cash-stack"></i>
+                            <span>Rent Collection</span>
+                        </a>
+                        <a href="transaction.html" class="nav-item">
+                            <i class="bi bi-receipt-cutoff"></i>
+                            <span>Transactions & Ledger</span>
+                        </a>
+                        <a href="utilities.html" class="nav-item">
+                            <i class="bi bi-lightning-charge"></i>
+                            <span>Utilities</span>
+                        </a>
+                        <a href="maintenance.html" class="nav-item">
+                            <i class="bi bi-tools"></i>
+                            <span>Maintenance</span>
+                        </a>
+
+                        <div class="nav-section-title">RECORDS & REPORTS</div>
+                        <a href="inspections.html" class="nav-item active">
+                            <i class="bi bi-clipboard-check"></i>
+                            <span>Inspections</span>
+                        </a>
+                        <a href="documents.html" class="nav-item">
+                            <i class="bi bi-folder2-open"></i>
+                            <span>Documents</span>
+                        </a>
+                        <a href="reports.html" class="nav-item">
+                            <i class="bi bi-bar-chart"></i>
+                            <span>Reports</span>
+                        </a>
+
+                        <div class="nav-section-title">SYSTEM</div>
+                        <a href="settings.html" class="nav-item">
+                            <i class="bi bi-gear"></i>
+                            <span>Settings</span>
+                        </a>
+                        <a href="logout.html" class="nav-item">
+                            <i class="bi bi-box-arrow-right"></i>
+                            <span>Log Out</span>
+                        </a>
+                    `;
+                }
+            }
+        }
+
+        function loadUserData() {
+            const role = localStorage.getItem('argo_pov') || 'admin';
+            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+            if (role === 'client') {
+                document.getElementById('userName').textContent = 'Maria Santos';
+                document.getElementById('userRoleBadge').textContent = 'Sunrise Property • Unit 101';
+                document.getElementById('userAvatar').textContent = 'MS';
+                document.getElementById('userAvatar').style.background = '#D97706';
+            } else {
+                document.getElementById('userName').textContent = user.name || 'Property Admin';
+                document.getElementById('userRoleBadge').textContent = 'Property Manager';
+                document.getElementById('userAvatar').textContent = user.avatar || 'JD';
+                document.getElementById('userAvatar').style.background = '#2563EB';
+            }
+        }
+
+        function populateUnitDropdown() {
+            const units = getUnits();
+            const modalSelect = document.getElementById('modalUnitSelect');
+            if (!modalSelect) return;
+
+            modalSelect.innerHTML = '<option value="">Select unit...</option>';
+            units.forEach(u => {
+                const uName = u.unit_no || u.unitNo || u.id;
+                const pName = u.property_name || u.property || 'Property';
+                modalSelect.innerHTML += `<option value="${pName} • ${uName}">${pName} • ${uName}</option>`;
+            });
+        }
+
         function renderInspectionTable() {
-            const inspections = getInspections();
+            const role = localStorage.getItem('argo_pov') || 'admin';
+            let inspections = getInspections();
+
+            // If client, restrict inspections strictly to Maria Santos / Unit 101
+            if (role === 'client') {
+                inspections = inspections.filter(i => i.tenant === 'Maria Santos' || i.unitName.includes('101'));
+                document.getElementById('locationSubtitle').textContent = 'Sunrise Property • Unit 101';
+            } else {
+                document.getElementById('locationSubtitle').textContent = 'All Properties & Units';
+            }
+
             const tbody = document.getElementById('inspectionTable');
             tbody.innerHTML = '';
 
             if (inspections.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--muted); padding:30px;">No inspection records found.</td></tr>`;
+                document.getElementById('showingCountText').textContent = `Showing 0 inspections`;
                 return;
             }
 
@@ -998,6 +1089,15 @@
                 else if (ins.status === 'Pending') statusBadge = `<span class="status pending">Pending</span>`;
                 else statusBadge = `<span class="status cancelled">Cancelled</span>`;
 
+                let actionButtons = `
+                    <button class="action-btn" title="View Report" onclick="alert('Viewing inspection report ${ins.id}')"><i class="bi bi-eye"></i></button>
+                `;
+                if (role === 'admin') {
+                    actionButtons += `
+                        <button class="action-btn delete" title="Delete" onclick="deleteInspection('${ins.id}')"><i class="bi bi-trash"></i></button>
+                    `;
+                }
+
                 tr.innerHTML = `
                     <td><div class="inspection-id">${ins.id}</div></td>
                     <td>
@@ -1009,13 +1109,7 @@
                     <td>${ins.date}</td>
                     <td>${ins.inspector}</td>
                     <td>${statusBadge}</td>
-                    <td class="admin-action">
-                        <div class="actions">
-                            <button class="action-btn" title="View" onclick="alert('Viewing inspection record ${ins.id}')"><i class="bi bi-eye"></i></button>
-                            <button class="action-btn" title="Edit" onclick="alert('Editing inspection record ${ins.id}')"><i class="bi bi-pencil"></i></button>
-                            <button class="action-btn" title="Delete" onclick="deleteInspection('${ins.id}')"><i class="bi bi-trash"></i></button>
-                        </div>
-                    </td>
+                    <td><div class="actions">${actionButtons}</div></td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -1023,20 +1117,24 @@
             document.getElementById('showingCountText').textContent = `Showing 1–${inspections.length} of ${inspections.length} inspections`;
         }
 
-        // Save New Inspection
         function saveInspection() {
             const unitLoc = document.getElementById('modalUnitSelect').value;
             const type = document.getElementById('modalTypeSelect').value;
-            const date = document.getElementById('modalDateInput').value || 'Aug 10, 2026';
-            const inspector = document.getElementById('modalInspectorInput').value.trim() || 'John Dela Cruz';
-            const tenant = document.getElementById('modalTenantInput').value.trim() || 'Maria Santos';
+            const date = document.getElementById('modalDateInput').value || new Date().toISOString().split('T')[0];
+            const inspector = document.getElementById('modalInspectorInput').value.trim() || 'Property Admin';
+            const tenant = document.getElementById('modalTenantInput').value.trim() || 'N/A';
+
+            if (!unitLoc) {
+                alert("Please select a target unit.");
+                return;
+            }
 
             const parts = unitLoc.split('•');
-            const unitName = parts[2] ? parts[2].trim() : 'Unit 101';
-            const propertyInfo = parts[0] ? parts[0].trim() + ' • ' + (parts[1] ? parts[1].trim() : '') : 'Sunrise Property';
+            const unitName = parts[1] ? parts[1].trim() : parts[0].trim();
+            const propertyInfo = parts[0] ? parts[0].trim() : 'Property';
 
             const newIns = {
-                id: `INS-000${Math.floor(5 + Math.random() * 90)}`,
+                id: `INS-${Math.floor(1000 + Math.random() * 9000)}`,
                 unitName: unitName,
                 propertyInfo: propertyInfo,
                 tenant: tenant,
@@ -1054,10 +1152,12 @@
             updateKPIs();
             closeModal();
 
-            alert(`Inspection scheduled successfully for ${unitName}!`);
+            document.getElementById('modalUnitSelect').value = '';
+            document.getElementById('modalInspectorInput').value = '';
+            document.getElementById('modalTenantInput').value = '';
+            document.getElementById('modalNotesInput').value = '';
         }
 
-        // Delete Inspection
         function deleteInspection(id) {
             if (!confirm("Are you sure you want to delete this inspection record?")) return;
             let inspections = getInspections();
@@ -1067,9 +1167,13 @@
             updateKPIs();
         }
 
-        // Recalculate KPIs
         function updateKPIs() {
-            const inspections = getInspections();
+            const role = localStorage.getItem('argo_pov') || 'admin';
+            let inspections = getInspections();
+            if (role === 'client') {
+                inspections = inspections.filter(i => i.tenant === 'Maria Santos' || i.unitName.includes('101'));
+            }
+
             let total = inspections.length;
             let scheduled = inspections.filter(i => i.status === 'Scheduled').length;
             let completed = inspections.filter(i => i.status === 'Completed').length;
@@ -1082,12 +1186,12 @@
         }
 
         function updateHeaderBadge() {
-            const currentPov = document.getElementById('povSelector').value;
-            const notifs = getNotifications().filter(n => n.pov === currentPov && n.status === 'unread');
-            document.getElementById('headerNotifBadge').textContent = notifs.length;
+            const role = localStorage.getItem('argo_pov') || 'admin';
+            const notifs = getNotifications().filter(n => n.pov === role && n.status === 'unread');
+            const badge = document.getElementById('headerNotifBadge');
+            if (badge) badge.textContent = notifs.length;
         }
 
-        // Modal Controls
         function openModal() { document.getElementById("inspectionModal").classList.add("show"); }
         function closeModal() { document.getElementById("inspectionModal").classList.remove("show"); }
 
@@ -1096,7 +1200,6 @@
             if (event.target === modal) closeModal();
         };
 
-        // Live Filtering
         function filterTable() {
             const searchValue = document.getElementById("searchInput").value.toLowerCase();
             const typeValue = document.getElementById("typeFilter").value;
@@ -1113,11 +1216,7 @@
                 const matchesType = typeValue === "" || rowType === typeValue;
                 const matchesStatus = statusValue === "" || rowStatus === statusValue;
 
-                if (matchesSearch && matchesType && matchesStatus) {
-                    row.style.display = "";
-                } else {
-                    row.style.display = "none";
-                }
+                row.style.display = (matchesSearch && matchesType && matchesStatus) ? "" : "none";
             });
         }
 
@@ -1128,49 +1227,16 @@
             filterTable();
         }
 
-        // Profile Dropdown Toggle
         const userProfileBtn = document.getElementById('userProfileBtn');
         const userDropdown = document.getElementById('userDropdown');
 
-        userProfileBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            userDropdown.classList.toggle('show');
-        });
+        if (userProfileBtn && userDropdown) {
+            userProfileBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                userDropdown.classList.toggle('show');
+            });
 
-        document.addEventListener('click', () => { userDropdown.classList.remove('show'); });
-
-        // POV Switcher
-        const povSelector = document.getElementById('povSelector');
-        const userName = document.getElementById('userName');
-        const userRoleBadge = document.getElementById('userRoleBadge');
-        const userAvatar = document.getElementById('userAvatar');
-        const adminActions = document.querySelectorAll('.admin-action');
-
-        povSelector.addEventListener('change', (e) => {
-            const role = e.target.value;
-
-            if (role === 'admin') {
-                userName.textContent = 'Juan Dela Cruz';
-                userRoleBadge.textContent = 'Property Manager';
-                userAvatar.textContent = 'JD';
-                userAvatar.style.background = '#2563EB';
-                adminActions.forEach(el => el.style.display = '');
-            } else if (role === 'owner') {
-                userName.textContent = 'Don Ramon Santos';
-                userRoleBadge.textContent = 'Property Owner';
-                userAvatar.textContent = 'RS';
-                userAvatar.style.background = '#059669';
-                adminActions.forEach(el => el.style.display = 'none');
-            } else if (role === 'client') {
-                userName.textContent = 'Maria Santos';
-                userRoleBadge.textContent = 'Sunrise Property • Bldg 2 • Unit 101';
-                userAvatar.textContent = 'MS';
-                userAvatar.style.background = '#D97706';
-                adminActions.forEach(el => el.style.display = 'none');
-            }
-
-            updateHeaderBadge();
-        });
+            document.addEventListener('click', () => { userDropdown.classList.remove('show'); });
+        }
     </script>
 </body>
-</html>

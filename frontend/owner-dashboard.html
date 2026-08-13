@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Owner Dashboard | ARGO Property Management</title>
+    <title>Owner Executive Dashboard | ARGO Property Management</title>
+
+    <!-- 🔒 Strict Navigation Guard & Role Isolation -->
+    <script src="js/auth.js"></script>
 
     <!-- Inter Font -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -13,9 +16,13 @@
     <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <style>
         :root {
-            --primary: #2563EB;
+            --primary: #059669;
+            --primary-blue: #2563EB;
             --sidebar: #0F172A;
             --active: #1E293B;
             --canvas: #F3F4F6;
@@ -73,7 +80,7 @@
             width: 36px;
             height: 36px;
             border-radius: 8px;
-            background: #2563EB;
+            background: #059669;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -136,7 +143,7 @@
         }
 
         .nav-item.active i {
-            color: #60A5FA;
+            color: #34D399;
         }
 
         .nav-item i {
@@ -176,30 +183,17 @@
             gap: 16px;
         }
 
-        .organization-pill {
+        .owner-badge {
             display: flex;
             align-items: center;
             gap: 8px;
             background: #1E293B;
-            border: 1px solid #334155;
+            border: 1px solid #059669;
             padding: 6px 12px;
             border-radius: 6px;
             font-size: 12px;
             color: #E5E7EB;
-        }
-
-        .organization-pill i { color: #60A5FA; }
-
-        .pov-selector {
-            background: #1E293B;
-            border: 1px solid #334155;
-            color: #60A5FA;
-            padding: 6px 12px;
-            border-radius: 6px;
-            font-size: 12px;
-            outline: none;
-            cursor: pointer;
-            font-weight: 500;
+            font-weight: 600;
         }
 
         .header-right {
@@ -225,7 +219,7 @@
         }
 
         .notification-header-link:hover {
-            background: #2563EB;
+            background: #059669;
             color: white;
         }
 
@@ -264,7 +258,7 @@
             width: 32px;
             height: 32px;
             border-radius: 50%;
-            background: var(--success);
+            background: #059669;
             color: white;
             display: flex;
             align-items: center;
@@ -302,6 +296,7 @@
             gap: 10px;
             text-decoration: none;
             transition: 0.15s;
+            cursor: pointer;
         }
 
         .dropdown-item:hover { background: #F3F4F6; color: #111827; }
@@ -318,8 +313,8 @@
 
         .page-header {
             display: flex;
-            align-items: flex-start;
             justify-content: space-between;
+            align-items: flex-start;
             margin-bottom: 22px;
         }
 
@@ -343,21 +338,22 @@
             font-size: 13px;
         }
 
-        .secondary-btn {
-            height: 38px;
-            border: 1px solid var(--border);
-            background: white;
+        .primary-button {
+            border: none;
+            background: #059669;
+            color: white;
+            padding: 9px 16px;
             border-radius: 6px;
-            padding: 0 13px;
-            font-size: 12px;
+            font-size: 13px;
+            font-weight: 500;
             cursor: pointer;
             display: inline-flex;
             align-items: center;
-            gap: 7px;
-            color: var(--text);
+            gap: 8px;
+            transition: 0.2s ease;
         }
 
-        .secondary-btn:hover { background: #F9FAFB; }
+        .primary-button:hover { background: #047857; }
 
         /* ================= KPI CARDS ================= */
         .kpi-grid {
@@ -368,7 +364,7 @@
         }
 
         .kpi-card {
-            background: var(--white);
+            background: white;
             border: 1px solid var(--border);
             border-radius: 12px;
             padding: 18px;
@@ -377,15 +373,15 @@
 
         .kpi-top {
             display: flex;
-            align-items: center;
             justify-content: space-between;
+            align-items: center;
             margin-bottom: 12px;
         }
 
         .kpi-label {
-            color: var(--muted);
             font-size: 11px;
             font-weight: 700;
+            color: var(--muted);
             letter-spacing: 0.05em;
             text-transform: uppercase;
         }
@@ -395,7 +391,7 @@
             height: 36px;
             border-radius: 8px;
             background: #ECFDF5;
-            color: var(--success);
+            color: #059669;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -414,99 +410,125 @@
             margin-top: 4px;
         }
 
-        /* ================= TABLE CARDS ================= */
-        .table-card {
+        /* ================= CHARTS & PANELS ================= */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 16px;
+            margin-bottom: 22px;
+        }
+
+        .card {
             background: white;
             border: 1px solid var(--border);
             border-radius: 12px;
-            overflow: hidden;
+            padding: 20px;
             box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
-            margin-bottom: 24px;
         }
 
-        .table-header {
-            padding: 16px 20px;
-            border-bottom: 1px solid var(--border);
+        .card-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            margin-bottom: 16px;
         }
 
-        .table-header h2 { font-size: 15px; font-weight: 600; }
+        .card-header h2 { font-size: 15px; font-weight: 600; }
+        .card-header span { font-size: 12px; color: var(--muted); }
+
+        .chart-container {
+            height: 250px;
+            position: relative;
+        }
+
+        /* ================= TABLES ================= */
+        .bottom-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 16px;
+        }
 
         .table-wrapper { overflow-x: auto; }
 
         table {
             width: 100%;
             border-collapse: collapse;
-            min-width: 900px;
         }
 
         th {
-            background: #F9FAFB;
-            color: var(--muted);
+            text-align: left;
             font-size: 10px;
+            color: var(--muted);
             font-weight: 600;
+            padding: 12px 10px;
+            border-bottom: 1px solid var(--border);
             text-transform: uppercase;
             letter-spacing: 0.04em;
-            text-align: left;
-            padding: 12px 16px;
-            border-bottom: 1px solid var(--border);
-            white-space: nowrap;
         }
 
         td {
-            padding: 14px 16px;
+            padding: 14px 10px;
             font-size: 12px;
-            border-bottom: 1px solid var(--border);
-            color: var(--text);
+            border-bottom: 1px solid #F3F4F6;
         }
 
-        tr:hover { background: #F9FAFB; }
+        tbody tr:hover { background: #F9FAFB; }
 
-        .asset-name { font-weight: 600; color: var(--text); }
-        .asset-code { font-size: 11px; color: var(--muted); margin-top: 2px; }
-
-        .yield-badge {
-            display: inline-flex;
-            align-items: center;
+        .status {
+            display: inline-block;
             padding: 4px 8px;
             border-radius: 999px;
             font-size: 10px;
             font-weight: 600;
+        }
+
+        .status-active { background: #ECFDF5; color: #047857; }
+
+        .activity-item {
+            display: flex;
+            gap: 12px;
+            padding: 12px 0;
+            border-bottom: 1px solid #F3F4F6;
+        }
+
+        .activity-item:last-child { border-bottom: none; }
+
+        .activity-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
             background: #ECFDF5;
-            color: #047857;
-        }
-
-        .action-button {
-            border: none;
-            background: transparent;
-            color: var(--muted);
+            color: #059669;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
             font-size: 16px;
-            cursor: pointer;
-            padding: 4px 6px;
-            border-radius: 4px;
         }
 
-        .action-button:hover { color: var(--primary); background: #EFF6FF; }
+        .activity-content p { font-size: 12px; margin-bottom: 2px; }
+        .activity-content span { font-size: 10px; color: var(--muted); }
 
         /* RESPONSIVE */
-        @media (max-width: 1000px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 1100px) {
+            .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+            .charts-grid, .bottom-grid { grid-template-columns: 1fr; }
+        }
+
         @media (max-width: 768px) {
             .sidebar { width: 70px; padding: 20px 8px; }
             .sidebar-brand h2, .sidebar-brand span, .nav-section-title, .nav-item span { display: none; }
             .nav-item { justify-content: center; padding: 12px; }
             .top-header { left: 70px; padding: 0 15px; }
-            .organization-pill { display: none; }
             .main-content { margin-left: 70px; padding: 85px 15px 30px; }
-            .page-header { flex-direction: column; gap: 14px; }
+            .kpi-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
 
 <body>
 
-    <!-- ================= SIDEBAR ================= -->
+    <!-- ================= OWNER SIDEBAR ================= -->
     <aside class="sidebar">
         <div class="sidebar-brand">
             <div class="brand-logo">A</div>
@@ -516,34 +538,8 @@
             </div>
         </div>
 
-        <nav class="sidebar-nav">
-            <div class="nav-section-title">PORTFOLIO OVERVIEW</div>
-            <a href="owner-dashboard.html" class="nav-item active">
-                <i class="bi bi-grid-1x2"></i>
-                <span>Executive Dashboard</span>
-            </a>
-            <a href="properties.html" class="nav-item">
-                <i class="bi bi-buildings"></i>
-                <span>My Properties</span>
-            </a>
-            <a href="property-ownership.html" class="nav-item">
-                <i class="bi bi-pie-chart"></i>
-                <span>Equity & Cap Tables</span>
-            </a>
-            <a href="rent-collection.html" class="nav-item">
-                <i class="bi bi-cash-stack"></i>
-                <span>Cash Flow & Payouts</span>
-            </a>
-            <a href="documents.html" class="nav-item">
-                <i class="bi bi-folder2-open"></i>
-                <span>Titles & Tax Documents</span>
-            </a>
-
-            <div class="nav-section-title">SYSTEM</div>
-            <a href="settings.html" class="nav-item">
-                <i class="bi bi-gear"></i>
-                <span>Account Settings</span>
-            </a>
+        <nav class="sidebar-nav" id="sidebarNav">
+            <!-- POPULATED DYNAMICALLY BY JAVASCRIPT -->
         </nav>
 
         <div class="sidebar-footer">
@@ -554,26 +550,20 @@
     <!-- ================= TOP HEADER ================= -->
     <header class="top-header">
         <div class="header-left">
-            <div class="organization-pill">
-                <i class="bi bi-building"></i>
-                <span>Sunrise Property Group</span>
+            <div class="owner-badge">
+                <i class="bi bi-person-badge-fill" style="color:#34D399;"></i>
+                <span>Property Owner Executive Portal</span>
             </div>
-
-            <!-- DYNAMIC POV / ROLE SWITCHER FOR DB-LESS TESTING -->
-            <select class="pov-selector" id="povSelector" title="Switch User Role Perspective">
-                <option value="owner" selected>POV: Property Owner</option>
-                <option value="admin">POV: Admin / PM</option>
-                <option value="client">POV: Client / Tenant</option>
-            </select>
         </div>
 
         <div class="header-right">
-            <!-- EXCLUSIVE BELL ENTRY POINT -->
+            <!-- EXCLUSIVE OWNER POV NOTIFICATION BELL -->
             <a href="notification.html" class="notification-header-link" title="Notifications Center">
                 <i class="bi bi-bell"></i>
                 <div class="notification-badge" id="ownerNotifBadge">0</div>
             </a>
 
+            <!-- USER PROFILE DROPDOWN -->
             <div class="user-dropdown-container">
                 <div class="user-profile" id="userProfileBtn">
                     <div class="avatar" id="userAvatar">RS</div>
@@ -600,242 +590,420 @@
 
     <!-- ================= MAIN CONTENT ================= -->
     <main class="main-content">
-
-        <!-- PAGE HEADER -->
         <div class="page-header">
             <div>
-                <div class="eyebrow">POV 2: EXECUTIVE YIELD & FINANCIALS</div>
-                <h1>Owner Executive Dashboard</h1>
-                <p>Welcome back, Don Ramon. Real-time portfolio Net Operating Income (NOI), cap rates, and equity cash flows.</p>
+                <div class="eyebrow">EXECUTIVE YIELD & FINANCIALS</div>
+                <h1>Portfolio Executive Summary</h1>
+                <p>Real-time visibility into net operating income (NOI), cap rates, occupancy performance, and payout disbursements.</p>
             </div>
-
-            <button class="secondary-btn" onclick="alert('Generating executive financial report PDF for Don Ramon Santos...')">
+            <button class="primary-button" onclick="window.location.href='owner-statements.html'">
                 <i class="bi bi-download"></i>
-                <span>Download Executive PDF</span>
+                <span>Download Yield Statement</span>
             </button>
         </div>
 
-        <!-- KPI CARDS (CALCULATED DYNAMICALLY FROM ECOSYSTEM LOCALSTORAGE) -->
+        <!-- KPI CARDS -->
         <section class="kpi-grid">
             <div class="kpi-card">
                 <div class="kpi-top">
-                    <span class="kpi-label">Net Operating Income (NOI) YTD</span>
-                    <div class="kpi-icon"><i class="bi bi-graph-up-arrow"></i></div>
+                    <span class="kpi-label">Owned Asset Value</span>
+                    <div class="kpi-icon"><i class="bi bi-buildings"></i></div>
                 </div>
-                <div class="kpi-value" style="color:var(--success);" id="kpiNoi">₱845,000</div>
-                <div class="kpi-description">Gross income minus 10% management fees</div>
+                <div class="kpi-value" id="kpiAssetValue">₱0.00</div>
+                <div class="kpi-description">Estimated capital valuation</div>
             </div>
 
             <div class="kpi-card">
                 <div class="kpi-top">
-                    <span class="kpi-label">Portfolio Yield / Cap Rate</span>
-                    <div class="kpi-icon" style="background:#EFF6FF; color:var(--primary);"><i class="bi bi-pie-chart"></i></div>
+                    <span class="kpi-label">Net Operating Income (NOI)</span>
+                    <div class="kpi-icon" style="background:#ECFDF5; color:#059669;"><i class="bi bi-cash-coin"></i></div>
                 </div>
-                <div class="kpi-value" style="color:var(--primary);" id="kpiYield">7.4%</div>
-                <div class="kpi-description">Annualized return on valuation</div>
+                <div class="kpi-value" id="kpiNoi" style="color:#059669;">₱0.00</div>
+                <div class="kpi-description" id="kpiNoiSub">Gross Rent minus 10% fee & repairs</div>
             </div>
 
             <div class="kpi-card">
                 <div class="kpi-top">
-                    <span class="kpi-label">Gross Rental Cash Flow</span>
-                    <div class="kpi-icon" style="background:#FEF3C7; color:var(--warning);"><i class="bi bi-cash-stack"></i></div>
+                    <span class="kpi-label">Portfolio Cap Rate / Yield</span>
+                    <div class="kpi-icon" style="background:#EFF6FF; color:#2563EB;"><i class="bi bi-pie-chart"></i></div>
                 </div>
-                <div class="kpi-value" id="kpiGrossCash">₱1,150,000</div>
-                <div class="kpi-description">Collected across assigned assets</div>
+                <div class="kpi-value" id="kpiCapRate" style="color:#2563EB;">0.0%</div>
+                <div class="kpi-description">Annualized yield efficiency</div>
             </div>
 
             <div class="kpi-card">
                 <div class="kpi-top">
-                    <span class="kpi-label">Total Asset Valuation</span>
-                    <div class="kpi-icon" style="background:#EDE9FE; color:#6D28D9;"><i class="bi bi-buildings"></i></div>
+                    <span class="kpi-label">Portfolio Occupancy</span>
+                    <div class="kpi-icon" style="background:#FEF3C7; color:#D97706;"><i class="bi bi-door-open"></i></div>
                 </div>
-                <div class="kpi-value" style="color:#6D28D9;">₱14,200,000</div>
-                <div class="kpi-description">Appraised real estate portfolio</div>
+                <div class="kpi-value" id="kpiOccupancy" style="color:#D97706;">0.0%</div>
+                <div class="kpi-description" id="kpiOccupancySub">0 occupied units</div>
             </div>
         </section>
 
-        <!-- PORTFOLIO ASSET PERFORMANCE TABLE -->
-        <div class="table-card">
-            <div class="table-header">
-                <h2>Assigned Portfolio Assets & Yield Distribution</h2>
-                <span style="font-size:12px; color:var(--muted);">Showing owned shares for Don Ramon Santos</span>
+        <!-- CHARTS GRID -->
+        <section class="charts-grid">
+            <div class="card">
+                <div class="card-header">
+                    <h2>Net Revenue vs Operating Fees</h2>
+                    <span>Last 6 months yield history</span>
+                </div>
+                <div class="chart-container">
+                    <canvas id="ownerYieldChart"></canvas>
+                </div>
             </div>
 
-            <div class="table-wrapper">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>ASSET PROPERTY</th>
-                            <th>OWNERSHIP SHARE</th>
-                            <th>ESTIMATED VALUATION</th>
-                            <th>MONTHLY GROSS RENT</th>
-                            <th>YTD NOI</th>
-                            <th>ANNUAL YIELD</th>
-                            <th>ACTIONS</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>
-                                <div class="asset-name">Sunrise Property (Bldg 2)</div>
-                                <div class="asset-code">PROP-001 • Parañaque City • Unit 101</div>
-                            </td>
-                            <td><strong>100.00%</strong> (Primary Owner)</td>
-                            <td>₱8,500,000</td>
-                            <td>₱15,000 / mo</td>
-                            <td><strong style="color:var(--success);" id="tableSunriseNoi">₱520,000</strong></td>
-                            <td><span class="yield-badge">7.3% Cap Rate</span></td>
-                            <td>
-                                <button class="action-button" title="View Property Details" onclick="window.location.href='properties.html'"><i class="bi bi-eye"></i></button>
-                                <button class="action-button" title="View Cap Table" onclick="window.location.href='property-ownership.html'"><i class="bi bi-pie-chart"></i></button>
-                            </td>
-                        </tr>
-
-                        <tr>
-                            <td>
-                                <div class="asset-name">Central Business Center</div>
-                                <div class="asset-code">PROP-003 • Makati City</div>
-                            </td>
-                            <td><strong>50.00%</strong> (Co-Owner)</td>
-                            <td>₱5,700,000</td>
-                            <td>₱95,000 / mo</td>
-                            <td><strong style="color:var(--success);">₱325,000</strong></td>
-                            <td><span class="yield-badge">7.6% Cap Rate</span></td>
-                            <td>
-                                <button class="action-button" title="View Property Details" onclick="window.location.href='properties.html'"><i class="bi bi-eye"></i></button>
-                                <button class="action-button" title="View Cap Table" onclick="window.location.href='property-ownership.html'"><i class="bi bi-pie-chart"></i></button>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+            <div class="card">
+                <div class="card-header">
+                    <h2>Asset Share Breakdown</h2>
+                    <span>Equity Ownership Distribution</span>
+                </div>
+                <div class="chart-container">
+                    <canvas id="ownerEquityChart"></canvas>
+                </div>
             </div>
-        </div>
+        </section>
 
-        <!-- RECENT OWNER PAYOUT DISTRIBUTIONS -->
-        <div class="table-card">
-            <div class="table-header">
-                <h2>Recent Cash Payout Distributions</h2>
-                <span style="font-size:12px; color:var(--muted);">Direct fund transfers to registered owner accounts</span>
+        <!-- BOTTOM GRID -->
+        <section class="bottom-grid">
+            <div class="card">
+                <div class="card-header">
+                    <h2>Owned Assets Performance</h2>
+                    <a href="owner-properties.html" style="font-size:12px; color:#059669; text-decoration:none; font-weight:600;">View all assets <i class="bi bi-arrow-right"></i></a>
+                </div>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>PROPERTY ASSET</th>
+                                <th>EQUITY SHARE</th>
+                                <th>UNITS</th>
+                                <th>OCCUPANCY</th>
+                                <th>STATUS</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ownerAssetTable">
+                            <!-- POPULATED DYNAMICALLY FROM LOCALSTORAGE / POSTGRESQL -->
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
-            <div class="table-wrapper">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>TRANSFER REF</th>
-                            <th>SOURCE PROPERTY</th>
-                            <th>PAYOUT PERIOD</th>
-                            <th>DISBURSED AMOUNT</th>
-                            <th>TRANSFER METHOD</th>
-                            <th>STATUS</th>
-                            <th>STATEMENT</th>
-                        </tr>
-                    </thead>
-                    <tbody id="ownerPayoutTable">
-                        <!-- POPULATED DYNAMICALLY -->
-                    </tbody>
-                </table>
+            <div class="card">
+                <div class="card-header">
+                    <h2>Recent Yield Payouts</h2>
+                    <span>Disbursement Log</span>
+                </div>
+                <div id="ownerPayoutFeed">
+                    <!-- POPULATED DYNAMICALLY FROM LOCALSTORAGE / POSTGRESQL -->
+                </div>
             </div>
-        </div>
+        </section>
     </main>
 
     <!-- ================= JAVASCRIPT ================= -->
     <script>
-        // Shared LocalStorage Accessors
-        function getInvoices() {
-            return JSON.parse(localStorage.getItem('argo_invoices') || '[]');
-        }
+        // Force Owner POV Context
+        localStorage.setItem('argo_pov', 'owner');
 
-        function getTransactions() {
-            return JSON.parse(localStorage.getItem('argo_transactions') || '[]');
-        }
+        // Dynamic Owner Sidebar Renderer (Matching the strict 9-item list)
+        function renderSidebar() {
+            const nav = document.getElementById('sidebarNav');
+            if (!nav) return;
 
-        function getNotifications() {
-            return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
-        }
+            const currentPath = window.location.pathname.split("/").pop() || 'owner-dashboard.html';
 
-        // Initialize Page
-        document.addEventListener('DOMContentLoaded', () => {
-            calculateOwnerFinancials();
-            renderPayoutTable();
-            updateHeaderBadge();
-        });
+            const ownerLinks = [
+                { section: 'PORTFOLIO OVERVIEW' },
+                { href: 'owner-dashboard.html', icon: 'bi-speedometer2', label: 'Executive Summary' },
+                { href: 'owner-properties.html', icon: 'bi-buildings', label: 'My Properties' },
+                { href: 'owner-statements.html', icon: 'bi-file-earmark-text', label: 'Financial Statements' },
+                { href: 'property-ownership.html', icon: 'bi-pie-chart', label: 'Fractional Equity' },
+                { href: 'owner-documents.html', icon: 'bi-folder2-open', label: 'Legal Vault' },
+                { href: 'transaction.html', icon: 'bi-receipt-cutoff', label: 'Yield Audit Ledger' },
+                { section: 'COMMUNICATION & SYSTEM' },
+                { href: 'notification.html', icon: 'bi-bell', label: 'Notification Center' },
+                { href: 'account.html', icon: 'bi-gear', label: 'Account Settings' },
+                { href: 'logout.html', icon: 'bi-box-arrow-right', label: 'Log Out' }
+            ];
 
-        // Calculate Real-Time Yields & NOI
-        function calculateOwnerFinancials() {
-            const invoices = getInvoices();
-            
-            let grossCashCollected = 0;
-
-            invoices.forEach(inv => {
-                if (inv.status === 'Paid') {
-                    grossCashCollected += inv.amount;
+            let html = '';
+            ownerLinks.forEach(item => {
+                if (item.section) {
+                    html += `<div class="nav-section-title">${item.section}</div>`;
+                } else {
+                    const isActive = (currentPath === item.href) ? 'active' : '';
+                    html += `
+                        <a href="${item.href}" class="nav-item ${isActive}">
+                            <i class="bi ${item.icon}"></i>
+                            <span>${item.label}</span>
+                        </a>
+                    `;
                 }
             });
 
-            // Base YTD Baseline + Real-time additions from Ecosystem
-            const baseGross = 1150000;
-            const updatedGross = baseGross + grossCashCollected;
-            
-            // 90% Net Operating Income (NOI) after 10% Management Fee
-            const updatedNoi = Math.round(updatedGross * 0.9);
-
-            document.getElementById('kpiGrossCash').textContent = `₱${updatedGross.toLocaleString('en-US', {minimumFractionDigits: 0})}`;
-            document.getElementById('kpiNoi').textContent = `₱${updatedNoi.toLocaleString('en-US', {minimumFractionDigits: 0})}`;
+            nav.innerHTML = html;
         }
 
-        // Render Live Payout Table
-        function renderPayoutTable() {
-            const tbody = document.getElementById('ownerPayoutTable');
-            tbody.innerHTML = `
-                <tr>
-                    <td><strong>TRF-2026-8812</strong></td>
-                    <td>Sunrise Property (Bldg 2, Unit 101)</td>
-                    <td>August 2026 Payout</td>
-                    <td><strong style="color:var(--success);">₱13,500.00</strong></td>
-                    <td>BDO Bank Transfer (*8821)</td>
-                    <td><span class="yield-badge" style="background:#ECFDF5; color:#047857;">Transferred</span></td>
-                    <td><button class="action-button" title="Download Official Statement" onclick="alert('Downloading Owner Payout Receipt TRF-2026-8812 PDF')"><i class="bi bi-file-earmark-pdf"></i></button></td>
-                </tr>
-                <tr>
-                    <td><strong style="color:var(--primary);">TRF-2026-7901</strong></td>
-                    <td>Central Business Center</td>
-                    <td>July 2026 Payout</td>
-                    <td><strong style="color:var(--success);">₱45,000.00</strong></td>
-                    <td>BDO Bank Transfer (*8821)</td>
-                    <td><span class="yield-badge" style="background:#ECFDF5; color:#047857;">Transferred</span></td>
-                    <td><button class="action-button" title="Download Official Statement" onclick="alert('Downloading Owner Payout Receipt TRF-2026-7901 PDF')"><i class="bi bi-file-earmark-pdf"></i></button></td>
-                </tr>
-            `;
+        // Shared LocalStorage Accessors
+        function getProperties() { return JSON.parse(localStorage.getItem('argo_properties') || '[]'); }
+        function getUnits() { return JSON.parse(localStorage.getItem('argo_units') || '[]'); }
+        function getLeases() { return JSON.parse(localStorage.getItem('argo_leases') || '[]'); }
+        function getInvoices() { return JSON.parse(localStorage.getItem('argo_invoices') || '[]'); }
+        function getTransactions() { return JSON.parse(localStorage.getItem('argo_transactions') || '[]'); }
+        function getNotifications() { return JSON.parse(localStorage.getItem('argo_notifications') || '[]'); }
+        function getTickets() { return JSON.parse(localStorage.getItem('argo_maintenance_tickets') || '[]'); }
+
+        let yieldChartInstance = null;
+        let equityChartInstance = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            renderSidebar();
+            loadUserData();
+            updateOwnerMetrics();
+            renderAssetTable();
+            renderPayoutFeed();
+            renderCharts();
+            updateHeaderBadge();
+        });
+
+        // Listen for Real-Time Cross-Tab Activity
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'argo_invoices' || e.key === 'argo_leases' || e.key === 'argo_units' || e.key === 'argo_maintenance_tickets' || e.key === 'argo_notifications' || e.key === 'argo_properties') {
+                updateOwnerMetrics();
+                renderAssetTable();
+                renderPayoutFeed();
+                renderCharts();
+                updateHeaderBadge();
+            }
+        });
+
+        function loadUserData() {
+            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+            document.getElementById('userName').textContent = user.name || 'Don Ramon Santos';
+            document.getElementById('userRoleBadge').textContent = 'Property Owner';
+            document.getElementById('userAvatar').textContent = user.avatar || 'RS';
+        }
+
+        function updateOwnerMetrics() {
+            const properties = getProperties();
+            const units = getUnits();
+            const leases = getLeases();
+            const invoices = getInvoices();
+            const tickets = getTickets();
+
+            // Valuation: ₱25M per property benchmark
+            let totalValuation = properties.length > 0 ? properties.length * 25000000 : 50000000;
+
+            // 1. Gross Rent Collected
+            let grossRent = 0;
+            invoices.forEach(inv => {
+                if (inv.status === 'Paid') {
+                    grossRent += parseFloat(inv.amount || 0);
+                }
+            });
+
+            // 2. Maintenance Expense Deductions
+            let repairDeductions = 0;
+            tickets.forEach(t => {
+                if (t.status === 'Resolved' || t.status === 'Completed' || t.status === 'In Progress') {
+                    repairDeductions += parseFloat(t.cost || 1500.00);
+                }
+            });
+
+            // 3. PM Fee (10%)
+            let pmFee = grossRent * 0.10;
+
+            // 4. Net Operating Income (NOI)
+            let netIncomeSum = grossRent - pmFee - repairDeductions;
+            if (netIncomeSum < 0) netIncomeSum = 0;
+
+            // 5. Occupancy Rate Calculation
+            let occupiedUnitsCount = 0;
+            units.forEach(u => {
+                if (u.status === 'OCCUPIED' || u.status === 'Occupied') occupiedUnitsCount++;
+            });
+            // Fallback to active leases count if units table is not populated
+            if (occupiedUnitsCount === 0) {
+                leases.forEach(l => {
+                    if (l.status === 'ACTIVE' || l.status === 'Active') occupiedUnitsCount++;
+                });
+            }
+
+            const totalUnitsCount = units.length || 2;
+            const occRate = totalUnitsCount > 0 ? ((occupiedUnitsCount / totalUnitsCount) * 100).toFixed(1) : '0.0';
+            const capRate = totalValuation > 0 ? ((netIncomeSum * 12 / totalValuation) * 100).toFixed(1) : '0.0';
+
+            document.getElementById('kpiAssetValue').textContent = `₱${totalValuation.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+            document.getElementById('kpiNoi').textContent = `₱${netIncomeSum.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+            document.getElementById('kpiCapRate').textContent = `${capRate}%`;
+            document.getElementById('kpiOccupancy').textContent = `${occRate}%`;
+            document.getElementById('kpiOccupancySub').textContent = `${occupiedUnitsCount} of ${totalUnitsCount} units leased`;
+        }
+
+        function renderAssetTable() {
+            const properties = getProperties();
+            const tbody = document.getElementById('ownerAssetTable');
+            tbody.innerHTML = '';
+
+            if (properties.length === 0) {
+                // Baseline fallback if properties array in localStorage is empty
+                tbody.innerHTML = `
+                    <tr>
+                        <td><strong>Sunrise Residences</strong><div style="font-size:11px; color:var(--muted);">Parañaque, Metro Manila</div></td>
+                        <td>100.00% Primary</td>
+                        <td>2 Units</td>
+                        <td>50.0%</td>
+                        <td><span class="status status-active">Active Yield</span></td>
+                    </tr>
+                `;
+                return;
+            }
+
+            properties.forEach(p => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>
+                        <strong>${p.name || 'Sunrise Property'}</strong>
+                        <div style="font-size:11px; color:var(--muted);">${p.location || 'Metro Manila'}</div>
+                    </td>
+                    <td>100.00% Primary</td>
+                    <td>${p.units_count || p.units || 1} Units</td>
+                    <td>${p.occupancy || '100%'}</td>
+                    <td><span class="status status-active">Active Yield</span></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function renderPayoutFeed() {
+            const txns = getTransactions().filter(t => t.direction === 'OUTFLOW' || (t.category && t.category.includes('Yield'))).slice(0, 4);
+            const container = document.getElementById('ownerPayoutFeed');
+            container.innerHTML = '';
+
+            if (txns.length === 0) {
+                container.innerHTML = `
+                    <div class="activity-item">
+                        <div class="activity-icon"><i class="bi bi-cash-stack"></i></div>
+                        <div class="activity-content">
+                            <p><strong>₱112,500.00 Disbursed</strong></p>
+                            <span>Aug 01, 2026 • Bank Transfer (BDO)</span>
+                        </div>
+                    </div>
+                    <div class="activity-item">
+                        <div class="activity-icon"><i class="bi bi-cash-stack"></i></div>
+                        <div class="activity-content">
+                            <p><strong>₱108,000.00 Disbursed</strong></p>
+                            <span>Jul 01, 2026 • Bank Transfer (BDO)</span>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            txns.forEach(t => {
+                const item = document.createElement('div');
+                item.className = 'activity-item';
+                item.innerHTML = `
+                    <div class="activity-icon"><i class="bi bi-cash-stack"></i></div>
+                    <div class="activity-content">
+                        <p><strong>${t.grossAmount || '₱0.00'} Disbursed</strong></p>
+                        <span>${t.timestamp || 'Recent'} • ${t.channel || 'BDO Transfer'}</span>
+                    </div>
+                `;
+                container.appendChild(item);
+            });
         }
 
         function updateHeaderBadge() {
-            const currentPov = document.getElementById('povSelector').value;
-            const notifs = getNotifications().filter(n => n.pov === currentPov && n.status === 'unread');
-            document.getElementById('ownerNotifBadge').textContent = notifs.length;
+            const notifs = getNotifications().filter(n => (n.pov === 'owner' || n.pov === 'all') && n.status === 'unread');
+            const badge = document.getElementById('ownerNotifBadge');
+            if (badge) badge.textContent = notifs.length;
         }
 
-        // User Profile Dropdown
+        function renderCharts() {
+            const invoices = getInvoices();
+            let netPaid = 0;
+            invoices.forEach(i => { 
+                if (i.status === 'Paid') netPaid += parseFloat(i.amount || 0) * 0.90; 
+            });
+
+            if (netPaid === 0) netPaid = 135000; // Baseline fallback for chart rendering
+
+            // 1. Yield Chart
+            const canvas1 = document.getElementById('ownerYieldChart');
+            if (!canvas1) return;
+            const ctx1 = canvas1.getContext('2d');
+
+            if (yieldChartInstance) yieldChartInstance.destroy();
+
+            yieldChartInstance = new Chart(ctx1, {
+                type: 'bar',
+                data: {
+                    labels: ['March', 'April', 'May', 'June', 'July', 'August'],
+                    datasets: [
+                        {
+                            label: 'Net Yield Disbursed (₱)',
+                            data: [120000, 125000, 130000, 130000, 135000, netPaid],
+                            backgroundColor: '#059669',
+                            borderRadius: 4
+                        },
+                        {
+                            label: 'Management Fees (₱)',
+                            data: [13333, 13888, 14444, 14444, 15000, netPaid * 0.11],
+                            backgroundColor: '#9CA3AF',
+                            borderRadius: 4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' } },
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+
+            // 2. Equity Distribution Chart
+            const canvas2 = document.getElementById('ownerEquityChart');
+            if (!canvas2) return;
+            const ctx2 = canvas2.getContext('2d');
+
+            if (equityChartInstance) equityChartInstance.destroy();
+
+            equityChartInstance = new Chart(ctx2, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Primary Equity Share', 'Co-Owner Share', 'Unallocated'],
+                    datasets: [{
+                        data: [85, 15, 0],
+                        backgroundColor: ['#059669', '#2563EB', '#D97706'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '65%',
+                    plugins: { legend: { position: 'bottom' } }
+                }
+            });
+        }
+
+        // Profile Dropdown Handler
         const userProfileBtn = document.getElementById('userProfileBtn');
         const userDropdown = document.getElementById('userDropdown');
 
-        userProfileBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            userDropdown.classList.toggle('show');
-        });
+        if (userProfileBtn && userDropdown) {
+            userProfileBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                userDropdown.classList.toggle('show');
+            });
 
-        document.addEventListener('click', () => { userDropdown.classList.remove('show'); });
-
-        // POV Role Switcher Handler
-        const povSelector = document.getElementById('povSelector');
-        povSelector.addEventListener('change', (e) => {
-            const role = e.target.value;
-            if (role === 'admin') {
-                window.location.href = 'dashboard.html';
-            } else if (role === 'client') {
-                window.location.href = 'client-dashboard.html';
-            }
-        });
+            document.addEventListener('click', () => { 
+                userDropdown.classList.remove('show'); 
+            });
+        }
     </script>
 </body>
 </html>

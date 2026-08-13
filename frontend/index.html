@@ -75,6 +75,7 @@
             font-weight: 700;
             margin-bottom: 12px;
             box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+            transition: 0.2s ease;
         }
 
         .auth-header h1 {
@@ -266,7 +267,7 @@
     <div class="auth-container">
         <!-- HEADER -->
         <div class="auth-header">
-            <div class="brand-logo-large">A</div>
+            <div class="brand-logo-large" id="largeBrandLogo">A</div>
             <h1>ARGO Property Management</h1>
             <p>Auth Gateway & Role Router</p>
             
@@ -296,7 +297,7 @@
                     <label>Email Address</label>
                     <div class="input-with-icon">
                         <i class="bi bi-envelope"></i>
-                        <input type="email" id="emailInput" value="admin@sunriseproperties.ph" required>
+                        <input type="email" id="emailInput" value="juan.delacruz@argo.ph" required>
                     </div>
                 </div>
 
@@ -313,7 +314,7 @@
                     <a href="#" onclick="alert('Password reset link sent to registered email.')">Forgot password?</a>
                 </div>
 
-                <button type="submit" class="btn-submit">
+                <button type="submit" class="btn-submit" id="btnSubmit">
                     <span>Sign In & Route</span>
                     <i class="bi bi-arrow-right"></i>
                 </button>
@@ -324,15 +325,15 @@
             <!-- QUICK DEMO ROUTING BUTTONS -->
             <div class="demo-roles">
                 <button class="demo-btn" onclick="routeToPortal('admin')">
-                    <i class="bi bi-speedometer2"></i>
+                    <i class="bi bi-speedometer2" style="color:#2563EB;"></i>
                     <span>Launch Admin Command Center (dashboard.html)</span>
                 </button>
                 <button class="demo-btn" onclick="routeToPortal('owner')">
-                    <i class="bi bi-graph-up-arrow"></i>
+                    <i class="bi bi-graph-up-arrow" style="color:#059669;"></i>
                     <span>Launch Owner Portal (owner-dashboard.html)</span>
                 </button>
                 <button class="demo-btn" onclick="routeToPortal('client')">
-                    <i class="bi bi-house-door"></i>
+                    <i class="bi bi-house-door" style="color:#D97706;"></i>
                     <span>Launch Tenant Portal (client-dashboard.html)</span>
                 </button>
             </div>
@@ -352,6 +353,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             initSystemStorage();
             checkBackendHealth();
+            updateDefaultEmail();
         });
 
         // 1. Initialize Local Storage Session Scope
@@ -389,13 +391,26 @@
             }
         }
 
-        // 3. Update Email Suggestion based on Selected Role
+        // 3. Update Email Suggestion & Theme Color based on Selected Role
         function updateDefaultEmail() {
             const role = document.getElementById('roleSelect').value;
             const emailInput = document.getElementById('emailInput');
-            if (role === 'admin') emailInput.value = 'admin@sunriseproperties.ph';
-            else if (role === 'owner') emailInput.value = 'ramon.santos@sunriseproperty.ph';
-            else if (role === 'client') emailInput.value = 'maria.santos@tenant.ph';
+            const largeLogo = document.getElementById('largeBrandLogo');
+            const btnSubmit = document.getElementById('btnSubmit');
+
+            if (role === 'admin') {
+                emailInput.value = 'juan.delacruz@argo.ph';
+                largeLogo.style.background = '#2563EB';
+                btnSubmit.style.background = '#2563EB';
+            } else if (role === 'owner') {
+                emailInput.value = 'ramon.santos@sunrise-assets.ph';
+                largeLogo.style.background = '#059669';
+                btnSubmit.style.background = '#059669';
+            } else if (role === 'client') {
+                emailInput.value = 'maria.santos@tenant.ph';
+                largeLogo.style.background = '#D97706';
+                btnSubmit.style.background = '#D97706';
+            }
         }
 
         // 4. Form Submit Handler
@@ -405,37 +420,48 @@
             routeToPortal(role);
         }
 
-        // 5. Centralized Portal Router
+        // 5. Centralized Portal Router & Atomic Session Key Generator
         function routeToPortal(role) {
-            // Lock Organization & Role Context in LocalStorage
+            const emailInput = document.getElementById('emailInput').value.trim();
+
+            // Lock Organization, Role, and Aliases in LocalStorage
             localStorage.setItem('organization_id', DEFAULT_ORG_ID);
-            localStorage.setItem('argo_pov', role);
-            localStorage.setItem('user_role', role.toUpperCase());
+            localStorage.setItem('argo_pov', role); // 'admin', 'owner', or 'client'
+            localStorage.setItem('user_role', role.toUpperCase()); // 'ADMIN', 'OWNER', or 'CLIENT'
+            localStorage.setItem('role', role); // Fallback key
             localStorage.setItem('token', 'sandbox-bearer-token-12345');
 
             if (role === 'admin') {
                 localStorage.setItem('argo_user', JSON.stringify({
                     id: '00000000-0000-0000-0000-000000000002',
                     name: 'Juan Dela Cruz',
+                    email: emailInput || 'juan.delacruz@argo.ph',
+                    phone: '+63 917 882 9102',
                     role: 'Property Manager',
                     avatar: 'JD',
                     avatarBg: '#2563EB'
                 }));
                 window.location.href = 'dashboard.html';
+
             } else if (role === 'owner') {
                 localStorage.setItem('argo_user', JSON.stringify({
                     id: '00000000-0000-0000-0000-000000000003',
                     name: 'Don Ramon Santos',
+                    email: emailInput || 'ramon.santos@sunrise-assets.ph',
+                    phone: '+63 918 554 9011',
                     role: 'Property Owner',
                     avatar: 'RS',
                     avatarBg: '#059669'
                 }));
                 window.location.href = 'owner-dashboard.html';
+
             } else if (role === 'client') {
                 localStorage.setItem('argo_user', JSON.stringify({
                     id: '00000000-0000-0000-0000-000000000004',
                     name: 'Maria Santos',
-                    role: 'Tenant (Unit 101)',
+                    email: emailInput || 'maria.santos@tenant.ph',
+                    phone: '+63 917 123 4567',
+                    role: 'Sunrise Property • Unit 101',
                     avatar: 'MS',
                     avatarBg: '#D97706'
                 }));

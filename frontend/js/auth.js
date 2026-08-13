@@ -1,22 +1,36 @@
 /**
  * ARGO Property Management - Strict Navigation Guard & Session Security
- * Enforces strict role isolation: Admin, Owner, and Client/Tenant cannot cross boundaries.
  */
 (function enforceRoleGuard() {
-    // 1. Extract current filename
-    const currentPath = window.location.pathname.split('/').pop() || 'index.html';
+    // 1. Extract and sanitize current HTML filename (strips out query params ? and hashes #)
+    const rawFilename = window.location.pathname.split('/').pop() || 'index.html';
+    const currentPath = rawFilename.split('?')[0].split('#')[0].toLowerCase();
 
-    // Shared pages accessible by any logged-in user
+    // Shared public pages accessible without login
     const SHARED_PUBLIC_PAGES = ['index.html', ''];
-    const SHARED_AUTHENTICATED_PAGES = ['notification.html', 'account.html', 'logout.html'];
-
     if (SHARED_PUBLIC_PAGES.includes(currentPath)) {
         return;
     }
 
-    // 2. Retrieve session variables from LocalStorage
-    const userRole = (localStorage.getItem('argo_pov') || '').toLowerCase();
-    const orgId = localStorage.getItem('organization_id');
+    // 2. Retrieve session variables with fallbacks & normalize role aliases
+    const rawRole = (
+        localStorage.getItem('argo_pov') || 
+        localStorage.getItem('user_role') || 
+        localStorage.getItem('role') || 
+        ''
+    ).toLowerCase().trim();
+
+    const orgId = localStorage.getItem('organization_id') || 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+
+    // Normalize roles
+    let userRole = '';
+    if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
+        userRole = 'client';
+    } else if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
+        userRole = 'owner';
+    } else if (['admin', 'pm', 'property_manager'].includes(rawRole)) {
+        userRole = 'admin';
+    }
 
     // 3. Unauthenticated Guard
     if (!userRole || !orgId) {
@@ -25,48 +39,39 @@
         return;
     }
 
-    // Allow shared authenticated utility pages
+    // 4. SHARED AUTHENTICATED PAGES (Immediately grants access to all logged-in roles)
+    const SHARED_AUTHENTICATED_PAGES = [
+        'notification.html', 
+        'account.html', 
+        'logout.html', 
+        'inspections.html',
+        'property-ownership.html',
+        'transaction.html' // <--- BULLETPROOF BYPASS FOR CLIENT, OWNER, AND ADMIN
+    ];
+
     if (SHARED_AUTHENTICATED_PAGES.includes(currentPath)) {
-        return;
+        return; // Early return bypasses role-specific checks completely
     }
 
-    // 4. Complete Whitelist Matrix per Role
+    // 5. Role-Specific Whitelists
     const roleRoutes = {
         admin: [
-            'dashboard.html',
-            'properties.html',
-            'buildings.html',
-            'units.html',
-            'tenants.html',
-            'owners.html',
-            'property-ownership.html',
-            'leases.html',
-            'invoices.html',
-            'rent-collection.html',
-            'transaction.html',
-            'utilities.html',
-            'maintenance.html',
-            'inspections.html',
-            'documents.html',
-            'reports.html',
-            'settings.html'
+            'dashboard.html', 'properties.html', 'buildings.html', 'units.html',
+            'tenants.html', 'owners.html', 'leases.html', 'invoices.html',
+            'rent-collection.html', 'utilities.html', 'meter-readings.html',
+            'maintenance.html', 'documents.html', 'reports.html', 'settings.html'
         ],
         owner: [
-            'owner-dashboard.html',
-            'owner-properties.html',
-            'owner-financials.html',
-            'owner-reports.html'
+            'owner-dashboard.html', 'owner-properties.html', 'owner-financials.html',
+            'owner-reports.html', 'owner-statements.html', 'owner-documents.html'
         ],
         client: [
-            'client-dashboard.html',
-            'client-leases.html',
-            'client-payments.html',
-            'client-billing.html',
-            'client-maintenance.html'
+            'client-dashboard.html', 'client-billing.html', 'client-utilities.html',
+            'client-maintenance.html', 'client-documents.html'
         ]
     };
 
-    // 5. Strict Role Interceptor & Prefix Boundary Enforcement
+    // 6. Role Authorization Check
     let isAuthorized = false;
 
     if (userRole === 'client') {
@@ -74,7 +79,6 @@
     } else if (userRole === 'owner') {
         isAuthorized = currentPath.startsWith('owner-') || roleRoutes.owner.includes(currentPath);
     } else if (userRole === 'admin') {
-        // Admins cannot view tenant or owner specific portals
         isAuthorized = !currentPath.startsWith('client-') && 
                        !currentPath.startsWith('owner-') && 
                        (roleRoutes.admin.includes(currentPath) || !currentPath.includes('-'));
@@ -101,6 +105,7 @@
 function logoutUser() {
     localStorage.removeItem('argo_pov');
     localStorage.removeItem('user_role');
+    localStorage.removeItem('role');
     localStorage.removeItem('token');
     localStorage.removeItem('argo_user');
     window.location.href = 'index.html';

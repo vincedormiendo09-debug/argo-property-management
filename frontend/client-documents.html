@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Document Vault | ARGO Tenant Portal</title>
 
+    <!-- 🔒 Strict Navigation Guard & Role Isolation -->
+    <script src="js/auth.js"></script>
+
     <!-- Inter Font -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -176,7 +179,7 @@
             gap: 16px;
         }
 
-        .organization-pill {
+        .tenant-badge {
             display: flex;
             align-items: center;
             gap: 8px;
@@ -186,20 +189,7 @@
             border-radius: 6px;
             font-size: 12px;
             color: #E5E7EB;
-        }
-
-        .organization-pill i { color: #60A5FA; }
-
-        .pov-selector {
-            background: #1E293B;
-            border: 1px solid #334155;
-            color: #60A5FA;
-            padding: 6px 12px;
-            border-radius: 6px;
-            font-size: 12px;
-            outline: none;
-            cursor: pointer;
-            font-weight: 500;
+            font-weight: 600;
         }
 
         .header-right {
@@ -302,6 +292,7 @@
             gap: 10px;
             text-decoration: none;
             transition: 0.15s;
+            cursor: pointer;
         }
 
         .dropdown-item:hover { background: #F3F4F6; color: #111827; }
@@ -581,6 +572,16 @@
 
         .action-button:hover { color: var(--primary); background: #EFF6FF; }
 
+        .table-footer {
+            padding: 14px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: var(--muted);
+            font-size: 12px;
+            border-top: 1px solid var(--border);
+        }
+
         /* ================= MODAL ================= */
         .modal-overlay {
             display: none;
@@ -664,7 +665,6 @@
             .sidebar-brand h2, .sidebar-brand span, .nav-section-title, .nav-item span { display: none; }
             .nav-item { justify-content: center; padding: 12px; }
             .top-header { left: 70px; padding: 0 15px; }
-            .organization-pill { display: none; }
             .main-content { margin-left: 70px; padding: 85px 15px 30px; }
             .page-header { flex-direction: column; gap: 14px; }
             .filter-bar { flex-direction: column; align-items: stretch; }
@@ -685,38 +685,8 @@
             </div>
         </div>
 
-        <nav class="sidebar-nav">
-            <div class="nav-section-title">SELF-SERVICE HOME</div>
-            <a href="client-dashboard.html" class="nav-item">
-                <i class="bi bi-house-door"></i>
-                <span>My Tenancy Home</span>
-            </a>
-            <a href="client-billing.html" class="nav-item">
-                <i class="bi bi-cash-stack"></i>
-                <span>Pay Rent & Dues</span>
-            </a>
-            <a href="client-utilities.html" class="nav-item">
-                <i class="bi bi-lightning-charge"></i>
-                <span>My Utilities & Meters</span>
-            </a>
-            <a href="client-maintenance.html" class="nav-item">
-                <i class="bi bi-tools"></i>
-                <span>Submit Maintenance</span>
-            </a>
-            <a href="inspections.html" class="nav-item">
-                <i class="bi bi-clipboard-check"></i>
-                <span>Move-In & Inspections</span>
-            </a>
-            <a href="client-documents.html" class="nav-item active">
-                <i class="bi bi-folder2-open"></i>
-                <span>My Lease & Receipts</span>
-            </a>
-
-            <div class="nav-section-title">SYSTEM</div>
-            <a href="settings.html" class="nav-item">
-                <i class="bi bi-gear"></i>
-                <span>Account Settings</span>
-            </a>
+        <nav class="sidebar-nav" id="sidebarNav">
+            <!-- DYNAMICALLY POPULATED BY JAVASCRIPT -->
         </nav>
 
         <div class="sidebar-footer">
@@ -727,32 +697,26 @@
     <!-- ================= TOP HEADER ================= -->
     <header class="top-header">
         <div class="header-left">
-            <div class="organization-pill">
-                <i class="bi bi-building"></i>
-                <span>Sunrise Property Group</span>
+            <div class="tenant-badge">
+                <i class="bi bi-house-door-fill" style="color: #60A5FA;"></i>
+                <span>Tenant Self-Service Portal</span>
             </div>
-
-            <!-- DYNAMIC POV / ROLE SWITCHER FOR DB-LESS TESTING -->
-            <select class="pov-selector" id="povSelector" title="Switch User Role Perspective">
-                <option value="client" selected>POV: Client / Tenant</option>
-                <option value="admin">POV: Admin / PM</option>
-                <option value="owner">POV: Property Owner</option>
-            </select>
         </div>
 
         <div class="header-right">
-            <!-- EXCLUSIVE BELL ENTRY LINKING TO NOTIFICATION.HTML -->
+            <!-- EXCLUSIVE CLIENT POV NOTIFICATION BELL -->
             <a href="notification.html" class="notification-header-link" title="Notifications Center">
                 <i class="bi bi-bell"></i>
                 <div class="notification-badge" id="clientHeaderNotifBadge">0</div>
             </a>
 
+            <!-- USER PROFILE DROPDOWN -->
             <div class="user-dropdown-container">
                 <div class="user-profile" id="userProfileBtn">
                     <div class="avatar" id="userAvatar">MS</div>
                     <div class="user-info">
                         <strong id="userName">Maria Santos</strong>
-                        <span id="userRoleBadge">Sunrise Property • Bldg 2 • Unit 101</span>
+                        <span id="userRoleBadge">Unit Occupant</span>
                     </div>
                     <i class="bi bi-chevron-down" style="font-size: 10px; color: #94A3B8;"></i>
                 </div>
@@ -777,7 +741,7 @@
         <!-- PAGE HEADER -->
         <div class="page-header">
             <div>
-                <div class="eyebrow">POV 3: TENANT DOCUMENT VAULT</div>
+                <div class="eyebrow">SELF-SERVICE DOCUMENT VAULT</div>
                 <h1>My Leases & Verified Receipts</h1>
                 <p>Access your legally signed lease agreement, official verified payment receipts, move-in checklists, and compliance IDs.</p>
             </div>
@@ -804,8 +768,8 @@
                     <span class="kpi-label">Active Signed Leases</span>
                     <div class="kpi-icon" style="background:#ECFDF5; color:var(--success);"><i class="bi bi-file-earmark-pdf"></i></div>
                 </div>
-                <div class="kpi-value" style="color:var(--success);" id="kpiActiveLeases">1 Active</div>
-                <div class="kpi-description">Sunrise Property • Unit 101</div>
+                <div class="kpi-value" style="color:var(--success);" id="kpiActiveLeases">0 Active</div>
+                <div class="kpi-description" id="kpiLeaseLocation">Unit Assignment</div>
             </div>
 
             <div class="kpi-card">
@@ -850,15 +814,15 @@
 
             <button class="secondary-btn" onclick="resetFilters()">
                 <i class="bi bi-arrow-counterclockwise"></i>
-                Reset
+                <span>Reset</span>
             </button>
         </div>
 
         <!-- DOCUMENTS TABLE -->
         <div class="table-card">
-            <div class="table-header" style="padding:16px 20px; border-bottom:1px solid var(--border);">
+            <div class="table-header">
                 <h2>Personal Document Vault</h2>
-                <span style="font-size:12px; color:var(--muted);">Maria Santos • Unit 101</span>
+                <span style="font-size:12px; color:var(--muted);" id="locationSubtitle">Assigned Unit Location</span>
             </div>
 
             <div class="table-wrapper">
@@ -874,7 +838,7 @@
                         </tr>
                     </thead>
                     <tbody id="documentTable">
-                        <!-- POPULATED DYNAMICALLY FROM LOCALSTORAGE -->
+                        <!-- POPULATED DYNAMICALLY FROM LOCALSTORAGE / POSTGRESQL -->
                     </tbody>
                 </table>
             </div>
@@ -882,11 +846,6 @@
             <!-- TABLE FOOTER -->
             <div class="table-footer">
                 <span id="showingCountText">Showing active vault files</span>
-                <div class="pagination">
-                    <button class="page-button"><i class="bi bi-chevron-left"></i></button>
-                    <button class="page-button active">1</button>
-                    <button class="page-button"><i class="bi bi-chevron-right"></i></button>
-                </div>
             </div>
         </div>
     </main>
@@ -905,7 +864,7 @@
             <div class="modal-body">
                 <div class="form-group">
                     <label>Document Title / Name</label>
-                    <input type="text" id="modalDocTitle" placeholder="e.g. Updated Employment Certificate / ID Renewal">
+                    <input type="text" id="modalDocTitle" placeholder="e.g. Driver's License ID / Proof of Employment">
                 </div>
 
                 <div class="form-row">
@@ -921,7 +880,7 @@
 
                     <div class="form-group">
                         <label>Associated Unit</label>
-                        <input type="text" value="Sunrise Property • Building 2 • Unit 101" readonly style="background:#F3F4F6;">
+                        <input type="text" id="modalUnitLocationTag" value="Unit Location" readonly style="background:#F3F4F6;">
                     </div>
                 </div>
 
@@ -945,22 +904,52 @@
 
     <!-- ================= JAVASCRIPT ================= -->
     <script>
-        // Explicit Tenant Context
-        const TENANT_CONTEXT = {
-            tenantId: 'TNT-2026-101',
-            tenantName: 'Maria Santos',
-            property: 'Sunrise Property',
-            building: 'Building 2',
-            unit: 'Unit 101',
-            fullLocationTag: 'Sunrise Property • Building 2 • Unit 101'
-        };
+        // Lock Client Role Perspective
+        localStorage.setItem('argo_pov', 'client');
 
-        // Default Seed Client Documents
+        // Dynamic Client Sidebar Navigation Renderer
+        function renderSidebar() {
+            const nav = document.getElementById('sidebarNav');
+            if (!nav) return;
+
+            const currentPath = window.location.pathname.split("/").pop() || 'client-documents.html';
+
+            const clientLinks = [
+                { section: 'SELF-SERVICE HOME' },
+                { href: 'client-dashboard.html', icon: 'bi-house-door', label: 'My Tenancy Home' },
+                { href: 'client-billing.html', icon: 'bi-receipt', label: 'Pay Rent & Dues' },
+                { href: 'client-utilities.html', icon: 'bi-lightning-charge', label: 'My Utilities & Meters' },
+                { href: 'client-maintenance.html', icon: 'bi-tools', label: 'Submit Maintenance' },
+                { href: 'inspections.html', icon: 'bi-clipboard-check', label: 'Move-In & Inspections' },
+                { href: 'client-documents.html', icon: 'bi-folder2-open', label: 'My Lease & Receipts' },
+                { section: 'SYSTEM' },
+                { href: 'account.html', icon: 'bi-gear', label: 'Account Settings' },
+                { href: 'logout.html', icon: 'bi-box-arrow-right', label: 'Log Out' }
+            ];
+
+            let html = '';
+            clientLinks.forEach(item => {
+                if (item.section) {
+                    html += `<div class="nav-section-title">${item.section}</div>`;
+                } else {
+                    const isActive = (currentPath === item.href) ? 'active' : '';
+                    html += `
+                        <a href="${item.href}" class="nav-item ${isActive}">
+                            <i class="bi ${item.icon}"></i>
+                            <span>${item.label}</span>
+                        </a>
+                    `;
+                }
+            });
+
+            nav.innerHTML = html;
+        }
+
         const DEFAULT_CLIENT_DOCS = [
             {
                 id: 'DOC-CLI-001',
                 title: 'Signed Lease Agreement (LSE-0001)',
-                fileType: 'PDF • 2.4 MB • Sunrise Property Unit 101',
+                fileType: 'PDF • 2.4 MB • Unit 101 Contract',
                 category: 'Lease Contract',
                 uploadedBy: 'Property Management',
                 uploadDate: 'Jan 01, 2026',
@@ -969,38 +958,8 @@
             },
             {
                 id: 'DOC-CLI-002',
-                title: 'Official Rent Receipt — August 2026',
-                fileType: 'PDF • 850 KB • Verified GCash Ref #987212',
-                category: 'Official Receipt',
-                uploadedBy: 'Property Manager',
-                uploadDate: 'Aug 02, 2026',
-                status: 'Verified',
-                notes: 'Acknowledged payment receipt.'
-            },
-            {
-                id: 'DOC-CLI-003',
-                title: 'Official Rent Receipt — July 2026',
-                fileType: 'PDF • 840 KB • Verified GCash Ref #812903',
-                category: 'Official Receipt',
-                uploadedBy: 'Property Manager',
-                uploadDate: 'Jul 05, 2026',
-                status: 'Verified',
-                notes: 'Acknowledged payment receipt.'
-            },
-            {
-                id: 'DOC-CLI-004',
-                title: 'Move-In Inspection & Key Handover Certificate',
-                fileType: 'PDF • 1.6 MB • Signed Condition Audit',
-                category: 'Inspection Report',
-                uploadedBy: 'Property Manager',
-                uploadDate: 'Jan 01, 2026',
-                status: 'Active',
-                notes: 'Cleared move-in clearance and key sign-off.'
-            },
-            {
-                id: 'DOC-CLI-005',
                 title: 'Valid Government ID — Maria Santos',
-                fileType: 'JPG • 1.2 MB • Verified Driver\'s License',
+                fileType: 'JPG • 1.2 MB • Driver\'s License',
                 category: 'Identification',
                 uploadedBy: 'Maria Santos (You)',
                 uploadDate: 'Dec 28, 2025',
@@ -1009,7 +968,6 @@
             }
         ];
 
-        // Shared LocalStorage Accessors
         function getClientDocs() {
             const data = localStorage.getItem('argo_client_documents');
             if (!data) {
@@ -1019,51 +977,63 @@
             return JSON.parse(data);
         }
 
-        function saveClientDocs(docs) {
-            localStorage.setItem('argo_client_documents', JSON.stringify(docs));
+        function saveClientDocs(docs) { 
+            localStorage.setItem('argo_client_documents', JSON.stringify(docs)); 
         }
 
-        function getNotifications() {
-            return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
+        function getNotifications() { 
+            return JSON.parse(localStorage.getItem('argo_notifications') || '[]'); 
         }
 
-        function saveNotifications(notifications) {
-            localStorage.setItem('argo_notifications', JSON.stringify(notifications));
+        function saveNotifications(notifications) { 
+            localStorage.setItem('argo_notifications', JSON.stringify(notifications)); 
         }
 
-        function updateHeaderBadge() {
-            const currentPov = localStorage.getItem('argo_pov') || 'client';
-            const notifs = getNotifications().filter(n => n.pov === currentPov && n.status === 'unread');
-            const badge = document.getElementById('clientHeaderNotifBadge');
-            if (badge) badge.textContent = notifs.length;
+        function getLeases() { 
+            return JSON.parse(localStorage.getItem('argo_leases') || '[]'); 
         }
 
-        // Initialize Page
         document.addEventListener('DOMContentLoaded', () => {
+            renderSidebar();
+            loadUserData();
             renderDocTable();
             updateKPIs();
             updateHeaderBadge();
-            syncPOV();
         });
 
-        // Cross-tab LocalStorage Sync
+        // Cross-Tab LocalStorage Sync
         window.addEventListener('storage', (e) => {
-            if (e.key === 'argo_client_documents' || e.key === 'argo_notifications' || e.key === 'argo_pov') {
+            if (e.key === 'argo_client_documents' || e.key === 'argo_notifications' || e.key === 'argo_leases') {
                 renderDocTable();
                 updateKPIs();
                 updateHeaderBadge();
-                syncPOV();
             }
         });
 
-        // Render Table Dynamic
+        function getActiveTenantContext() {
+            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+            const leases = getLeases();
+            const activeLease = leases.find(l => l.status === 'ACTIVE' || l.status === 'Active') || leases[0] || {};
+
+            return {
+                name: user.name || activeLease.tenantName || 'Maria Santos',
+                property: activeLease.property || 'Sunrise Property',
+                unit: activeLease.unit || 'Unit 101',
+                fullTag: `${activeLease.property || 'Sunrise Property'} • ${activeLease.unit || 'Unit 101'}`
+            };
+        }
+
         function renderDocTable() {
+            const ctx = getActiveTenantContext();
             const docs = getClientDocs();
             const tbody = document.getElementById('documentTable');
             tbody.innerHTML = '';
 
+            document.getElementById('locationSubtitle').textContent = ctx.fullTag;
+
             if (docs.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--muted); padding:30px;">No documents in personal vault.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--muted); padding:30px;">No documents in personal vault. Click "Upload Document / ID" to add a file.</td></tr>`;
+                document.getElementById('showingCountText').textContent = `Showing 0 personal vault files`;
                 return;
             }
 
@@ -1110,7 +1080,7 @@
                     </td>
                     <td>${d.category}</td>
                     <td>${d.uploadedBy || 'Property Management'}</td>
-                    <td>${d.uploadDate}</td>
+                    <td>${d.uploadDate || 'N/A'}</td>
                     <td>${badgeHtml}</td>
                     <td>
                         <button class="action-button" title="View Document" onclick="viewDoc('${d.id}')"><i class="bi bi-eye"></i></button>
@@ -1125,21 +1095,36 @@
         }
 
         function updateKPIs() {
+            const ctx = getActiveTenantContext();
             const docs = getClientDocs();
             const total = docs.length;
-            const leases = docs.filter(d => d.category === 'Lease Contract' && d.status === 'Active').length;
+            const leases = docs.filter(d => d.category === 'Lease Contract' && (d.status === 'Active' || d.status === 'Verified')).length;
             const receipts = docs.filter(d => d.category === 'Official Receipt').length;
             const pending = docs.filter(d => d.status === 'Pending').length;
 
             document.getElementById('kpiTotalFiles').textContent = `${total} Files`;
             document.getElementById('kpiActiveLeases').textContent = `${leases} Active`;
+            document.getElementById('kpiLeaseLocation').textContent = ctx.fullTag;
             document.getElementById('kpiReceipts').textContent = `${receipts} Receipts`;
             document.getElementById('kpiPendingVerifications').textContent = `${pending} Files`;
         }
 
-        // Modal Controls
-        function openTenantDocModal() { document.getElementById("tenantDocModal").classList.add("show"); }
-        function closeTenantDocModal() { document.getElementById("tenantDocModal").classList.remove("show"); }
+        // Strict Client POV Header Notification Count
+        function updateHeaderBadge() {
+            const notifs = getNotifications().filter(n => (n.pov === 'client' || n.pov === 'tenant') && n.status === 'unread');
+            const badge = document.getElementById('clientHeaderNotifBadge');
+            if (badge) badge.textContent = notifs.length;
+        }
+
+        function openTenantDocModal() {
+            const ctx = getActiveTenantContext();
+            document.getElementById('modalUnitLocationTag').value = ctx.fullTag;
+            document.getElementById("tenantDocModal").classList.add("show");
+        }
+
+        function closeTenantDocModal() { 
+            document.getElementById("tenantDocModal").classList.remove("show"); 
+        }
 
         function saveTenantDoc() {
             const title = document.getElementById('modalDocTitle').value.trim();
@@ -1151,6 +1136,7 @@
                 return;
             }
 
+            const ctx = getActiveTenantContext();
             const newId = `DOC-CLI-00${Math.floor(6 + Math.random() * 90)}`;
             const today = new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
 
@@ -1159,7 +1145,7 @@
                 title: title,
                 fileType: 'PDF • 1.8 MB • Uploaded File',
                 category: category,
-                uploadedBy: `${TENANT_CONTEXT.tenantName} (You)`,
+                uploadedBy: `${ctx.name} (You)`,
                 uploadDate: today,
                 status: 'Pending',
                 notes: notes || 'Uploaded via Tenant Portal.'
@@ -1169,7 +1155,7 @@
             docs.unshift(newDoc);
             saveClientDocs(docs);
 
-            // Send notification ping to Admin
+            // Send notification alert to Admin POV (documents.html)
             let notifications = getNotifications();
             notifications.unshift({
                 id: `NOTIF-${Date.now()}`,
@@ -1178,8 +1164,9 @@
                 status: 'unread',
                 title: `Tenant Uploaded Document / ID`,
                 time: 'Just now',
-                description: `Tenant ${TENANT_CONTEXT.tenantName} (${TENANT_CONTEXT.fullLocationTag}) uploaded a new file: "<strong>${title}</strong>" (${category}).`,
-                property: TENANT_CONTEXT.fullLocationTag,
+                description: `Tenant <strong>${ctx.name}</strong> (${ctx.fullTag}) uploaded a new file: "<strong>${title}</strong>" (${category}).`,
+                property: ctx.fullTag,
+                tenantName: ctx.name,
                 tag: 'Tenant Vault Upload',
                 tagColor: 'var(--primary)',
                 actionUrl: 'documents.html',
@@ -1191,7 +1178,6 @@
             updateKPIs();
             closeTenantDocModal();
 
-            // Reset inputs
             document.getElementById('modalDocTitle').value = '';
             document.getElementById('modalDocNotes').value = '';
 
@@ -1219,7 +1205,6 @@
             if (event.target === modal) closeTenantDocModal();
         };
 
-        // Live Filtering
         function filterTable() {
             const searchValue = document.getElementById("searchInput").value.toLowerCase();
             const categoryValue = document.getElementById("categoryFilter").value;
@@ -1229,12 +1214,12 @@
 
             rows.forEach(row => {
                 const text = row.innerText.toLowerCase();
-                const rowCategory = row.dataset.category;
-                const rowStatus = row.dataset.status;
+                const rowCategory = row.dataset.category || "";
+                const rowStatus = row.dataset.status || "";
 
                 const matchesSearch = text.includes(searchValue);
                 const matchesCategory = categoryValue === "" || rowCategory === categoryValue;
-                const matchesStatus = statusValue === "" || rowStatus === statusValue;
+                const matchesStatus = statusValue === "" || rowStatus.includes(statusValue);
 
                 if (matchesSearch && matchesCategory && matchesStatus) {
                     row.style.display = "";
@@ -1251,57 +1236,19 @@
             filterTable();
         }
 
-        // Profile Dropdown & Role Switching
+        // Profile Dropdown Handler
         const userProfileBtn = document.getElementById('userProfileBtn');
         const userDropdown = document.getElementById('userDropdown');
 
-        userProfileBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            userDropdown.classList.toggle('show');
-        });
+        if (userProfileBtn && userDropdown) {
+            userProfileBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                userDropdown.classList.toggle('show');
+            });
 
-        document.addEventListener('click', () => { userDropdown.classList.remove('show'); });
-
-        const povSelector = document.getElementById('povSelector');
-        const userName = document.getElementById('userName');
-        const userRoleBadge = document.getElementById('userRoleBadge');
-        const userAvatar = document.getElementById('userAvatar');
-
-        function syncPOV() {
-            const role = localStorage.getItem('argo_pov') || 'client';
-            povSelector.value = role;
-
-            if (role === 'admin') {
-                userName.textContent = 'Juan Dela Cruz';
-                userRoleBadge.textContent = 'Property Manager';
-                userAvatar.textContent = 'JD';
-                userAvatar.style.background = '#2563EB';
-            } else if (role === 'owner') {
-                userName.textContent = 'Don Ramon Santos';
-                userRoleBadge.textContent = 'Property Owner';
-                userAvatar.textContent = 'RS';
-                userAvatar.style.background = '#059669';
-            } else if (role === 'client') {
-                userName.textContent = TENANT_CONTEXT.tenantName;
-                userRoleBadge.textContent = 'Sunrise Property • Bldg 2 • Unit 101';
-                userAvatar.textContent = 'MS';
-                userAvatar.style.background = '#D97706';
-            }
+            document.addEventListener('click', () => { 
+                userDropdown.classList.remove('show'); 
+            });
         }
-
-        povSelector.addEventListener('change', (e) => {
-            const role = e.target.value;
-            localStorage.setItem('argo_pov', role);
-
-            if (role === 'admin') {
-                window.location.href = 'dashboard.html';
-            } else if (role === 'owner') {
-                window.location.href = 'owner-dashboard.html';
-            } else if (role === 'client') {
-                syncPOV();
-                updateHeaderBadge();
-            }
-        });
     </script>
 </body>
-</html>

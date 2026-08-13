@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Rent Collection & Verification | ARGO Property Management</title>
 
+    <!-- 🔒 Strict Navigation Guard & Role Isolation -->
+    <script src="js/auth.js"></script>
+
     <!-- Inter Font -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -176,7 +179,7 @@
             gap: 16px;
         }
 
-        .organization-pill {
+        .admin-badge {
             display: flex;
             align-items: center;
             gap: 8px;
@@ -186,20 +189,7 @@
             border-radius: 6px;
             font-size: 12px;
             color: #E5E7EB;
-        }
-
-        .organization-pill i { color: #60A5FA; }
-
-        .pov-selector {
-            background: #1E293B;
-            border: 1px solid #334155;
-            color: #60A5FA;
-            padding: 6px 12px;
-            border-radius: 6px;
-            font-size: 12px;
-            outline: none;
-            cursor: pointer;
-            font-weight: 500;
+            font-weight: 600;
         }
 
         .header-right {
@@ -302,6 +292,7 @@
             gap: 10px;
             text-decoration: none;
             transition: 0.15s;
+            cursor: pointer;
         }
 
         .dropdown-item:hover { background: #F3F4F6; color: #111827; }
@@ -525,11 +516,9 @@
 
         .payment-id { font-weight: 600; color: var(--text); }
         .tenant-name { font-weight: 600; color: var(--text); }
-        .property-info { color: var(--muted); font-size: 11px; margin-top: 2px; }
         .property-tag-highlight { font-weight: 600; color: #1E40AF; }
         .amount { font-weight: 600; color: var(--text); }
 
-        /* TYPE & STATUS BADGES */
         .type-pill {
             display: inline-flex;
             align-items: center;
@@ -685,7 +674,6 @@
             .sidebar-brand h2, .sidebar-brand span, .nav-section-title, .nav-item span { display: none; }
             .nav-item { justify-content: center; padding: 12px; }
             .top-header { left: 70px; padding: 0 15px; }
-            .organization-pill { display: none; }
             .main-content { margin-left: 70px; padding: 85px 15px 30px; }
             .page-header { flex-direction: column; gap: 14px; }
             .filter-bar { flex-direction: column; align-items: stretch; }
@@ -719,17 +707,10 @@
     <!-- ================= TOP HEADER ================= -->
     <header class="top-header">
         <div class="header-left">
-            <div class="organization-pill">
-                <i class="bi bi-building"></i>
-                <span>Sunrise Property Group</span>
+            <div class="admin-badge">
+                <i class="bi bi-shield-lock-fill" style="color: #60A5FA;"></i>
+                <span>Admin Command Center</span>
             </div>
-
-            <!-- DYNAMIC POV / ROLE SWITCHER FOR DB-FREE TESTING -->
-            <select class="pov-selector" id="povSelector" title="Switch User Role Perspective">
-                <option value="admin" selected>POV: Admin / PM</option>
-                <option value="owner">POV: Property Owner</option>
-                <option value="client">POV: Client / Tenant</option>
-            </select>
         </div>
 
         <div class="header-right">
@@ -742,7 +723,7 @@
                 <div class="user-profile" id="userProfileBtn">
                     <div class="avatar" id="userAvatar">JD</div>
                     <div class="user-info">
-                        <strong id="userName">Juan Dela Cruz</strong>
+                        <strong id="userName">Property Admin</strong>
                         <span id="userRoleBadge">Property Manager</span>
                     </div>
                     <i class="bi bi-chevron-down" style="font-size: 10px; color: #94A3B8;"></i>
@@ -753,10 +734,10 @@
                         <i class="bi bi-person-gear"></i>
                         <span>Account Settings</span>
                     </a>
-                    <a href="logout.html" class="dropdown-item danger">
+                    <div class="dropdown-item danger" onclick="logoutUser()">
                         <i class="bi bi-box-arrow-right"></i>
                         <span>Log Out</span>
-                    </a>
+                    </div>
                 </div>
             </div>
         </div>
@@ -770,10 +751,10 @@
             <div>
                 <div class="eyebrow">FINANCE & SERVICES</div>
                 <h1>Rent Collection Verification Hub</h1>
-                <p>Verify GCash/MariBank tenant payment proofs, inspect property location tags, and clear outstanding ledger balances.</p>
+                <p>Verify tenant payment proofs, inspect property location tags, and clear outstanding ledger balances.</p>
             </div>
 
-            <button class="primary-btn admin-action" onclick="openModal()">
+            <button class="primary-btn" onclick="openModal()">
                 <i class="bi bi-plus-lg"></i>
                 <span>Record Manual Payment</span>
             </button>
@@ -822,7 +803,7 @@
         <div class="filter-bar">
             <div class="search-box">
                 <i class="bi bi-search"></i>
-                <input type="text" id="searchInput" placeholder="Search tenant (e.g. Maria Santos), property (e.g. Sunrise Property), or ref code..." onkeyup="filterTable()">
+                <input type="text" id="searchInput" placeholder="Search tenant, property, or reference code..." onkeyup="filterTable()">
             </div>
 
             <select class="filter-select" id="statusFilter" onchange="filterTable()">
@@ -844,11 +825,6 @@
                 <i class="bi bi-arrow-counterclockwise"></i>
                 Reset
             </button>
-
-            <button class="secondary-btn" onclick="alert('Exporting Rent Collection Audit CSV...')">
-                <i class="bi bi-download"></i>
-                Export CSV
-            </button>
         </div>
 
         <!-- TABLE -->
@@ -864,23 +840,18 @@
                             <th>AMOUNT</th>
                             <th>PAYMENT METHOD</th>
                             <th>STATUS</th>
-                            <th class="admin-action">ACTIONS</th>
+                            <th>ACTIONS</th>
                         </tr>
                     </thead>
                     <tbody id="paymentTable">
-                        <!-- RENDERED DYNAMICALLY FROM LOCALSTORAGE -->
+                        <!-- RENDERED DYNAMICALLY FROM LOCALSTORAGE / POSTGRESQL -->
                     </tbody>
                 </table>
             </div>
 
             <!-- TABLE FOOTER -->
             <div class="table-footer">
-                <span id="showingCountText">Showing active payment records</span>
-                <div class="pagination">
-                    <button class="page-button"><i class="bi bi-chevron-left"></i></button>
-                    <button class="page-button active">1</button>
-                    <button class="page-button"><i class="bi bi-chevron-right"></i></button>
-                </div>
+                <span id="showingCountText">Showing 0 payment records</span>
             </div>
         </div>
     </main>
@@ -898,18 +869,17 @@
 
             <div class="modal-body">
                 <div class="form-group">
-                    <label>Select Tenant & Property Unit Location</label>
+                    <label>Select Active Lease / Tenant</label>
                     <select id="modalTenantSelect">
-                        <option value="Maria Santos|Sunrise Property • Building 2 • Unit 101|INV-2026-09">Maria Santos — Sunrise Property (Bldg 2, Unit 101)</option>
-                        <option value="Juan dela Cruz|Greenfield Apartments • Unit 204|PAY-0002">Juan dela Cruz — Greenfield Apartments (Unit 204)</option>
-                        <option value="Ana Reyes|Sunrise Residences • Unit 305|PAY-0003">Ana Reyes — Sunrise Residences (Unit 305)</option>
+                        <option value="">Select Tenant...</option>
+                        <!-- DYNAMICALLY POPULATED -->
                     </select>
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
                         <label>Payment Amount (₱)</label>
-                        <input type="number" id="modalAmountInput" placeholder="e.g. 15000" value="15000">
+                        <input type="number" id="modalAmountInput" placeholder="e.g. 15000">
                     </div>
 
                     <div class="form-group">
@@ -953,109 +923,91 @@
 
     <!-- ================= JAVASCRIPT ================= -->
     <script>
-        // Dynamic Admin Sidebar Renderer & Role Guard
         function renderSidebar() {
-            const pov = localStorage.getItem('argo_pov') || 'admin';
-
-            // Route Guard: Bounce non-admins to their respective portals
-            if (pov === 'owner') {
-                window.location.href = 'owner-dashboard.html';
-                return;
-            } else if (pov === 'client') {
-                window.location.href = 'client-dashboard.html';
-                return;
-            }
-
             const nav = document.getElementById('sidebarNav');
-            nav.innerHTML = `
-                <div class="nav-section-title">OVERVIEW</div>
-                <a href="dashboard.html" class="nav-item">
-                    <i class="bi bi-grid-1x2"></i>
-                    <span>Dashboard</span>
-                </a>
+            if (nav) {
+                nav.innerHTML = `
+                    <div class="nav-section-title">OVERVIEW</div>
+                    <a href="dashboard.html" class="nav-item">
+                        <i class="bi bi-grid-1x2"></i>
+                        <span>Dashboard</span>
+                    </a>
 
-                <div class="nav-section-title">PROPERTY OPERATIONS</div>
-                <a href="properties.html" class="nav-item">
-                    <i class="bi bi-buildings"></i>
-                    <span>Properties</span>
-                </a>
-                <a href="buildings.html" class="nav-item">
-                    <i class="bi bi-building"></i>
-                    <span>Buildings</span>
-                </a>
-                <a href="units.html" class="nav-item">
-                    <i class="bi bi-door-open"></i>
-                    <span>Units</span>
-                </a>
-                <a href="tenants.html" class="nav-item">
-                    <i class="bi bi-people"></i>
-                    <span>Tenants</span>
-                </a>
-                <a href="owners.html" class="nav-item">
-                    <i class="bi bi-person-badge"></i>
-                    <span>Owners</span>
-                </a>
-                <a href="property-ownership.html" class="nav-item">
-                    <i class="bi bi-pie-chart"></i>
-                    <span>Fractional Ownership</span>
-                </a>
-                <a href="leases.html" class="nav-item">
-                    <i class="bi bi-file-earmark-text"></i>
-                    <span>Leases</span>
-                </a>
+                    <div class="nav-section-title">PROPERTY OPERATIONS</div>
+                    <a href="properties.html" class="nav-item">
+                        <i class="bi bi-buildings"></i>
+                        <span>Properties</span>
+                    </a>
+                    <a href="buildings.html" class="nav-item">
+                        <i class="bi bi-building"></i>
+                        <span>Buildings</span>
+                    </a>
+                    <a href="units.html" class="nav-item">
+                        <i class="bi bi-door-open"></i>
+                        <span>Units</span>
+                    </a>
+                    <a href="tenants.html" class="nav-item">
+                        <i class="bi bi-people"></i>
+                        <span>Tenants</span>
+                    </a>
+                    <a href="owners.html" class="nav-item">
+                        <i class="bi bi-person-badge"></i>
+                        <span>Owners</span>
+                    </a>
+                    <a href="property-ownership.html" class="nav-item">
+                        <i class="bi bi-pie-chart"></i>
+                        <span>Fractional Ownership</span>
+                    </a>
+                    <a href="leases.html" class="nav-item">
+                        <i class="bi bi-file-earmark-text"></i>
+                        <span>Leases</span>
+                    </a>
 
-                <div class="nav-section-title">FINANCE & SERVICES</div>
-                <a href="rent-collection.html" class="nav-item active">
-                    <i class="bi bi-cash-stack"></i>
-                    <span>Rent Collection</span>
-                </a>
-                <a href="transaction.html" class="nav-item">
-                    <i class="bi bi-receipt-cutoff"></i>
-                    <span>Transactions & Ledger</span>
-                </a>
+                    <div class="nav-section-title">FINANCE & SERVICES</div>
+                    <a href="rent-collection.html" class="nav-item active">
+                        <i class="bi bi-cash-stack"></i>
+                        <span>Rent Collection</span>
+                    </a>
+                    <a href="transaction.html" class="nav-item">
+                        <i class="bi bi-receipt-cutoff"></i>
+                        <span>Transactions & Ledger</span>
+                    </a>
 
-                <a href="utilities.html" class="nav-item">
-                    <i class="bi bi-lightning-charge"></i>
-                    <span>Utilities</span>
-                </a>
-                <a href="maintenance.html" class="nav-item">
-                    <i class="bi bi-tools"></i>
-                    <span>Maintenance</span>
-                </a>
+                    <a href="utilities.html" class="nav-item">
+                        <i class="bi bi-lightning-charge"></i>
+                        <span>Utilities</span>
+                    </a>
+                    <a href="maintenance.html" class="nav-item">
+                        <i class="bi bi-tools"></i>
+                        <span>Maintenance</span>
+                    </a>
 
-                <div class="nav-section-title">RECORDS & REPORTS</div>
-                <a href="inspections.html" class="nav-item">
-                    <i class="bi bi-clipboard-check"></i>
-                    <span>Inspections</span>
-                </a>
-                <a href="documents.html" class="nav-item">
-                    <i class="bi bi-folder2-open"></i>
-                    <span>Documents</span>
-                </a>
-                <a href="reports.html" class="nav-item">
-                    <i class="bi bi-bar-chart"></i>
-                    <span>Reports</span>
-                </a>
+                    <div class="nav-section-title">RECORDS & REPORTS</div>
+                    <a href="inspections.html" class="nav-item">
+                        <i class="bi bi-clipboard-check"></i>
+                        <span>Inspections</span>
+                    </a>
+                    <a href="documents.html" class="nav-item">
+                        <i class="bi bi-folder2-open"></i>
+                        <span>Documents</span>
+                    </a>
+                    <a href="reports.html" class="nav-item">
+                        <i class="bi bi-bar-chart"></i>
+                        <span>Reports</span>
+                    </a>
 
-                <div class="nav-section-title">SYSTEM</div>
-                <a href="settings.html" class="nav-item">
-                    <i class="bi bi-gear"></i>
-                    <span>Settings</span>
-                </a>
-            `;
+                    <div class="nav-section-title">SYSTEM</div>
+                    <a href="settings.html" class="nav-item">
+                        <i class="bi bi-gear"></i>
+                        <span>Settings</span>
+                    </a>
+                `;
+            }
         }
 
-        // Seed Invoices Default Data for Maria Santos and Others
-        const DEFAULT_INVOICES = [
-            { id: 'INV-2026-09', tenantName: 'Maria Santos', type: 'Monthly Base Rent — September 2026', sub: 'Sunrise Property • Bldg 2 • Unit 101', categoryType: 'Rent', dueDate: 'Sep 05, 2026', amount: 15000.00, status: 'Unpaid', channel: 'Pending Payment', refNo: '' },
-            { id: 'UTL-ELE-2026-08', tenantName: 'Maria Santos', type: 'Electricity Bill (Meralco) — August 2026', sub: 'Sub-Meter Dial: 189.50 kWh @ ₱12.50/kWh', categoryType: 'Electricity', dueDate: 'Aug 15, 2026', amount: 2368.75, status: 'Unpaid', channel: 'Pending Payment', refNo: '' },
-            { id: 'UTL-WTR-2026-08', tenantName: 'Maria Santos', type: 'Water Bill (Maynilad) — August 2026', sub: 'Sub-Meter Dial: 16.50 m³ @ ₱48.00/m³', categoryType: 'Water', dueDate: 'Aug 15, 2026', amount: 792.00, status: 'Unpaid', channel: 'Pending Payment', refNo: '' },
-            { id: 'INV-2026-08', tenantName: 'Maria Santos', type: 'Monthly Base Rent — August 2026', sub: 'Sunrise Property • Bldg 2 • Unit 101', categoryType: 'Rent', dueDate: 'Aug 05, 2026', amount: 15000.00, status: 'Paid', channel: 'GCash', refNo: '#GCASH-987212' },
-            { id: 'UTL-ELE-2026-07', tenantName: 'Maria Santos', type: 'Electricity Bill (Meralco) — July 2026', sub: 'Sub-Meter Dial: 180.00 kWh @ ₱12.50/kWh', categoryType: 'Electricity', dueDate: 'Jul 15, 2026', amount: 2250.00, status: 'Paid', channel: 'MariBank', refNo: '#MARI-TRF8812' },
-            { id: 'INV-2026-07', tenantName: 'Maria Santos', type: 'Monthly Base Rent — July 2026', sub: 'Sunrise Property • Bldg 2 • Unit 101', categoryType: 'Rent', dueDate: 'Jul 05, 2026', amount: 15000.00, status: 'Paid', channel: 'GCash', refNo: '#GCASH-812903' }
-        ];
+        // Clean Baseline (NO HARDCODED MOCK SEED DATA)
+        const DEFAULT_INVOICES = [];
 
-        // Shared LocalStorage Accessors
         function getInvoices() {
             const data = localStorage.getItem('argo_invoices');
             if (!data) {
@@ -1085,34 +1037,50 @@
             localStorage.setItem('argo_notifications', JSON.stringify(notifications));
         }
 
-        // Render Page Data on Initialization
+        function getLeases() {
+            return JSON.parse(localStorage.getItem('argo_leases') || '[]');
+        }
+
+        function getTenants() {
+            return JSON.parse(localStorage.getItem('argo_tenants') || '[]');
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             renderSidebar();
-            syncPOV();
+            loadUserData();
+            populateModalDropdowns();
             renderPaymentTable();
             updateAdminKPIs();
             updateHeaderBadge();
         });
 
-        // Cross-tab LocalStorage Synchronizer
-        window.addEventListener('storage', (e) => {
-            if (e.key === 'argo_invoices' || e.key === 'argo_notifications' || e.key === 'argo_pov' || e.key === 'argo_user') {
-                renderSidebar();
-                syncPOV();
-                renderPaymentTable();
-                updateAdminKPIs();
-                updateHeaderBadge();
+        function loadUserData() {
+            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+            if (user.name) {
+                document.getElementById('userName').textContent = user.name;
+                document.getElementById('userAvatar').textContent = user.avatar || 'JD';
             }
-        });
+        }
 
-        // Dynamic Table Renderer
+        function populateModalDropdowns() {
+            const leases = getLeases();
+            const select = document.getElementById('modalTenantSelect');
+            if (!select) return;
+
+            select.innerHTML = '<option value="">Select Tenant...</option>';
+            leases.forEach(l => {
+                select.innerHTML += `<option value="${l.tenantName}|${l.unit}|${l.id}">${l.tenantName} — ${l.unit}</option>`;
+            });
+        }
+
         function renderPaymentTable() {
             const invoices = getInvoices();
             const tbody = document.getElementById('paymentTable');
             tbody.innerHTML = '';
 
             if (invoices.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--muted); padding:30px;">No rental collection records found.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--muted); padding:30px;">No rental collection records found. Click "Record Manual Payment" to add one.</td></tr>`;
+                document.getElementById('showingCountText').textContent = `Showing 0 payment records`;
                 return;
             }
 
@@ -1122,12 +1090,10 @@
                 tr.dataset.status = (inv.status === 'Pending Verification' || inv.status === 'Pending') ? 'Pending' : inv.status;
                 tr.dataset.method = inv.channel || 'GCash';
 
-                // Formatting Details
-                const locationTag = inv.sub ? inv.sub : 'Sunrise Property • Building 2 • Unit 101';
-                const tenantName = inv.tenantName || 'Maria Santos';
-                const displayRef = inv.refNo ? inv.refNo : `#REF-${inv.id}`;
+                const locationTag = inv.sub || 'Property Unit';
+                const tenantName = inv.tenantName || 'Tenant';
+                const displayRef = inv.refNo || `#REF-${inv.id}`;
 
-                // Status Badge HTML
                 let badgeHtml = '';
                 if (inv.status === 'Paid') {
                     badgeHtml = `<span class="status paid"><i class="bi bi-check-circle" style="margin-right:4px;"></i> Paid (Verified)</span>`;
@@ -1137,19 +1103,17 @@
                     badgeHtml = `<span class="status overdue"><i class="bi bi-exclamation-circle" style="margin-right:4px;"></i> Unpaid / Overdue</span>`;
                 }
 
-                // Type Pill HTML
                 let typePill = '';
-                if (inv.type.includes('Electricity') || inv.id.includes('ELE')) {
+                if (inv.type && (inv.type.includes('Electricity') || inv.id.includes('ELE'))) {
                     typePill = `<span class="type-pill type-elec"><i class="bi bi-lightning-charge"></i> Electricity</span>`;
-                } else if (inv.type.includes('Water') || inv.id.includes('WTR')) {
+                } else if (inv.type && (inv.type.includes('Water') || inv.id.includes('WTR'))) {
                     typePill = `<span class="type-pill type-water"><i class="bi bi-droplet"></i> Water</span>`;
                 } else {
                     typePill = `<span class="type-pill type-rent"><i class="bi bi-house-door"></i> Base Rent</span>`;
                 }
 
-                // Admin Action Buttons
                 let actionsHtml = `
-                    <button class="action-button" title="View Details" onclick="alert('Viewing receipt breakdown for ${inv.id}:\\n${inv.type}\\nAmount: ₱${inv.amount.toLocaleString('en-US', {minimumFractionDigits:2})}')"><i class="bi bi-eye"></i></button>
+                    <button class="action-button" title="View Details" onclick="alert('Viewing receipt breakdown for ${inv.id}:\\n${inv.type}\\nAmount: ₱${parseFloat(inv.amount || 0).toLocaleString('en-US', {minimumFractionDigits:2})}')"><i class="bi bi-eye"></i></button>
                 `;
 
                 if (inv.status === 'Pending Verification' || inv.status === 'Pending') {
@@ -1166,11 +1130,11 @@
                         <div class="property-tag-highlight"><i class="bi bi-geo-alt"></i> ${locationTag}</div>
                         <div style="font-size:11px; color:var(--muted); margin-top:2px;">${typePill} ${inv.type}</div>
                     </td>
-                    <td>${inv.dueDate}</td>
-                    <td><div class="amount">₱${inv.amount.toLocaleString('en-US', {minimumFractionDigits:2})}</div></td>
+                    <td>${inv.dueDate || 'N/A'}</td>
+                    <td><div class="amount">₱${parseFloat(inv.amount || 0).toLocaleString('en-US', {minimumFractionDigits:2})}</div></td>
                     <td>${inv.channel || 'GCash'}</td>
                     <td>${badgeHtml}</td>
-                    <td class="admin-action">
+                    <td>
                         <div style="display:flex; gap:6px;">${actionsHtml}</div>
                     </td>
                 `;
@@ -1181,61 +1145,57 @@
             document.getElementById('showingCountText').textContent = `Showing 1–${invoices.length} of ${invoices.length} rental payments`;
         }
 
-        // ONE-CLICK ADMIN VERIFICATION HANDLER
         function verifyTenantPayment(invoiceId, refNo, amount) {
             if (!confirm(`Are you sure you want to verify and clear payment ${refNo} for ₱${amount.toLocaleString('en-US', {minimumFractionDigits:2})}?`)) return;
 
-            // 1. Update Invoice Status to Paid in LocalStorage
             let invoices = getInvoices();
             let verifiedRef = refNo;
+            let tenantName = '';
+
             invoices = invoices.map(inv => {
                 if (inv.id === invoiceId) {
                     verifiedRef = inv.refNo || refNo;
+                    tenantName = inv.tenantName || 'Tenant';
                     return { ...inv, status: 'Paid' };
                 }
                 return inv;
             });
             saveInvoices(invoices);
 
-            // 2. Update Transaction Ledger
             let transactions = getTransactions();
             transactions = transactions.map(txn => {
-                if (txn.refCode === verifiedRef || txn.txnId.includes(invoiceId)) {
+                if (txn.refCode === verifiedRef || (txn.txnId && txn.txnId.includes(invoiceId))) {
                     return { ...txn, status: 'Verified' };
                 }
                 return txn;
             });
             saveTransactions(transactions);
 
-            // 3. Push Verified Notification to Tenant (Maria Santos)
             let notifications = getNotifications();
-            const verifiedNotif = {
+            notifications.unshift({
                 id: `NOTIF-${Date.now()}`,
                 pov: 'client',
                 category: 'payment',
                 status: 'unread',
                 title: 'Payment Verified & Official Receipt Issued',
                 time: 'Just now',
-                description: `Your payment of ₱${amount.toLocaleString('en-US', {minimumFractionDigits:2})} (${verifiedRef}) for Invoice ${invoiceId} has been verified by Property Manager Juan Dela Cruz. Official receipt issued.`,
-                property: 'Sunrise Property • Building 2 • Unit 101',
+                description: `Your payment of ₱${amount.toLocaleString('en-US', {minimumFractionDigits:2})} (${verifiedRef}) for Invoice ${invoiceId} has been verified. Official receipt issued.`,
+                property: 'Property Unit',
                 tag: 'Status: CLEARED',
                 tagColor: 'var(--success)',
                 amount: `₱${amount.toLocaleString('en-US', {minimumFractionDigits:2})}`,
                 actionUrl: 'client-billing.html',
                 actionText: 'View Official Receipt'
-            };
-            notifications.unshift(verifiedNotif);
+            });
             saveNotifications(notifications);
 
-            // 4. Refresh Table & Badges
             renderPaymentTable();
             updateAdminKPIs();
             updateHeaderBadge();
 
-            alert(`Payment ${verifiedRef} successfully verified!\n\n• Tenant Maria Santos notified\n• Invoice marked as Paid\n• Ledger status updated to Verified`);
+            alert(`Payment ${verifiedRef} successfully verified!`);
         }
 
-        // Dynamic KPI Recalculation
         function updateAdminKPIs() {
             const invoices = getInvoices();
 
@@ -1245,13 +1205,14 @@
             let totalOverdue = 0;
 
             invoices.forEach(inv => {
-                totalExpected += inv.amount;
+                const amt = parseFloat(inv.amount || 0);
+                totalExpected += amt;
                 if (inv.status === 'Paid') {
-                    totalCollected += inv.amount;
+                    totalCollected += amt;
                 } else if (inv.status === 'Pending Verification' || inv.status === 'Pending') {
-                    totalPending += inv.amount;
+                    totalPending += amt;
                 } else if (inv.status === 'Unpaid' || inv.status === 'Overdue') {
-                    totalOverdue += inv.amount;
+                    totalOverdue += amt;
                 }
             });
 
@@ -1265,38 +1226,40 @@
         }
 
         function updateHeaderBadge() {
-            const currentPov = localStorage.getItem('argo_pov') || 'admin';
-            const notifs = getNotifications().filter(n => n.pov === currentPov && n.status === 'unread');
-            const badgeEl = document.getElementById('adminNotifBadge') || document.getElementById('headerNotifBadge');
+            const notifs = getNotifications().filter(n => n.pov === 'admin' && n.status === 'unread');
+            const badgeEl = document.getElementById('adminNotifBadge');
             if (badgeEl) badgeEl.textContent = notifs.length;
         }
 
-        // Modal Controls
         function openModal() { document.getElementById("paymentModal").classList.add("show"); }
         function closeModal() { document.getElementById("paymentModal").classList.remove("show"); }
 
-        // Save Manual Payment Recorded by Admin
         function saveManualPayment() {
-            const tenantVal = document.getElementById('modalTenantSelect').value.split('|');
+            const selectVal = document.getElementById('modalTenantSelect').value;
+            if (!selectVal) {
+                alert("Please select a tenant/lease.");
+                return;
+            }
+
+            const tenantVal = selectVal.split('|');
             const tenantName = tenantVal[0];
             const locationTag = tenantVal[1];
-            const invoiceId = tenantVal[2] || `INV-2026-${Math.floor(10 + Math.random() * 90)}`;
-            const amount = parseFloat(document.getElementById('modalAmountInput').value) || 15000;
+            const invoiceId = tenantVal[2] || `INV-2026-${Math.floor(100 + Math.random() * 900)}`;
+            const amount = parseFloat(document.getElementById('modalAmountInput').value) || 0;
             const method = document.getElementById('modalMethodSelect').value;
             let refNo = document.getElementById('modalRefInput').value.trim() || `#MANUAL-${Math.floor(1000 + Math.random() * 9000)}`;
             const status = document.getElementById('modalStatusSelect').value;
 
             if (!refNo.startsWith('#')) refNo = '#' + refNo;
 
-            // Save to Invoices
             let invoices = getInvoices();
             invoices.unshift({
                 id: invoiceId,
                 tenantName: tenantName,
-                type: 'Monthly Base Rent — August 2026',
+                type: 'Monthly Base Rent',
                 sub: locationTag,
                 categoryType: 'Rent',
-                dueDate: 'Aug 05, 2026',
+                dueDate: new Date().toISOString().split('T')[0],
                 amount: amount,
                 status: status,
                 channel: method,
@@ -1308,7 +1271,11 @@
             updateAdminKPIs();
             closeModal();
 
-            alert(`Payment recorded successfully for ${tenantName} (${locationTag})!`);
+            document.getElementById('modalAmountInput').value = '';
+            document.getElementById('modalRefInput').value = '';
+            document.getElementById('modalNotesInput').value = '';
+
+            alert(`Payment recorded successfully for ${tenantName}!`);
         }
 
         window.onclick = function(event) {
@@ -1316,7 +1283,6 @@
             if (event.target === modal) closeModal();
         };
 
-        // Table Filtering
         function filterTable() {
             const searchValue = document.getElementById("searchInput").value.toLowerCase();
             const statusValue = document.getElementById("statusFilter").value;
@@ -1326,8 +1292,8 @@
 
             rows.forEach(row => {
                 const text = row.innerText.toLowerCase();
-                const rowStatus = row.dataset.status;
-                const rowMethod = row.dataset.method;
+                const rowStatus = row.dataset.status || "";
+                const rowMethod = row.dataset.method || "";
 
                 const matchesSearch = text.includes(searchValue);
                 const matchesStatus = statusValue === "" || rowStatus.includes(statusValue);
@@ -1348,61 +1314,17 @@
             filterTable();
         }
 
-        // Profile Dropdown Toggle
         const userProfileBtn = document.getElementById('userProfileBtn');
         const userDropdown = document.getElementById('userDropdown');
 
-        userProfileBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            userDropdown.classList.toggle('show');
-        });
+        if (userProfileBtn && userDropdown) {
+            userProfileBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                userDropdown.classList.toggle('show');
+            });
 
-        document.addEventListener('click', () => { userDropdown.classList.remove('show'); });
-
-        // POV Sync & Switcher Logic
-        const povSelector = document.getElementById('povSelector');
-        const userName = document.getElementById('userName');
-        const userRoleBadge = document.getElementById('userRoleBadge');
-        const userAvatar = document.getElementById('userAvatar');
-        const adminActions = document.querySelectorAll('.admin-action');
-
-        function syncPOV() {
-            const role = localStorage.getItem('argo_pov') || 'admin';
-            povSelector.value = role;
-
-            if (role === 'admin') {
-                userName.textContent = 'Juan Dela Cruz';
-                userRoleBadge.textContent = 'Property Manager';
-                userAvatar.textContent = 'JD';
-                userAvatar.style.background = '#2563EB';
-                adminActions.forEach(el => el.style.display = '');
-            } else if (role === 'owner') {
-                userName.textContent = 'Don Ramon Santos';
-                userRoleBadge.textContent = 'Property Owner';
-                userAvatar.textContent = 'RS';
-                userAvatar.style.background = '#059669';
-                adminActions.forEach(el => el.style.display = 'none');
-            } else if (role === 'client') {
-                userName.textContent = 'Maria Santos';
-                userRoleBadge.textContent = 'Sunrise Property • Bldg 2 • Unit 101';
-                userAvatar.textContent = 'MS';
-                userAvatar.style.background = '#D97706';
-                adminActions.forEach(el => el.style.display = 'none');
-            }
+            document.addEventListener('click', () => { userDropdown.classList.remove('show'); });
         }
-
-        povSelector.addEventListener('change', (e) => {
-            const role = e.target.value;
-            localStorage.setItem('argo_pov', role);
-
-            if (role === 'owner') {
-                window.location.href = 'owner-dashboard.html';
-            } else if (role === 'client') {
-                window.location.href = 'client-dashboard.html';
-            } else {
-                syncPOV();
-                updateHeaderBadge();
-            }
-        });
     </script>
 </body>
+</html>

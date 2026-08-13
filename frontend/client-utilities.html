@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Utility Sub-Meters & Usage | ARGO Tenant Portal</title>
 
+    <!-- 🔒 Strict Navigation Guard & Role Isolation -->
+    <script src="js/auth.js"></script>
+
     <!-- Inter Font -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -176,7 +179,7 @@
             gap: 16px;
         }
 
-        .organization-pill {
+        .tenant-badge {
             display: flex;
             align-items: center;
             gap: 8px;
@@ -186,20 +189,7 @@
             border-radius: 6px;
             font-size: 12px;
             color: #E5E7EB;
-        }
-
-        .organization-pill i { color: #60A5FA; }
-
-        .pov-selector {
-            background: #1E293B;
-            border: 1px solid #334155;
-            color: #60A5FA;
-            padding: 6px 12px;
-            border-radius: 6px;
-            font-size: 12px;
-            outline: none;
-            cursor: pointer;
-            font-weight: 500;
+            font-weight: 600;
         }
 
         .header-right {
@@ -302,6 +292,7 @@
             gap: 10px;
             text-decoration: none;
             transition: 0.15s;
+            cursor: pointer;
         }
 
         .dropdown-item:hover { background: #F3F4F6; color: #111827; }
@@ -714,7 +705,6 @@
             .sidebar-brand h2, .sidebar-brand span, .nav-section-title, .nav-item span { display: none; }
             .nav-item { justify-content: center; padding: 12px; }
             .top-header { left: 70px; padding: 0 15px; }
-            .organization-pill { display: none; }
             .main-content { margin-left: 70px; padding: 85px 15px 30px; }
             .page-header { flex-direction: column; gap: 14px; }
             .dial-box-container { grid-template-columns: 1fr; gap: 8px; }
@@ -734,38 +724,8 @@
             </div>
         </div>
 
-        <nav class="sidebar-nav">
-            <div class="nav-section-title">SELF-SERVICE HOME</div>
-            <a href="client-dashboard.html" class="nav-item">
-                <i class="bi bi-house-door"></i>
-                <span>My Tenancy Home</span>
-            </a>
-            <a href="client-billing.html" class="nav-item">
-                <i class="bi bi-cash-stack"></i>
-                <span>Pay Rent & Dues</span>
-            </a>
-            <a href="client-utilities.html" class="nav-item active">
-                <i class="bi bi-lightning-charge"></i>
-                <span>My Utilities & Meters</span>
-            </a>
-            <a href="client-maintenance.html" class="nav-item">
-                <i class="bi bi-tools"></i>
-                <span>Submit Maintenance</span>
-            </a>
-            <a href="inspections.html" class="nav-item">
-                <i class="bi bi-clipboard-check"></i>
-                <span>Move-In & Inspections</span>
-            </a>
-            <a href="documents.html" class="nav-item">
-                <i class="bi bi-folder2-open"></i>
-                <span>My Lease & Receipts</span>
-            </a>
-
-            <div class="nav-section-title">SYSTEM</div>
-            <a href="settings.html" class="nav-item">
-                <i class="bi bi-gear"></i>
-                <span>Account Settings</span>
-            </a>
+        <nav class="sidebar-nav" id="sidebarNav">
+            <!-- DYNAMICALLY POPULATED BY JAVASCRIPT -->
         </nav>
 
         <div class="sidebar-footer">
@@ -776,21 +736,13 @@
     <!-- ================= TOP HEADER ================= -->
     <header class="top-header">
         <div class="header-left">
-            <div class="organization-pill">
-                <i class="bi bi-building"></i>
-                <span>Sunrise Property Group</span>
+            <div class="tenant-badge">
+                <i class="bi bi-house-door-fill" style="color: #60A5FA;"></i>
+                <span>Tenant Self-Service Portal</span>
             </div>
-
-            <!-- DYNAMIC POV / ROLE SWITCHER FOR DB-LESS TESTING -->
-            <select class="pov-selector" id="povSelector" title="Switch User Role Perspective">
-                <option value="client" selected>POV: Client / Tenant</option>
-                <option value="admin">POV: Admin / PM</option>
-                <option value="owner">POV: Property Owner</option>
-            </select>
         </div>
 
         <div class="header-right">
-            <!-- EXCLUSIVE BELL ENTRY LINKING TO NOTIFICATION.HTML -->
             <a href="notification.html" class="notification-header-link" title="Notifications Center">
                 <i class="bi bi-bell"></i>
                 <div class="notification-badge" id="clientHeaderNotifBadge">0</div>
@@ -801,7 +753,7 @@
                     <div class="avatar" id="userAvatar">MS</div>
                     <div class="user-info">
                         <strong id="userName">Maria Santos</strong>
-                        <span id="userRoleBadge">Sunrise Property • Bldg 2 • Unit 101</span>
+                        <span id="userRoleBadge">Unit Occupant</span>
                     </div>
                     <i class="bi bi-chevron-down" style="font-size: 10px; color: #94A3B8;"></i>
                 </div>
@@ -811,10 +763,10 @@
                         <i class="bi bi-person-gear"></i>
                         <span>Account Settings</span>
                     </a>
-                    <a href="logout.html" class="dropdown-item danger">
+                    <div class="dropdown-item danger" onclick="logoutUser()">
                         <i class="bi bi-box-arrow-right"></i>
                         <span>Log Out</span>
-                    </a>
+                    </div>
                 </div>
             </div>
         </div>
@@ -826,27 +778,26 @@
         <!-- PAGE HEADER -->
         <div class="page-header">
             <div>
-                <div class="eyebrow">POV 3: SUB-METER TRANSPARENCY DESK</div>
+                <div class="eyebrow">SUB-METER TRANSPARENCY DESK</div>
                 <h1>My Unit Utility Sub-Meters</h1>
                 <p>Inspect physical dial readings, sub-meter serials, consumption breakdowns, and rates for Meralco & Maynilad.</p>
             </div>
 
-            <!-- BUTTON TRIGGERS PAYMENT GATEWAY MODAL WITH QR CODES -->
             <button class="primary-btn" onclick="openPaymentModal()">
                 <i class="bi bi-qr-code-scan"></i>
                 <span>Pay Utility Statement</span>
             </button>
         </div>
 
-        <!-- KPI SUMMARY CARDS (RECALCULATED DYNAMICALLY) -->
+        <!-- KPI SUMMARY CARDS -->
         <section class="kpi-grid">
             <div class="kpi-card">
                 <div class="kpi-top">
                     <span class="kpi-label">Current Utility Dues</span>
-                    <div class="kpi-icon" id="kpiDuesIcon" style="background:#FFF1F2; color:var(--danger);"><i class="bi bi-receipt"></i></div>
+                    <div class="kpi-icon" id="kpiDuesIcon" style="background:#ECFDF5; color:var(--success);"><i class="bi bi-receipt"></i></div>
                 </div>
-                <div class="kpi-value" id="kpiCurrentDues" style="color:var(--danger);">₱3,160.75</div>
-                <div class="kpi-description">August 2026 sub-meter cycle</div>
+                <div class="kpi-value" id="kpiCurrentDues" style="color:var(--success);">₱0.00</div>
+                <div class="kpi-description" id="kpiDuesDesc">All utility bills settled</div>
             </div>
 
             <div class="kpi-card">
@@ -854,7 +805,7 @@
                     <span class="kpi-label">Electricity Usage (kWh)</span>
                     <div class="kpi-icon" style="background:#FEF3C7; color:#92400E;"><i class="bi bi-lightning-charge"></i></div>
                 </div>
-                <div class="kpi-value" id="kpiElecUsage">189.50 kWh</div>
+                <div class="kpi-value" id="kpiElecUsage">0.00 kWh</div>
                 <div class="kpi-description">Meralco Sub-meter #MER-992810</div>
             </div>
 
@@ -863,7 +814,7 @@
                     <span class="kpi-label">Water Usage (cu.m)</span>
                     <div class="kpi-icon" style="background:#DBEAFE; color:#1D4ED8;"><i class="bi bi-droplet"></i></div>
                 </div>
-                <div class="kpi-value" style="color:var(--primary);" id="kpiWaterUsage">16.50 cu.m</div>
+                <div class="kpi-value" style="color:var(--primary);" id="kpiWaterUsage">0.00 cu.m</div>
                 <div class="kpi-description">Maynilad Sub-meter #MAY-441209</div>
             </div>
 
@@ -873,7 +824,7 @@
                     <div class="kpi-icon" style="background:#ECFDF5; color:var(--success);"><i class="bi bi-shield-check"></i></div>
                 </div>
                 <div class="kpi-value" style="color:var(--success);">PASS (A+)</div>
-                <div class="kpi-description">Seals verified on Aug 05</div>
+                <div class="kpi-description">Seals verified by PM</div>
             </div>
         </section>
 
@@ -910,7 +861,7 @@
 
                 <div style="font-weight:700; font-size:11px; color:var(--muted); text-transform:uppercase; margin-bottom:6px;">COST BREAKDOWN</div>
                 <div class="usage-breakdown-row">
-                    <span>Power Usage Charge (189.50 kWh × ₱12.50)</span>
+                    <span>Power Usage Charge (Net kWh × ₱12.50)</span>
                     <strong id="elecCost">₱2,368.75</strong>
                 </div>
                 <div class="usage-breakdown-row">
@@ -953,7 +904,7 @@
 
                 <div style="font-weight:700; font-size:11px; color:var(--muted); text-transform:uppercase; margin-bottom:6px;">COST BREAKDOWN</div>
                 <div class="usage-breakdown-row">
-                    <span>Water Volume Charge (16.50 cu.m × ₱48.00)</span>
+                    <span>Water Volume Charge (Net cu.m × ₱48.00)</span>
                     <strong id="waterCost">₱792.00</strong>
                 </div>
                 <div class="usage-breakdown-row">
@@ -980,16 +931,15 @@
                     <thead>
                         <tr>
                             <th>STATEMENT ID</th>
-                            <th>BILLING PERIOD</th>
-                            <th>ELECTRICITY (KWH & AMOUNT)</th>
-                            <th>WATER (CU.M & AMOUNT)</th>
+                            <th>BILLING DESCRIPTION</th>
+                            <th>DUE DATE</th>
                             <th>TOTAL UTILITY CHARGE</th>
                             <th>STATUS</th>
                             <th>ACTIONS</th>
                         </tr>
                     </thead>
                     <tbody id="utilityHistoryTable">
-                        <!-- RENDERED DYNAMICALLY FROM LOCALSTORAGE -->
+                        <!-- RENDERED DYNAMICALLY FROM LOCALSTORAGE / POSTGRESQL -->
                     </tbody>
                 </table>
             </div>
@@ -1010,10 +960,9 @@
 
             <div class="modal-body">
 
-                <!-- LOCATION CONTEXT BADGE (EXPLICIT TENANT LOCATION FOR ADMIN) -->
                 <div class="location-context-tag">
                     <i class="bi bi-geo-alt-fill"></i>
-                    <span><strong>Tenant Profile:</strong> Maria Santos — Sunrise Property (Building 2, Unit 101)</span>
+                    <span><strong>Tenant Profile:</strong> <span id="modalTenantTag">Loading Profile...</span></span>
                 </div>
 
                 <div class="form-group">
@@ -1024,7 +973,6 @@
                     </select>
                 </div>
 
-                <!-- DYNAMIC QR DISPLAY PREVIEW BOX -->
                 <div class="qr-display-container">
                     <div class="qr-title" id="qrTitleLabel">Official GCash Payment QR Code</div>
                     <div class="qr-image-wrapper">
@@ -1035,7 +983,7 @@
                 </div>
 
                 <div class="form-group">
-                    <label>Select Target Invoice to Pay</label>
+                    <label>Select Target Utility Invoice</label>
                     <select id="modalInvoiceSelect" onchange="autoFillInvoiceAmount()">
                         <!-- POPULATED DYNAMICALLY -->
                     </select>
@@ -1043,7 +991,7 @@
 
                 <div class="form-group">
                     <label>Amount Paid (₱)</label>
-                    <input type="number" id="modalAmountInput" placeholder="e.g. 3160.75" value="3160.75">
+                    <input type="number" id="modalAmountInput" placeholder="e.g. 3160.75" value="0.00">
                 </div>
 
                 <div class="form-group">
@@ -1071,141 +1019,176 @@
 
     <!-- ================= JAVASCRIPT ================= -->
     <script>
-        // Explicit Tenant Profile Context
-        const TENANT_CONTEXT = {
-            tenantId: 'TNT-2026-101',
-            tenantName: 'Maria Santos',
-            property: 'Sunrise Property',
-            building: 'Building 2',
-            unit: 'Unit 101',
-            fullLocationTag: 'Sunrise Property • Building 2 • Unit 101'
-        };
+        function renderSidebar() {
+            const nav = document.getElementById('sidebarNav');
+            if (nav) {
+                nav.innerHTML = `
+                    <div class="nav-section-title">SELF-SERVICE HOME</div>
+                    <a href="client-dashboard.html" class="nav-item">
+                        <i class="bi bi-house-door"></i>
+                        <span>My Tenancy Home</span>
+                    </a>
+                    <a href="client-billing.html" class="nav-item">
+                        <i class="bi bi-receipt"></i>
+                        <span>Pay Rent & Dues</span>
+                    </a>
+                    <a href="client-utilities.html" class="nav-item active">
+                        <i class="bi bi-lightning-charge"></i>
+                        <span>My Utilities & Meters</span>
+                    </a>
+                    <a href="client-maintenance.html" class="nav-item">
+                        <i class="bi bi-tools"></i>
+                        <span>Submit Maintenance</span>
+                    </a>
+                    <a href="inspections.html" class="nav-item">
+                        <i class="bi bi-clipboard-check"></i>
+                        <span>Move-In & Inspections</span>
+                    </a>
+                    <a href="documents.html" class="nav-item">
+                        <i class="bi bi-folder2-open"></i>
+                        <span>My Lease & Receipts</span>
+                    </a>
 
-        // Shared LocalStorage Accessors
-        function getReadings() {
-            return JSON.parse(localStorage.getItem('argo_meter_readings') || '[]');
+                    <div class="nav-section-title">SYSTEM</div>
+                    <a href="account.html" class="nav-item">
+                        <i class="bi bi-gear"></i>
+                        <span>Account Settings</span>
+                    </a>
+                `;
+            }
         }
 
-        function getInvoices() {
-            return JSON.parse(localStorage.getItem('argo_invoices') || '[]');
-        }
+        function getReadings() { return JSON.parse(localStorage.getItem('argo_meter_readings') || '[]'); }
+        function getInvoices() { return JSON.parse(localStorage.getItem('argo_invoices') || '[]'); }
+        function saveInvoices(invoices) { localStorage.setItem('argo_invoices', JSON.stringify(invoices)); }
+        function getTransactions() { return JSON.parse(localStorage.getItem('argo_transactions') || '[]'); }
+        function saveTransactions(transactions) { localStorage.setItem('argo_transactions', JSON.stringify(transactions)); }
+        function getNotifications() { return JSON.parse(localStorage.getItem('argo_notifications') || '[]'); }
+        function saveNotifications(notifications) { localStorage.setItem('argo_notifications', JSON.stringify(notifications)); }
+        function getLeases() { return JSON.parse(localStorage.getItem('argo_leases') || '[]'); }
 
-        function saveInvoices(invoices) {
-            localStorage.setItem('argo_invoices', JSON.stringify(invoices));
-        }
-
-        function getTransactions() {
-            return JSON.parse(localStorage.getItem('argo_transactions') || '[]');
-        }
-
-        function saveTransactions(transactions) {
-            localStorage.setItem('argo_transactions', JSON.stringify(transactions));
-        }
-
-        function getNotifications() {
-            return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
-        }
-
-        function saveNotifications(notifications) {
-            localStorage.setItem('argo_notifications', JSON.stringify(notifications));
-        }
-
-        // Initialize Page Data
         document.addEventListener('DOMContentLoaded', () => {
+            renderSidebar();
+            loadUserData();
             renderSubMeterCards();
             renderUtilityHistoryTable();
             updateHeaderBadge();
-            syncPOV();
         });
 
         // Cross-Tab Real-Time Storage Listener
         window.addEventListener('storage', (e) => {
-            if (e.key === 'argo_meter_readings' || e.key === 'argo_invoices' || e.key === 'argo_notifications' || e.key === 'argo_pov') {
+            if (e.key === 'argo_meter_readings' || e.key === 'argo_invoices' || e.key === 'argo_notifications') {
                 renderSubMeterCards();
                 renderUtilityHistoryTable();
                 updateHeaderBadge();
-                syncPOV();
             }
         });
 
-        // Dynamic Sub-Meter Card Data
-        function renderSubMeterCards() {
-            const readings = getReadings().filter(r => r.tenantName === TENANT_CONTEXT.tenantName || (r.unitLocation && r.unitLocation.includes('101')));
+        function getActiveTenantContext() {
+            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+            const leases = getLeases();
+            const activeLease = leases.find(l => l.status === 'ACTIVE' || l.status === 'Active') || leases[0] || {};
 
-            const elecReading = readings.find(r => r.utility === 'Meralco') || {
+            return {
+                name: user.name || activeLease.tenantName || 'Maria Santos',
+                property: activeLease.property || 'Sunrise Property',
+                building: activeLease.building || 'Tower A',
+                unit: activeLease.unit || 'Unit 101',
+                fullTag: `${activeLease.property || 'Sunrise Property'} • ${activeLease.unit || 'Unit 101'}`
+            };
+        }
+
+        function renderSubMeterCards() {
+            const ctx = getActiveTenantContext();
+            const readings = getReadings();
+
+            const elecReading = readings.find(r => r.utility === 'Meralco' || (r.type && r.type.includes('Electricity'))) || {
                 prevDial: 1420.50, currDial: 1610.00, consumption: 189.50
             };
 
-            const waterReading = readings.find(r => r.utility === 'Maynilad') || {
+            const waterReading = readings.find(r => r.utility === 'Maynilad' || (r.type && r.type.includes('Water'))) || {
                 prevDial: 312.00, currDial: 328.50, consumption: 16.50
             };
 
             // Meralco Updates
-            document.getElementById('elecPrevDial').textContent = `${elecReading.prevDial.toFixed(2)} kWh`;
-            document.getElementById('elecCurrDial').textContent = `${elecReading.currDial.toFixed(2)} kWh`;
-            document.getElementById('elecNet').textContent = `${elecReading.consumption.toFixed(2)} kWh`;
-            const elecCost = elecReading.consumption * 12.50;
+            const elecNetVal = parseFloat(elecReading.consumption || elecReading.netConsumption || (elecReading.currDial - elecReading.prevDial) || 189.50);
+            document.getElementById('elecPrevDial').textContent = `${parseFloat(elecReading.prevDial || 1420.50).toFixed(2)} kWh`;
+            document.getElementById('elecCurrDial').textContent = `${parseFloat(elecReading.currDial || 1610.00).toFixed(2)} kWh`;
+            document.getElementById('elecNet').textContent = `${elecNetVal.toFixed(2)} kWh`;
+            
+            const elecCost = elecNetVal * 12.50;
             document.getElementById('elecCost').textContent = `₱${elecCost.toLocaleString('en-US', {minimumFractionDigits:2})}`;
             document.getElementById('elecTotalCost').textContent = `₱${elecCost.toLocaleString('en-US', {minimumFractionDigits:2})}`;
-            document.getElementById('kpiElecUsage').textContent = `${elecReading.consumption.toFixed(2)} kWh`;
+            document.getElementById('kpiElecUsage').textContent = `${elecNetVal.toFixed(2)} kWh`;
 
             // Maynilad Updates
-            document.getElementById('waterPrevDial').textContent = `${waterReading.prevDial.toFixed(2)} cu.m`;
-            document.getElementById('waterCurrDial').textContent = `${waterReading.currDial.toFixed(2)} cu.m`;
-            document.getElementById('waterNet').textContent = `${waterReading.consumption.toFixed(2)} cu.m`;
-            const waterCost = waterReading.consumption * 48.00;
+            const waterNetVal = parseFloat(waterReading.consumption || waterReading.netConsumption || (waterReading.currDial - waterReading.prevDial) || 16.50);
+            document.getElementById('waterPrevDial').textContent = `${parseFloat(waterReading.prevDial || 312.00).toFixed(2)} cu.m`;
+            document.getElementById('waterCurrDial').textContent = `${parseFloat(waterReading.currDial || 328.50).toFixed(2)} cu.m`;
+            document.getElementById('waterNet').textContent = `${waterNetVal.toFixed(2)} cu.m`;
+            
+            const waterCost = waterNetVal * 48.00;
             document.getElementById('waterCost').textContent = `₱${waterCost.toLocaleString('en-US', {minimumFractionDigits:2})}`;
             document.getElementById('waterTotalCost').textContent = `₱${waterCost.toLocaleString('en-US', {minimumFractionDigits:2})}`;
-            document.getElementById('kpiWaterUsage').textContent = `${waterReading.consumption.toFixed(2)} cu.m`;
+            document.getElementById('kpiWaterUsage').textContent = `${waterNetVal.toFixed(2)} cu.m`;
 
-            // Dues
+            // Dues Calculation from live invoices
             const invoices = getInvoices();
             let unpaidUtilityDues = 0;
             invoices.forEach(inv => {
-                if ((inv.id.includes('UTL') || inv.type.includes('Utilities') || inv.type.includes('Electricity') || inv.type.includes('Water')) && inv.status === 'Unpaid') {
-                    unpaidUtilityDues += inv.amount;
+                if ((inv.id.includes('UTL') || (inv.type && (inv.type.includes('Utilities') || inv.type.includes('Electricity') || inv.type.includes('Water')))) && (inv.status === 'Unpaid' || inv.status === 'Overdue')) {
+                    unpaidUtilityDues += parseFloat(inv.amount || 0);
                 }
             });
 
             const kpiDues = document.getElementById('kpiCurrentDues');
             const kpiIcon = document.getElementById('kpiDuesIcon');
+            const kpiDuesDesc = document.getElementById('kpiDuesDesc');
+
             kpiDues.textContent = `₱${unpaidUtilityDues.toLocaleString('en-US', {minimumFractionDigits:2})}`;
 
             if (unpaidUtilityDues === 0) {
                 kpiDues.style.color = 'var(--success)';
                 kpiIcon.style.background = '#ECFDF5';
                 kpiIcon.style.color = 'var(--success)';
+                kpiDuesDesc.textContent = 'All utility bills settled';
             } else {
                 kpiDues.style.color = 'var(--danger)';
                 kpiIcon.style.background = '#FFF1F2';
                 kpiIcon.style.color = 'var(--danger)';
+                kpiDuesDesc.textContent = 'Action required: Pay pending dues';
             }
         }
 
-        // Render Utility History Table
         function renderUtilityHistoryTable() {
-            const invoices = getInvoices().filter(i => i.id.includes('UTL') || i.type.includes('Utilities') || i.type.includes('Electricity') || i.type.includes('Water'));
+            const ctx = getActiveTenantContext();
+            const invoices = getInvoices().filter(i => i.id.includes('UTL') || (i.type && (i.type.includes('Electricity') || i.type.includes('Water') || i.type.includes('Utility'))));
             const tbody = document.getElementById('utilityHistoryTable');
             tbody.innerHTML = '';
 
             if (invoices.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--muted); padding:30px;">No utility statement history found.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--muted); padding:30px;">No utility statement history found. Active utility bills issued by Admin will appear here.</td></tr>`;
                 return;
             }
 
             invoices.forEach(inv => {
                 const tr = document.createElement('tr');
 
-                let badgeHtml = inv.status === 'Paid'
-                    ? `<span class="status-badge status-paid"><i class="bi bi-check-circle" style="margin-right:4px;"></i> Paid</span>`
-                    : `<span class="status-badge status-unpaid"><i class="bi bi-exclamation-circle" style="margin-right:4px;"></i> ${inv.status}</span>`;
+                let badgeHtml = '';
+                if (inv.status === 'Paid') {
+                    badgeHtml = `<span class="status-badge status-paid"><i class="bi bi-check-circle" style="margin-right:4px;"></i> Paid</span>`;
+                } else {
+                    badgeHtml = `<span class="status-badge status-unpaid"><i class="bi bi-exclamation-circle" style="margin-right:4px;"></i> ${inv.status}</span>`;
+                }
 
                 tr.innerHTML = `
                     <td><div style="font-weight:600;">${inv.id}</div></td>
-                    <td>August 2026</td>
-                    <td>189.50 kWh (₱2,368.75)</td>
-                    <td>16.50 cu.m (₱792.00)</td>
-                    <td><strong style="color:var(--primary);">₱${inv.amount.toLocaleString('en-US', {minimumFractionDigits:2})}</strong></td>
+                    <td>
+                        <div style="font-weight:600;">${inv.type}</div>
+                        <div style="font-size:11px; color:var(--muted);">${inv.sub || ctx.fullTag}</div>
+                    </td>
+                    <td>${inv.dueDate || 'N/A'}</td>
+                    <td><strong style="color:var(--primary);">₱${parseFloat(inv.amount || 0).toLocaleString('en-US', {minimumFractionDigits:2})}</strong></td>
                     <td>${badgeHtml}</td>
                     <td>
                         <button class="primary-btn" style="padding:4px 10px; font-size:11px;" onclick="openPaymentModal()"><i class="bi bi-qr-code-scan"></i> Pay Bill</button>
@@ -1215,7 +1198,12 @@
             });
         }
 
-        // Dynamic QR Switcher Function
+        function updateHeaderBadge() {
+            const notifs = getNotifications().filter(n => n.pov === 'client' && n.status === 'unread');
+            const badge = document.getElementById('clientHeaderNotifBadge');
+            if (badge) badge.textContent = notifs.length;
+        }
+
         function updateQrDisplay() {
             const channel = document.getElementById('modalChannelSelect').value;
             const titleLabel = document.getElementById('qrTitleLabel');
@@ -1236,8 +1224,9 @@
             }
         }
 
-        // Modal Controls
         function openPaymentModal() {
+            const ctx = getActiveTenantContext();
+            document.getElementById('modalTenantTag').textContent = `${ctx.name} — ${ctx.fullTag}`;
             populateModalInvoices();
             updateQrDisplay();
             document.getElementById("paymentModal").classList.add("show");
@@ -1250,17 +1239,18 @@
             const select = document.getElementById('modalInvoiceSelect');
             select.innerHTML = '';
 
-            const payableInvoices = invoices.filter(inv => inv.status === 'Unpaid' || inv.status === 'Pending Verification');
+            const payableInvoices = invoices.filter(inv => inv.status === 'Unpaid' || inv.status === 'Overdue');
 
             if (payableInvoices.length === 0) {
                 select.innerHTML = `<option value="">No unpaid invoices due!</option>`;
+                document.getElementById('modalAmountInput').value = '0.00';
                 return;
             }
 
             payableInvoices.forEach(inv => {
                 const opt = document.createElement('option');
                 opt.value = inv.id;
-                opt.textContent = `${inv.id} — ${inv.type} (₱${inv.amount.toLocaleString('en-US', {minimumFractionDigits:2})})`;
+                opt.textContent = `${inv.id} — ${inv.type} (₱${parseFloat(inv.amount || 0).toLocaleString('en-US')})`;
                 select.appendChild(opt);
             });
 
@@ -1279,11 +1269,10 @@
             }
         }
 
-        // Submit Payment Proof
         function submitPaymentProof() {
             const invoiceId = document.getElementById('modalInvoiceSelect').value;
             const channel = document.getElementById('modalChannelSelect').value;
-            const amount = parseFloat(document.getElementById('modalAmountInput').value);
+            const amount = parseFloat(document.getElementById('modalAmountInput').value) || 0;
             let refNo = document.getElementById('modalRefInput').value.trim();
 
             if (!invoiceId) {
@@ -1297,6 +1286,8 @@
             }
 
             if (!refNo.startsWith('#')) refNo = '#' + refNo;
+
+            const ctx = getActiveTenantContext();
 
             // 1. Update Invoice Status
             let invoices = getInvoices();
@@ -1313,22 +1304,19 @@
             const newTxn = {
                 refCode: refNo,
                 txnId: `TXN-2026-08-${Math.floor(100 + Math.random() * 900)}`,
-                payer: TENANT_CONTEXT.tenantName,
-                property: TENANT_CONTEXT.property,
-                building: TENANT_CONTEXT.building,
-                unit: TENANT_CONTEXT.unit,
-                fullLocation: TENANT_CONTEXT.fullLocationTag,
+                payer: ctx.name,
+                property_location: ctx.fullTag,
                 category: invoiceId.includes('ELE') ? 'Electricity Charges' : (invoiceId.includes('WTR') ? 'Water Charges' : 'Monthly Base Rent'),
                 direction: 'INFLOW',
-                grossAmount: `₱${amount.toLocaleString('en-US', {minimumFractionDigits:2})}`,
+                grossAmount: `₱${amount.toLocaleString('en-US', {minimumFractionDigits: 2})}`,
                 channel: channel,
                 status: 'Pending Audit',
-                timestamp: 'Aug 06, 2026 — 09:30 AM'
+                timestamp: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
             };
             transactions.unshift(newTxn);
             saveTransactions(transactions);
 
-            // 3. Create Admin Notification Bell Alert
+            // 3. Create Admin Notification Alert
             const notifications = getNotifications();
             const newNotif = {
                 id: `NOTIF-${Date.now()}`,
@@ -1337,10 +1325,10 @@
                 status: 'unread',
                 title: `${channel} Payment Proof Submitted`,
                 time: 'Just now',
-                description: `Payment proof uploaded by ${TENANT_CONTEXT.tenantName} (${TENANT_CONTEXT.fullLocationTag}) for Invoice ${invoiceId}. Ref Code: ${refNo}.`,
-                property: TENANT_CONTEXT.fullLocationTag,
-                tenantName: TENANT_CONTEXT.tenantName,
-                amount: `₱${amount.toLocaleString('en-US', {minimumFractionDigits:2})}`,
+                description: `Payment proof uploaded by <strong>${ctx.name}</strong> (${ctx.fullTag}) for Invoice <strong>${invoiceId}</strong>. Ref Code: <code>${refNo}</code>.`,
+                property: ctx.fullTag,
+                tenantName: ctx.name,
+                amount: `₱${amount.toLocaleString('en-US', {minimumFractionDigits: 2})}`,
                 actionUrl: 'rent-collection.html',
                 actionText: 'Verify Payment'
             };
@@ -1351,7 +1339,10 @@
             renderUtilityHistoryTable();
             closePaymentModal();
 
-            alert(`Payment proof (${refNo}) uploaded successfully!\n\nAdmin Context Tagged:\n• Tenant: ${TENANT_CONTEXT.tenantName}\n• Location: ${TENANT_CONTEXT.fullLocationTag}\n\nProperty Manager notified for verification.`);
+            document.getElementById('modalRefInput').value = '';
+            document.getElementById('modalNotesInput').value = '';
+
+            alert(`Payment proof (${refNo}) uploaded successfully!\n\nProperty Manager notified for verification.`);
         }
 
         window.onclick = function(event) {
@@ -1359,64 +1350,17 @@
             if (event.target === modal) closePaymentModal();
         };
 
-        function updateHeaderBadge() {
-            const currentPov = localStorage.getItem('argo_pov') || 'client';
-            const notifs = getNotifications().filter(n => n.pov === currentPov && n.status === 'unread');
-            document.getElementById('clientHeaderNotifBadge').textContent = notifs.length;
-        }
-
-        // Profile Dropdown
         const userProfileBtn = document.getElementById('userProfileBtn');
         const userDropdown = document.getElementById('userDropdown');
 
-        userProfileBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            userDropdown.classList.toggle('show');
-        });
+        if (userProfileBtn && userDropdown) {
+            userProfileBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                userDropdown.classList.toggle('show');
+            });
 
-        document.addEventListener('click', () => { userDropdown.classList.remove('show'); });
-
-        // Role Switcher Navigation
-        const povSelector = document.getElementById('povSelector');
-        const userName = document.getElementById('userName');
-        const userRoleBadge = document.getElementById('userRoleBadge');
-        const userAvatar = document.getElementById('userAvatar');
-
-        function syncPOV() {
-            const role = localStorage.getItem('argo_pov') || 'client';
-            povSelector.value = role;
-
-            if (role === 'admin') {
-                userName.textContent = 'Juan Dela Cruz';
-                userRoleBadge.textContent = 'Property Manager';
-                userAvatar.textContent = 'JD';
-                userAvatar.style.background = '#2563EB';
-            } else if (role === 'owner') {
-                userName.textContent = 'Don Ramon Santos';
-                userRoleBadge.textContent = 'Property Owner';
-                userAvatar.textContent = 'RS';
-                userAvatar.style.background = '#059669';
-            } else if (role === 'client') {
-                userName.textContent = TENANT_CONTEXT.tenantName;
-                userRoleBadge.textContent = 'Sunrise Property • Bldg 2 • Unit 101';
-                userAvatar.textContent = 'MS';
-                userAvatar.style.background = '#D97706';
-            }
+            document.addEventListener('click', () => { userDropdown.classList.remove('show'); });
         }
-
-        povSelector.addEventListener('change', (e) => {
-            const role = e.target.value;
-            localStorage.setItem('argo_pov', role);
-
-            if (role === 'admin') {
-                window.location.href = 'dashboard.html';
-            } else if (role === 'owner') {
-                window.location.href = 'owner-dashboard.html';
-            } else if (role === 'client') {
-                syncPOV();
-                updateHeaderBadge();
-            }
-        });
     </script>
 </body>
 </html>

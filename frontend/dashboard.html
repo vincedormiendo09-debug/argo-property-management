@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Operations Command Center | ARGO Property Management</title>
 
+    <!-- 🔒 Strict Navigation Guard & Role Isolation -->
+    <script src="js/auth.js"></script>
+
     <!-- Inter Font -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -179,7 +182,7 @@
             gap: 16px;
         }
 
-        .organization-pill {
+        .admin-badge {
             display: flex;
             align-items: center;
             gap: 8px;
@@ -189,20 +192,7 @@
             border-radius: 6px;
             font-size: 12px;
             color: #E5E7EB;
-        }
-
-        .organization-pill i { color: #60A5FA; }
-
-        .pov-selector {
-            background: #1E293B;
-            border: 1px solid #334155;
-            color: #60A5FA;
-            padding: 6px 12px;
-            border-radius: 6px;
-            font-size: 12px;
-            outline: none;
-            cursor: pointer;
-            font-weight: 500;
+            font-weight: 600;
         }
 
         .header-right {
@@ -305,6 +295,7 @@
             gap: 10px;
             text-decoration: none;
             transition: 0.15s;
+            cursor: pointer;
         }
 
         .dropdown-item:hover { background: #F3F4F6; color: #111827; }
@@ -419,7 +410,6 @@
         }
 
         .positive { color: var(--success); font-weight: 500; }
-        .warning { color: var(--warning); font-weight: 500; }
         .danger { color: var(--danger); font-weight: 500; }
 
         /* ================= CHARTS & PANELS ================= */
@@ -496,7 +486,6 @@
 
         .status-active { background: #ECFDF5; color: #047857; }
         .status-pending { background: #FEF3C7; color: #B45309; }
-        .status-maintenance { background: #FFF1F2; color: #BE123C; }
 
         .activity-item {
             display: flex;
@@ -534,7 +523,6 @@
             .sidebar-brand h2, .sidebar-brand span, .nav-section-title, .nav-item span { display: none; }
             .nav-item { justify-content: center; padding: 12px; }
             .top-header { left: 70px; padding: 0 15px; }
-            .organization-pill { display: none; }
             .main-content { margin-left: 70px; padding: 85px 15px 30px; }
             .kpi-grid { grid-template-columns: 1fr; }
         }
@@ -565,21 +553,13 @@
     <!-- ================= TOP HEADER ================= -->
     <header class="top-header">
         <div class="header-left">
-            <div class="organization-pill">
-                <i class="bi bi-building"></i>
-                <span>Sunrise Property Group</span>
+            <div class="admin-badge">
+                <i class="bi bi-shield-lock-fill" style="color: #60A5FA;"></i>
+                <span>Admin Command Center</span>
             </div>
-
-            <!-- DYNAMIC POV / ROLE SWITCHER FOR DB-LESS TESTING -->
-            <select class="pov-selector" id="povSelector" title="Switch User Role Perspective">
-                <option value="admin" selected>POV: Admin / PM</option>
-                <option value="owner">POV: Property Owner</option>
-                <option value="client">POV: Client / Tenant</option>
-            </select>
         </div>
 
         <div class="header-right">
-            <!-- HEADER NOTIFICATION BELL LINK -->
             <a href="notification.html" class="notification-header-link" title="Notifications Center">
                 <i class="bi bi-bell"></i>
                 <div class="notification-badge" id="headerNotifBadge">0</div>
@@ -600,10 +580,10 @@
                         <i class="bi bi-person-gear"></i>
                         <span>Account Settings</span>
                     </a>
-                    <a href="logout.html" class="dropdown-item danger">
+                    <div class="dropdown-item danger" onclick="logoutUser()">
                         <i class="bi bi-box-arrow-right"></i>
                         <span>Log Out</span>
-                    </a>
+                    </div>
                 </div>
             </div>
         </div>
@@ -623,15 +603,15 @@
             </button>
         </div>
 
-        <!-- KPI CARDS (RECALCULATED DYNAMICALLY FROM LOCALSTORAGE) -->
+        <!-- KPI CARDS -->
         <section class="kpi-grid">
             <div class="kpi-card">
                 <div class="kpi-top">
                     <span class="kpi-label">Total Properties</span>
                     <div class="kpi-icon"><i class="bi bi-buildings"></i></div>
                 </div>
-                <div class="kpi-value" id="kpiProperties">24</div>
-                <div class="kpi-description"><span class="positive">+2</span> added this year</div>
+                <div class="kpi-value" id="kpiProperties">0</div>
+                <div class="kpi-description">Managed property assets</div>
             </div>
 
             <div class="kpi-card">
@@ -639,7 +619,7 @@
                     <span class="kpi-label">Total Units</span>
                     <div class="kpi-icon"><i class="bi bi-door-open"></i></div>
                 </div>
-                <div class="kpi-value" id="kpiUnits">312</div>
+                <div class="kpi-value" id="kpiUnits">0</div>
                 <div class="kpi-description">Across all active assets</div>
             </div>
 
@@ -648,8 +628,8 @@
                     <span class="kpi-label">Occupancy Rate</span>
                     <div class="kpi-icon"><i class="bi bi-pie-chart"></i></div>
                 </div>
-                <div class="kpi-value" id="kpiOccupancy">86.5%</div>
-                <div class="kpi-description"><span class="positive">+4.2%</span> from last month</div>
+                <div class="kpi-value" id="kpiOccupancy">0.0%</div>
+                <div class="kpi-description">Live occupied vs. vacant ratio</div>
             </div>
 
             <div class="kpi-card">
@@ -657,8 +637,8 @@
                     <span class="kpi-label">Pending / Overdue Rent</span>
                     <div class="kpi-icon" style="background:#FFF1F2; color:#E11D48;"><i class="bi bi-exclamation-circle"></i></div>
                 </div>
-                <div class="kpi-value" id="kpiOverdue" style="color:#E11D48;">₱18,160.75</div>
-                <div class="kpi-description" id="kpiOverdueSub"><span class="danger">Action required</span> in rent collection</div>
+                <div class="kpi-value" id="kpiOverdue" style="color:#E11D48;">₱0.00</div>
+                <div class="kpi-description" id="kpiOverdueSub"><span class="danger">0 item(s)</span> pending verification / unpaid</div>
             </div>
         </section>
 
@@ -685,7 +665,7 @@
             </div>
         </section>
 
-        <!-- BOTTOM GRID: MANAGED PROPERTIES & LIVE SYSTEM ACTIVITY -->
+        <!-- BOTTOM GRID -->
         <section class="bottom-grid">
             <div class="card">
                 <div class="card-header">
@@ -703,28 +683,8 @@
                                 <th>STATUS</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            <tr>
-                                <td><strong>Sunrise Property (Bldg 2)</strong></td>
-                                <td>Residential Condominium</td>
-                                <td>120</td>
-                                <td>92%</td>
-                                <td><span class="status status-active">Active</span></td>
-                            </tr>
-                            <tr>
-                                <td><strong>Greenfield Apartments</strong></td>
-                                <td>Residential Complex</td>
-                                <td>86</td>
-                                <td>84%</td>
-                                <td><span class="status status-active">Active</span></td>
-                            </tr>
-                            <tr>
-                                <td><strong>Central Business Center</strong></td>
-                                <td>Commercial Office</td>
-                                <td>64</td>
-                                <td>75%</td>
-                                <td><span class="status status-pending">Pending Audit</span></td>
-                            </tr>
+                        <tbody id="propertySummaryTable">
+                            <!-- POPULATED DYNAMICALLY -->
                         </tbody>
                     </table>
                 </div>
@@ -736,7 +696,7 @@
                     <span>Live Operations Log</span>
                 </div>
                 <div id="liveActivityFeed">
-                    <!-- POPULATED DYNAMICALLY FROM LOCALSTORAGE NOTIFICATIONS & TRANSACTIONS -->
+                    <!-- POPULATED DYNAMICALLY -->
                 </div>
             </div>
         </section>
@@ -744,19 +704,7 @@
 
     <!-- ================= JAVASCRIPT ================= -->
     <script>
-        // Dynamic Admin Sidebar Renderer & Role Guard
         function renderSidebar() {
-            const pov = localStorage.getItem('argo_pov') || 'admin';
-
-            // Route Guard: Bounce non-admins to their respective portals
-            if (pov === 'owner') {
-                window.location.href = 'owner-dashboard.html';
-                return;
-            } else if (pov === 'client') {
-                window.location.href = 'client-dashboard.html';
-                return;
-            }
-
             const nav = document.getElementById('sidebarNav');
             nav.innerHTML = `
                 <div class="nav-section-title">OVERVIEW</div>
@@ -835,62 +783,83 @@
             `;
         }
 
-        // Shared LocalStorage Accessors
-        function getInvoices() {
-            return JSON.parse(localStorage.getItem('argo_invoices') || '[]');
-        }
+        // Shared Accessors
+        function getInvoices() { return JSON.parse(localStorage.getItem('argo_invoices') || '[]'); }
+        function getNotifications() { return JSON.parse(localStorage.getItem('argo_notifications') || '[]'); }
+        function getLeases() { return JSON.parse(localStorage.getItem('argo_leases') || '[]'); }
+        function getProperties() { return JSON.parse(localStorage.getItem('argo_properties') || '[]'); }
+        function getUnits() { return JSON.parse(localStorage.getItem('argo_units') || '[]'); }
 
-        function getTickets() {
-            return JSON.parse(localStorage.getItem('argo_maintenance_tickets') || '[]');
-        }
-
-        function getNotifications() {
-            return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
-        }
-
-        function getTransactions() {
-            return JSON.parse(localStorage.getItem('argo_transactions') || '[]');
-        }
-
-        // Initialize Page Data & Charts
         document.addEventListener('DOMContentLoaded', () => {
             renderSidebar();
-            syncPOV();
+            loadUserData();
             updateDashboardMetrics();
+            renderPropertyTable();
             renderCharts();
             renderLiveActivityFeed();
             updateHeaderBadge();
         });
 
-        // Cross-tab LocalStorage Synchronizer
-        window.addEventListener('storage', (e) => {
-            if (e.key === 'argo_invoices' || e.key === 'argo_notifications' || e.key === 'argo_pov' || e.key === 'argo_user') {
-                renderSidebar();
-                syncPOV();
-                updateDashboardMetrics();
-                renderLiveActivityFeed();
-                updateHeaderBadge();
+        function loadUserData() {
+            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+            if (user.name) {
+                document.getElementById('userName').textContent = user.name;
+                document.getElementById('userAvatar').textContent = user.avatar || 'JD';
             }
-        });
+        }
 
-        // Recalculate Live KPIs from Ecosystem LocalStorage
         function updateDashboardMetrics() {
+            const properties = getProperties();
+            const units = getUnits();
+            const leases = getLeases();
             const invoices = getInvoices();
+
+            let activeOccupied = 0;
+            leases.forEach(l => { if (l.status === 'ACTIVE') activeOccupied++; });
+
             let pendingOverdueSum = 0;
             let pendingCount = 0;
 
             invoices.forEach(inv => {
-                if (inv.status === 'Unpaid' || inv.status === 'Pending Verification' || inv.status === 'Overdue') {
-                    pendingOverdueSum += inv.amount;
+                if (inv.status === 'Unpaid' || inv.status === 'Overdue') {
+                    pendingOverdueSum += (inv.amount || 0);
                     pendingCount++;
                 }
             });
 
+            const totalUnitsCount = units.length;
+            const occupancyRate = totalUnitsCount > 0 ? ((activeOccupied / totalUnitsCount) * 100).toFixed(1) : 0;
+
+            document.getElementById('kpiProperties').textContent = properties.length;
+            document.getElementById('kpiUnits').textContent = totalUnitsCount;
+            document.getElementById('kpiOccupancy').textContent = `${occupancyRate}%`;
             document.getElementById('kpiOverdue').textContent = `₱${pendingOverdueSum.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
             document.getElementById('kpiOverdueSub').innerHTML = `<span class="danger">${pendingCount} item(s)</span> pending verification / unpaid`;
         }
 
-        // Render Live System Activity Feed
+        function renderPropertyTable() {
+            const properties = getProperties();
+            const tbody = document.getElementById('propertySummaryTable');
+            tbody.innerHTML = '';
+
+            if (properties.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--muted); padding:20px;">No managed properties found.</td></tr>`;
+                return;
+            }
+
+            properties.forEach(p => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${p.name || 'Property'}</strong></td>
+                    <td>${p.type || 'Residential'}</td>
+                    <td>${p.units_count || 0}</td>
+                    <td>${p.occupancy || '0%'}</td>
+                    <td><span class="status status-active">${p.status || 'Active'}</span></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
         function renderLiveActivityFeed() {
             const notifications = getNotifications().filter(n => n.pov === 'admin').slice(0, 4);
             const container = document.getElementById('liveActivityFeed');
@@ -901,7 +870,7 @@
                     <div class="activity-item">
                         <div class="activity-icon"><i class="bi bi-info-circle"></i></div>
                         <div class="activity-content">
-                            <p><strong>System initialized</strong></p>
+                            <p><strong>System Ready</strong></p>
                             <span>Operations running smoothly</span>
                         </div>
                     </div>
@@ -919,9 +888,6 @@
                 } else if (n.category === 'maintenance') {
                     iconBi = 'bi-tools';
                     iconStyle = 'background:#FFF1F2; color:#E11D48;';
-                } else if (n.category === 'asset') {
-                    iconBi = 'bi-building';
-                    iconStyle = 'background:#F3E8FF; color:#7E22CE;';
                 }
 
                 const item = document.createElement('div');
@@ -930,7 +896,7 @@
                     <div class="activity-icon" style="${iconStyle}"><i class="bi ${iconBi}"></i></div>
                     <div class="activity-content">
                         <p><strong>${n.title}</strong></p>
-                        <span>${n.time} • ${n.property || 'Sunrise Group'}</span>
+                        <span>${n.time || 'Recently'}</span>
                     </div>
                 `;
                 container.appendChild(item);
@@ -938,14 +904,15 @@
         }
 
         function updateHeaderBadge() {
-            const currentPov = localStorage.getItem('argo_pov') || 'admin';
-            const notifs = getNotifications().filter(n => n.pov === currentPov && n.status === 'unread');
+            const notifs = getNotifications().filter(n => n.pov === 'admin' && n.status === 'unread');
             document.getElementById('headerNotifBadge').textContent = notifs.length;
         }
 
-        // Initialize Admin Charts
         function renderCharts() {
             const invoices = getInvoices();
+            const leases = getLeases();
+            const units = getUnits();
+
             let paidSum = 0;
             let unpaidSum = 0;
 
@@ -953,6 +920,10 @@
                 if (inv.status === 'Paid') paidSum += inv.amount;
                 else unpaidSum += inv.amount;
             });
+
+            let activeCount = 0;
+            leases.forEach(l => { if (l.status === 'ACTIVE') activeCount++; });
+            let vacantCount = Math.max(0, units.length - activeCount);
 
             // 1. Rent Collection Line Chart
             const ctx1 = document.getElementById('adminRentChart').getContext('2d');
@@ -963,7 +934,7 @@
                     datasets: [
                         {
                             label: 'Collected Rent (₱)',
-                            data: [465000, 490000, 520000, 550000, 585000, paidSum > 0 ? paidSum : 610000],
+                            data: [465000, 490000, 520000, 550000, 585000, paidSum],
                             borderColor: '#2563EB',
                             backgroundColor: 'rgba(37, 99, 235, 0.08)',
                             borderWidth: 2,
@@ -972,7 +943,7 @@
                         },
                         {
                             label: 'Pending / Unpaid Dues (₱)',
-                            data: [72000, 90000, 65000, 58000, 45000, unpaidSum > 0 ? unpaidSum : 18160],
+                            data: [72000, 90000, 65000, 58000, 45000, unpaidSum],
                             borderColor: '#E11D48',
                             backgroundColor: 'rgba(225, 29, 72, 0.08)',
                             borderWidth: 2,
@@ -994,9 +965,9 @@
             new Chart(ctx2, {
                 type: 'doughnut',
                 data: {
-                    labels: ['Occupied (Maria Santos)', 'Vacant Ready', 'Maintenance'],
+                    labels: ['Occupied Units', 'Vacant Ready', 'Under Maintenance'],
                     datasets: [{
-                        data: [270, 30, 12],
+                        data: [activeCount, vacantCount, 0],
                         backgroundColor: ['#059669', '#D97706', '#E11D48'],
                         borderWidth: 0
                     }]
@@ -1010,7 +981,7 @@
             });
         }
 
-        // Profile Dropdown Toggle
+        // Profile Dropdown
         const userProfileBtn = document.getElementById('userProfileBtn');
         const userDropdown = document.getElementById('userDropdown');
 
@@ -1020,48 +991,6 @@
         });
 
         document.addEventListener('click', () => { userDropdown.classList.remove('show'); });
-
-        // POV Sync & Switcher
-        const povSelector = document.getElementById('povSelector');
-        const userName = document.getElementById('userName');
-        const userRoleBadge = document.getElementById('userRoleBadge');
-        const userAvatar = document.getElementById('userAvatar');
-
-        function syncPOV() {
-            const role = localStorage.getItem('argo_pov') || 'admin';
-            povSelector.value = role;
-
-            if (role === 'admin') {
-                userName.textContent = 'Juan Dela Cruz';
-                userRoleBadge.textContent = 'Property Manager';
-                userAvatar.textContent = 'JD';
-                userAvatar.style.background = '#2563EB';
-            } else if (role === 'owner') {
-                userName.textContent = 'Don Ramon Santos';
-                userRoleBadge.textContent = 'Property Owner';
-                userAvatar.textContent = 'RS';
-                userAvatar.style.background = '#059669';
-            } else if (role === 'client') {
-                userName.textContent = 'Maria Santos';
-                userRoleBadge.textContent = 'Sunrise Property • Bldg 2 • Unit 101';
-                userAvatar.textContent = 'MS';
-                userAvatar.style.background = '#D97706';
-            }
-        }
-
-        povSelector.addEventListener('change', (e) => {
-            const role = e.target.value;
-            localStorage.setItem('argo_pov', role);
-
-            if (role === 'owner') {
-                window.location.href = 'owner-dashboard.html';
-            } else if (role === 'client') {
-                window.location.href = 'client-dashboard.html';
-            } else {
-                syncPOV();
-                updateHeaderBadge();
-            }
-        });
     </script>
 </body>
 </html>

@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tenants | ARGO Property Management</title>
 
+    <!-- 🔒 Strict Navigation Guard & Role Isolation -->
+    <script src="js/auth.js"></script>
+
     <!-- Inter Font -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -176,7 +179,7 @@
             gap: 16px;
         }
 
-        .organization-pill {
+        .admin-badge {
             display: flex;
             align-items: center;
             gap: 8px;
@@ -186,20 +189,7 @@
             border-radius: 6px;
             font-size: 12px;
             color: #E5E7EB;
-        }
-
-        .organization-pill i { color: #60A5FA; }
-
-        .pov-selector {
-            background: #1E293B;
-            border: 1px solid #334155;
-            color: #60A5FA;
-            padding: 6px 12px;
-            border-radius: 6px;
-            font-size: 12px;
-            outline: none;
-            cursor: pointer;
-            font-weight: 500;
+            font-weight: 600;
         }
 
         .header-right {
@@ -302,6 +292,7 @@
             gap: 10px;
             text-decoration: none;
             transition: 0.15s;
+            cursor: pointer;
         }
 
         .dropdown-item:hover { background: #F3F4F6; color: #111827; }
@@ -692,7 +683,6 @@
             .sidebar-brand h2, .sidebar-brand span, .nav-section-title, .nav-item span { display: none; }
             .nav-item { justify-content: center; padding: 12px; }
             .top-header { left: 70px; padding: 0 15px; }
-            .organization-pill { display: none; }
             .main-content { margin-left: 70px; padding: 85px 15px 30px; }
             .page-header { flex-direction: column; gap: 14px; }
             .filter-bar { flex-direction: column; align-items: stretch; }
@@ -728,21 +718,13 @@
     <!-- ================= TOP HEADER ================= -->
     <header class="top-header">
         <div class="header-left">
-            <div class="organization-pill">
-                <i class="bi bi-building"></i>
-                <span>Sunrise Property Group</span>
+            <div class="admin-badge">
+                <i class="bi bi-shield-lock-fill" style="color: #60A5FA;"></i>
+                <span>Admin Command Center</span>
             </div>
-
-            <!-- DYNAMIC POV / ROLE SWITCHER FOR DB-LESS TESTING -->
-            <select class="pov-selector" id="povSelector" title="Switch User Role Perspective">
-                <option value="admin" selected>POV: Admin / PM</option>
-                <option value="owner">POV: Property Owner</option>
-                <option value="client">POV: Client / Tenant</option>
-            </select>
         </div>
 
         <div class="header-right">
-            <!-- HEADER BELL LINK TO NOTIFICATION.HTML -->
             <a href="notification.html" class="notification-header-link" title="Notifications Center">
                 <i class="bi bi-bell"></i>
                 <div class="notification-badge" id="headerNotifBadge">0</div>
@@ -752,7 +734,7 @@
                 <div class="user-profile" id="userProfileBtn">
                     <div class="avatar" id="userAvatar">JD</div>
                     <div class="user-info">
-                        <strong id="userName">Juan Dela Cruz</strong>
+                        <strong id="userName">Property Admin</strong>
                         <span id="userRoleBadge">Property Manager</span>
                     </div>
                     <i class="bi bi-chevron-down" style="font-size: 10px; color: #94A3B8;"></i>
@@ -763,10 +745,10 @@
                         <i class="bi bi-person-gear"></i>
                         <span>Account Settings</span>
                     </a>
-                    <a href="logout.html" class="dropdown-item danger">
+                    <div class="dropdown-item danger" onclick="logoutUser()">
                         <i class="bi bi-box-arrow-right"></i>
                         <span>Log Out</span>
-                    </a>
+                    </div>
                 </div>
             </div>
         </div>
@@ -783,7 +765,7 @@
                 <p>Manage tenant profiles, identity verification, and occupancy history.</p>
             </div>
 
-            <button class="primary-btn admin-action" onclick="openModal()">
+            <button class="primary-btn" onclick="openModal()">
                 <i class="bi bi-plus-lg"></i>
                 <span>New Tenant</span>
             </button>
@@ -860,23 +842,18 @@
                             <th>CURRENT UNIT</th>
                             <th>LEASE STATUS</th>
                             <th>ACCOUNT STATUS</th>
-                            <th class="admin-action">ACTIONS</th>
+                            <th>ACTIONS</th>
                         </tr>
                     </thead>
                     <tbody id="tenantTable">
-                        <!-- RENDERED DYNAMICALLY FROM LOCALSTORAGE -->
+                        <!-- RENDERED DYNAMICALLY FROM LOCALSTORAGE / POSTGRESQL -->
                     </tbody>
                 </table>
             </div>
 
             <!-- TABLE FOOTER -->
             <div class="table-footer">
-                <span id="showingCountText">Showing active tenants</span>
-                <div class="pagination">
-                    <button class="page-button"><i class="bi bi-chevron-left"></i></button>
-                    <button class="page-button active">1</button>
-                    <button class="page-button"><i class="bi bi-chevron-right"></i></button>
-                </div>
+                <span id="showingCountText">Showing 0 tenants</span>
             </div>
         </div>
     </main>
@@ -927,7 +904,10 @@
 
                     <div class="form-group full">
                         <label>Current Assigned Unit</label>
-                        <input type="text" id="modalTenantUnit" placeholder="e.g. Sunrise Property • Building 2 • Unit 101" value="Sunrise Property • Building 2 • Unit 101">
+                        <select id="modalTenantUnit">
+                            <option value="">Select Unit...</option>
+                            <!-- DYNAMICALLY POPULATED -->
+                        </select>
                     </div>
                 </div>
             </div>
@@ -941,143 +921,91 @@
 
     <!-- ================= JAVASCRIPT ================= -->
     <script>
-        // Dynamic Admin Sidebar Renderer & Role Guard
         function renderSidebar() {
-            const pov = localStorage.getItem('argo_pov') || 'admin';
-
-            // Route Guard: Bounce non-admins to their respective dashboard views
-            if (pov === 'owner') {
-                window.location.href = 'owner-dashboard.html';
-                return;
-            } else if (pov === 'client') {
-                window.location.href = 'client-dashboard.html';
-                return;
-            }
-
             const nav = document.getElementById('sidebarNav');
-            nav.innerHTML = `
-                <div class="nav-section-title">OVERVIEW</div>
-                <a href="dashboard.html" class="nav-item">
-                    <i class="bi bi-grid-1x2"></i>
-                    <span>Dashboard</span>
-                </a>
+            if (nav) {
+                nav.innerHTML = `
+                    <div class="nav-section-title">OVERVIEW</div>
+                    <a href="dashboard.html" class="nav-item">
+                        <i class="bi bi-grid-1x2"></i>
+                        <span>Dashboard</span>
+                    </a>
 
-                <div class="nav-section-title">PROPERTY OPERATIONS</div>
-                <a href="properties.html" class="nav-item">
-                    <i class="bi bi-buildings"></i>
-                    <span>Properties</span>
-                </a>
-                <a href="buildings.html" class="nav-item">
-                    <i class="bi bi-building"></i>
-                    <span>Buildings</span>
-                </a>
-                <a href="units.html" class="nav-item">
-                    <i class="bi bi-door-open"></i>
-                    <span>Units</span>
-                </a>
-                <a href="tenants.html" class="nav-item active">
-                    <i class="bi bi-people"></i>
-                    <span>Tenants</span>
-                </a>
-                <a href="owners.html" class="nav-item">
-                    <i class="bi bi-person-badge"></i>
-                    <span>Owners</span>
-                </a>
-                <a href="property-ownership.html" class="nav-item">
-                    <i class="bi bi-pie-chart"></i>
-                    <span>Fractional Ownership</span>
-                </a>
-                <a href="leases.html" class="nav-item">
-                    <i class="bi bi-file-earmark-text"></i>
-                    <span>Leases</span>
-                </a>
+                    <div class="nav-section-title">PROPERTY OPERATIONS</div>
+                    <a href="properties.html" class="nav-item">
+                        <i class="bi bi-buildings"></i>
+                        <span>Properties</span>
+                    </a>
+                    <a href="buildings.html" class="nav-item">
+                        <i class="bi bi-building"></i>
+                        <span>Buildings</span>
+                    </a>
+                    <a href="units.html" class="nav-item">
+                        <i class="bi bi-door-open"></i>
+                        <span>Units</span>
+                    </a>
+                    <a href="tenants.html" class="nav-item active">
+                        <i class="bi bi-people"></i>
+                        <span>Tenants</span>
+                    </a>
+                    <a href="owners.html" class="nav-item">
+                        <i class="bi bi-person-badge"></i>
+                        <span>Owners</span>
+                    </a>
+                    <a href="property-ownership.html" class="nav-item">
+                        <i class="bi bi-pie-chart"></i>
+                        <span>Fractional Ownership</span>
+                    </a>
+                    <a href="leases.html" class="nav-item">
+                        <i class="bi bi-file-earmark-text"></i>
+                        <span>Leases</span>
+                    </a>
 
-                <div class="nav-section-title">FINANCE & SERVICES</div>
-                <a href="rent-collection.html" class="nav-item">
-                    <i class="bi bi-cash-stack"></i>
-                    <span>Rent Collection</span>
-                </a>
-                <a href="transaction.html" class="nav-item">
-                    <i class="bi bi-receipt-cutoff"></i>
-                    <span>Transactions & Ledger</span>
-                </a>
+                    <div class="nav-section-title">FINANCE & SERVICES</div>
+                    <a href="rent-collection.html" class="nav-item">
+                        <i class="bi bi-cash-stack"></i>
+                        <span>Rent Collection</span>
+                    </a>
+                    <a href="transaction.html" class="nav-item">
+                        <i class="bi bi-receipt-cutoff"></i>
+                        <span>Transactions & Ledger</span>
+                    </a>
 
-                <a href="utilities.html" class="nav-item">
-                    <i class="bi bi-lightning-charge"></i>
-                    <span>Utilities</span>
-                </a>
-                <a href="maintenance.html" class="nav-item">
-                    <i class="bi bi-tools"></i>
-                    <span>Maintenance</span>
-                </a>
+                    <a href="utilities.html" class="nav-item">
+                        <i class="bi bi-lightning-charge"></i>
+                        <span>Utilities</span>
+                    </a>
+                    <a href="maintenance.html" class="nav-item">
+                        <i class="bi bi-tools"></i>
+                        <span>Maintenance</span>
+                    </a>
 
-                <div class="nav-section-title">RECORDS & REPORTS</div>
-                <a href="inspections.html" class="nav-item">
-                    <i class="bi bi-clipboard-check"></i>
-                    <span>Inspections</span>
-                </a>
-                <a href="documents.html" class="nav-item">
-                    <i class="bi bi-folder2-open"></i>
-                    <span>Documents</span>
-                </a>
-                <a href="reports.html" class="nav-item">
-                    <i class="bi bi-bar-chart"></i>
-                    <span>Reports</span>
-                </a>
+                    <div class="nav-section-title">RECORDS & REPORTS</div>
+                    <a href="inspections.html" class="nav-item">
+                        <i class="bi bi-clipboard-check"></i>
+                        <span>Inspections</span>
+                    </a>
+                    <a href="documents.html" class="nav-item">
+                        <i class="bi bi-folder2-open"></i>
+                        <span>Documents</span>
+                    </a>
+                    <a href="reports.html" class="nav-item">
+                        <i class="bi bi-bar-chart"></i>
+                        <span>Reports</span>
+                    </a>
 
-                <div class="nav-section-title">SYSTEM</div>
-                <a href="settings.html" class="nav-item">
-                    <i class="bi bi-gear"></i>
-                    <span>Settings</span>
-                </a>
-            `;
+                    <div class="nav-section-title">SYSTEM</div>
+                    <a href="settings.html" class="nav-item">
+                        <i class="bi bi-gear"></i>
+                        <span>Settings</span>
+                    </a>
+                `;
+            }
         }
 
-        // Seed Default Tenants including Maria Santos
-        const DEFAULT_TENANTS = [
-            {
-                id: 'TNT-101',
-                name: 'Maria Santos',
-                email: 'maria.santos@email.com',
-                type: 'Individual',
-                phone: '+63 917 123 4567',
-                unit: 'Sunrise Property • Building 2 • Unit 101',
-                leaseStatus: 'Active Lease',
-                status: 'Active'
-            },
-            {
-                id: 'TNT-102',
-                name: 'Juan Dela Cruz',
-                email: 'juan.delacruz@email.com',
-                type: 'Individual',
-                phone: '+63 918 555 1234',
-                unit: 'Green Valley Homes — Unit 204',
-                leaseStatus: 'Active Lease',
-                status: 'Active'
-            },
-            {
-                id: 'TNT-103',
-                name: 'ABC Trading Corporation',
-                email: 'admin@abctrading.com',
-                type: 'Organization',
-                phone: '+63 2 8888 1234',
-                unit: 'Central Business Center — Unit 3A',
-                leaseStatus: 'Active Lease',
-                status: 'Active'
-            },
-            {
-                id: 'TNT-104',
-                name: 'Ana Reyes',
-                email: 'ana.reyes@email.com',
-                type: 'Individual',
-                phone: '+63 919 777 8888',
-                unit: 'No Current Unit',
-                leaseStatus: 'No Active Lease',
-                status: 'Inactive'
-            }
-        ];
+        // Clean Baseline (NO HARDCODED MOCK SEED DATA)
+        const DEFAULT_TENANTS = [];
 
-        // Shared LocalStorage Accessors
         function getTenants() {
             const data = localStorage.getItem('argo_tenants');
             if (!data) {
@@ -1091,38 +1019,52 @@
             localStorage.setItem('argo_tenants', JSON.stringify(tenants));
         }
 
+        function getUnits() {
+            return JSON.parse(localStorage.getItem('argo_units') || '[]');
+        }
+
         function getNotifications() {
             return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
         }
 
-        // Initialize Page
         document.addEventListener('DOMContentLoaded', () => {
             renderSidebar();
-            syncPOV();
+            loadUserData();
+            populateUnitDropdown();
             renderTenantTable();
             updateKPIs();
             updateHeaderBadge();
         });
 
-        // Live Cross-Tab LocalStorage Synchronizer
-        window.addEventListener('storage', (e) => {
-            if (e.key === 'argo_tenants' || e.key === 'argo_notifications' || e.key === 'argo_pov' || e.key === 'argo_user') {
-                renderSidebar();
-                syncPOV();
-                renderTenantTable();
-                updateKPIs();
-                updateHeaderBadge();
+        function loadUserData() {
+            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+            if (user.name) {
+                document.getElementById('userName').textContent = user.name;
+                document.getElementById('userAvatar').textContent = user.avatar || 'JD';
             }
-        });
+        }
 
-        // Dynamic Table Render
+        function populateUnitDropdown() {
+            const units = getUnits();
+            const modalSelect = document.getElementById('modalTenantUnit');
+            if (!modalSelect) return;
+
+            modalSelect.innerHTML = '<option value="No Current Unit">No Current Unit</option>';
+            units.forEach(u => {
+                const uName = u.unit_no || u.unitNo || u.id;
+                const pName = u.property_name || u.property || 'Property';
+                modalSelect.innerHTML += `<option value="${pName} • ${uName}">${pName} • ${uName}</option>`;
+            });
+        }
+
         function renderTenantTable() {
             const tenants = getTenants();
             const tbody = document.getElementById('tenantTable');
             tbody.innerHTML = '';
 
             if (tenants.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--muted); padding:30px;">No tenant profiles found.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--muted); padding:30px;">No tenant profiles registered. Click "New Tenant" to register one.</td></tr>`;
+                document.getElementById('showingCountText').textContent = `Showing 0 tenants`;
                 return;
             }
 
@@ -1135,7 +1077,7 @@
                     ? `<span class="badge badge-individual"><i class="bi bi-person" style="margin-right:4px;"></i> Individual</span>`
                     : `<span class="badge badge-organization"><i class="bi bi-building" style="margin-right:4px;"></i> Organization</span>`;
 
-                let leaseBadge = t.leaseStatus.includes('Active')
+                let leaseBadge = (t.leaseStatus || '').includes('Active')
                     ? `<span class="badge badge-active">Active Lease</span>`
                     : `<span class="badge badge-inactive">No Active Lease</span>`;
 
@@ -1146,16 +1088,15 @@
                 tr.innerHTML = `
                     <td>
                         <div class="tenant-name">${t.name}</div>
-                        <div class="tenant-email">${t.email}</div>
+                        <div class="tenant-email">${t.email || 'N/A'}</div>
                     </td>
                     <td>${typeBadge}</td>
-                    <td>${t.phone}</td>
-                    <td>${t.unit}</td>
+                    <td>${t.phone || 'N/A'}</td>
+                    <td>${t.unit || 'Unassigned'}</td>
                     <td>${leaseBadge}</td>
                     <td>${accountBadge}</td>
-                    <td class="admin-action">
+                    <td>
                         <button class="action-button" title="View Profile" onclick="alert('Viewing profile for ${t.name}')"><i class="bi bi-eye"></i></button>
-                        <button class="action-button" title="Edit Tenant" onclick="alert('Editing tenant ${t.name}')"><i class="bi bi-pencil"></i></button>
                         <button class="action-button delete" title="Archive Tenant" onclick="deleteTenant('${t.id}')"><i class="bi bi-trash"></i></button>
                     </td>
                 `;
@@ -1165,14 +1106,13 @@
             document.getElementById('showingCountText').textContent = `Showing 1–${tenants.length} of ${tenants.length} tenants`;
         }
 
-        // Save New Tenant
         function saveTenant() {
             const name = document.getElementById('modalTenantName').value.trim();
-            const email = document.getElementById('modalTenantEmail').value.trim() || 'tenant@example.com';
-            const phone = document.getElementById('modalTenantPhone').value.trim() || '+63 917 000 0000';
+            const email = document.getElementById('modalTenantEmail').value.trim();
+            const phone = document.getElementById('modalTenantPhone').value.trim();
             const type = document.getElementById('modalTenantType').value;
             const status = document.getElementById('modalTenantStatus').value;
-            const unit = document.getElementById('modalTenantUnit').value.trim() || 'Sunrise Property • Building 2 • Unit 101';
+            const unit = document.getElementById('modalTenantUnit').value;
 
             if (!name) {
                 alert("Please enter a tenant name.");
@@ -1185,8 +1125,8 @@
                 email: email,
                 type: type,
                 phone: phone,
-                unit: unit,
-                leaseStatus: status === 'Active' ? 'Active Lease' : 'No Active Lease',
+                unit: unit || 'No Current Unit',
+                leaseStatus: (unit && unit !== 'No Current Unit') ? 'Active Lease' : 'No Active Lease',
                 status: status
             };
 
@@ -1198,10 +1138,11 @@
             updateKPIs();
             closeModal();
 
-            alert(`Tenant profile for "${name}" created and saved successfully!`);
+            document.getElementById('modalTenantName').value = '';
+            document.getElementById('modalTenantEmail').value = '';
+            document.getElementById('modalTenantPhone').value = '';
         }
 
-        // Delete Tenant
         function deleteTenant(id) {
             if (!confirm("Are you sure you want to archive/delete this tenant profile?")) return;
             let tenants = getTenants();
@@ -1211,11 +1152,10 @@
             updateKPIs();
         }
 
-        // Recalculate KPIs
         function updateKPIs() {
             const tenants = getTenants();
             let total = tenants.length;
-            let active = tenants.filter(t => t.status === 'Active').length;
+            let active = tenants.filter(t => t.status === 'Active' || (t.leaseStatus || '').includes('Active')).length;
             let individual = tenants.filter(t => t.type === 'Individual').length;
             let org = tenants.filter(t => t.type === 'Organization').length;
 
@@ -1226,12 +1166,11 @@
         }
 
         function updateHeaderBadge() {
-            const currentPov = localStorage.getItem('argo_pov') || 'admin';
-            const notifs = getNotifications().filter(n => n.pov === currentPov && n.status === 'unread');
-            document.getElementById('headerNotifBadge').textContent = notifs.length;
+            const notifs = getNotifications().filter(n => n.pov === 'admin' && n.status === 'unread');
+            const badge = document.getElementById('headerNotifBadge');
+            if (badge) badge.textContent = notifs.length;
         }
 
-        // Modal Controls
         function openModal() { document.getElementById("tenantModal").classList.add("show"); }
         function closeModal() { document.getElementById("tenantModal").classList.remove("show"); }
 
@@ -1240,13 +1179,12 @@
             if (event.target === modal) closeModal();
         };
 
-        // Filter & Tab Management
         let activeTabStatus = "ALL";
 
         function setTabFilter(status, buttonEl) {
             activeTabStatus = status;
             document.querySelectorAll(".tab").forEach(tab => tab.classList.remove("active"));
-            buttonEl.classList.add("active");
+            if (buttonEl) buttonEl.classList.add("active");
             applyAllFilters();
         }
 
@@ -1279,65 +1217,21 @@
             document.getElementById("searchInput").value = "";
             document.getElementById("typeFilter").value = "";
             document.getElementById("statusFilter").value = "";
-            setTabFilter('ALL', document.querySelectorAll('.tab')[0]);
+            const firstTab = document.querySelectorAll('.tab')[0];
+            if (firstTab) setTabFilter('ALL', firstTab);
         }
 
-        // Profile Dropdown Toggle
         const userProfileBtn = document.getElementById('userProfileBtn');
         const userDropdown = document.getElementById('userDropdown');
 
-        userProfileBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            userDropdown.classList.toggle('show');
-        });
+        if (userProfileBtn && userDropdown) {
+            userProfileBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                userDropdown.classList.toggle('show');
+            });
 
-        document.addEventListener('click', () => { userDropdown.classList.remove('show'); });
-
-        // POV Sync & Switcher
-        const povSelector = document.getElementById('povSelector');
-        const userName = document.getElementById('userName');
-        const userRoleBadge = document.getElementById('userRoleBadge');
-        const userAvatar = document.getElementById('userAvatar');
-        const adminActions = document.querySelectorAll('.admin-action');
-
-        function syncPOV() {
-            const role = localStorage.getItem('argo_pov') || 'admin';
-            povSelector.value = role;
-
-            if (role === 'admin') {
-                userName.textContent = 'Juan Dela Cruz';
-                userRoleBadge.textContent = 'Property Manager';
-                userAvatar.textContent = 'JD';
-                userAvatar.style.background = '#2563EB';
-                adminActions.forEach(el => el.style.display = '');
-            } else if (role === 'owner') {
-                userName.textContent = 'Don Ramon Santos';
-                userRoleBadge.textContent = 'Property Owner';
-                userAvatar.textContent = 'RS';
-                userAvatar.style.background = '#059669';
-                adminActions.forEach(el => el.style.display = 'none');
-            } else if (role === 'client') {
-                userName.textContent = 'Maria Santos';
-                userRoleBadge.textContent = 'Sunrise Property • Bldg 2 • Unit 101';
-                userAvatar.textContent = 'MS';
-                userAvatar.style.background = '#D97706';
-                adminActions.forEach(el => el.style.display = 'none');
-            }
+            document.addEventListener('click', () => { userDropdown.classList.remove('show'); });
         }
-
-        povSelector.addEventListener('change', (e) => {
-            const role = e.target.value;
-            localStorage.setItem('argo_pov', role);
-
-            if (role === 'owner') {
-                window.location.href = 'owner-dashboard.html';
-            } else if (role === 'client') {
-                window.location.href = 'client-dashboard.html';
-            } else {
-                syncPOV();
-                updateHeaderBadge();
-            }
-        });
     </script>
 </body>
 </html>

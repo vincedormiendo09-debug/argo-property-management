@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Maintenance Service Desk | ARGO Tenant Portal</title>
 
+    <!-- 🔒 Strict Navigation Guard & Role Isolation -->
+    <script src="js/auth.js"></script>
+
     <!-- Inter Font -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -176,7 +179,7 @@
             gap: 16px;
         }
 
-        .organization-pill {
+        .tenant-badge {
             display: flex;
             align-items: center;
             gap: 8px;
@@ -186,20 +189,7 @@
             border-radius: 6px;
             font-size: 12px;
             color: #E5E7EB;
-        }
-
-        .organization-pill i { color: #60A5FA; }
-
-        .pov-selector {
-            background: #1E293B;
-            border: 1px solid #334155;
-            color: #60A5FA;
-            padding: 6px 12px;
-            border-radius: 6px;
-            font-size: 12px;
-            outline: none;
-            cursor: pointer;
-            font-weight: 500;
+            font-weight: 600;
         }
 
         .header-right {
@@ -302,6 +292,7 @@
             gap: 10px;
             text-decoration: none;
             transition: 0.15s;
+            cursor: pointer;
         }
 
         .dropdown-item:hover { background: #F3F4F6; color: #111827; }
@@ -629,27 +620,6 @@
             border-top: 1px solid var(--border);
         }
 
-        .pagination { display: flex; align-items: center; gap: 4px; }
-
-        .page-button {
-            min-width: 30px;
-            height: 30px;
-            border: 1px solid var(--border);
-            background: white;
-            border-radius: 6px;
-            font-size: 12px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .page-button.active {
-            background: var(--primary);
-            color: white;
-            border-color: var(--primary);
-        }
-
         /* ================= MODAL ================= */
         .modal-overlay {
             display: none;
@@ -749,7 +719,6 @@
             .sidebar-brand h2, .sidebar-brand span, .nav-section-title, .nav-item span { display: none; }
             .nav-item { justify-content: center; padding: 12px; }
             .top-header { left: 70px; padding: 0 15px; }
-            .organization-pill { display: none; }
             .main-content { margin-left: 70px; padding: 85px 15px 30px; }
             .page-header { flex-direction: column; gap: 14px; }
             .filter-bar { flex-direction: column; align-items: stretch; }
@@ -771,38 +740,8 @@
             </div>
         </div>
 
-        <nav class="sidebar-nav">
-            <div class="nav-section-title">SELF-SERVICE HOME</div>
-            <a href="client-dashboard.html" class="nav-item">
-                <i class="bi bi-house-door"></i>
-                <span>My Tenancy Home</span>
-            </a>
-            <a href="client-billing.html" class="nav-item">
-                <i class="bi bi-cash-stack"></i>
-                <span>Pay Rent & Dues</span>
-            </a>
-            <a href="client-utilities.html" class="nav-item">
-                <i class="bi bi-lightning-charge"></i>
-                <span>My Utilities & Meters</span>
-            </a>
-            <a href="client-maintenance.html" class="nav-item active">
-                <i class="bi bi-tools"></i>
-                <span>Submit Maintenance</span>
-            </a>
-            <a href="inspections.html" class="nav-item">
-                <i class="bi bi-clipboard-check"></i>
-                <span>Move-In & Inspections</span>
-            </a>
-            <a href="documents.html" class="nav-item">
-                <i class="bi bi-folder2-open"></i>
-                <span>My Lease & Receipts</span>
-            </a>
-
-            <div class="nav-section-title">SYSTEM</div>
-            <a href="settings.html" class="nav-item">
-                <i class="bi bi-gear"></i>
-                <span>Account Settings</span>
-            </a>
+        <nav class="sidebar-nav" id="sidebarNav">
+            <!-- DYNAMICALLY POPULATED BY JAVASCRIPT -->
         </nav>
 
         <div class="sidebar-footer">
@@ -810,25 +749,17 @@
         </div>
     </aside>
 
-
     <!-- ================= TOP HEADER ================= -->
     <header class="top-header">
         <div class="header-left">
-            <div class="organization-pill">
-                <i class="bi bi-building"></i>
-                <span>Sunrise Property Group</span>
+            <div class="tenant-badge">
+                <i class="bi bi-house-door-fill" style="color: #60A5FA;"></i>
+                <span>Tenant Self-Service Portal</span>
             </div>
-
-            <!-- DYNAMIC POV / ROLE SWITCHER FOR DB-LESS TESTING -->
-            <select class="pov-selector" id="povSelector" title="Switch User Role Perspective">
-                <option value="client" selected>POV: Client / Tenant</option>
-                <option value="admin">POV: Admin / PM</option>
-                <option value="owner">POV: Property Owner</option>
-            </select>
         </div>
 
         <div class="header-right">
-            <!-- EXCLUSIVE HEADER NOTIFICATION LINK -->
+            <!-- EXCLUSIVE CLIENT POV NOTIFICATION BELL -->
             <a href="notification.html" class="notification-header-link" title="Notifications Center">
                 <i class="bi bi-bell"></i>
                 <div class="notification-badge" id="clientHeaderNotifBadge">0</div>
@@ -840,7 +771,7 @@
                     <div class="avatar" id="userAvatar">MS</div>
                     <div class="user-info">
                         <strong id="userName">Maria Santos</strong>
-                        <span id="userRoleBadge">Sunrise Property • Bldg 2 • Unit 101</span>
+                        <span id="userRoleBadge">Unit Occupant</span>
                     </div>
                     <i class="bi bi-chevron-down" style="font-size: 10px; color: #94A3B8;"></i>
                 </div>
@@ -865,7 +796,7 @@
         <!-- PAGE HEADER -->
         <div class="page-header">
             <div>
-                <div class="eyebrow">POV 3: SERVICE DESK & REPAIR TRACKER</div>
+                <div class="eyebrow">SELF-SERVICE REPAIR TRACKER</div>
                 <h1>Maintenance Service Desk</h1>
                 <p>Report unit repair issues, upload supporting photos, and track live technician dispatch in real-time.</p>
             </div>
@@ -876,7 +807,7 @@
             </button>
         </div>
 
-        <!-- LIVE TECHNICIAN DISPATCH BANNER (POPULATED DYNAMICALLY WHEN CONTRACTOR IS DISPATCHED) -->
+        <!-- LIVE TECHNICIAN DISPATCH BANNER -->
         <div id="liveDispatchBanner" class="live-dispatch-banner" style="display: none;">
             <div class="live-dispatch-left">
                 <div class="live-pulse-icon">
@@ -897,7 +828,7 @@
             </button>
         </div>
 
-        <!-- KPI CARDS (DYNAMICALLY RECALCULATED) -->
+        <!-- KPI CARDS -->
         <section class="kpi-grid">
             <div class="kpi-card">
                 <div class="kpi-top">
@@ -960,7 +891,7 @@
 
             <button class="secondary-btn" onclick="resetFilters()">
                 <i class="bi bi-arrow-counterclockwise"></i>
-                Reset
+                <span>Reset</span>
             </button>
         </div>
 
@@ -968,7 +899,7 @@
         <div class="table-card">
             <div class="table-header" style="padding:16px 20px; border-bottom:1px solid var(--border);">
                 <h2>My Service Requests</h2>
-                <span style="font-size:12px; color:var(--muted);">Sunrise Property • Building 2 • Unit 101</span>
+                <span style="font-size:12px; color:var(--muted);" id="locationSubtitle">Assigned Unit Location</span>
             </div>
 
             <div class="table-wrapper">
@@ -984,7 +915,7 @@
                         </tr>
                     </thead>
                     <tbody id="ticketTable">
-                        <!-- POPULATED DYNAMICALLY FROM LOCALSTORAGE -->
+                        <!-- POPULATED DYNAMICALLY FROM LOCALSTORAGE / POSTGRESQL -->
                     </tbody>
                 </table>
             </div>
@@ -992,11 +923,6 @@
             <!-- TABLE FOOTER -->
             <div class="table-footer">
                 <span id="showingCountText">Showing active tickets</span>
-                <div class="pagination">
-                    <button class="page-button"><i class="bi bi-chevron-left"></i></button>
-                    <button class="page-button active">1</button>
-                    <button class="page-button"><i class="bi bi-chevron-right"></i></button>
-                </div>
             </div>
         </div>
     </main>
@@ -1013,10 +939,9 @@
             </div>
 
             <div class="modal-body">
-                <!-- EXPLICIT TENANT LOCATION TAG -->
                 <div class="location-tag-box">
                     <i class="bi bi-geo-alt-fill"></i>
-                    <span><strong>Location Auto-Tagged:</strong> Maria Santos — Sunrise Property (Building 2, Unit 101)</span>
+                    <span><strong>Location Auto-Tagged:</strong> <span id="modalTenantTag">Loading Profile...</span></span>
                 </div>
 
                 <div class="form-row">
@@ -1081,8 +1006,8 @@
             <div class="modal-body">
                 <div style="background:#F8FAFC; border:1px solid var(--border); border-radius:8px; padding:14px; margin-bottom:14px; font-size:12px;">
                     <div style="font-weight:700; font-size:14px; margin-bottom:4px; color:var(--text);" id="vTitle">Aircon Water Leakage</div>
-                    <div style="color:var(--muted); margin-bottom:8px;" id="vLocation"><i class="bi bi-geo-alt"></i> Sunrise Property • Building 2 • Unit 101</div>
-                    <div style="line-height:1.5; color:#374151;" id="vDesc">Split-type AC unit in living room dripping water steadily under cabinet.</div>
+                    <div style="color:var(--muted); margin-bottom:8px;" id="vLocation"><i class="bi bi-geo-alt"></i> Assigned Unit Location</div>
+                    <div style="line-height:1.5; color:#374151;" id="vDesc">Issue details...</div>
                 </div>
 
                 <div style="border-top:1px solid var(--border); padding-top:12px;">
@@ -1110,25 +1035,56 @@
 
     <!-- ================= JAVASCRIPT ================= -->
     <script>
-        // Explicit Tenant Identity Context
-        const TENANT_CONTEXT = {
-            tenantId: 'TNT-2026-101',
-            tenantName: 'Maria Santos',
-            property: 'Sunrise Property',
-            building: 'Building 2',
-            unit: 'Unit 101',
-            fullLocationTag: 'Sunrise Property • Building 2 • Unit 101'
-        };
+        // Lock Client Role Perspective
+        localStorage.setItem('argo_pov', 'client');
 
-        // Default Seed Tickets (With Juan Dela Cruz assigning Roldan HVAC Services to Maria Santos)
+        // Dynamic Client Sidebar Navigation Renderer
+        function renderSidebar() {
+            const nav = document.getElementById('sidebarNav');
+            if (!nav) return;
+
+            const currentPath = window.location.pathname.split("/").pop() || 'client-maintenance.html';
+
+            const clientLinks = [
+                { section: 'SELF-SERVICE HOME' },
+                { href: 'client-dashboard.html', icon: 'bi-house-door', label: 'My Tenancy Home' },
+                { href: 'client-billing.html', icon: 'bi-receipt', label: 'Pay Rent & Dues' },
+                { href: 'client-utilities.html', icon: 'bi-lightning-charge', label: 'My Utilities & Meters' },
+                { href: 'client-maintenance.html', icon: 'bi-tools', label: 'Submit Maintenance' },
+                { href: 'inspections.html', icon: 'bi-clipboard-check', label: 'Move-In & Inspections' },
+                { href: 'client-documents.html', icon: 'bi-folder2-open', label: 'My Lease & Receipts' },
+                { section: 'SYSTEM' },
+                { href: 'account.html', icon: 'bi-gear', label: 'Account Settings' },
+                { href: 'logout.html', icon: 'bi-box-arrow-right', label: 'Log Out' }
+            ];
+
+            let html = '';
+            clientLinks.forEach(item => {
+                if (item.section) {
+                    html += `<div class="nav-section-title">${item.section}</div>`;
+                } else {
+                    const isActive = (currentPath === item.href) ? 'active' : '';
+                    html += `
+                        <a href="${item.href}" class="nav-item ${isActive}">
+                            <i class="bi ${item.icon}"></i>
+                            <span>${item.label}</span>
+                        </a>
+                    `;
+                }
+            });
+
+            nav.innerHTML = html;
+        }
+
+        // Clean Baseline or Initial Demonstration Ticket
         const DEFAULT_TICKETS = [
             {
                 id: 'MNT-2026-003',
                 tenantName: 'Maria Santos',
                 property: 'Sunrise Property',
-                building: 'Building 2',
+                building: 'Tower A',
                 unit: 'Unit 101',
-                fullLocation: 'Sunrise Property • Building 2 • Unit 101',
+                fullLocation: 'Sunrise Property • Tower A • Unit 101',
                 category: 'HVAC',
                 title: 'Aircon Water Leakage',
                 description: 'Split-type AC unit in living room dripping water steadily under cabinet.',
@@ -1137,26 +1093,9 @@
                 technician: 'Roldan HVAC Services',
                 scheduledTime: 'Today at 02:00 PM',
                 dateFiled: 'Aug 05, 2026'
-            },
-            {
-                id: 'MNT-2026-002',
-                tenantName: 'Maria Santos',
-                property: 'Sunrise Property',
-                building: 'Building 2',
-                unit: 'Unit 101',
-                fullLocation: 'Sunrise Property • Building 2 • Unit 101',
-                category: 'Plumbing',
-                title: 'Kitchen Faucet Leakage',
-                description: 'Water dripping steadily from under the main sink basin faucet.',
-                priority: 'Normal',
-                status: 'Resolved',
-                technician: 'Roldan Plumbing Services',
-                scheduledTime: 'Completed on Jul 12',
-                dateFiled: 'Jul 10, 2026'
             }
         ];
 
-        // LocalStorage Shared Functions
         function getTickets() {
             const data = localStorage.getItem('argo_maintenance_tickets');
             if (!data) {
@@ -1166,29 +1105,34 @@
             return JSON.parse(data);
         }
 
-        function saveTickets(tickets) {
-            localStorage.setItem('argo_maintenance_tickets', JSON.stringify(tickets));
+        function saveTickets(tickets) { 
+            localStorage.setItem('argo_maintenance_tickets', JSON.stringify(tickets)); 
         }
 
-        function getNotifications() {
-            return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
+        function getNotifications() { 
+            return JSON.parse(localStorage.getItem('argo_notifications') || '[]'); 
         }
 
-        function saveNotifications(notifications) {
-            localStorage.setItem('argo_notifications', JSON.stringify(notifications));
+        function saveNotifications(notifications) { 
+            localStorage.setItem('argo_notifications', JSON.stringify(notifications)); 
         }
 
-        // Initialize Page
+        function getLeases() { 
+            return JSON.parse(localStorage.getItem('argo_leases') || '[]'); 
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
+            renderSidebar();
+            loadUserData();
             renderTicketsTable();
             checkLiveDispatchBanner();
             updateKPIs();
             updateHeaderBadge();
         });
 
-        // LIVE LISTEN FOR CROSS-TAB LOCALSTORAGE CHANGES (e.g. when Admin dispatches in maintenance.html)
+        // Live Cross-Tab Storage Listener
         window.addEventListener('storage', (e) => {
-            if (e.key === 'argo_maintenance_tickets' || e.key === 'argo_notifications') {
+            if (e.key === 'argo_maintenance_tickets' || e.key === 'argo_notifications' || e.key === 'argo_leases') {
                 renderTicketsTable();
                 checkLiveDispatchBanner();
                 updateKPIs();
@@ -1196,9 +1140,23 @@
             }
         });
 
-        // Render Live Dispatch Banner
+        function getActiveTenantContext() {
+            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+            const leases = getLeases();
+            const activeLease = leases.find(l => l.status === 'ACTIVE' || l.status === 'Active') || leases[0] || {};
+
+            return {
+                name: user.name || activeLease.tenantName || 'Maria Santos',
+                property: activeLease.property || 'Sunrise Property',
+                building: activeLease.building || 'Tower A',
+                unit: activeLease.unit || 'Unit 101',
+                fullTag: `${activeLease.property || 'Sunrise Property'} • ${activeLease.unit || 'Unit 101'}`
+            };
+        }
+
         function checkLiveDispatchBanner() {
-            const tickets = getTickets().filter(t => t.tenantName === TENANT_CONTEXT.tenantName || t.unit.includes('101'));
+            const ctx = getActiveTenantContext();
+            const tickets = getTickets();
             const activeDispatched = tickets.find(t => (t.status === 'In Progress' || t.status === 'Assigned') && t.technician && t.technician !== 'Awaiting Dispatch');
 
             const banner = document.getElementById('liveDispatchBanner');
@@ -1213,30 +1171,32 @@
         }
 
         function openActiveDispatchModal() {
-            const tickets = getTickets().filter(t => t.tenantName === TENANT_CONTEXT.tenantName || t.unit.includes('101'));
+            const tickets = getTickets();
             const activeDispatched = tickets.find(t => (t.status === 'In Progress' || t.status === 'Assigned') && t.technician && t.technician !== 'Awaiting Dispatch');
             if (activeDispatched) {
                 viewTicketDetails(activeDispatched.id);
             }
         }
 
-        // Render Dynamic Tickets Table
         function renderTicketsTable() {
-            const tickets = getTickets().filter(t => t.tenantName === TENANT_CONTEXT.tenantName || t.unit.includes('101'));
+            const ctx = getActiveTenantContext();
+            const tickets = getTickets();
             const tbody = document.getElementById('ticketTable');
             tbody.innerHTML = '';
 
+            document.getElementById('locationSubtitle').textContent = ctx.fullTag;
+
             if (tickets.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--muted); padding:30px;">No service requests filed yet.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--muted); padding:30px;">No service requests filed yet. Click "Report New Issue" to file a ticket.</td></tr>`;
+                document.getElementById('showingCountText').textContent = `Showing 0 service requests`;
                 return;
             }
 
             tickets.forEach(t => {
                 const tr = document.createElement('tr');
-                tr.dataset.status = t.status;
-                tr.dataset.category = t.category;
+                tr.dataset.status = t.status || 'Open';
+                tr.dataset.category = t.category || 'Other';
 
-                // Status Badge
                 let statusHtml = '';
                 if (t.status === 'Resolved' || t.status === 'Completed') {
                     statusHtml = `<span class="status-badge status-resolved"><i class="bi bi-check-circle" style="margin-right:4px;"></i> Resolved & Completed</span>`;
@@ -1246,7 +1206,6 @@
                     statusHtml = `<span class="status-badge status-submitted"><i class="bi bi-send" style="margin-right:4px;"></i> Submitted / Open</span>`;
                 }
 
-                // Priority Badge
                 const priorityHtml = (t.priority === 'High' || t.priority === 'Urgent')
                     ? `<span class="priority-badge priority-high">High Priority</span>`
                     : `<span class="priority-badge priority-normal">Normal Priority</span>`;
@@ -1271,9 +1230,8 @@
             document.getElementById('showingCountText').textContent = `Showing 1–${tickets.length} of ${tickets.length} service requests`;
         }
 
-        // Recalculate KPI Numbers
         function updateKPIs() {
-            const tickets = getTickets().filter(t => t.tenantName === TENANT_CONTEXT.tenantName || t.unit.includes('101'));
+            const tickets = getTickets();
 
             const total = tickets.length;
             const active = tickets.filter(t => t.status === 'In Progress' || t.status === 'Open' || t.status === 'Submitted' || t.status === 'Assigned').length;
@@ -1286,27 +1244,36 @@
             document.getElementById('kpiActiveDesc').textContent = active > 0 ? 'Technician dispatch active' : 'No open issues';
         }
 
+        // Strict Client POV Header Notification Count
         function updateHeaderBadge() {
-            const currentPov = document.getElementById('povSelector').value;
-            const notifs = getNotifications().filter(n => n.pov === currentPov && n.status === 'unread');
-            document.getElementById('clientHeaderNotifBadge').textContent = notifs.length;
+            const notifs = getNotifications().filter(n => (n.pov === 'client' || n.pov === 'tenant') && n.status === 'unread');
+            const badge = document.getElementById('clientHeaderNotifBadge');
+            if (badge) badge.textContent = notifs.length;
         }
 
-        // Modal Controls
-        function openMaintenanceModal() { document.getElementById("maintenanceModal").classList.add("show"); }
-        function closeMaintenanceModal() { document.getElementById("maintenanceModal").classList.remove("show"); }
+        function openMaintenanceModal() {
+            const ctx = getActiveTenantContext();
+            document.getElementById('modalTenantTag').textContent = `${ctx.name} — ${ctx.fullTag}`;
+            document.getElementById("maintenanceModal").classList.add("show");
+        }
 
-        function closeViewModal() { document.getElementById("viewTicketModal").classList.remove("show"); }
+        function closeMaintenanceModal() { 
+            document.getElementById("maintenanceModal").classList.remove("show"); 
+        }
 
-        // Inspect Ticket
+        function closeViewModal() { 
+            document.getElementById("viewTicketModal").classList.remove("show"); 
+        }
+
         function viewTicketDetails(ticketId) {
+            const ctx = getActiveTenantContext();
             const tickets = getTickets();
             const selected = tickets.find(t => t.id === ticketId);
             if (!selected) return;
 
             document.getElementById('vTicketId').textContent = selected.id;
             document.getElementById('vTitle').textContent = selected.title;
-            document.getElementById('vLocation').innerHTML = `<i class="bi bi-geo-alt"></i> ${selected.fullLocation || TENANT_CONTEXT.fullLocationTag}`;
+            document.getElementById('vLocation').innerHTML = `<i class="bi bi-geo-alt"></i> ${selected.fullLocation || ctx.fullTag}`;
             document.getElementById('vDesc').textContent = selected.description;
             document.getElementById('vStatus').textContent = selected.status;
             document.getElementById('vTech').textContent = selected.technician || 'Pending PM Assignment';
@@ -1315,7 +1282,6 @@
             document.getElementById('viewTicketModal').classList.add('show');
         }
 
-        // Submit Ticket Function (Pushes to localStorage)
         function submitTicket() {
             const category = document.getElementById('modalCategory').value;
             const priority = document.getElementById('modalPriority').value;
@@ -1327,17 +1293,18 @@
                 return;
             }
 
+            const ctx = getActiveTenantContext();
             const ticketId = `MNT-2026-00${Math.floor(4 + Math.random() * 90)}`;
 
             // 1. Add Ticket to LocalStorage
             let tickets = getTickets();
             const newTicket = {
                 id: ticketId,
-                tenantName: TENANT_CONTEXT.tenantName,
-                property: TENANT_CONTEXT.property,
-                building: TENANT_CONTEXT.building,
-                unit: TENANT_CONTEXT.unit,
-                fullLocation: TENANT_CONTEXT.fullLocationTag,
+                tenantName: ctx.name,
+                property: ctx.property,
+                building: ctx.building,
+                unit: ctx.unit,
+                fullLocation: ctx.fullTag,
                 category: category,
                 title: title,
                 description: description || 'No detailed notes provided.',
@@ -1345,12 +1312,12 @@
                 status: 'Open',
                 technician: 'Awaiting Dispatch',
                 scheduledTime: 'Pending PM Review',
-                dateFiled: 'Aug 05, 2026'
+                dateFiled: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
             };
             tickets.unshift(newTicket);
             saveTickets(tickets);
 
-            // 2. Push Notification to Admin
+            // 2. Push Notification Alert to Admin POV (maintenance.html)
             let notifications = getNotifications();
             const newNotif = {
                 id: `NOTIF-${Date.now()}`,
@@ -1359,8 +1326,9 @@
                 status: 'unread',
                 title: `New Maintenance Ticket: ${title}`,
                 time: 'Just now',
-                description: `Tenant <strong>${TENANT_CONTEXT.tenantName}</strong> (${TENANT_CONTEXT.fullLocationTag}) filed a <strong>${priority}</strong> priority ticket: "${description}".`,
-                property: TENANT_CONTEXT.fullLocationTag,
+                description: `Tenant <strong>${ctx.name}</strong> (${ctx.fullTag}) filed a <strong>${priority}</strong> priority ticket: "${description}".`,
+                property: ctx.fullTag,
+                tenantName: ctx.name,
                 tag: `Ticket ${ticketId}`,
                 tagColor: priority === 'High' ? 'var(--danger)' : 'var(--primary)',
                 urgent: priority === 'High',
@@ -1370,13 +1338,15 @@
             notifications.unshift(newNotif);
             saveNotifications(notifications);
 
-            // 3. Refresh Page
             renderTicketsTable();
             checkLiveDispatchBanner();
             updateKPIs();
             closeMaintenanceModal();
 
-            alert(`Service Ticket (${ticketId}) submitted successfully!\n\nTagged Location:\n${TENANT_CONTEXT.fullLocationTag}\n\nProperty Manager Juan Dela Cruz has been notified.`);
+            document.getElementById('modalTitle').value = '';
+            document.getElementById('modalDescription').value = '';
+
+            alert(`Service Ticket (${ticketId}) submitted successfully!\n\nProperty Manager notified for technician dispatch.`);
         }
 
         window.onclick = function(event) {
@@ -1386,7 +1356,6 @@
             if (event.target === modal2) closeViewModal();
         };
 
-        // Table Filtering
         function filterTable() {
             const searchValue = document.getElementById("searchInput").value.toLowerCase();
             const statusValue = document.getElementById("statusFilter").value;
@@ -1396,8 +1365,8 @@
 
             rows.forEach(row => {
                 const text = row.innerText.toLowerCase();
-                const rowStatus = row.dataset.status;
-                const rowCategory = row.dataset.category;
+                const rowStatus = row.dataset.status || "";
+                const rowCategory = row.dataset.category || "";
 
                 const matchesSearch = text.includes(searchValue);
                 const matchesStatus = statusValue === "" || rowStatus.includes(statusValue);
@@ -1418,39 +1387,19 @@
             filterTable();
         }
 
-        // Profile Dropdown
+        // Profile Dropdown Handler
         const userProfileBtn = document.getElementById('userProfileBtn');
         const userDropdown = document.getElementById('userDropdown');
 
-        userProfileBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            userDropdown.classList.toggle('show');
-        });
+        if (userProfileBtn && userDropdown) {
+            userProfileBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                userDropdown.classList.toggle('show');
+            });
 
-        document.addEventListener('click', () => { userDropdown.classList.remove('show'); });
-
-        // POV Role Switcher
-        const povSelector = document.getElementById('povSelector');
-        const userName = document.getElementById('userName');
-        const userRoleBadge = document.getElementById('userRoleBadge');
-        const userAvatar = document.getElementById('userAvatar');
-
-        povSelector.addEventListener('change', (e) => {
-            const role = e.target.value;
-
-            if (role === 'admin') {
-                window.location.href = 'dashboard.html';
-            } else if (role === 'owner') {
-                window.location.href = 'owner-dashboard.html';
-            } else if (role === 'client') {
-                userName.textContent = TENANT_CONTEXT.tenantName;
-                userRoleBadge.textContent = 'Sunrise Property • Bldg 2 • Unit 101';
-                userAvatar.textContent = 'MS';
-                userAvatar.style.background = '#D97706';
-            }
-
-            updateHeaderBadge();
-        });
+            document.addEventListener('click', () => { 
+                userDropdown.classList.remove('show'); 
+            });
+        }
     </script>
 </body>
-</html>
