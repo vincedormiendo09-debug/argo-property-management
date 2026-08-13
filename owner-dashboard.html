@@ -579,10 +579,10 @@
                         <i class="bi bi-person-gear"></i>
                         <span>Account Settings</span>
                     </a>
-                    <a href="logout.html" class="dropdown-item danger">
+                    <div class="dropdown-item danger" onclick="logoutUser()">
                         <i class="bi bi-box-arrow-right"></i>
                         <span>Log Out</span>
-                    </a>
+                    </div>
                 </div>
             </div>
         </div>
@@ -703,10 +703,20 @@
 
     <!-- ================= JAVASCRIPT ================= -->
     <script>
+        // Secure Logout Handler (Clears session and replaces history to prevent back-button access)
+        function logoutUser() {
+            localStorage.removeItem('argo_pov');
+            localStorage.removeItem('user_role');
+            localStorage.removeItem('role');
+            localStorage.removeItem('token');
+            localStorage.removeItem('argo_user');
+            window.location.replace('index.html');
+        }
+
         // Force Owner POV Context
         localStorage.setItem('argo_pov', 'owner');
 
-        // Dynamic Owner Sidebar Renderer (Matching the strict 9-item list)
+        // Dynamic Owner Sidebar Renderer
         function renderSidebar() {
             const nav = document.getElementById('sidebarNav');
             if (!nav) return;
@@ -724,13 +734,20 @@
                 { section: 'COMMUNICATION & SYSTEM' },
                 { href: 'notification.html', icon: 'bi-bell', label: 'Notification Center' },
                 { href: 'account.html', icon: 'bi-gear', label: 'Account Settings' },
-                { href: 'logout.html', icon: 'bi-box-arrow-right', label: 'Log Out' }
+                { href: '#', icon: 'bi-box-arrow-right', label: 'Log Out', isLogout: true }
             ];
 
             let html = '';
             ownerLinks.forEach(item => {
                 if (item.section) {
                     html += `<div class="nav-section-title">${item.section}</div>`;
+                } else if (item.isLogout) {
+                    html += `
+                        <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                            <i class="bi ${item.icon}"></i>
+                            <span>${item.label}</span>
+                        </a>
+                    `;
                 } else {
                     const isActive = (currentPath === item.href) ? 'active' : '';
                     html += `
@@ -758,6 +775,11 @@
         let equityChartInstance = null;
 
         document.addEventListener('DOMContentLoaded', () => {
+            const role = localStorage.getItem('argo_pov');
+            if (!role) {
+                window.location.replace('index.html');
+                return;
+            }
             renderSidebar();
             loadUserData();
             updateOwnerMetrics();

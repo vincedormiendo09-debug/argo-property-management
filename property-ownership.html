@@ -683,7 +683,7 @@
         </div>
 
         <nav class="sidebar-nav" id="sidebarNav">
-            <!-- POPULATED DYNAMICALLY BY JAVASCRIPT BASED ON LOGGED-IN POV -->
+            <!-- POPULATED DYNAMICALLY BY JAVASCRIPT BASED ON LOGGED-IN ROLE -->
         </nav>
 
         <div class="sidebar-footer">
@@ -896,6 +896,16 @@
 
     <!-- ================= JAVASCRIPT ================= -->
     <script>
+        // Secure Logout Handler (Clears session and replaces history to prevent back-button access)
+        function logoutUser() {
+            localStorage.removeItem('argo_pov');
+            localStorage.removeItem('user_role');
+            localStorage.removeItem('role');
+            localStorage.removeItem('token');
+            localStorage.removeItem('argo_user');
+            window.location.replace('index.html');
+        }
+
         // Default Seed Equity Shares
         const DEFAULT_SHARES = [
             {
@@ -948,6 +958,18 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
+            const rawRole = (
+                localStorage.getItem('argo_pov') || 
+                localStorage.getItem('user_role') || 
+                localStorage.getItem('role') || 
+                ''
+            ).toLowerCase().trim();
+
+            if (!rawRole) {
+                window.location.replace('index.html');
+                return;
+            }
+
             applyRoleLayout();
             loadUserData();
             populateModalDropdowns();
@@ -958,7 +980,7 @@
 
         // Cross-Tab Storage Sync
         window.addEventListener('storage', (e) => {
-            if (e.key === 'argo_shares' || e.key === 'argo_notifications' || e.key === 'argo_properties' || e.key === 'argo_pov') {
+            if (e.key === 'argo_shares' || e.key === 'argo_notifications' || e.key === 'argo_properties' || e.key === 'argo_pov' || e.key === 'user_role' || e.key === 'role') {
                 applyRoleLayout();
                 loadUserData();
                 renderShareTable();
@@ -967,9 +989,22 @@
             }
         });
 
-        // Dynamic Role Perspective Layout Adapter (Admin POV vs Owner POV)
+        // Dynamic Role Perspective Layout Adapter (Logged-In Role Based)
         function applyRoleLayout() {
-            const role = localStorage.getItem('argo_pov') || 'admin';
+            const rawRole = (
+                localStorage.getItem('argo_pov') || 
+                localStorage.getItem('user_role') || 
+                localStorage.getItem('role') || 
+                'admin'
+            ).toLowerCase().trim();
+
+            let role = 'admin';
+            if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
+                role = 'client';
+            } else if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
+                role = 'owner';
+            }
+
             const nav = document.getElementById('sidebarNav');
             const brandSub = document.getElementById('portalBrandSubtitle');
             const brandLogo = document.getElementById('brandLogo');
@@ -982,14 +1017,76 @@
             const pageTitle = document.getElementById('pageTitle');
             const pageDesc = document.getElementById('pageDesc');
 
-            if (role === 'owner') {
+            if (role === 'client') {
+                document.documentElement.style.setProperty('--primary', '#2563EB');
+                if (brandSub) brandSub.textContent = 'Tenant Portal';
+                if (brandLogo) brandLogo.style.background = '#2563EB';
+                if (versionText) versionText.textContent = 'ARGO v0.5 (Tenant POV)';
+
+                if (headerRoleContainer) {
+                    headerRoleContainer.className = 'role-badge-box';
+                    headerRoleIcon.className = 'bi bi-house-door-fill';
+                    headerRoleIcon.style.color = '#60A5FA';
+                    headerRoleText.textContent = 'Tenant Self-Service Portal';
+                }
+
+                if (pageEyebrow) pageEyebrow.textContent = 'SELF-SERVICE PROPERTY INFO';
+                if (pageTitle) pageTitle.textContent = 'Property & Building Information';
+                if (pageDesc) pageDesc.textContent = 'Overview of building details and property specifications for your assigned unit.';
+                if (allocateBtn) allocateBtn.style.display = 'none';
+
+                if (nav) {
+                    nav.innerHTML = `
+                        <div class="nav-section-title">SELF-SERVICE HOME</div>
+                        <a href="client-dashboard.html" class="nav-item">
+                            <i class="bi bi-house-door"></i>
+                            <span>My Tenancy Home</span>
+                        </a>
+                        <a href="client-billing.html" class="nav-item">
+                            <i class="bi bi-receipt"></i>
+                            <span>Pay Rent & Dues</span>
+                        </a>
+                        <a href="transaction.html" class="nav-item">
+                            <i class="bi bi-receipt-cutoff"></i>
+                            <span>Transactions & Ledger</span>
+                        </a>
+                        <a href="client-utilities.html" class="nav-item">
+                            <i class="bi bi-lightning-charge"></i>
+                            <span>My Utilities & Meters</span>
+                        </a>
+                        <a href="client-maintenance.html" class="nav-item">
+                            <i class="bi bi-tools"></i>
+                            <span>Submit Maintenance</span>
+                        </a>
+                        <a href="inspections.html" class="nav-item">
+                            <i class="bi bi-clipboard-check"></i>
+                            <span>Move-In & Inspections</span>
+                        </a>
+                        <a href="client-documents.html" class="nav-item">
+                            <i class="bi bi-folder2-open"></i>
+                            <span>My Lease & Receipts</span>
+                        </a>
+
+                        <div class="nav-section-title">SYSTEM</div>
+                        <a href="account.html" class="nav-item">
+                            <i class="bi bi-gear"></i>
+                            <span>Account Settings</span>
+                        </a>
+                        <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                            <i class="bi bi-box-arrow-right"></i>
+                            <span>Log Out</span>
+                        </a>
+                    `;
+                }
+
+            } else if (role === 'owner') {
                 document.documentElement.style.setProperty('--primary', '#059669');
                 if (brandSub) brandSub.textContent = 'Owner Portal';
                 if (brandLogo) brandLogo.style.background = '#059669';
                 if (versionText) versionText.textContent = 'ARGO v0.5 (Owner POV)';
 
                 if (headerRoleContainer) {
-                    headerRoleContainer.className = 'owner-badge';
+                    headerRoleContainer.className = 'role-badge-box';
                     headerRoleIcon.className = 'bi bi-person-badge-fill';
                     headerRoleIcon.style.color = '#34D399';
                     headerRoleText.textContent = 'Property Owner Executive Portal';
@@ -1037,12 +1134,13 @@
                             <i class="bi bi-gear"></i>
                             <span>Account Settings</span>
                         </a>
-                        <a href="logout.html" class="nav-item">
+                        <a href="#" class="nav-item" onclick="logoutUser(); return false;">
                             <i class="bi bi-box-arrow-right"></i>
                             <span>Log Out</span>
                         </a>
                     `;
                 }
+
             } else {
                 // Admin POV
                 document.documentElement.style.setProperty('--primary', '#2563EB');
@@ -1051,7 +1149,7 @@
                 if (versionText) versionText.textContent = 'ARGO v0.5';
 
                 if (headerRoleContainer) {
-                    headerRoleContainer.className = 'admin-badge';
+                    headerRoleContainer.className = 'role-badge-box';
                     headerRoleIcon.className = 'bi bi-shield-lock-fill';
                     headerRoleIcon.style.color = '#60A5FA';
                     headerRoleText.textContent = 'Admin Command Center';
@@ -1113,6 +1211,10 @@
                             <i class="bi bi-lightning-charge"></i>
                             <span>Utilities</span>
                         </a>
+                        <a href="meter-readings.html" class="nav-item">
+                            <i class="bi bi-speedometer2"></i>
+                            <span>Meter Readings</span>
+                        </a>
                         <a href="maintenance.html" class="nav-item">
                             <i class="bi bi-tools"></i>
                             <span>Maintenance</span>
@@ -1122,6 +1224,14 @@
                         <a href="inspections.html" class="nav-item">
                             <i class="bi bi-clipboard-check"></i>
                             <span>Inspections</span>
+                        </a>
+                        <a href="move-in-checklist.html" class="nav-item">
+                            <i class="bi bi-check2-square"></i>
+                            <span>Move-In Checklist</span>
+                        </a>
+                        <a href="move-out-settlement.html" class="nav-item">
+                            <i class="bi bi-box-arrow-right"></i>
+                            <span>Move-Out Settlement</span>
                         </a>
                         <a href="documents.html" class="nav-item">
                             <i class="bi bi-folder2-open"></i>
@@ -1137,7 +1247,7 @@
                             <i class="bi bi-gear"></i>
                             <span>Settings</span>
                         </a>
-                        <a href="logout.html" class="nav-item">
+                        <a href="#" class="nav-item" onclick="logoutUser(); return false;">
                             <i class="bi bi-box-arrow-right"></i>
                             <span>Log Out</span>
                         </a>
@@ -1147,14 +1257,25 @@
         }
 
         function loadUserData() {
-            const role = localStorage.getItem('argo_pov') || 'admin';
+            const rawRole = (
+                localStorage.getItem('argo_pov') || 
+                localStorage.getItem('user_role') || 
+                localStorage.getItem('role') || 
+                'admin'
+            ).toLowerCase().trim();
+
             const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
 
-            if (role === 'owner') {
+            if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
                 document.getElementById('userName').textContent = 'Don Ramon Santos';
                 document.getElementById('userRoleBadge').textContent = 'Property Owner';
                 document.getElementById('userAvatar').textContent = 'RS';
                 document.getElementById('userAvatar').style.background = '#059669';
+            } else if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
+                document.getElementById('userName').textContent = 'Maria Santos';
+                document.getElementById('userRoleBadge').textContent = 'Sunrise Property • Unit 101';
+                document.getElementById('userAvatar').textContent = 'MS';
+                document.getElementById('userAvatar').style.background = '#D97706';
             } else {
                 document.getElementById('userName').textContent = user.name || 'Property Admin';
                 document.getElementById('userRoleBadge').textContent = 'Property Manager';
@@ -1188,11 +1309,16 @@
         }
 
         function renderShareTable() {
-            const role = localStorage.getItem('argo_pov') || 'admin';
+            const rawRole = (
+                localStorage.getItem('argo_pov') || 
+                localStorage.getItem('user_role') || 
+                localStorage.getItem('role') || 
+                'admin'
+            ).toLowerCase().trim();
+
             let shares = getShares();
 
-            // If owner POV, strictly filter cap table entries where ownerName matches Don Ramon Santos
-            if (role === 'owner') {
+            if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
                 shares = shares.filter(s => s.ownerName.includes('Ramon Santos') || s.ownerName.includes('Santos'));
             }
 
@@ -1215,7 +1341,7 @@
                     : `<span class="role-badge role-coowner">Co-Owner / Fractional</span>`;
 
                 let actionHtml = '';
-                if (role === 'admin') {
+                if (!['owner', 'property_owner', 'investor', 'client', 'tenant'].includes(rawRole)) {
                     actionHtml = `
                         <div class="actions">
                             <button class="action-button delete" title="Remove Share" onclick="deleteShare('${s.id}')"><i class="bi bi-trash"></i></button>
@@ -1311,11 +1437,17 @@
         }
 
         function updateKPIs() {
-            const role = localStorage.getItem('argo_pov') || 'admin';
+            const rawRole = (
+                localStorage.getItem('argo_pov') || 
+                localStorage.getItem('user_role') || 
+                localStorage.getItem('role') || 
+                'admin'
+            ).toLowerCase().trim();
+
             let shares = getShares();
             const props = getProperties();
 
-            if (role === 'owner') {
+            if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
                 shares = shares.filter(s => s.ownerName.includes('Ramon Santos') || s.ownerName.includes('Santos'));
                 document.getElementById('kpiLabel1').textContent = 'Owned Portfolio Assets';
                 document.getElementById('kpiLabel2').textContent = 'Primary Ownership Shares';
@@ -1370,7 +1502,17 @@
         }
 
         function updateHeaderBadge() {
-            const role = localStorage.getItem('argo_pov') || 'admin';
+            const rawRole = (
+                localStorage.getItem('argo_pov') || 
+                localStorage.getItem('user_role') || 
+                localStorage.getItem('role') || 
+                'admin'
+            ).toLowerCase().trim();
+
+            let role = 'admin';
+            if (['client', 'tenant', 'client_pov'].includes(rawRole)) role = 'client';
+            else if (['owner', 'property_owner', 'investor'].includes(rawRole)) role = 'owner';
+
             const notifs = getNotifications().filter(n => n.pov === role && n.status === 'unread');
             const badge = document.getElementById('headerNotifBadge');
             if (badge) badge.textContent = notifs.length;
@@ -1430,4 +1572,3 @@
         }
     </script>
 </body>
-</html>

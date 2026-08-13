@@ -35,7 +35,7 @@
     // 3. Unauthenticated Guard
     if (!userRole || !orgId) {
         alert('🔒 Session Expired or Unauthenticated: Please sign in first.');
-        window.location.href = 'index.html';
+        window.location.replace('index.html');
         return;
     }
 
@@ -46,7 +46,7 @@
         'logout.html', 
         'inspections.html',
         'property-ownership.html',
-        'transaction.html' // <--- BULLETPROOF BYPASS FOR CLIENT, OWNER, AND ADMIN
+        'transaction.html'
     ];
 
     if (SHARED_AUTHENTICATED_PAGES.includes(currentPath)) {
@@ -59,7 +59,8 @@
             'dashboard.html', 'properties.html', 'buildings.html', 'units.html',
             'tenants.html', 'owners.html', 'leases.html', 'invoices.html',
             'rent-collection.html', 'utilities.html', 'meter-readings.html',
-            'maintenance.html', 'documents.html', 'reports.html', 'settings.html'
+            'maintenance.html', 'documents.html', 'reports.html', 'settings.html',
+            'move-in-checklist.html', 'move-out-settlement.html'
         ],
         owner: [
             'owner-dashboard.html', 'owner-properties.html', 'owner-financials.html',
@@ -80,27 +81,27 @@
         isAuthorized = currentPath.startsWith('owner-') || roleRoutes.owner.includes(currentPath);
     } else if (userRole === 'admin') {
         isAuthorized = !currentPath.startsWith('client-') && 
-                       !currentPath.startsWith('owner-') && 
-                       (roleRoutes.admin.includes(currentPath) || !currentPath.includes('-'));
+                      !currentPath.startsWith('owner-') && 
+                      (roleRoutes.admin.includes(currentPath) || !currentPath.includes('-'));
     }
 
     if (!isAuthorized) {
         alert(`🚫 Access Denied!\n\nYour account role (${userRole.toUpperCase()}) is not authorized to access '${currentPath}'.\n\nRedirecting to your workspace...`);
 
         if (userRole === 'admin') {
-            window.location.href = 'dashboard.html';
+            window.location.replace('dashboard.html');
         } else if (userRole === 'owner') {
-            window.location.href = 'owner-dashboard.html';
+            window.location.replace('owner-dashboard.html');
         } else if (userRole === 'client') {
-            window.location.href = 'client-dashboard.html';
+            window.location.replace('client-dashboard.html');
         } else {
-            window.location.href = 'index.html';
+            window.location.replace('index.html');
         }
     }
 })();
 
 /**
- * Global Logout Helper
+ * Global Logout Helper with Back-Button Prevention
  */
 function logoutUser() {
     localStorage.removeItem('argo_pov');
@@ -108,5 +109,5 @@ function logoutUser() {
     localStorage.removeItem('role');
     localStorage.removeItem('token');
     localStorage.removeItem('argo_user');
-    window.location.href = 'index.html';
+    window.location.replace('index.html');
 }

@@ -684,10 +684,10 @@
                         <i class="bi bi-person-gear"></i>
                         <span>Account Settings</span>
                     </a>
-                    <a href="logout.html" class="dropdown-item danger">
+                    <div class="dropdown-item danger" onclick="logoutUser()">
                         <i class="bi bi-box-arrow-right"></i>
                         <span>Log Out</span>
-                    </a>
+                    </div>
                 </div>
             </div>
         </div>
@@ -901,8 +901,12 @@
 
     <!-- ================= JAVASCRIPT ================= -->
     <script>
-        // Lock Client Role Perspective
-        localStorage.setItem('argo_pov', 'client');
+        // Secure Logout Handler (Clears session and replaces history to prevent back-button access)
+        function logoutUser() {
+            localStorage.removeItem('argo_pov');
+            localStorage.removeItem('argo_user');
+            window.location.replace('index.html');
+        }
 
         // Dynamic Client Sidebar Navigation Renderer
         function renderSidebar() {
@@ -915,13 +919,14 @@
                 { section: 'SELF-SERVICE HOME' },
                 { href: 'client-dashboard.html', icon: 'bi-house-door', label: 'My Tenancy Home' },
                 { href: 'client-billing.html', icon: 'bi-receipt', label: 'Pay Rent & Dues' },
+                { href: 'transaction.html', icon: 'bi-receipt-cutoff', label: 'Transactions & Ledger' },
                 { href: 'client-utilities.html', icon: 'bi-lightning-charge', label: 'My Utilities & Meters' },
                 { href: 'client-maintenance.html', icon: 'bi-tools', label: 'Submit Maintenance' },
                 { href: 'inspections.html', icon: 'bi-clipboard-check', label: 'Move-In & Inspections' },
                 { href: 'client-documents.html', icon: 'bi-folder2-open', label: 'My Lease & Receipts' },
                 { section: 'SYSTEM' },
                 { href: 'account.html', icon: 'bi-gear', label: 'Account Settings' },
-                { href: 'logout.html', icon: 'bi-box-arrow-right', label: 'Log Out' }
+                { href: '#', icon: 'bi-box-arrow-right', label: 'Log Out', action: 'logoutUser()' }
             ];
 
             let html = '';
@@ -930,8 +935,9 @@
                     html += `<div class="nav-section-title">${item.section}</div>`;
                 } else {
                     const isActive = (currentPath === item.href) ? 'active' : '';
+                    const clickAttr = item.action ? `onclick="${item.action}; return false;"` : '';
                     html += `
-                        <a href="${item.href}" class="nav-item ${isActive}">
+                        <a href="${item.href}" class="nav-item ${isActive}" ${clickAttr}>
                             <i class="bi ${item.icon}"></i>
                             <span>${item.label}</span>
                         </a>
@@ -976,6 +982,11 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
+            const role = localStorage.getItem('argo_pov');
+            if (!role) {
+                window.location.replace('index.html');
+                return;
+            }
             renderSidebar();
             loadUserData();
             updateDashboardKPIs();

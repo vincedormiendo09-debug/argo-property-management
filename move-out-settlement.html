@@ -811,7 +811,7 @@
                         </tr>
                     </thead>
                     <tbody id="settlementTable">
-                        <!-- POPULATED DYNAMICALLY FROM LOCALSTORAGE / POSTGRESQL -->
+                        <!-- RENDERED DYNAMICALLY FROM LOCALSTORAGE / POSTGRESQL -->
                     </tbody>
                 </table>
             </div>
@@ -926,6 +926,16 @@
 
     <!-- ================= JAVASCRIPT ================= -->
     <script>
+        // Secure Logout Handler (Clears session and replaces history to prevent back-button access)
+        function logoutUser() {
+            localStorage.removeItem('argo_pov');
+            localStorage.removeItem('user_role');
+            localStorage.removeItem('role');
+            localStorage.removeItem('token');
+            localStorage.removeItem('argo_user');
+            window.location.replace('index.html');
+        }
+
         function renderSidebar() {
             const nav = document.getElementById('sidebarNav');
             if (nav) {
@@ -961,7 +971,7 @@
                         <i class="bi bi-pie-chart"></i>
                         <span>Fractional Ownership</span>
                     </a>
-                    <a href="leases.html" class="nav-item active">
+                    <a href="leases.html" class="nav-item">
                         <i class="bi bi-file-earmark-text"></i>
                         <span>Leases</span>
                     </a>
@@ -975,10 +985,13 @@
                         <i class="bi bi-receipt-cutoff"></i>
                         <span>Transactions & Ledger</span>
                     </a>
-
                     <a href="utilities.html" class="nav-item">
                         <i class="bi bi-lightning-charge"></i>
                         <span>Utilities</span>
+                    </a>
+                    <a href="meter-readings.html" class="nav-item">
+                        <i class="bi bi-speedometer2"></i>
+                        <span>Meter Readings</span>
                     </a>
                     <a href="maintenance.html" class="nav-item">
                         <i class="bi bi-tools"></i>
@@ -989,6 +1002,14 @@
                     <a href="inspections.html" class="nav-item">
                         <i class="bi bi-clipboard-check"></i>
                         <span>Inspections</span>
+                    </a>
+                    <a href="move-in-checklist.html" class="nav-item">
+                        <i class="bi bi-check2-square"></i>
+                        <span>Move-In Checklist</span>
+                    </a>
+                    <a href="move-out-settlement.html" class="nav-item active">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Move-Out Settlement</span>
                     </a>
                     <a href="documents.html" class="nav-item">
                         <i class="bi bi-folder2-open"></i>
@@ -1004,11 +1025,15 @@
                         <i class="bi bi-gear"></i>
                         <span>Settings</span>
                     </a>
+                    <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Log Out</span>
+                    </a>
                 `;
             }
         }
 
-        // Clean Baseline (NO HARDCODED MOCK SEED DATA)
+        // Clean Baseline (NO HARDCODED MOCK DATA)
         const DEFAULT_SETTLEMENTS = [];
 
         function getSettlements() {
@@ -1061,6 +1086,11 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
+            const role = localStorage.getItem('argo_pov');
+            if (!role) {
+                window.location.replace('index.html');
+                return;
+            }
             renderSidebar();
             loadUserData();
             populateModalDropdowns();
@@ -1090,11 +1120,11 @@
                     const depositVal = l.deposit ? parseFloat(l.deposit.replace(/[^0-9.-]+/g,"")) || (l.rent * 2) : (l.rent || 0) * 2;
                     leaseSelect.innerHTML += `
                         <option value="${l.id}" 
-                                data-deposit="${depositVal}" 
-                                data-lease="${l.id}" 
-                                data-tenant="${l.tenantName}" 
-                                data-property="${l.property}" 
-                                data-unit="${l.unit}">
+                                    data-deposit="${depositVal}" 
+                                    data-lease="${l.id}" 
+                                    data-tenant="${l.tenantName}" 
+                                    data-property="${l.property}" 
+                                    data-unit="${l.unit}">
                             ${l.id} — ${l.tenantName} (${l.unit})
                         </option>`;
                 });

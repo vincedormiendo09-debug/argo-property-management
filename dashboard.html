@@ -704,6 +704,13 @@
 
     <!-- ================= JAVASCRIPT ================= -->
     <script>
+        // Secure Logout Handler (Clears session and replaces history to prevent back-button access)
+        function logoutUser() {
+            localStorage.removeItem('argo_pov');
+            localStorage.removeItem('argo_user');
+            window.location.replace('index.html');
+        }
+
         function renderSidebar() {
             const nav = document.getElementById('sidebarNav');
             nav.innerHTML = `
@@ -756,6 +763,10 @@
                     <i class="bi bi-lightning-charge"></i>
                     <span>Utilities</span>
                 </a>
+                <a href="meter-readings.html" class="nav-item">
+                    <i class="bi bi-speedometer2"></i>
+                    <span>Meter Readings</span>
+                </a>
                 <a href="maintenance.html" class="nav-item">
                     <i class="bi bi-tools"></i>
                     <span>Maintenance</span>
@@ -765,6 +776,14 @@
                 <a href="inspections.html" class="nav-item">
                     <i class="bi bi-clipboard-check"></i>
                     <span>Inspections</span>
+                </a>
+                <a href="move-in-checklist.html" class="nav-item">
+                    <i class="bi bi-check2-square"></i>
+                    <span>Move-In Checklist</span>
+                </a>
+                <a href="move-out-settlement.html" class="nav-item">
+                    <i class="bi bi-box-arrow-right"></i>
+                    <span>Move-Out Settlement</span>
                 </a>
                 <a href="documents.html" class="nav-item">
                     <i class="bi bi-folder2-open"></i>
@@ -780,6 +799,10 @@
                     <i class="bi bi-gear"></i>
                     <span>Settings</span>
                 </a>
+                <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                    <i class="bi bi-box-arrow-right"></i>
+                    <span>Log Out</span>
+                </a>
             `;
         }
 
@@ -791,6 +814,11 @@
         function getUnits() { return JSON.parse(localStorage.getItem('argo_units') || '[]'); }
 
         document.addEventListener('DOMContentLoaded', () => {
+            const role = localStorage.getItem('argo_pov');
+            if (!role) {
+                window.location.replace('index.html');
+                return;
+            }
             renderSidebar();
             loadUserData();
             updateDashboardMetrics();

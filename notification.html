@@ -635,13 +635,6 @@
                 <i class="bi bi-building"></i>
                 <span id="headerOrgTitle">Sunrise Property Group</span>
             </div>
-
-            <!-- POV ROLE SWITCHER -->
-            <select class="pov-selector" id="povSelector" title="Switch User Role Perspective">
-                <option value="admin" selected>POV: Admin / PM</option>
-                <option value="owner">POV: Property Owner</option>
-                <option value="client">POV: Client / Tenant</option>
-            </select>
         </div>
 
         <div class="header-right">
@@ -667,10 +660,10 @@
                         <i class="bi bi-person-gear"></i>
                         <span>Account Settings</span>
                     </a>
-                    <a href="logout.html" class="dropdown-item danger">
+                    <div class="dropdown-item danger" onclick="logoutUser()">
                         <i class="bi bi-box-arrow-right"></i>
                         <span>Log Out</span>
-                    </a>
+                    </div>
                 </div>
             </div>
         </div>
@@ -684,7 +677,7 @@
             <div>
                 <div class="eyebrow">REAL-ESTATE OPERATIONAL BROADCAST</div>
                 <h1>Notification Center</h1>
-                <p id="pageSubtext">Viewing real-time alerts tailored for Property Manager Operations (Admin POV).</p>
+                <p id="pageSubtext">Viewing real-time alerts tailored for Property Manager Operations.</p>
             </div>
 
             <button class="secondary-btn" onclick="markAllAsRead()">
@@ -752,6 +745,16 @@
 
     <!-- ================= JAVASCRIPT ================= -->
     <script>
+        // Secure Logout Handler (Clears session and replaces history to prevent back-button access)
+        function logoutUser() {
+            localStorage.removeItem('argo_pov');
+            localStorage.removeItem('user_role');
+            localStorage.removeItem('role');
+            localStorage.removeItem('token');
+            localStorage.removeItem('argo_user');
+            window.location.replace('index.html');
+        }
+
         const DEFAULT_NOTIFICATIONS = [
             {
                 id: 'NOTIF-SEED-1',
@@ -873,24 +876,22 @@
         let activeCategory = 'all';
 
         document.addEventListener('DOMContentLoaded', () => {
-            syncPOVFromStorage();
+            const role = localStorage.getItem('argo_pov');
+            if (!role) {
+                window.location.replace('index.html');
+                return;
+            }
+            applyRoleLayout(role);
             renderNotifications();
         });
 
         window.addEventListener('storage', (e) => {
             if (e.key === 'argo_notifications' || e.key === 'argo_pov') {
-                syncPOVFromStorage();
+                const role = localStorage.getItem('argo_pov') || 'admin';
+                applyRoleLayout(role);
                 renderNotifications();
             }
         });
-
-        function syncPOVFromStorage() {
-            const role = localStorage.getItem('argo_pov') || 'admin';
-            const povSelector = document.getElementById('povSelector');
-            if (povSelector) povSelector.value = role;
-
-            applyRoleLayout(role);
-        }
 
         function applyRoleLayout(role) {
             const nav = document.getElementById('sidebarNav');
@@ -910,7 +911,7 @@
                     userAvatar.textContent = 'MS';
                     userAvatar.style.background = '#D97706';
                 }
-                if (pageSubtext) pageSubtext.textContent = 'Viewing tenancy notices, payment receipts, and maintenance schedules (Tenant POV).';
+                if (pageSubtext) pageSubtext.textContent = 'Viewing tenancy notices, payment receipts, and maintenance schedules.';
 
                 if (nav) {
                     nav.innerHTML = `
@@ -922,6 +923,10 @@
                         <a href="client-billing.html" class="nav-item">
                             <i class="bi bi-receipt"></i>
                             <span>Pay Rent & Dues</span>
+                        </a>
+                        <a href="transaction.html" class="nav-item">
+                            <i class="bi bi-receipt-cutoff"></i>
+                            <span>Transactions & Ledger</span>
                         </a>
                         <a href="client-utilities.html" class="nav-item">
                             <i class="bi bi-lightning-charge"></i>
@@ -945,7 +950,7 @@
                             <i class="bi bi-gear"></i>
                             <span>Account Settings</span>
                         </a>
-                        <a href="logout.html" class="nav-item">
+                        <a href="#" class="nav-item" onclick="logoutUser(); return false;">
                             <i class="bi bi-box-arrow-right"></i>
                             <span>Log Out</span>
                         </a>
@@ -960,7 +965,7 @@
                     userAvatar.textContent = 'RS';
                     userAvatar.style.background = '#059669';
                 }
-                if (pageSubtext) pageSubtext.textContent = 'Viewing executive alerts tailored for Asset Owners & Financial Yields (Owner POV).';
+                if (pageSubtext) pageSubtext.textContent = 'Viewing executive alerts tailored for Asset Owners & Financial Yields.';
 
                 if (nav) {
                     nav.innerHTML = `
@@ -985,13 +990,17 @@
                             <i class="bi bi-folder2-open"></i>
                             <span>Legal Vault</span>
                         </a>
+                        <a href="transaction.html" class="nav-item">
+                            <i class="bi bi-receipt-cutoff"></i>
+                            <span>Yield Audit Ledger</span>
+                        </a>
 
                         <div class="nav-section-title">SYSTEM</div>
                         <a href="account.html" class="nav-item">
                             <i class="bi bi-gear"></i>
                             <span>Account Settings</span>
                         </a>
-                        <a href="logout.html" class="nav-item">
+                        <a href="#" class="nav-item" onclick="logoutUser(); return false;">
                             <i class="bi bi-box-arrow-right"></i>
                             <span>Log Out</span>
                         </a>
@@ -1006,7 +1015,7 @@
                     userAvatar.textContent = 'JD';
                     userAvatar.style.background = '#2563EB';
                 }
-                if (pageSubtext) pageSubtext.textContent = 'Viewing real-time alerts tailored for Property Manager Operations (Admin POV).';
+                if (pageSubtext) pageSubtext.textContent = 'Viewing real-time alerts tailored for Property Manager Operations.';
 
                 if (nav) {
                     nav.innerHTML = `
@@ -1059,6 +1068,10 @@
                             <i class="bi bi-lightning-charge"></i>
                             <span>Utilities</span>
                         </a>
+                        <a href="meter-readings.html" class="nav-item">
+                            <i class="bi bi-speedometer2"></i>
+                            <span>Meter Readings</span>
+                        </a>
                         <a href="maintenance.html" class="nav-item">
                             <i class="bi bi-tools"></i>
                             <span>Maintenance</span>
@@ -1068,6 +1081,14 @@
                         <a href="inspections.html" class="nav-item">
                             <i class="bi bi-clipboard-check"></i>
                             <span>Inspections</span>
+                        </a>
+                        <a href="move-in-checklist.html" class="nav-item">
+                            <i class="bi bi-check2-square"></i>
+                            <span>Move-In Checklist</span>
+                        </a>
+                        <a href="move-out-settlement.html" class="nav-item">
+                            <i class="bi bi-box-arrow-right"></i>
+                            <span>Move-Out Settlement</span>
                         </a>
                         <a href="documents.html" class="nav-item">
                             <i class="bi bi-folder2-open"></i>
@@ -1083,7 +1104,7 @@
                             <i class="bi bi-gear"></i>
                             <span>Settings</span>
                         </a>
-                        <a href="logout.html" class="nav-item">
+                        <a href="#" class="nav-item" onclick="logoutUser(); return false;">
                             <i class="bi bi-box-arrow-right"></i>
                             <span>Log Out</span>
                         </a>
@@ -1094,7 +1115,7 @@
 
         function renderNotifications() {
             const notifs = getNotifications();
-            const currentPov = document.getElementById('povSelector').value;
+            const currentPov = localStorage.getItem('argo_pov') || 'admin';
             const container = document.getElementById('notifContainer');
             container.innerHTML = '';
 
@@ -1170,7 +1191,7 @@
         }
 
         function markAllAsRead() {
-            const currentPov = document.getElementById('povSelector').value;
+            const currentPov = localStorage.getItem('argo_pov') || 'admin';
             let notifs = getNotifications();
             notifs = notifs.map(n => n.pov === currentPov ? { ...n, status: 'read' } : n);
             saveNotifications(notifs);
@@ -1178,7 +1199,7 @@
         }
 
         function updateBadgesAndKPIs() {
-            const currentPov = document.getElementById('povSelector').value;
+            const currentPov = localStorage.getItem('argo_pov') || 'admin';
             const notifs = getNotifications().filter(n => n.pov === currentPov);
 
             const unreadCount = notifs.filter(n => n.status === 'unread').length;
@@ -1237,20 +1258,6 @@
 
             document.addEventListener('click', () => { userDropdown.classList.remove('show'); });
         }
-
-        // POV Role Switcher Handler
-        const povSelector = document.getElementById('povSelector');
-        povSelector.addEventListener('change', (e) => {
-            const role = e.target.value;
-            localStorage.setItem('argo_pov', role);
-
-            activeCategory = 'all';
-            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-            document.querySelector('.tab-btn').classList.add('active');
-
-            applyRoleLayout(role);
-            renderNotifications();
-        });
     </script>
 </body>
 </html>
