@@ -824,7 +824,7 @@
                         </tr>
                     </thead>
                     <tbody id="ownerTable">
-                        <!-- RENDERED DYNAMICALLY FROM LOCALSTORAGE / POSTGRESQL -->
+                        <!-- RENDERED DYNAMICALLY FROM DATABASE / LOCALSTORAGE -->
                     </tbody>
                 </table>
             </div>
@@ -949,9 +949,55 @@
         </div>
     </div>
 
+    <!-- ================= MODAL 3: VIEW PORTFOLIO DETAILS ================= -->
+    <div class="modal-overlay" id="portfolioModal">
+        <div class="modal">
+            <div class="modal-header">
+                <div>
+                    <span class="eyebrow">OWNER PORTFOLIO</span>
+                    <h2 id="portfolioOwnerName">Owner Details</h2>
+                </div>
+                <button class="close-btn" onclick="closeModal('portfolioModal')"><i class="bi bi-x-lg"></i></button>
+            </div>
+            <div class="modal-body">
+                <div id="portfolioOwnerInfo" style="margin-bottom: 16px; padding: 12px; background: #F8FAFC; border-radius: 6px; font-size: 13px;">
+                    <!-- OWNER SUMMARY -->
+                </div>
+                <label style="font-weight:600; margin-bottom:8px; display:block;">Assigned Assets & Equity Breakdown</label>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Property</th>
+                                <th>Equity Share</th>
+                                <th>Role</th>
+                            </tr>
+                        </thead>
+                        <tbody id="portfolioPropertyList">
+                            <!-- POPULATED DYNAMICALLY -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="primary-btn" onclick="closeModal('portfolioModal')">Close</button>
+            </div>
+        </div>
+    </div>
+
     <!-- ================= JAVASCRIPT ================= -->
     <script>
-        // Secure Logout Handler (Clears session and replaces history to prevent back-button access)
+        // API Live Sync Configuration (Set to your live backend endpoint, e.g., '/api')
+        const API_BASE_URL = window.API_BASE_URL || null;
+
+        function getAuthHeaders() {
+            const token = localStorage.getItem('token');
+            return {
+                'Content-Type': 'application/json',
+                ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+            };
+        }
+
         function logoutUser() {
             localStorage.removeItem('argo_pov');
             localStorage.removeItem('user_role');
@@ -963,199 +1009,231 @@
 
         function renderSidebar() {
             const nav = document.getElementById('sidebarNav');
-            if (nav) {
-                const role = localStorage.getItem('argo_pov') || 'admin';
-                if (role === 'client') {
-                    nav.innerHTML = `
-                        <div class="nav-section-title">SELF-SERVICE HOME</div>
-                        <a href="client-dashboard.html" class="nav-item">
-                            <i class="bi bi-house-door"></i>
-                            <span>My Tenancy Home</span>
-                        </a>
-                        <a href="client-billing.html" class="nav-item">
-                            <i class="bi bi-receipt"></i>
-                            <span>Pay Rent & Dues</span>
-                        </a>
-                        <a href="transaction.html" class="nav-item">
-                            <i class="bi bi-receipt-cutoff"></i>
-                            <span>Transactions & Ledger</span>
-                        </a>
-                        <a href="client-utilities.html" class="nav-item">
-                            <i class="bi bi-lightning-charge"></i>
-                            <span>My Utilities & Meters</span>
-                        </a>
-                        <a href="client-maintenance.html" class="nav-item">
-                            <i class="bi bi-tools"></i>
-                            <span>Submit Maintenance</span>
-                        </a>
-                        <a href="inspections.html" class="nav-item">
-                            <i class="bi bi-clipboard-check"></i>
-                            <span>Move-In & Inspections</span>
-                        </a>
-                        <a href="client-documents.html" class="nav-item">
-                            <i class="bi bi-folder2-open"></i>
-                            <span>My Lease & Receipts</span>
-                        </a>
+            if (!nav) return;
+            
+            const role = localStorage.getItem('argo_pov') || 'admin';
+            if (role === 'client') {
+                nav.innerHTML = `
+                    <div class="nav-section-title">SELF-SERVICE HOME</div>
+                    <a href="client-dashboard.html" class="nav-item">
+                        <i class="bi bi-house-door"></i>
+                        <span>My Tenancy Home</span>
+                    </a>
+                    <a href="client-billing.html" class="nav-item">
+                        <i class="bi bi-receipt"></i>
+                        <span>Pay Rent & Dues</span>
+                    </a>
+                    <a href="transaction.html" class="nav-item">
+                        <i class="bi bi-receipt-cutoff"></i>
+                        <span>Transactions & Ledger</span>
+                    </a>
+                    <a href="client-utilities.html" class="nav-item">
+                        <i class="bi bi-lightning-charge"></i>
+                        <span>My Utilities & Meters</span>
+                    </a>
+                    <a href="client-maintenance.html" class="nav-item">
+                        <i class="bi bi-tools"></i>
+                        <span>Submit Maintenance</span>
+                    </a>
+                    <a href="inspections.html" class="nav-item">
+                        <i class="bi bi-clipboard-check"></i>
+                        <span>Move-In & Inspections</span>
+                    </a>
+                    <a href="client-documents.html" class="nav-item">
+                        <i class="bi bi-folder2-open"></i>
+                        <span>My Lease & Receipts</span>
+                    </a>
 
-                        <div class="nav-section-title">SYSTEM</div>
-                        <a href="account.html" class="nav-item">
-                            <i class="bi bi-gear"></i>
-                            <span>Account Settings</span>
-                        </a>
-                        <a href="#" class="nav-item" onclick="logoutUser(); return false;">
-                            <i class="bi bi-box-arrow-right"></i>
-                            <span>Log Out</span>
-                        </a>
-                    `;
-                } else if (role === 'owner') {
-                    nav.innerHTML = `
-                        <div class="nav-section-title">PORTFOLIO OVERVIEW</div>
-                        <a href="owner-dashboard.html" class="nav-item">
-                            <i class="bi bi-speedometer2"></i>
-                            <span>Owner Dashboard</span>
-                        </a>
-                        <a href="owner-properties.html" class="nav-item">
-                            <i class="bi bi-buildings"></i>
-                            <span>My Properties</span>
-                        </a>
-                        <a href="owner-statements.html" class="nav-item">
-                            <i class="bi bi-file-earmark-text"></i>
-                            <span>Financial Statements</span>
-                        </a>
-                        <a href="property-ownership.html" class="nav-item">
-                            <i class="bi bi-pie-chart"></i>
-                            <span>Fractional Equity</span>
-                        </a>
-                        <a href="owner-documents.html" class="nav-item">
-                            <i class="bi bi-folder2-open"></i>
-                            <span>Legal Vault</span>
-                        </a>
-                        <a href="transaction.html" class="nav-item">
-                            <i class="bi bi-receipt-cutoff"></i>
-                            <span>Yield Audit Ledger</span>
-                        </a>
+                    <div class="nav-section-title">SYSTEM</div>
+                    <a href="account.html" class="nav-item">
+                        <i class="bi bi-gear"></i>
+                        <span>Account Settings</span>
+                    </a>
+                    <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Log Out</span>
+                    </a>
+                `;
+            } else if (role === 'owner') {
+                nav.innerHTML = `
+                    <div class="nav-section-title">PORTFOLIO OVERVIEW</div>
+                    <a href="owner-dashboard.html" class="nav-item">
+                        <i class="bi bi-speedometer2"></i>
+                        <span>Owner Dashboard</span>
+                    </a>
+                    <a href="owner-properties.html" class="nav-item">
+                        <i class="bi bi-buildings"></i>
+                        <span>My Properties</span>
+                    </a>
+                    <a href="owner-statements.html" class="nav-item">
+                        <i class="bi bi-file-earmark-text"></i>
+                        <span>Financial Statements</span>
+                    </a>
+                    <a href="property-ownership.html" class="nav-item">
+                        <i class="bi bi-pie-chart"></i>
+                        <span>Fractional Equity</span>
+                    </a>
+                    <a href="owner-documents.html" class="nav-item">
+                        <i class="bi bi-folder2-open"></i>
+                        <span>Legal Vault</span>
+                    </a>
+                    <a href="transaction.html" class="nav-item">
+                        <i class="bi bi-receipt-cutoff"></i>
+                        <span>Yield Audit Ledger</span>
+                    </a>
 
-                        <div class="nav-section-title">SYSTEM</div>
-                        <a href="account.html" class="nav-item">
-                            <i class="bi bi-gear"></i>
-                            <span>Account Settings</span>
-                        </a>
-                        <a href="#" class="nav-item" onclick="logoutUser(); return false;">
-                            <i class="bi bi-box-arrow-right"></i>
-                            <span>Log Out</span>
-                        </a>
-                    `;
-                } else {
-                    nav.innerHTML = `
-                        <div class="nav-section-title">OVERVIEW</div>
-                        <a href="dashboard.html" class="nav-item">
-                            <i class="bi bi-grid-1x2"></i>
-                            <span>Dashboard</span>
-                        </a>
+                    <div class="nav-section-title">SYSTEM</div>
+                    <a href="account.html" class="nav-item">
+                        <i class="bi bi-gear"></i>
+                        <span>Account Settings</span>
+                    </a>
+                    <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Log Out</span>
+                    </a>
+                `;
+            } else {
+                nav.innerHTML = `
+                    <div class="nav-section-title">OVERVIEW</div>
+                    <a href="dashboard.html" class="nav-item">
+                        <i class="bi bi-grid-1x2"></i>
+                        <span>Dashboard</span>
+                    </a>
 
-                        <div class="nav-section-title">PROPERTY OPERATIONS</div>
-                        <a href="properties.html" class="nav-item">
-                            <i class="bi bi-buildings"></i>
-                            <span>Properties</span>
-                        </a>
-                        <a href="buildings.html" class="nav-item">
-                            <i class="bi bi-building"></i>
-                            <span>Buildings</span>
-                        </a>
-                        <a href="units.html" class="nav-item">
-                            <i class="bi bi-door-open"></i>
-                            <span>Units</span>
-                        </a>
-                        <a href="tenants.html" class="nav-item">
-                            <i class="bi bi-people"></i>
-                            <span>Tenants</span>
-                        </a>
-                        <a href="owners.html" class="nav-item active">
-                            <i class="bi bi-person-badge"></i>
-                            <span>Owners</span>
-                        </a>
-                        <a href="property-ownership.html" class="nav-item">
-                            <i class="bi bi-pie-chart"></i>
-                            <span>Fractional Ownership</span>
-                        </a>
-                        <a href="leases.html" class="nav-item">
-                            <i class="bi bi-file-earmark-text"></i>
-                            <span>Leases</span>
-                        </a>
+                    <div class="nav-section-title">PROPERTY OPERATIONS</div>
+                    <a href="properties.html" class="nav-item">
+                        <i class="bi bi-buildings"></i>
+                        <span>Properties</span>
+                    </a>
+                    <a href="buildings.html" class="nav-item">
+                        <i class="bi bi-building"></i>
+                        <span>Buildings</span>
+                    </a>
+                    <a href="units.html" class="nav-item">
+                        <i class="bi bi-door-open"></i>
+                        <span>Units</span>
+                    </a>
+                    <a href="tenants.html" class="nav-item">
+                        <i class="bi bi-people"></i>
+                        <span>Tenants</span>
+                    </a>
+                    <a href="owners.html" class="nav-item active">
+                        <i class="bi bi-person-badge"></i>
+                        <span>Owners</span>
+                    </a>
+                    <a href="property-ownership.html" class="nav-item">
+                        <i class="bi bi-pie-chart"></i>
+                        <span>Fractional Ownership</span>
+                    </a>
+                    <a href="leases.html" class="nav-item">
+                        <i class="bi bi-file-earmark-text"></i>
+                        <span>Leases</span>
+                    </a>
 
-                        <div class="nav-section-title">FINANCE & SERVICES</div>
-                        <a href="rent-collection.html" class="nav-item">
-                            <i class="bi bi-cash-stack"></i>
-                            <span>Rent Collection</span>
-                        </a>
-                        <a href="transaction.html" class="nav-item">
-                            <i class="bi bi-receipt-cutoff"></i>
-                            <span>Transactions & Ledger</span>
-                        </a>
+                    <div class="nav-section-title">FINANCE & SERVICES</div>
+                    <a href="rent-collection.html" class="nav-item">
+                        <i class="bi bi-cash-stack"></i>
+                        <span>Rent Collection</span>
+                    </a>
+                    <a href="transaction.html" class="nav-item">
+                        <i class="bi bi-receipt-cutoff"></i>
+                        <span>Transactions & Ledger</span>
+                    </a>
 
-                        <a href="utilities.html" class="nav-item">
-                            <i class="bi bi-lightning-charge"></i>
-                            <span>Utilities</span>
-                        </a>
-                        <a href="meter-readings.html" class="nav-item">
-                            <i class="bi bi-speedometer2"></i>
-                            <span>Meter Readings</span>
-                        </a>
-                        <a href="maintenance.html" class="nav-item">
-                            <i class="bi bi-tools"></i>
-                            <span>Maintenance</span>
-                        </a>
+                    <a href="utilities.html" class="nav-item">
+                        <i class="bi bi-lightning-charge"></i>
+                        <span>Utilities</span>
+                    </a>
+                    <a href="meter-readings.html" class="nav-item">
+                        <i class="bi bi-speedometer2"></i>
+                        <span>Meter Readings</span>
+                    </a>
+                    <a href="maintenance.html" class="nav-item">
+                        <i class="bi bi-tools"></i>
+                        <span>Maintenance</span>
+                    </a>
 
-                        <div class="nav-section-title">RECORDS & REPORTS</div>
-                        <a href="inspections.html" class="nav-item">
-                            <i class="bi bi-clipboard-check"></i>
-                            <span>Inspections</span>
-                        </a>
-                        <a href="move-in-checklist.html" class="nav-item">
-                            <i class="bi bi-check2-square"></i>
-                            <span>Move-In Checklist</span>
-                        </a>
-                        <a href="move-out-settlement.html" class="nav-item">
-                            <i class="bi bi-box-arrow-right"></i>
-                            <span>Move-Out Settlement</span>
-                        </a>
-                        <a href="documents.html" class="nav-item">
-                            <i class="bi bi-folder2-open"></i>
-                            <span>Documents</span>
-                        </a>
-                        <a href="reports.html" class="nav-item">
-                            <i class="bi bi-bar-chart"></i>
-                            <span>Reports</span>
-                        </a>
+                    <div class="nav-section-title">RECORDS & REPORTS</div>
+                    <a href="inspections.html" class="nav-item">
+                        <i class="bi bi-clipboard-check"></i>
+                        <span>Inspections</span>
+                    </a>
+                    <a href="move-in-checklist.html" class="nav-item">
+                        <i class="bi bi-check2-square"></i>
+                        <span>Move-In Checklist</span>
+                    </a>
+                    <a href="move-out-settlement.html" class="nav-item">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Move-Out Settlement</span>
+                    </a>
+                    <a href="documents.html" class="nav-item">
+                        <i class="bi bi-folder2-open"></i>
+                        <span>Documents</span>
+                    </a>
+                    <a href="reports.html" class="nav-item">
+                        <i class="bi bi-bar-chart"></i>
+                        <span>Reports</span>
+                    </a>
 
-                        <div class="nav-section-title">SYSTEM</div>
-                        <a href="settings.html" class="nav-item">
-                            <i class="bi bi-gear"></i>
-                            <span>Settings</span>
-                        </a>
-                        <a href="#" class="nav-item" onclick="logoutUser(); return false;">
-                            <i class="bi bi-box-arrow-right"></i>
-                            <span>Log Out</span>
-                        </a>
-                    `;
+                    <div class="nav-section-title">SYSTEM</div>
+                    <a href="settings.html" class="nav-item">
+                        <i class="bi bi-gear"></i>
+                        <span>Settings</span>
+                    </a>
+                    <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Log Out</span>
+                    </a>
+                `;
+            }
+        }
+
+        // ================= DATA LAYER (API + LOCAL STORAGE FALLBACK) =================
+        async function getOwners() {
+            if (API_BASE_URL) {
+                try {
+                    const res = await fetch(`${API_BASE_URL}/owners`, { headers: getAuthHeaders() });
+                    if (res.ok) {
+                        const data = await res.json();
+                        localStorage.setItem('argo_owners', JSON.stringify(data));
+                        return data;
+                    }
+                } catch (e) {
+                    console.warn("Live DB fetch failed, using local cache.", e);
+                }
+            }
+            return JSON.parse(localStorage.getItem('argo_owners') || '[]');
+        }
+
+        async function saveOwners(owners) {
+            localStorage.setItem('argo_owners', JSON.stringify(owners));
+        }
+
+        async function saveOwnerToDB(owner) {
+            if (API_BASE_URL) {
+                try {
+                    await fetch(`${API_BASE_URL}/owners`, {
+                        method: 'POST',
+                        headers: getAuthHeaders(),
+                        body: JSON.stringify(owner)
+                    });
+                } catch (e) {
+                    console.warn("Could not sync owner directly to backend.", e);
                 }
             }
         }
 
-        // Clean Baseline (NO HARDCODED MOCK SEED DATA)
-        const DEFAULT_OWNERS = [];
-
-        function getOwners() {
-            const data = localStorage.getItem('argo_owners');
-            if (!data) {
-                localStorage.setItem('argo_owners', JSON.stringify(DEFAULT_OWNERS));
-                return DEFAULT_OWNERS;
+        async function deleteOwnerFromDB(id) {
+            if (API_BASE_URL) {
+                try {
+                    await fetch(`${API_BASE_URL}/owners/${id}`, {
+                        method: 'DELETE',
+                        headers: getAuthHeaders()
+                    });
+                } catch (e) {
+                    console.warn("Could not delete owner from live backend.", e);
+                }
             }
-            return JSON.parse(data);
-        }
-
-        function saveOwners(owners) {
-            localStorage.setItem('argo_owners', JSON.stringify(owners));
         }
 
         function getProperties() {
@@ -1166,7 +1244,8 @@
             return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
         }
 
-        document.addEventListener('DOMContentLoaded', () => {
+        // ================= PAGE INITIALIZATION =================
+        document.addEventListener('DOMContentLoaded', async () => {
             const role = localStorage.getItem('argo_pov');
             if (!role) {
                 window.location.replace('index.html');
@@ -1174,9 +1253,9 @@
             }
             renderSidebar();
             loadUserData();
-            populateShareModalDropdowns();
-            renderOwnerTable();
-            updateKPIs();
+            await populateShareModalDropdowns();
+            await renderOwnerTable();
+            await updateKPIs();
             updateHeaderBadge();
         });
 
@@ -1184,13 +1263,13 @@
             const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
             if (user.name) {
                 document.getElementById('userName').textContent = user.name;
-                document.getElementById('userAvatar').textContent = user.avatar || 'JD';
+                document.getElementById('userAvatar').textContent = user.avatar || (user.name.charAt(0) || 'U');
             }
         }
 
-        function populateShareModalDropdowns() {
+        async function populateShareModalDropdowns() {
             const props = getProperties();
-            const owners = getOwners();
+            const owners = await getOwners();
 
             const propSelect = document.getElementById('sharePropertySelect');
             const ownerSelect = document.getElementById('shareOwnerSelect');
@@ -1210,46 +1289,48 @@
             }
         }
 
-        function renderOwnerTable() {
-            const owners = getOwners();
+        async function renderOwnerTable() {
+            const owners = await getOwners();
             const tbody = document.getElementById('ownerTable');
             tbody.innerHTML = '';
 
             if (owners.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--muted); padding:30px;">No property owners registered. Click "New Owner" to register one.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--muted, #64748B); padding:30px;">No property owners registered. Click "New Owner" to register one.</td></tr>`;
                 document.getElementById('showingCountText').textContent = `Showing 0 owners`;
                 return;
             }
 
             owners.forEach(o => {
                 const tr = document.createElement('tr');
-                tr.dataset.type = o.type;
-                tr.dataset.status = o.status;
+                tr.dataset.type = o.type || 'INDIVIDUAL';
+                tr.dataset.status = o.status || 'ACTIVE';
 
-                let typeBadge = o.type === 'ORGANIZATION'
+                const typeBadge = o.type === 'ORGANIZATION'
                     ? `<span class="type-badge type-organization"><i class="bi bi-building" style="margin-right:4px;"></i> Organization</span>`
                     : `<span class="type-badge type-individual"><i class="bi bi-person" style="margin-right:4px;"></i> Individual</span>`;
 
-                let propertiesHtml = o.properties && o.properties.length > 0
-                    ? o.properties.map(p => `<div><strong>${p.name}</strong> (${p.share}% ${p.role})</div>`).join('')
-                    : `<span style="color:var(--muted); font-style:italic;">No property assigned</span>`;
+                const statusClass = (o.status && o.status.toUpperCase() === 'INACTIVE') ? 'status-inactive' : 'status-active';
+
+                const propertiesHtml = o.properties && o.properties.length > 0
+                    ? o.properties.map(p => `<div><strong>${p.name}</strong> (${p.share}% - ${p.role || 'Co-Owner'})</div>`).join('')
+                    : `<span style="color:var(--muted, #94A3B8); font-style:italic;">No property assigned</span>`;
 
                 tr.innerHTML = `
                     <td>
-                        <div class="owner-name">${o.name}</div>
-                        <div class="owner-sub">ID: ${o.id}</div>
+                        <div class="owner-name" style="font-weight:600;">${o.name}</div>
+                        <div class="owner-sub" style="font-size:12px; color:#64748B;">ID: ${o.id}</div>
                     </td>
                     <td>${typeBadge}</td>
                     <td>
                         <div>${o.email || 'N/A'}</div>
-                        <div class="owner-sub">${o.phone || 'N/A'}</div>
+                        <div class="owner-sub" style="font-size:12px; color:#64748B;">${o.phone || 'N/A'}</div>
                     </td>
                     <td>${propertiesHtml}</td>
-                    <td><span class="status-badge status-active">${o.status || 'Active'}</span></td>
+                    <td><span class="status-badge ${statusClass}">${o.status || 'ACTIVE'}</span></td>
                     <td>
                         <div class="actions">
-                            <button class="action-button" title="View Portfolio" onclick="alert('Viewing portfolio for ${o.name}')"><i class="bi bi-eye"></i></button>
-                            <button class="action-button delete" title="Archive" onclick="deleteOwner('${o.id}')"><i class="bi bi-trash"></i></button>
+                            <button class="action-button" title="View Portfolio" onclick="viewOwnerPortfolio('${o.id}')"><i class="bi bi-eye"></i></button>
+                            <button class="action-button delete" title="Archive / Delete" onclick="deleteOwner('${o.id}')"><i class="bi bi-trash"></i></button>
                         </div>
                     </td>
                 `;
@@ -1273,47 +1354,53 @@
             }
         }
 
-        function saveOwner() {
+        async function saveOwner() {
             const type = document.getElementById("ownerTypeSelect").value;
             let name = "";
 
             if (type === "INDIVIDUAL") {
                 const fn = document.getElementById("modalFirstName").value.trim();
                 const ln = document.getElementById("modalLastName").value.trim();
+                if (!fn && !ln) {
+                    alert("Please enter the individual owner's name.");
+                    return;
+                }
                 name = `${fn} ${ln}`.trim();
             } else {
                 name = document.getElementById("modalOrgName").value.trim();
+                if (!name) {
+                    alert("Please enter the registered organization name.");
+                    return;
+                }
             }
 
             const email = document.getElementById("modalEmail").value.trim();
             const phone = document.getElementById("modalPhone").value.trim();
             const address = document.getElementById("modalAddress").value.trim();
 
-            if (!name) {
-                alert("Please enter the owner or corporate name.");
-                return;
-            }
-
             const newOwner = {
-                id: `OWN-2026-${Math.floor(100 + Math.random() * 900)}`,
+                id: `OWN-2026-${Math.floor(1000 + Math.random() * 9000)}`,
                 name: name,
                 type: type,
                 email: email,
                 phone: phone,
                 address: address,
                 status: 'ACTIVE',
-                properties: []
+                properties: [],
+                createdAt: new Date().toISOString()
             };
 
-            let owners = getOwners();
+            let owners = await getOwners();
             owners.unshift(newOwner);
-            saveOwners(owners);
+            await saveOwners(owners);
+            await saveOwnerToDB(newOwner);
 
-            renderOwnerTable();
-            updateKPIs();
-            populateShareModalDropdowns();
+            await renderOwnerTable();
+            await updateKPIs();
+            await populateShareModalDropdowns();
             closeModal("ownerModal");
 
+            // Reset Form Fields
             document.getElementById("modalFirstName").value = '';
             document.getElementById("modalLastName").value = '';
             document.getElementById("modalOrgName").value = '';
@@ -1322,10 +1409,10 @@
             document.getElementById("modalAddress").value = '';
         }
 
-        function saveShare() {
+        async function saveShare() {
             const propName = document.getElementById("sharePropertySelect").value;
             const ownerId = document.getElementById("shareOwnerSelect").value;
-            const share = parseFloat(document.getElementById("sharePercent").value) || 100;
+            const share = parseFloat(document.getElementById("sharePercent").value);
             const role = document.getElementById("sharePrimary").value;
 
             if (!propName || !ownerId) {
@@ -1333,38 +1420,90 @@
                 return;
             }
 
-            let owners = getOwners();
+            if (isNaN(share) || share <= 0 || share > 100) {
+                alert("Please enter a valid ownership share percentage between 0.01% and 100%.");
+                return;
+            }
+
+            let owners = await getOwners();
+            let targetOwner = null;
+
             owners = owners.map(o => {
                 if (o.id === ownerId) {
                     if (!o.properties) o.properties = [];
-                    o.properties.push({ name: propName, share: share, role: role });
+                    
+                    // Replace share if already assigned, or append new one
+                    const existingIndex = o.properties.findIndex(p => p.name === propName);
+                    if (existingIndex > -1) {
+                        o.properties[existingIndex] = { name: propName, share: share, role: role };
+                    } else {
+                        o.properties.push({ name: propName, share: share, role: role });
+                    }
+                    targetOwner = o;
                 }
                 return o;
             });
-            saveOwners(owners);
 
-            renderOwnerTable();
-            updateKPIs();
+            await saveOwners(owners);
+            if (targetOwner) await saveOwnerToDB(targetOwner);
+
+            await renderOwnerTable();
+            await updateKPIs();
             closeModal("shareModal");
         }
 
-        function deleteOwner(id) {
-            if (!confirm("Are you sure you want to remove this property owner?")) return;
-            let owners = getOwners();
+        async function deleteOwner(id) {
+            if (!confirm("Are you sure you want to remove this property owner? This will decouple their mapped asset shares.")) return;
+            
+            let owners = await getOwners();
             owners = owners.filter(o => o.id !== id);
-            saveOwners(owners);
-            renderOwnerTable();
-            updateKPIs();
-            populateShareModalDropdowns();
+            await saveOwners(owners);
+            await deleteOwnerFromDB(id);
+
+            await renderOwnerTable();
+            await updateKPIs();
+            await populateShareModalDropdowns();
         }
 
-        function updateKPIs() {
-            const owners = getOwners();
-            let total = owners.length;
-            let ind = owners.filter(o => o.type === 'INDIVIDUAL').length;
-            let corp = owners.filter(o => o.type === 'ORGANIZATION').length;
+        async function viewOwnerPortfolio(ownerId) {
+            const owners = await getOwners();
+            const owner = owners.find(o => o.id === ownerId);
+            if (!owner) return;
+
+            document.getElementById('portfolioOwnerName').textContent = owner.name;
+            document.getElementById('portfolioOwnerInfo').innerHTML = `
+                <div><strong>Category:</strong> ${owner.type}</div>
+                <div><strong>Contact:</strong> ${owner.email || 'N/A'} | ${owner.phone || 'N/A'}</div>
+                <div><strong>Address:</strong> ${owner.address || 'N/A'}</div>
+            `;
+
+            const listBody = document.getElementById('portfolioPropertyList');
+            listBody.innerHTML = '';
+
+            if (owner.properties && owner.properties.length > 0) {
+                owner.properties.forEach(p => {
+                    listBody.innerHTML += `
+                        <tr>
+                            <td><strong>${p.name}</strong></td>
+                            <td>${p.share}%</td>
+                            <td>${p.role || 'Co-Owner'}</td>
+                        </tr>
+                    `;
+                });
+            } else {
+                listBody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#94A3B8; padding:15px;">No active properties assigned.</td></tr>`;
+            }
+
+            openModal('portfolioModal');
+        }
+
+        async function updateKPIs() {
+            const owners = await getOwners();
+            const total = owners.length;
+            const ind = owners.filter(o => o.type === 'INDIVIDUAL').length;
+            const corp = owners.filter(o => o.type === 'ORGANIZATION').length;
             
-            let covered = new Set();
+            const covered = new Set();
             owners.forEach(o => {
                 if (o.properties) o.properties.forEach(p => covered.add(p.name));
             });
@@ -1381,8 +1520,9 @@
             if (badge) badge.textContent = notifs.length;
         }
 
-        function openOwnerModal() { document.getElementById("ownerModal").classList.add("show"); }
-        function openShareModal() { document.getElementById("shareModal").classList.add("show"); }
+        function openModal(id) { document.getElementById(id).classList.add("show"); }
+        function openOwnerModal() { openModal("ownerModal"); }
+        function openShareModal() { openModal("shareModal"); }
         function closeModal(modalId) { document.getElementById(modalId).classList.remove("show"); }
 
         window.onclick = function(event) {
@@ -1397,11 +1537,14 @@
             const statusValue = document.getElementById("statusFilter").value;
 
             const rows = document.querySelectorAll("#ownerTable tr");
+            let visibleCount = 0;
 
             rows.forEach(row => {
+                if (row.cells.length === 1) return; // Skip "No property owners" placeholder
+                
                 const text = row.innerText.toLowerCase();
-                const rowType = row.dataset.type;
-                const rowStatus = row.dataset.status;
+                const rowType = row.dataset.type || "";
+                const rowStatus = row.dataset.status || "";
 
                 const matchesSearch = text.includes(searchValue);
                 const matchesType = typeValue === "" || rowType === typeValue;
@@ -1409,10 +1552,13 @@
 
                 if (matchesSearch && matchesType && matchesStatus) {
                     row.style.display = "";
+                    visibleCount++;
                 } else {
                     row.style.display = "none";
                 }
             });
+
+            document.getElementById('showingCountText').textContent = `Showing ${visibleCount} owners`;
         }
 
         function resetFilters() {
@@ -1422,6 +1568,7 @@
             filterTable();
         }
 
+        // Profile Dropdown Toggle
         const userProfileBtn = document.getElementById('userProfileBtn');
         const userDropdown = document.getElementById('userDropdown');
 
@@ -1431,7 +1578,9 @@
                 userDropdown.classList.toggle('show');
             });
 
-            document.addEventListener('click', () => { userDropdown.classList.remove('show'); });
+            document.addEventListener('click', () => { 
+                userDropdown.classList.remove('show'); 
+            });
         }
     </script>
 </body>

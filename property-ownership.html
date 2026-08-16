@@ -814,7 +814,7 @@
                         </tr>
                     </thead>
                     <tbody id="shareTable">
-                        <!-- RENDERED DYNAMICALLY FROM LOCALSTORAGE -->
+                        <!-- RENDERED DYNAMICALLY FROM DATABASE / LOCALSTORAGE -->
                     </tbody>
                 </table>
             </div>
@@ -839,7 +839,7 @@
 
             <div class="modal-body">
                 <div class="form-group">
-                    <label>Target Property</label>
+                    <label>Target Property <span style="color:var(--danger, #E11D48);">*</span></label>
                     <select id="modalPropertySelect">
                         <option value="">Select Property...</option>
                         <!-- DYNAMICALLY POPULATED -->
@@ -847,7 +847,7 @@
                 </div>
 
                 <div class="form-group">
-                    <label>Target Owner / Capital Partner</label>
+                    <label>Target Owner / Capital Partner <span style="color:var(--danger, #E11D48);">*</span></label>
                     <select id="modalOwnerSelect">
                         <option value="">Select Registered Owner...</option>
                         <!-- DYNAMICALLY POPULATED -->
@@ -856,7 +856,7 @@
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label>Equity Share Percentage (%)</label>
+                        <label>Equity Share Percentage (%) <span style="color:var(--danger, #E11D48);">*</span></label>
                         <input type="number" id="modalSharePercent" min="0.01" max="100" step="0.01" placeholder="e.g. 50.00">
                     </div>
 
@@ -896,7 +896,7 @@
 
     <!-- ================= JAVASCRIPT ================= -->
     <script>
-        // Secure Logout Handler (Clears session and replaces history to prevent back-button access)
+        // Secure Logout Handler
         function logoutUser() {
             localStorage.removeItem('argo_pov');
             localStorage.removeItem('user_role');
@@ -933,12 +933,16 @@
         ];
 
         function getShares() {
-            const data = localStorage.getItem('argo_shares');
-            if (!data) {
-                localStorage.setItem('argo_shares', JSON.stringify(DEFAULT_SHARES));
+            try {
+                const data = localStorage.getItem('argo_shares');
+                if (!data) {
+                    localStorage.setItem('argo_shares', JSON.stringify(DEFAULT_SHARES));
+                    return DEFAULT_SHARES;
+                }
+                return JSON.parse(data);
+            } catch (e) {
                 return DEFAULT_SHARES;
             }
-            return JSON.parse(data);
         }
 
         function saveShares(shares) {
@@ -946,15 +950,31 @@
         }
 
         function getProperties() {
-            return JSON.parse(localStorage.getItem('argo_properties') || '[]');
+            try {
+                return JSON.parse(localStorage.getItem('argo_properties') || '[]');
+            } catch (e) {
+                return [];
+            }
         }
 
         function getOwners() {
-            return JSON.parse(localStorage.getItem('argo_owners') || '[]');
+            try {
+                return JSON.parse(localStorage.getItem('argo_owners') || '[]');
+            } catch (e) {
+                return [];
+            }
         }
 
         function getNotifications() {
-            return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
+            try {
+                return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function saveNotifications(notifications) {
+            localStorage.setItem('argo_notifications', JSON.stringify(notifications));
         }
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -978,18 +998,19 @@
             updateHeaderBadge();
         });
 
-        // Cross-Tab Storage Sync
+        // Cross-Tab Real-Time Sync Listener
         window.addEventListener('storage', (e) => {
-            if (e.key === 'argo_shares' || e.key === 'argo_notifications' || e.key === 'argo_properties' || e.key === 'argo_pov' || e.key === 'user_role' || e.key === 'role') {
+            if (['argo_shares', 'argo_notifications', 'argo_properties', 'argo_owners', 'argo_pov', 'user_role', 'role', 'argo_user'].includes(e.key)) {
                 applyRoleLayout();
                 loadUserData();
+                populateModalDropdowns();
                 renderShareTable();
                 updateKPIs();
                 updateHeaderBadge();
             }
         });
 
-        // Dynamic Role Perspective Layout Adapter (Logged-In Role Based)
+        // Dynamic Role Perspective Layout Adapter
         function applyRoleLayout() {
             const rawRole = (
                 localStorage.getItem('argo_pov') || 
@@ -1024,10 +1045,8 @@
                 if (versionText) versionText.textContent = 'ARGO v0.5 (Tenant POV)';
 
                 if (headerRoleContainer) {
-                    headerRoleContainer.className = 'role-badge-box';
-                    headerRoleIcon.className = 'bi bi-house-door-fill';
-                    headerRoleIcon.style.color = '#60A5FA';
-                    headerRoleText.textContent = 'Tenant Self-Service Portal';
+                    headerRoleContainer.className = 'tenant-badge';
+                    headerRoleContainer.innerHTML = '<i class="bi bi-house-door-fill" style="color: #60A5FA;"></i><span>Tenant Self-Service Portal</span>';
                 }
 
                 if (pageEyebrow) pageEyebrow.textContent = 'SELF-SERVICE PROPERTY INFO';
@@ -1078,7 +1097,6 @@
                         </a>
                     `;
                 }
-
             } else if (role === 'owner') {
                 document.documentElement.style.setProperty('--primary', '#059669');
                 if (brandSub) brandSub.textContent = 'Owner Portal';
@@ -1086,10 +1104,8 @@
                 if (versionText) versionText.textContent = 'ARGO v0.5 (Owner POV)';
 
                 if (headerRoleContainer) {
-                    headerRoleContainer.className = 'role-badge-box';
-                    headerRoleIcon.className = 'bi bi-person-badge-fill';
-                    headerRoleIcon.style.color = '#34D399';
-                    headerRoleText.textContent = 'Property Owner Executive Portal';
+                    headerRoleContainer.className = 'owner-badge';
+                    headerRoleContainer.innerHTML = '<i class="bi bi-person-badge-fill" style="color: #34D399;"></i><span>Property Owner Executive Portal</span>';
                 }
 
                 if (pageEyebrow) pageEyebrow.textContent = 'EQUITY & CAP TABLE OVERSIGHT';
@@ -1140,7 +1156,6 @@
                         </a>
                     `;
                 }
-
             } else {
                 // Admin POV
                 document.documentElement.style.setProperty('--primary', '#2563EB');
@@ -1149,10 +1164,8 @@
                 if (versionText) versionText.textContent = 'ARGO v0.5';
 
                 if (headerRoleContainer) {
-                    headerRoleContainer.className = 'role-badge-box';
-                    headerRoleIcon.className = 'bi bi-shield-lock-fill';
-                    headerRoleIcon.style.color = '#60A5FA';
-                    headerRoleText.textContent = 'Admin Command Center';
+                    headerRoleContainer.className = 'admin-badge';
+                    headerRoleContainer.innerHTML = '<i class="bi bi-shield-lock-fill" style="color: #60A5FA;"></i><span>Admin Command Center</span>';
                 }
 
                 if (pageEyebrow) pageEyebrow.textContent = 'CAPITAL STRUCTURE & CAP TABLES';
@@ -1247,6 +1260,10 @@
                             <i class="bi bi-gear"></i>
                             <span>Settings</span>
                         </a>
+                        <a href="account.html" class="nav-item">
+                            <i class="bi bi-person-gear"></i>
+                            <span>Account Settings</span>
+                        </a>
                         <a href="#" class="nav-item" onclick="logoutUser(); return false;">
                             <i class="bi bi-box-arrow-right"></i>
                             <span>Log Out</span>
@@ -1299,12 +1316,22 @@
 
             if (propModalSelect) {
                 propModalSelect.innerHTML = '<option value="">Select Property...</option>';
-                props.forEach(p => propModalSelect.innerHTML += `<option value="${p.name} • ${p.code || 'PROP'}">${p.name} (${p.code || 'PROP'})</option>`);
+                if (props.length > 0) {
+                    props.forEach(p => propModalSelect.innerHTML += `<option value="${p.name} • ${p.code || 'PROP'}">${p.name} (${p.code || 'PROP'})</option>`);
+                } else {
+                    propModalSelect.innerHTML += `<option value="Sunrise Residences • PROP-001">Sunrise Residences (PROP-001)</option>`;
+                    propModalSelect.innerHTML += `<option value="Central Business Center • PROP-003">Central Business Center (PROP-003)</option>`;
+                }
             }
 
             if (ownerModalSelect) {
                 ownerModalSelect.innerHTML = '<option value="">Select Registered Owner...</option>';
-                owners.forEach(o => ownerModalSelect.innerHTML += `<option value="${o.name}">${o.name} (${o.type || 'Owner'})</option>`);
+                if (owners.length > 0) {
+                    owners.forEach(o => ownerModalSelect.innerHTML += `<option value="${o.name}">${o.name} (${o.type || 'Owner'})</option>`);
+                } else {
+                    ownerModalSelect.innerHTML += `<option value="Don Ramon Santos">Don Ramon Santos (Individual)</option>`;
+                    ownerModalSelect.innerHTML += `<option value="Metro Investment Holdings Inc.">Metro Investment Holdings Inc. (Organization)</option>`;
+                }
             }
         }
 
@@ -1317,12 +1344,18 @@
             ).toLowerCase().trim();
 
             let shares = getShares();
+            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+            const ownerFilterName = user.name || 'Ramon Santos';
 
             if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
-                shares = shares.filter(s => s.ownerName.includes('Ramon Santos') || s.ownerName.includes('Santos'));
+                shares = shares.filter(s => {
+                    const ownerField = (s.ownerName || s.owner_name || '').toLowerCase();
+                    return ownerField.includes(ownerFilterName.toLowerCase()) || ownerField.includes('santos');
+                });
             }
 
             const tbody = document.getElementById('shareTable');
+            if (!tbody) return;
             tbody.innerHTML = '';
 
             if (shares.length === 0) {
@@ -1333,10 +1366,19 @@
 
             shares.forEach(s => {
                 const tr = document.createElement('tr');
-                tr.dataset.property = s.propertyName;
-                tr.dataset.role = s.role;
+                const propName = s.propertyName || s.property_name || s.property || 'Property';
+                const propCode = s.propertyCode || s.property_code || 'PROP';
+                const ownerName = s.ownerName || s.owner_name || 'Owner';
+                const ownerType = s.ownerType || s.owner_type || 'Capital Partner';
+                const shareVal = parseFloat(s.sharePercent || s.share_percent || s.share || 0);
+                const roleType = s.role || (s.is_primary ? 'Primary' : 'Co-Owner');
+                const startDate = s.startDate || s.start_date || 'Immediate';
+                const deedRef = s.contractRef || s.contract_ref || 'DEED-2026-001';
 
-                let roleBadge = s.role === 'Primary' 
+                tr.dataset.property = propName;
+                tr.dataset.role = roleType;
+
+                let roleBadge = roleType === 'Primary' 
                     ? `<span class="role-badge role-primary">Primary Managing Owner</span>` 
                     : `<span class="role-badge role-coowner">Co-Owner / Fractional</span>`;
 
@@ -1350,29 +1392,31 @@
                 } else {
                     actionHtml = `
                         <div class="actions">
-                            <button class="action-button" title="View Cap Table Deed" onclick="alert('Deed Reference for ${s.propertyName}: ${s.contractRef || 'Deed #2026-001'}')"><i class="bi bi-eye"></i></button>
+                            <button class="action-button" title="View Cap Table Deed" onclick="alert('Deed Reference for ${escapeQuotes(propName)}:\\nOwner: ${escapeQuotes(ownerName)}\\nEquity Share: ${shareVal.toFixed(2)}%\\nDeed Ref: ${escapeQuotes(deedRef)}')"><i class="bi bi-eye"></i></button>
                         </div>
                     `;
                 }
 
                 tr.innerHTML = `
                     <td>
-                        <div class="prop-name">${s.propertyName}</div>
-                        <div class="prop-code">${s.propertyCode}</div>
+                        <div class="prop-name" style="font-weight:600;">${propName}</div>
+                        <div class="prop-code" style="font-size:11px; color:var(--muted);">${propCode}</div>
                     </td>
                     <td>
-                        <div class="owner-name">${s.ownerName}</div>
-                        <div class="prop-code">${s.ownerType || 'Owner Partner'}</div>
+                        <div class="owner-name" style="font-weight:600;">${ownerName}</div>
+                        <div class="prop-code" style="font-size:11px; color:var(--muted);">${ownerType}</div>
                     </td>
                     <td>
                         <div class="share-cell">
-                            <strong>${parseFloat(s.sharePercent).toFixed(2)}%</strong>
-                            <div class="share-bar-bg"><div class="share-bar-fill" style="width: ${Math.min(100, s.sharePercent)}%;"></div></div>
+                            <strong>${shareVal.toFixed(2)}%</strong>
+                            <div class="share-bar-bg" style="background:#E2E8F0; border-radius:4px; height:6px; overflow:hidden; margin-top:4px;">
+                                <div class="share-bar-fill" style="width: ${Math.min(100, shareVal)}%; background:var(--primary, #2563EB); height:100%;"></div>
+                            </div>
                         </div>
                     </td>
                     <td>${roleBadge}</td>
-                    <td>${s.startDate || 'Immediate'}</td>
-                    <td><span class="role-badge role-primary">Active</span></td>
+                    <td>${startDate}</td>
+                    <td><span class="role-badge role-primary" style="background:#ECFDF5; color:#059669; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;">Active</span></td>
                     <td>${actionHtml}</td>
                 `;
 
@@ -1383,15 +1427,24 @@
         }
 
         function saveShare() {
-            const propVal = document.getElementById('modalPropertySelect').value;
-            const ownerName = document.getElementById('modalOwnerSelect').value;
-            const percent = parseFloat(document.getElementById('modalSharePercent').value) || 0;
-            const role = document.getElementById('modalPrimaryRole').value;
-            const startDate = document.getElementById('modalStartDate').value || new Date().toISOString().split('T')[0];
-            const contractRef = document.getElementById('modalContractRef').value.trim();
+            const propSelect = document.getElementById('modalPropertySelect');
+            const ownerSelect = document.getElementById('modalOwnerSelect');
+            const shareInput = document.getElementById('modalSharePercent');
+            const roleSelect = document.getElementById('modalPrimaryRole');
+            const startInput = document.getElementById('modalStartDate');
+            const endInput = document.getElementById('modalEndDate');
+            const contractInput = document.getElementById('modalContractRef');
 
-            if (!propVal || !ownerName || percent <= 0) {
-                alert("Please select property, owner, and enter a valid share percentage.");
+            const propVal = propSelect ? propSelect.value : '';
+            const ownerName = ownerSelect ? ownerSelect.value : '';
+            const percent = parseFloat(shareInput ? shareInput.value : 0);
+            const role = roleSelect ? roleSelect.value : 'Primary';
+            const startDate = startInput && startInput.value ? startInput.value : new Date().toISOString().split('T')[0];
+            const endDate = endInput && endInput.value ? endInput.value : null;
+            const contractRef = contractInput ? contractInput.value.trim() : '';
+
+            if (!propVal || !ownerName || isNaN(percent) || percent <= 0 || percent > 100) {
+                alert("Please select a property and owner, and specify a valid equity share percentage between 0.01% and 100.00%.");
                 return;
             }
 
@@ -1399,30 +1452,71 @@
             const propName = parts[0].trim();
             const propCode = parts[1] ? parts[1].trim() : 'PROP';
 
+            let shares = getShares();
+
+            // Validate total equity share allocation for the selected property
+            const existingShareTotal = shares
+                .filter(s => (s.propertyName || s.property_name || s.property) === propName)
+                .reduce((sum, s) => sum + parseFloat(s.sharePercent || s.share_percent || s.share || 0), 0);
+
+            if (existingShareTotal + percent > 100.01) {
+                const available = Math.max(0, 100 - existingShareTotal).toFixed(2);
+                if (!confirm(`Warning: Allocating ${percent.toFixed(2)}% will cause total equity on ${propName} to reach ${(existingShareTotal + percent).toFixed(2)}% (Available unallocated: ${available}%).\n\nDo you wish to proceed?`)) {
+                    return;
+                }
+            }
+
             const newShare = {
                 id: `SHR-${Math.floor(1000 + Math.random() * 9000)}`,
                 propertyName: propName,
+                property_name: propName,
                 propertyCode: propCode,
+                property_code: propCode,
                 ownerName: ownerName,
-                ownerType: 'Registered Capital Partner',
+                owner_name: ownerName,
+                ownerType: role === 'Primary' ? 'Primary Managing Owner' : 'Fractional Capital Partner',
                 sharePercent: percent,
+                share_percent: percent,
                 role: role,
+                is_primary: role === 'Primary',
                 startDate: startDate,
-                contractRef: contractRef
+                start_date: startDate,
+                endDate: endDate,
+                end_date: endDate,
+                contractRef: contractRef || `DEED-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`,
+                contract_ref: contractRef || `DEED-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`,
+                created_at: new Date().toISOString()
             };
 
-            let shares = getShares();
             shares.unshift(newShare);
             saveShares(shares);
+
+            // Log Admin / System Notification
+            let notifications = getNotifications();
+            notifications.unshift({
+                id: `NOTIF-${Date.now()}`,
+                pov: 'owner',
+                category: 'asset',
+                status: 'unread',
+                title: 'New Property Equity Share Allocated',
+                time: 'Just now',
+                description: `Ownership share of <strong>${percent.toFixed(2)}%</strong> (${role}) allocated for <strong>${propName}</strong> under <strong>${ownerName}</strong>.`,
+                property: propName,
+                actionUrl: 'property-ownership.html',
+                actionText: 'View Cap Table'
+            });
+            saveNotifications(notifications);
 
             renderShareTable();
             updateKPIs();
             closeModal('shareModal');
 
-            document.getElementById('modalPropertySelect').value = '';
-            document.getElementById('modalOwnerSelect').value = '';
-            document.getElementById('modalSharePercent').value = '';
-            document.getElementById('modalContractRef').value = '';
+            if (propSelect) propSelect.value = '';
+            if (ownerSelect) ownerSelect.value = '';
+            if (shareInput) shareInput.value = '';
+            if (contractInput) contractInput.value = '';
+            if (startInput) startInput.value = '';
+            if (endInput) endInput.value = '';
 
             alert("Equity share allocation successfully saved!");
         }
@@ -1436,6 +1530,10 @@
             updateKPIs();
         }
 
+        function escapeQuotes(str) {
+            return (str || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        }
+
         function updateKPIs() {
             const rawRole = (
                 localStorage.getItem('argo_pov') || 
@@ -1446,20 +1544,26 @@
 
             let shares = getShares();
             const props = getProperties();
+            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+            const ownerFilterName = user.name || 'Ramon Santos';
 
             if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
-                shares = shares.filter(s => s.ownerName.includes('Ramon Santos') || s.ownerName.includes('Santos'));
+                shares = shares.filter(s => {
+                    const ownerField = (s.ownerName || s.owner_name || '').toLowerCase();
+                    return ownerField.includes(ownerFilterName.toLowerCase()) || ownerField.includes('santos');
+                });
+
                 document.getElementById('kpiLabel1').textContent = 'Owned Portfolio Assets';
                 document.getElementById('kpiLabel2').textContent = 'Primary Ownership Shares';
                 document.getElementById('kpiLabel3').textContent = 'Fractional Co-Ownerships';
                 document.getElementById('kpiLabel4').textContent = 'Average Portfolio Share';
 
-                const totalOwnedProps = new Set(shares.map(s => s.propertyName)).size;
-                const primaryShares = shares.filter(s => s.role === 'Primary').length;
-                const coOwnerShares = shares.filter(s => s.role === 'Co-Owner').length;
+                const totalOwnedProps = new Set(shares.map(s => s.propertyName || s.property_name || s.property)).size;
+                const primaryShares = shares.filter(s => s.role === 'Primary' || s.is_primary).length;
+                const coOwnerShares = shares.filter(s => s.role === 'Co-Owner' || !s.is_primary).length;
                 
                 let avgShareSum = 0;
-                shares.forEach(s => avgShareSum += parseFloat(s.sharePercent || 0));
+                shares.forEach(s => avgShareSum += parseFloat(s.sharePercent || s.share_percent || s.share || 0));
                 const avgShare = shares.length > 0 ? (avgShareSum / shares.length).toFixed(1) : "0.0";
 
                 document.getElementById('kpiProperties').textContent = totalOwnedProps;
@@ -1469,12 +1573,13 @@
                 return;
             }
 
-            // Admin KPI Calculation
+            // Admin KPI Calculations across all Cap Tables
             let propShareMap = {};
             shares.forEach(s => {
-                if (!propShareMap[s.propertyName]) propShareMap[s.propertyName] = { sum: 0, count: 0 };
-                propShareMap[s.propertyName].sum += parseFloat(s.sharePercent || 0);
-                propShareMap[s.propertyName].count += 1;
+                const pName = s.propertyName || s.property_name || s.property || 'Property';
+                if (!propShareMap[pName]) propShareMap[pName] = { sum: 0, count: 0 };
+                propShareMap[pName].sum += parseFloat(s.sharePercent || s.share_percent || s.share || 0);
+                propShareMap[pName].count += 1;
             });
 
             let totalProps = props.length || Object.keys(propShareMap).length;
@@ -1513,28 +1618,45 @@
             if (['client', 'tenant', 'client_pov'].includes(rawRole)) role = 'client';
             else if (['owner', 'property_owner', 'investor'].includes(rawRole)) role = 'owner';
 
-            const notifs = getNotifications().filter(n => n.pov === role && n.status === 'unread');
+            const notifs = getNotifications().filter(n => (n.pov === role || n.pov === 'all') && (n.status === 'unread' || n.is_read === false));
             const badge = document.getElementById('headerNotifBadge');
             if (badge) badge.textContent = notifs.length;
         }
 
-        function openShareModal() { document.getElementById("shareModal").classList.add("show"); }
-        function closeModal(modalId) { document.getElementById(modalId).classList.remove("show"); }
+        function openShareModal() { 
+            populateModalDropdowns();
+            const modal = document.getElementById("shareModal");
+            if (modal) modal.classList.add("show"); 
+        }
+
+        function closeModal(modalId) { 
+            const modal = document.getElementById(modalId);
+            if (modal) modal.classList.remove("show"); 
+        }
 
         window.onclick = function(event) {
-            if (event.target.classList.contains('modal-overlay')) {
+            if (event.target.classList && event.target.classList.contains('modal-overlay')) {
                 event.target.classList.remove("show");
             }
         };
 
         function filterTable() {
-            const searchValue = document.getElementById("searchInput").value.toLowerCase();
-            const propertyValue = document.getElementById("propertyFilter").value;
-            const roleValue = document.getElementById("roleFilter").value;
+            const searchInput = document.getElementById("searchInput");
+            const propFilter = document.getElementById("propertyFilter");
+            const roleFilter = document.getElementById("roleFilter");
+
+            const searchValue = searchInput ? searchInput.value.toLowerCase().trim() : "";
+            const propertyValue = propFilter ? propFilter.value : "";
+            const roleValue = roleFilter ? roleFilter.value : "";
 
             const rows = document.querySelectorAll("#shareTable tr");
+            let visibleCount = 0;
+            let totalRows = 0;
 
             rows.forEach(row => {
+                if (row.cells.length === 1) return;
+                totalRows++;
+
                 const text = row.innerText.toLowerCase();
                 const rowProperty = row.dataset.property || "";
                 const rowRole = row.dataset.role || "";
@@ -1545,16 +1667,26 @@
 
                 if (matchesSearch && matchesProperty && matchesRole) {
                     row.style.display = "";
+                    visibleCount++;
                 } else {
                     row.style.display = "none";
                 }
             });
+
+            const countEl = document.getElementById('showingCountText');
+            if (countEl) {
+                countEl.textContent = totalRows === 0 ? "Showing 0 share records" : `Showing ${visibleCount} of ${totalRows} share records`;
+            }
         }
 
         function resetFilters() {
-            document.getElementById("searchInput").value = "";
-            document.getElementById("propertyFilter").value = "";
-            document.getElementById("roleFilter").value = "";
+            const searchInput = document.getElementById("searchInput");
+            const propFilter = document.getElementById("propertyFilter");
+            const roleFilter = document.getElementById("roleFilter");
+
+            if (searchInput) searchInput.value = "";
+            if (propFilter) propFilter.value = "";
+            if (roleFilter) roleFilter.value = "";
             filterTable();
         }
 
@@ -1568,7 +1700,9 @@
                 userDropdown.classList.toggle('show');
             });
 
-            document.addEventListener('click', () => { userDropdown.classList.remove('show'); });
+            document.addEventListener('click', () => { 
+                userDropdown.classList.remove('show'); 
+            });
         }
     </script>
 </body>

@@ -748,7 +748,7 @@
             <div class="filter-bar">
                 <div class="search-box">
                     <i class="bi bi-search"></i>
-                    <input type="text" placeholder="Search buildings..." onkeyup="filterTable('buildingTable', this.value)">
+                    <input type="text" id="buildingSearch" placeholder="Search buildings..." onkeyup="filterTable('buildingTable', this.value)">
                 </div>
 
                 <button class="primary-button" onclick="openBuildingModal()"><i class="bi bi-plus-lg"></i> New Building</button>
@@ -769,11 +769,13 @@
                             </tr>
                         </thead>
                         <tbody id="buildingTable">
-                            <tr>
-                                <td colspan="7" style="text-align:center; color:var(--muted); padding:20px;">No buildings recorded. Click "New Building" to register one.</td>
-                            </tr>
+                            <!-- RENDERED DYNAMICALLY FROM LOCALSTORAGE / POSTGRESQL -->
                         </tbody>
                     </table>
+                </div>
+
+                <div class="table-footer">
+                    <div id="buildingCountText">Showing 0 buildings</div>
                 </div>
             </div>
         </section>
@@ -783,7 +785,7 @@
             <div class="filter-bar">
                 <div class="search-box">
                     <i class="bi bi-search"></i>
-                    <input type="text" placeholder="Search owner assignments..." onkeyup="filterTable('ownershipTable', this.value)">
+                    <input type="text" id="ownershipSearch" placeholder="Search owner assignments..." onkeyup="filterTable('ownershipTable', this.value)">
                 </div>
 
                 <button class="primary-button" onclick="openOwnershipModal()"><i class="bi bi-plus-lg"></i> Add Owner Share</button>
@@ -803,11 +805,13 @@
                             </tr>
                         </thead>
                         <tbody id="ownershipTable">
-                            <tr>
-                                <td colspan="6" style="text-align:center; color:var(--muted); padding:20px;">No ownership shares assigned. Click "Add Owner Share" to assign.</td>
-                            </tr>
+                            <!-- RENDERED DYNAMICALLY FROM LOCALSTORAGE / POSTGRESQL -->
                         </tbody>
                     </table>
+                </div>
+
+                <div class="table-footer">
+                    <div id="ownershipCountText">Showing 0 ownership shares</div>
                 </div>
             </div>
         </section>
@@ -827,7 +831,7 @@
 
             <div class="modal-body">
                 <div class="form-group">
-                    <label>Property Name</label>
+                    <label>Property Name <span style="color:var(--danger);">*</span></label>
                     <input type="text" id="modalPropName" placeholder="e.g. Sunrise Residences">
                 </div>
                 <div class="form-group">
@@ -868,22 +872,37 @@
 
             <div class="modal-body">
                 <div class="form-group">
-                    <label>Building Name</label>
-                    <input type="text" id="modalBldgName" placeholder="e.g. Building 1">
+                    <label>Building Name <span style="color:var(--danger);">*</span></label>
+                    <input type="text" id="modalBldgName" placeholder="e.g. Building A">
                 </div>
                 <div class="form-group">
-                    <label>Building Code</label>
-                    <input type="text" id="modalBldgCode" placeholder="e.g. BLDG-001">
+                    <label>Building Code (Unique)</label>
+                    <input type="text" id="modalBldgCode" placeholder="e.g. BLDG-A">
+                </div>
+                <div class="form-group">
+                    <label>Parent Property <span style="color:var(--danger);">*</span></label>
+                    <select id="modalBldgProperty">
+                        <option value="">Select Parent Property...</option>
+                        <!-- DYNAMICALLY POPULATED -->
+                    </select>
                 </div>
                 <div class="form-group">
                     <label>Number of Floors</label>
                     <input type="number" id="modalBldgFloors" min="1" value="5">
                 </div>
+                <div class="form-group">
+                    <label>Status</label>
+                    <select id="modalBldgStatus">
+                        <option value="ACTIVE">Active</option>
+                        <option value="MAINTENANCE">Maintenance</option>
+                        <option value="INACTIVE">Inactive</option>
+                    </select>
+                </div>
             </div>
 
             <div class="modal-footer">
                 <button class="secondary-button" onclick="closeModal('buildingModal')">Cancel</button>
-                <button class="primary-button" onclick="closeModal('buildingModal')"><i class="bi bi-check-lg"></i> Save Building</button>
+                <button class="primary-button" onclick="saveBuilding()"><i class="bi bi-check-lg"></i> Save Building</button>
             </div>
         </div>
     </div>
@@ -901,14 +920,40 @@
 
             <div class="modal-body">
                 <div class="form-group">
-                    <label>Ownership Percentage (%)</label>
-                    <input type="number" id="modalOwnShare" min="0.01" max="100" step="0.01" value="100.00">
+                    <label>Select Target Property <span style="color:var(--danger);">*</span></label>
+                    <select id="modalOwnProperty">
+                        <option value="">Select Property...</option>
+                        <!-- DYNAMICALLY POPULATED -->
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Select Owner <span style="color:var(--danger);">*</span></label>
+                    <select id="modalOwnOwner">
+                        <option value="">Select Owner...</option>
+                        <!-- DYNAMICALLY POPULATED -->
+                    </select>
+                </div>
+
+                <div class="form-row" style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                    <div class="form-group">
+                        <label>Ownership Percentage (%)</label>
+                        <input type="number" id="modalOwnShare" min="0.01" max="100" step="0.01" value="100.00">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Role / Type</label>
+                        <select id="modalOwnRole">
+                            <option value="Primary">Primary Managing Owner</option>
+                            <option value="Co-Owner">Co-Owner / Fractional Share</option>
+                        </select>
+                    </div>
                 </div>
             </div>
 
             <div class="modal-footer">
                 <button class="secondary-button" onclick="closeModal('ownershipModal')">Cancel</button>
-                <button class="primary-button" onclick="closeModal('ownershipModal')"><i class="bi bi-check-lg"></i> Save Ownership</button>
+                <button class="primary-button" onclick="saveOwnership()"><i class="bi bi-check-lg"></i> Save Ownership</button>
             </div>
         </div>
     </div>
@@ -928,119 +973,259 @@
         function renderSidebar() {
             const nav = document.getElementById('sidebarNav');
             if (nav) {
-                nav.innerHTML = `
-                    <div class="nav-section-title">OVERVIEW</div>
-                    <a href="dashboard.html" class="nav-item">
-                        <i class="bi bi-grid-1x2"></i>
-                        <span>Dashboard</span>
-                    </a>
+                const rawRole = (
+                    localStorage.getItem('argo_pov') || 
+                    localStorage.getItem('user_role') || 
+                    localStorage.getItem('role') || 
+                    'admin'
+                ).toLowerCase().trim();
 
-                    <div class="nav-section-title">PROPERTY OPERATIONS</div>
-                    <a href="properties.html" class="nav-item active">
-                        <i class="bi bi-buildings"></i>
-                        <span>Properties</span>
-                    </a>
-                    <a href="buildings.html" class="nav-item">
-                        <i class="bi bi-building"></i>
-                        <span>Buildings</span>
-                    </a>
-                    <a href="units.html" class="nav-item">
-                        <i class="bi bi-door-open"></i>
-                        <span>Units</span>
-                    </a>
-                    <a href="tenants.html" class="nav-item">
-                        <i class="bi bi-people"></i>
-                        <span>Tenants</span>
-                    </a>
-                    <a href="owners.html" class="nav-item">
-                        <i class="bi bi-person-badge"></i>
-                        <span>Owners</span>
-                    </a>
-                    <a href="property-ownership.html" class="nav-item">
-                        <i class="bi bi-pie-chart"></i>
-                        <span>Fractional Ownership</span>
-                    </a>
-                    <a href="leases.html" class="nav-item">
-                        <i class="bi bi-file-earmark-text"></i>
-                        <span>Leases</span>
-                    </a>
+                if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
+                    nav.innerHTML = `
+                        <div class="nav-section-title">SELF-SERVICE HOME</div>
+                        <a href="client-dashboard.html" class="nav-item">
+                            <i class="bi bi-house-door"></i>
+                            <span>My Tenancy Home</span>
+                        </a>
+                        <a href="client-billing.html" class="nav-item">
+                            <i class="bi bi-receipt"></i>
+                            <span>Pay Rent & Dues</span>
+                        </a>
+                        <a href="transaction.html" class="nav-item">
+                            <i class="bi bi-receipt-cutoff"></i>
+                            <span>Transactions & Ledger</span>
+                        </a>
+                        <a href="client-utilities.html" class="nav-item">
+                            <i class="bi bi-lightning-charge"></i>
+                            <span>My Utilities & Meters</span>
+                        </a>
+                        <a href="client-maintenance.html" class="nav-item">
+                            <i class="bi bi-tools"></i>
+                            <span>Submit Maintenance</span>
+                        </a>
+                        <a href="inspections.html" class="nav-item">
+                            <i class="bi bi-clipboard-check"></i>
+                            <span>Move-In & Inspections</span>
+                        </a>
+                        <a href="client-documents.html" class="nav-item">
+                            <i class="bi bi-folder2-open"></i>
+                            <span>My Lease & Receipts</span>
+                        </a>
 
-                    <div class="nav-section-title">FINANCE & SERVICES</div>
-                    <a href="rent-collection.html" class="nav-item">
-                        <i class="bi bi-cash-stack"></i>
-                        <span>Rent Collection</span>
-                    </a>
-                    <a href="transaction.html" class="nav-item">
-                        <i class="bi bi-receipt-cutoff"></i>
-                        <span>Transactions & Ledger</span>
-                    </a>
-                    <a href="utilities.html" class="nav-item">
-                        <i class="bi bi-lightning-charge"></i>
-                        <span>Utilities</span>
-                    </a>
-                    <a href="meter-readings.html" class="nav-item">
-                        <i class="bi bi-speedometer2"></i>
-                        <span>Meter Readings</span>
-                    </a>
-                    <a href="maintenance.html" class="nav-item">
-                        <i class="bi bi-tools"></i>
-                        <span>Maintenance</span>
-                    </a>
+                        <div class="nav-section-title">SYSTEM</div>
+                        <a href="account.html" class="nav-item">
+                            <i class="bi bi-gear"></i>
+                            <span>Account Settings</span>
+                        </a>
+                        <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                            <i class="bi bi-box-arrow-right"></i>
+                            <span>Log Out</span>
+                        </a>
+                    `;
+                } else if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
+                    nav.innerHTML = `
+                        <div class="nav-section-title">PORTFOLIO OVERVIEW</div>
+                        <a href="owner-dashboard.html" class="nav-item">
+                            <i class="bi bi-speedometer2"></i>
+                            <span>Owner Dashboard</span>
+                        </a>
+                        <a href="owner-properties.html" class="nav-item active">
+                            <i class="bi bi-buildings"></i>
+                            <span>My Properties</span>
+                        </a>
+                        <a href="owner-statements.html" class="nav-item">
+                            <i class="bi bi-file-earmark-text"></i>
+                            <span>Financial Statements</span>
+                        </a>
+                        <a href="property-ownership.html" class="nav-item">
+                            <i class="bi bi-pie-chart"></i>
+                            <span>Fractional Equity</span>
+                        </a>
+                        <a href="owner-documents.html" class="nav-item">
+                            <i class="bi bi-folder2-open"></i>
+                            <span>Legal Vault</span>
+                        </a>
+                        <a href="transaction.html" class="nav-item">
+                            <i class="bi bi-receipt-cutoff"></i>
+                            <span>Yield Audit Ledger</span>
+                        </a>
 
-                    <div class="nav-section-title">RECORDS & REPORTS</div>
-                    <a href="inspections.html" class="nav-item">
-                        <i class="bi bi-clipboard-check"></i>
-                        <span>Inspections</span>
-                    </a>
-                    <a href="move-in-checklist.html" class="nav-item">
-                        <i class="bi bi-check2-square"></i>
-                        <span>Move-In Checklist</span>
-                    </a>
-                    <a href="move-out-settlement.html" class="nav-item">
-                        <i class="bi bi-box-arrow-right"></i>
-                        <span>Move-Out Settlement</span>
-                    </a>
-                    <a href="documents.html" class="nav-item">
-                        <i class="bi bi-folder2-open"></i>
-                        <span>Documents</span>
-                    </a>
-                    <a href="reports.html" class="nav-item">
-                        <i class="bi bi-bar-chart"></i>
-                        <span>Reports</span>
-                    </a>
+                        <div class="nav-section-title">SYSTEM</div>
+                        <a href="account.html" class="nav-item">
+                            <i class="bi bi-gear"></i>
+                            <span>Account Settings</span>
+                        </a>
+                        <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                            <i class="bi bi-box-arrow-right"></i>
+                            <span>Log Out</span>
+                        </a>
+                    `;
+                } else {
+                    nav.innerHTML = `
+                        <div class="nav-section-title">OVERVIEW</div>
+                        <a href="dashboard.html" class="nav-item">
+                            <i class="bi bi-grid-1x2"></i>
+                            <span>Dashboard</span>
+                        </a>
 
-                    <div class="nav-section-title">SYSTEM</div>
-                    <a href="settings.html" class="nav-item">
-                        <i class="bi bi-gear"></i>
-                        <span>Settings</span>
-                    </a>
-                    <a href="#" class="nav-item" onclick="logoutUser(); return false;">
-                        <i class="bi bi-box-arrow-right"></i>
-                        <span>Log Out</span>
-                    </a>
-                `;
+                        <div class="nav-section-title">PROPERTY OPERATIONS</div>
+                        <a href="properties.html" class="nav-item active">
+                            <i class="bi bi-buildings"></i>
+                            <span>Properties</span>
+                        </a>
+                        <a href="buildings.html" class="nav-item">
+                            <i class="bi bi-building"></i>
+                            <span>Buildings</span>
+                        </a>
+                        <a href="units.html" class="nav-item">
+                            <i class="bi bi-door-open"></i>
+                            <span>Units</span>
+                        </a>
+                        <a href="tenants.html" class="nav-item">
+                            <i class="bi bi-people"></i>
+                            <span>Tenants</span>
+                        </a>
+                        <a href="owners.html" class="nav-item">
+                            <i class="bi bi-person-badge"></i>
+                            <span>Owners</span>
+                        </a>
+                        <a href="property-ownership.html" class="nav-item">
+                            <i class="bi bi-pie-chart"></i>
+                            <span>Fractional Ownership</span>
+                        </a>
+                        <a href="leases.html" class="nav-item">
+                            <i class="bi bi-file-earmark-text"></i>
+                            <span>Leases</span>
+                        </a>
+
+                        <div class="nav-section-title">FINANCE & SERVICES</div>
+                        <a href="rent-collection.html" class="nav-item">
+                            <i class="bi bi-cash-stack"></i>
+                            <span>Rent Collection</span>
+                        </a>
+                        <a href="transaction.html" class="nav-item">
+                            <i class="bi bi-receipt-cutoff"></i>
+                            <span>Transactions & Ledger</span>
+                        </a>
+                        <a href="utilities.html" class="nav-item">
+                            <i class="bi bi-lightning-charge"></i>
+                            <span>Utilities</span>
+                        </a>
+                        <a href="meter-readings.html" class="nav-item">
+                            <i class="bi bi-speedometer2"></i>
+                            <span>Meter Readings</span>
+                        </a>
+                        <a href="maintenance.html" class="nav-item">
+                            <i class="bi bi-tools"></i>
+                            <span>Maintenance</span>
+                        </a>
+
+                        <div class="nav-section-title">RECORDS & REPORTS</div>
+                        <a href="inspections.html" class="nav-item">
+                            <i class="bi bi-clipboard-check"></i>
+                            <span>Inspections</span>
+                        </a>
+                        <a href="move-in-checklist.html" class="nav-item">
+                            <i class="bi bi-check2-square"></i>
+                            <span>Move-In Checklist</span>
+                        </a>
+                        <a href="move-out-settlement.html" class="nav-item">
+                            <i class="bi bi-box-arrow-right"></i>
+                            <span>Move-Out Settlement</span>
+                        </a>
+                        <a href="documents.html" class="nav-item">
+                            <i class="bi bi-folder2-open"></i>
+                            <span>Documents</span>
+                        </a>
+                        <a href="reports.html" class="nav-item">
+                            <i class="bi bi-bar-chart"></i>
+                            <span>Reports</span>
+                        </a>
+
+                        <div class="nav-section-title">SYSTEM</div>
+                        <a href="settings.html" class="nav-item">
+                            <i class="bi bi-gear"></i>
+                            <span>Settings</span>
+                        </a>
+                        <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                            <i class="bi bi-box-arrow-right"></i>
+                            <span>Log Out</span>
+                        </a>
+                    `;
+                }
             }
         }
 
-        const DEFAULT_PROPERTIES = [];
-
+        // ================= STORAGE ACCESSORS =================
         function getProperties() {
-            const data = localStorage.getItem('argo_properties');
-            if (!data) {
-                localStorage.setItem('argo_properties', JSON.stringify(DEFAULT_PROPERTIES));
-                return DEFAULT_PROPERTIES;
+            try {
+                return JSON.parse(localStorage.getItem('argo_properties') || '[]');
+            } catch (e) {
+                return [];
             }
-            return JSON.parse(data);
         }
 
         function saveProperties(props) {
             localStorage.setItem('argo_properties', JSON.stringify(props));
         }
 
-        function getNotifications() {
-            return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
+        function getBuildings() {
+            try {
+                return JSON.parse(localStorage.getItem('argo_buildings') || '[]');
+            } catch (e) {
+                return [];
+            }
         }
 
+        function saveBuildings(buildings) {
+            localStorage.setItem('argo_buildings', JSON.stringify(buildings));
+        }
+
+        function getOwnership() {
+            try {
+                return JSON.parse(localStorage.getItem('argo_ownership') || '[]');
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function saveOwnership(list) {
+            localStorage.setItem('argo_ownership', JSON.stringify(list));
+        }
+
+        function getUnits() {
+            try {
+                return JSON.parse(localStorage.getItem('argo_units') || '[]');
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function getOwners() {
+            try {
+                return JSON.parse(localStorage.getItem('argo_owners') || '[]');
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function getLeases() {
+            try {
+                return JSON.parse(localStorage.getItem('argo_leases') || '[]');
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function getNotifications() {
+            try {
+                return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
+            } catch (e) {
+                return [];
+            }
+        }
+
+        // ================= INITIALIZATION =================
         document.addEventListener('DOMContentLoaded', () => {
             const role = localStorage.getItem('argo_pov');
             if (!role) {
@@ -1050,20 +1235,72 @@
             renderSidebar();
             loadUserData();
             renderPropertiesTable();
+            renderBuildingsTable();
+            renderOwnershipTable();
+            populateModalDropdowns();
             updateHeaderBadge();
+        });
+
+        // Real-Time Cross-Tab Listener
+        window.addEventListener('storage', (e) => {
+            if (['argo_properties', 'argo_buildings', 'argo_ownership', 'argo_units', 'argo_leases', 'argo_owners', 'argo_notifications', 'argo_user', 'argo_pov'].includes(e.key)) {
+                renderSidebar();
+                loadUserData();
+                renderPropertiesTable();
+                renderBuildingsTable();
+                renderOwnershipTable();
+                populateModalDropdowns();
+                updateHeaderBadge();
+            }
         });
 
         function loadUserData() {
             const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
             if (user.name) {
                 document.getElementById('userName').textContent = user.name;
-                document.getElementById('userAvatar').textContent = user.avatar || 'JD';
+                document.getElementById('userAvatar').textContent = user.avatar || (user.name.charAt(0) || 'JD');
             }
         }
 
+        function populateModalDropdowns() {
+            const props = getProperties();
+            const owners = getOwners();
+
+            // Populate Building Parent Property Dropdown
+            const bldgPropSelect = document.getElementById('modalBldgProperty');
+            if (bldgPropSelect) {
+                bldgPropSelect.innerHTML = '<option value="">Select Parent Property...</option>';
+                props.forEach(p => {
+                    bldgPropSelect.innerHTML += `<option value="${p.name}">${p.name} (${p.code || 'PROP'})</option>`;
+                });
+            }
+
+            // Populate Ownership Property Dropdown
+            const ownPropSelect = document.getElementById('modalOwnProperty');
+            if (ownPropSelect) {
+                ownPropSelect.innerHTML = '<option value="">Select Property...</option>';
+                props.forEach(p => {
+                    ownPropSelect.innerHTML += `<option value="${p.name}">${p.name} (${p.code || 'PROP'})</option>`;
+                });
+            }
+
+            // Populate Ownership Owner Dropdown
+            const ownOwnerSelect = document.getElementById('modalOwnOwner');
+            if (ownOwnerSelect) {
+                ownOwnerSelect.innerHTML = '<option value="">Select Owner...</option>';
+                owners.forEach(o => {
+                    ownOwnerSelect.innerHTML += `<option value="${o.id}">${o.name} (${o.type || 'Individual'})</option>`;
+                });
+            }
+        }
+
+        // ================= TAB 1: PROPERTIES =================
         function renderPropertiesTable() {
             const props = getProperties();
+            const units = getUnits();
+            const leases = getLeases();
             const tbody = document.getElementById('propertyTable');
+            if (!tbody) return;
             tbody.innerHTML = '';
 
             if (props.length === 0) {
@@ -1077,21 +1314,40 @@
                 tr.dataset.type = p.type;
                 tr.dataset.status = p.status;
 
-                let badgeHtml = p.status === 'Active' ? '<span class="status status-active">Active</span>' : '<span class="status status-pending">Pending</span>';
+                // Live dynamic unit mapping
+                const propUnits = units.filter(u => (u.property_name || u.property || '').toLowerCase() === (p.name || '').toLowerCase());
+                const totalUnits = propUnits.length > 0 ? propUnits.length : (p.units || p.units_count || 0);
+                
+                let occupiedCount = 0;
+                propUnits.forEach(u => {
+                    if ((u.status || '').toUpperCase() === 'OCCUPIED') occupiedCount++;
+                });
+
+                if (occupiedCount === 0 && propUnits.length === 0) {
+                    const propLeases = leases.filter(l => (l.property || '').toLowerCase() === (p.name || '').toLowerCase() && (l.status || '').toUpperCase() === 'ACTIVE');
+                    occupiedCount = propLeases.length;
+                }
+
+                const occupancy = totalUnits > 0 ? `${((occupiedCount / totalUnits) * 100).toFixed(1)}%` : (p.occupancy || '0%');
+                const badgeHtml = (p.status || 'Active') === 'Active' 
+                    ? '<span class="status status-active" style="background:#ECFDF5; color:#059669; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;">Active</span>' 
+                    : '<span class="status status-pending" style="background:#FEF3C7; color:#D97706; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;">Pending</span>';
 
                 tr.innerHTML = `
                     <td>
-                        <div class="property-name">${p.name}</div>
-                        <div class="property-code">${p.code}</div>
+                        <div class="property-name" style="font-weight:600;">${p.name}</div>
+                        <div class="property-code" style="font-size:11px; color:var(--muted);">${p.code || 'PROP-001'}</div>
                     </td>
-                    <td>${p.type}</td>
-                    <td>${p.location}</td>
-                    <td>${p.units || 0}</td>
-                    <td>${p.occupancy || '0%'}</td>
+                    <td>${p.type || 'Residential'}</td>
+                    <td>${p.location || 'N/A'}</td>
+                    <td>${totalUnits}</td>
+                    <td>${occupancy}</td>
                     <td>${badgeHtml}</td>
                     <td>
-                        <button class="action-button" title="View" onclick="alert('Viewing property: ${p.name}')"><i class="bi bi-eye"></i></button>
-                        <button class="action-button delete" title="Delete" onclick="deleteProperty('${p.id}')"><i class="bi bi-trash"></i></button>
+                        <div style="display:flex; gap:6px;">
+                            <button class="action-button" title="View Property" onclick="alert('Viewing Property: ${escapeQuotes(p.name)}\\nCode: ${p.code}\\nType: ${p.type}\\nLocation: ${p.location}\\nUnits: ${totalUnits}\\nOccupancy: ${occupancy}')"><i class="bi bi-eye"></i></button>
+                            <button class="action-button delete" title="Delete Property" onclick="deleteProperty('${p.id}')"><i class="bi bi-trash"></i></button>
+                        </div>
                     </td>
                 `;
                 tbody.appendChild(tr);
@@ -1104,7 +1360,7 @@
             const name = document.getElementById('modalPropName').value.trim();
             const code = document.getElementById('modalPropCode').value.trim() || `PROP-${Math.floor(100 + Math.random() * 900)}`;
             const type = document.getElementById('modalPropType').value;
-            const location = document.getElementById('modalPropLoc').value.trim() || 'N/A';
+            const location = document.getElementById('modalPropLoc').value.trim() || 'Metro Manila';
 
             if (!name) {
                 alert("Please enter a property name.");
@@ -1119,7 +1375,8 @@
                 location: location,
                 units: 0,
                 occupancy: '0%',
-                status: 'Active'
+                status: 'Active',
+                created_at: new Date().toISOString()
             };
 
             let props = getProperties();
@@ -1127,6 +1384,7 @@
             saveProperties(props);
 
             renderPropertiesTable();
+            populateModalDropdowns();
             closeModal('propertyModal');
 
             document.getElementById('modalPropName').value = '';
@@ -1135,16 +1393,191 @@
         }
 
         function deleteProperty(id) {
-            if (!confirm("Are you sure you want to delete this property?")) return;
+            if (!confirm("Are you sure you want to delete this property asset?")) return;
             let props = getProperties();
             props = props.filter(p => p.id !== id);
             saveProperties(props);
+
             renderPropertiesTable();
+            populateModalDropdowns();
+        }
+
+        // ================= TAB 2: BUILDINGS =================
+        function renderBuildingsTable() {
+            const buildings = getBuildings();
+            const tbody = document.getElementById('buildingTable');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            if (buildings.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--muted); padding:20px;">No buildings recorded. Click "New Building" to register one.</td></tr>`;
+                const countEl = document.getElementById('buildingCountText');
+                if (countEl) countEl.textContent = `Showing 0 buildings`;
+                return;
+            }
+
+            buildings.forEach(b => {
+                const tr = document.createElement('tr');
+                const status = (b.status || 'ACTIVE').toUpperCase();
+                const badgeColor = status === 'ACTIVE' ? 'color:#059669; background:#ECFDF5;' : 'color:#D97706; background:#FEF3C7;';
+
+                tr.innerHTML = `
+                    <td><strong>${b.name}</strong></td>
+                    <td><code>${b.code || 'BLDG'}</code></td>
+                    <td>${b.property || 'Sunrise Property'}</td>
+                    <td>${b.floors || 1}</td>
+                    <td>${b.totalUnits || (parseInt(b.floors || 1) * 4)}</td>
+                    <td><span class="status-badge" style="${badgeColor} padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;">${b.status || 'ACTIVE'}</span></td>
+                    <td>
+                        <button class="action-button delete" title="Delete Building" onclick="deleteBuilding('${b.id}')"><i class="bi bi-trash"></i></button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            const countEl = document.getElementById('buildingCountText');
+            if (countEl) countEl.textContent = `Showing 1–${buildings.length} of ${buildings.length} buildings`;
+        }
+
+        function saveBuilding() {
+            const name = document.getElementById('modalBldgName').value.trim();
+            const code = document.getElementById('modalBldgCode').value.trim() || `BLDG-${Math.floor(100 + Math.random() * 900)}`;
+            const property = document.getElementById('modalBldgProperty').value;
+            const floors = parseInt(document.getElementById('modalBldgFloors').value) || 1;
+            const status = document.getElementById('modalBldgStatus').value || 'ACTIVE';
+
+            if (!name || !property) {
+                alert("Please fill in both the Building Name and Parent Property.");
+                return;
+            }
+
+            const newBldg = {
+                id: code,
+                name: name,
+                code: code,
+                property: property,
+                floors: floors,
+                totalUnits: floors * 4,
+                occupiedUnits: 0,
+                status: status,
+                created_at: new Date().toISOString()
+            };
+
+            let buildings = getBuildings();
+            buildings.unshift(newBldg);
+            saveBuildings(buildings);
+
+            renderBuildingsTable();
+            closeModal('buildingModal');
+
+            document.getElementById('modalBldgName').value = '';
+            document.getElementById('modalBldgCode').value = '';
+            document.getElementById('modalBldgProperty').value = '';
+            document.getElementById('modalBldgFloors').value = '5';
+        }
+
+        function deleteBuilding(id) {
+            if (!confirm("Are you sure you want to remove this building?")) return;
+            let buildings = getBuildings();
+            buildings = buildings.filter(b => b.id !== id);
+            saveBuildings(buildings);
+            renderBuildingsTable();
+        }
+
+        // ================= TAB 3: OWNERSHIP SHARES =================
+        function renderOwnershipTable() {
+            const ownership = getOwnership();
+            const tbody = document.getElementById('ownershipTable');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            if (ownership.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--muted); padding:20px;">No ownership shares assigned. Click "Add Owner Share" to assign.</td></tr>`;
+                const countEl = document.getElementById('ownershipCountText');
+                if (countEl) countEl.textContent = `Showing 0 ownership shares`;
+                return;
+            }
+
+            ownership.forEach(o => {
+                const tr = document.createElement('tr');
+                const isPrimary = o.role === 'Primary' || o.isPrimary;
+
+                tr.innerHTML = `
+                    <td><strong>${o.property}</strong></td>
+                    <td>${o.ownerName}</td>
+                    <td><span class="type-badge" style="background:#F1F5F9; color:#475569; padding:2px 8px; border-radius:4px; font-size:11px;">${o.ownerType || 'Individual'}</span></td>
+                    <td><strong>${parseFloat(o.share || 100).toFixed(2)}%</strong></td>
+                    <td>${isPrimary ? '<span style="color:#059669; font-weight:600;"><i class="bi bi-check2-circle"></i> Yes</span>' : '<span style="color:var(--muted);">No</span>'}</td>
+                    <td>
+                        <button class="action-button delete" title="Delete Share" onclick="deleteOwnership('${o.id}')"><i class="bi bi-trash"></i></button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            const countEl = document.getElementById('ownershipCountText');
+            if (countEl) countEl.textContent = `Showing 1–${ownership.length} of ${ownership.length} ownership shares`;
+        }
+
+        function saveOwnership() {
+            const property = document.getElementById('modalOwnProperty').value;
+            const ownerId = document.getElementById('modalOwnOwner').value;
+            const share = parseFloat(document.getElementById('modalOwnShare').value);
+            const role = document.getElementById('modalOwnRole').value;
+
+            if (!property || !ownerId) {
+                alert("Please select both a property and an owner.");
+                return;
+            }
+
+            if (isNaN(share) || share <= 0 || share > 100) {
+                alert("Please enter a valid ownership percentage between 0.01% and 100%.");
+                return;
+            }
+
+            const owners = getOwners();
+            const matchedOwner = owners.find(o => o.id === ownerId) || { name: 'Owner', type: 'Individual' };
+
+            const newRecord = {
+                id: `OWN-SHR-${Date.now().toString().slice(-4)}`,
+                property: property,
+                ownerId: ownerId,
+                ownerName: matchedOwner.name,
+                ownerType: matchedOwner.type || 'Individual',
+                share: share,
+                role: role,
+                isPrimary: role === 'Primary',
+                created_at: new Date().toISOString()
+            };
+
+            let ownership = getOwnership();
+            ownership.unshift(newRecord);
+            saveOwnership(ownership);
+
+            renderOwnershipTable();
+            closeModal('ownershipModal');
+
+            document.getElementById('modalOwnProperty').value = '';
+            document.getElementById('modalOwnOwner').value = '';
+            document.getElementById('modalOwnShare').value = '100.00';
+        }
+
+        function deleteOwnership(id) {
+            if (!confirm("Are you sure you want to remove this ownership assignment?")) return;
+            let ownership = getOwnership();
+            ownership = ownership.filter(o => o.id !== id);
+            saveOwnership(ownership);
+            renderOwnershipTable();
+        }
+
+        function escapeQuotes(str) {
+            return (str || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
         }
 
         function updateHeaderBadge() {
             const notifs = getNotifications().filter(n => n.pov === 'admin' && n.status === 'unread');
-            document.getElementById('headerNotifBadge').textContent = notifs.length;
+            const badge = document.getElementById('headerNotifBadge');
+            if (badge) badge.textContent = notifs.length;
         }
 
         function showTab(tabName, button) {
@@ -1157,11 +1590,31 @@
             const buttons = document.querySelectorAll('.tab-button');
             buttons.forEach(btn => btn.classList.remove('active'));
             button.classList.add('active');
+
+            const headerBtn = document.getElementById('headerActionBtn');
+            if (headerBtn) {
+                if (tabName === 'properties') {
+                    headerBtn.innerHTML = `<i class="bi bi-plus-lg"></i> <span>New Property</span>`;
+                    headerBtn.setAttribute('onclick', 'openPropertyModal()');
+                } else if (tabName === 'buildings') {
+                    headerBtn.innerHTML = `<i class="bi bi-plus-lg"></i> <span>New Building</span>`;
+                    headerBtn.setAttribute('onclick', 'openBuildingModal()');
+                } else if (tabName === 'ownership') {
+                    headerBtn.innerHTML = `<i class="bi bi-plus-lg"></i> <span>Add Owner Share</span>`;
+                    headerBtn.setAttribute('onclick', 'openOwnershipModal()');
+                }
+            }
         }
 
         function openPropertyModal() { document.getElementById('propertyModal').classList.add('show'); }
-        function openBuildingModal() { document.getElementById('buildingModal').classList.add('show'); }
-        function openOwnershipModal() { document.getElementById('ownershipModal').classList.add('show'); }
+        function openBuildingModal() { 
+            populateModalDropdowns();
+            document.getElementById('buildingModal').classList.add('show'); 
+        }
+        function openOwnershipModal() { 
+            populateModalDropdowns();
+            document.getElementById('ownershipModal').classList.add('show'); 
+        }
 
         function closeModal(modalId) { document.getElementById(modalId).classList.remove('show'); }
 
@@ -1177,18 +1630,33 @@
             const statusVal = document.getElementById("propertyStatusFilter").value;
 
             const rows = document.querySelectorAll("#propertyTable tr");
+            let visibleCount = 0;
+            let totalRows = 0;
 
             rows.forEach(row => {
+                if (row.cells.length === 1) return;
+                totalRows++;
+
                 const text = row.innerText.toLowerCase();
-                const rowType = row.dataset.type;
-                const rowStatus = row.dataset.status;
+                const rowType = row.dataset.type || "";
+                const rowStatus = row.dataset.status || "";
 
                 const matchesSearch = text.includes(searchQuery);
                 const matchesType = typeVal === "" || rowType === typeVal;
                 const matchesStatus = statusVal === "" || rowStatus === statusVal;
 
-                row.style.display = (matchesSearch && matchesType && matchesStatus) ? "" : "none";
+                if (matchesSearch && matchesType && matchesStatus) {
+                    row.style.display = "";
+                    visibleCount++;
+                } else {
+                    row.style.display = "none";
+                }
             });
+
+            const countEl = document.getElementById('propertyCountText');
+            if (countEl) {
+                countEl.textContent = totalRows === 0 ? "Showing 0 properties" : `Showing ${visibleCount} of ${totalRows} properties`;
+            }
         }
 
         function filterTable(tableId, query) {
@@ -1196,6 +1664,7 @@
             const lowerQuery = query.toLowerCase();
 
             rows.forEach(row => {
+                if (row.cells.length === 1) return;
                 const text = row.innerText.toLowerCase();
                 row.style.display = text.includes(lowerQuery) ? '' : 'none';
             });
@@ -1208,15 +1677,19 @@
             filterPropertiesTable();
         }
 
+        // Profile Dropdown Handler
         const userProfileBtn = document.getElementById('userProfileBtn');
         const userDropdown = document.getElementById('userDropdown');
 
-        userProfileBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            userDropdown.classList.toggle('show');
-        });
+        if (userProfileBtn && userDropdown) {
+            userProfileBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                userDropdown.classList.toggle('show');
+            });
 
-        document.addEventListener('click', () => { userDropdown.classList.remove('show'); });
+            document.addEventListener('click', () => { 
+                userDropdown.classList.remove('show'); 
+            });
+        }
     </script>
 </body>
-</html>

@@ -873,7 +873,7 @@
 
                 <div class="form-group">
                     <label>Amount to Pay (₱)</label>
-                    <input type="number" id="modalAmountInput" value="0.00" placeholder="0.00">
+                    <input type="number" id="modalAmountInput" value="0.00" step="0.01" placeholder="0.00">
                 </div>
 
                 <div class="form-group">
@@ -883,7 +883,7 @@
 
                 <div class="form-group">
                     <label>Upload Screenshot Receipt (JPG, PNG, PDF)</label>
-                    <input type="file" id="modalFileInput">
+                    <input type="file" id="modalFileInput" accept="image/png, image/jpeg, image/jpg, application/pdf">
                 </div>
 
                 <div class="form-group">
@@ -948,7 +948,7 @@
             nav.innerHTML = html;
         }
 
-        // LocalStorage Accessors
+        // LocalStorage & Database Accessors
         function getInvoices() {
             return JSON.parse(localStorage.getItem('argo_invoices') || '[]');
         }
@@ -981,6 +981,32 @@
             localStorage.setItem('argo_notifications', JSON.stringify(notifications));
         }
 
+        // Load Authenticated User Profile Information
+        function loadUserData() {
+            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+            const ctx = getActiveTenantContext();
+            const fullName = user.name || user.fullName || ctx.name || 'Maria Santos';
+            const roleBadge = user.role || 'Unit Occupant';
+
+            const nameEl = document.getElementById('userName');
+            const roleEl = document.getElementById('userRoleBadge');
+            const avatarEl = document.getElementById('userAvatar');
+
+            if (nameEl) nameEl.textContent = fullName;
+            if (roleEl) roleEl.textContent = roleBadge;
+
+            if (avatarEl) {
+                const initials = fullName
+                    .split(' ')
+                    .filter(Boolean)
+                    .map(n => n[0])
+                    .join('')
+                    .substring(0, 2)
+                    .toUpperCase() || 'MS';
+                avatarEl.textContent = initials;
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             const role = localStorage.getItem('argo_pov');
             if (!role) {
@@ -997,7 +1023,8 @@
 
         // Cross-Tab Real-Time Sync Listener
         window.addEventListener('storage', (e) => {
-            if (e.key === 'argo_invoices' || e.key === 'argo_leases' || e.key === 'argo_maintenance_tickets' || e.key === 'argo_notifications') {
+            if (['argo_invoices', 'argo_leases', 'argo_maintenance_tickets', 'argo_notifications', 'argo_user'].includes(e.key)) {
+                loadUserData();
                 updateDashboardKPIs();
                 renderLeaseSummary();
                 renderRecentPayments();
@@ -1008,29 +1035,69 @@
         function getActiveTenantContext() {
             const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
             const leases = getLeases();
-            const activeLease = leases.find(l => l.status === 'ACTIVE' || l.status === 'Active') || leases[0] || {};
+            
+            // Match lease by user ID, tenant name, or fallback to first ACTIVE lease
+            const activeLease = leases.find(l => 
+                (l.tenantId && user.id && l.tenantId === user.id) ||
+                (l.tenantName && user.name && l.tenantName.toLowerCase() === user.name.toLowerCase()) ||
+                l.status === 'ACTIVE' || l.status === 'Active'
+            ) || leases[0] || {};
 
             return {
-                name: user.name || activeLease.tenantName || 'Maria Santos',
+                userId: user.id || null,
+                name: user.name || user.fullName || activeLease.tenantName || 'Maria Santos',
                 lease: activeLease
             };
         }
 
+        // Get tenant-specific invoices (prevents data leakage in multi-tenant environments)
+        function getTenantInvoices() {
+            const ctx = getActiveTenantContext();
+            const allInvoices = getInvoices();
+            const leaseId = ctx.lease.id || ctx.lease.leaseId;
+
+            return allInvoices.filter(inv => {
+                if (inv.tenantId && ctx.userId && inv.tenantId === ctx.userId) return true;
+                if (inv.leaseId && leaseId && inv.leaseId === leaseId) return true;
+                if (inv.tenantName && inv.tenantName.toLowerCase() === ctx.name.toLowerCase()) return true;
+                // If records are untagged in mock mode, display all
+                return !inv.tenantId && !inv.leaseId && !inv.tenantName;
+            });
+        }
+
+        // Get tenant-specific tickets
+        function getTenantTickets() {
+            const ctx = getActiveTenantContext();
+            const allTickets = getTickets();
+            const leaseId = ctx.lease.id || ctx.lease.leaseId;
+
+            return allTickets.filter(t => {
+                if (t.tenantId && ctx.userId && t.tenantId === ctx.userId) return true;
+                if (t.leaseId && leaseId && t.leaseId === leaseId) return true;
+                if (t.tenantName && t.tenantName.toLowerCase() === ctx.name.toLowerCase()) return true;
+                return !t.tenantId && !t.leaseId && !t.tenantName;
+            });
+        }
+
         function updateDashboardKPIs() {
             const ctx = getActiveTenantContext();
-            const invoices = getInvoices();
-            const tickets = getTickets();
+            const invoices = getTenantInvoices();
+            const tickets = getTenantTickets();
 
-            document.getElementById('welcomeHeaderTitle').textContent = `Welcome Home, ${ctx.name.split(' ')[0]}`;
+            const firstName = (ctx.name || 'Tenant').split(' ')[0];
+            const welcomeEl = document.getElementById('welcomeHeaderTitle');
+            if (welcomeEl) welcomeEl.textContent = `Welcome Home, ${firstName}`;
 
             // 1. Outstanding Balance Calculation
             let totalUnpaid = 0;
             let earliestDueDate = null;
 
             invoices.forEach(inv => {
-                if (inv.status === 'Unpaid' || inv.status === 'Overdue') {
+                const status = (inv.status || '').toLowerCase();
+                if (status === 'unpaid' || status === 'overdue') {
                     totalUnpaid += parseFloat(inv.amount || 0);
-                    if (!earliestDueDate && inv.dueDate) earliestDueDate = inv.dueDate;
+                    const due = inv.dueDate || inv.due_date;
+                    if (!earliestDueDate && due) earliestDueDate = due;
                 }
             });
 
@@ -1038,21 +1105,24 @@
             const kpiBalIcon = document.getElementById('kpiBalanceIcon');
             const kpiBalDesc = document.getElementById('kpiBalanceDesc');
 
-            kpiBal.textContent = `₱${totalUnpaid.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
-            if (totalUnpaid === 0) {
-                kpiBal.style.color = 'var(--success)';
-                kpiBalIcon.style.background = '#ECFDF5';
-                kpiBalIcon.style.color = 'var(--success)';
-                kpiBalDesc.textContent = 'Account is fully up to date';
-            } else {
-                kpiBal.style.color = 'var(--danger)';
-                kpiBalIcon.style.background = '#FFF1F2';
-                kpiBalIcon.style.color = 'var(--danger)';
-                kpiBalDesc.textContent = 'Pending dues require payment';
+            if (kpiBal && kpiBalIcon && kpiBalDesc) {
+                kpiBal.textContent = `₱${totalUnpaid.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                if (totalUnpaid === 0) {
+                    kpiBal.style.color = 'var(--success)';
+                    kpiBalIcon.style.background = '#ECFDF5';
+                    kpiBalIcon.style.color = 'var(--success)';
+                    kpiBalDesc.textContent = 'Account is fully up to date';
+                } else {
+                    kpiBal.style.color = 'var(--danger)';
+                    kpiBalIcon.style.background = '#FFF1F2';
+                    kpiBalIcon.style.color = 'var(--danger)';
+                    kpiBalDesc.textContent = 'Pending dues require payment';
+                }
             }
 
             // 2. Next Rent Due Date
-            document.getElementById('kpiNextDueDate').textContent = earliestDueDate || 'No Due Date';
+            const kpiNextDue = document.getElementById('kpiNextDueDate');
+            if (kpiNextDue) kpiNextDue.textContent = earliestDueDate || 'No Due Date';
 
             // 3. Active Lease Status KPI
             const activeLease = ctx.lease;
@@ -1060,30 +1130,42 @@
             const kpiLeaseLocation = document.getElementById('kpiLeaseLocation');
             const kpiLeaseIcon = document.getElementById('kpiLeaseIcon');
 
-            if (activeLease && (activeLease.status === 'ACTIVE' || activeLease.status === 'Active')) {
-                kpiLeaseStatus.textContent = `ACTIVE (${activeLease.unit || '101'})`;
-                kpiLeaseStatus.style.color = 'var(--success)';
-                kpiLeaseLocation.textContent = `${activeLease.property || 'Sunrise Property'} • ${activeLease.unit || 'Unit 101'}`;
-                kpiLeaseIcon.style.background = '#ECFDF5';
-                kpiLeaseIcon.style.color = 'var(--success)';
-            } else {
-                kpiLeaseStatus.textContent = 'NO ACTIVE LEASE';
-                kpiLeaseStatus.style.color = 'var(--muted)';
-                kpiLeaseLocation.textContent = 'Unit assignment pending';
-                kpiLeaseIcon.style.background = '#F3F4F6';
-                kpiLeaseIcon.style.color = 'var(--muted)';
+            const isLeaseActive = activeLease && (String(activeLease.status).toUpperCase() === 'ACTIVE');
+
+            if (kpiLeaseStatus && kpiLeaseLocation && kpiLeaseIcon) {
+                if (isLeaseActive) {
+                    const unit = activeLease.unit || activeLease.unit_number || '101';
+                    const prop = activeLease.property || activeLease.property_name || 'Sunrise Property';
+                    kpiLeaseStatus.textContent = `ACTIVE (${unit})`;
+                    kpiLeaseStatus.style.color = 'var(--success)';
+                    kpiLeaseLocation.textContent = `${prop} • ${unit.startsWith('Unit') ? unit : `Unit ${unit}`}`;
+                    kpiLeaseIcon.style.background = '#ECFDF5';
+                    kpiLeaseIcon.style.color = 'var(--success)';
+                } else {
+                    kpiLeaseStatus.textContent = 'NO ACTIVE LEASE';
+                    kpiLeaseStatus.style.color = 'var(--muted)';
+                    kpiLeaseLocation.textContent = 'Unit assignment pending';
+                    kpiLeaseIcon.style.background = '#F3F4F6';
+                    kpiLeaseIcon.style.color = 'var(--muted)';
+                }
             }
 
             // 4. Active Maintenance Requests Count
-            const activeTickets = tickets.filter(t => t.status === 'Open' || t.status === 'In Progress' || t.status === 'Assigned');
+            const activeTickets = tickets.filter(t => {
+                const s = (t.status || '').toLowerCase();
+                return s === 'open' || s === 'in progress' || s === 'assigned' || s === 'pending';
+            });
+            
             const kpiMaint = document.getElementById('kpiActiveMaintenance');
             const kpiMaintDesc = document.getElementById('kpiMaintenanceDesc');
 
-            kpiMaint.textContent = `${activeTickets.length} Active`;
-            if (activeTickets.length > 0) {
-                kpiMaintDesc.textContent = `${activeTickets[0].title} (${activeTickets[0].status})`;
-            } else {
-                kpiMaintDesc.textContent = 'No active maintenance tickets';
+            if (kpiMaint && kpiMaintDesc) {
+                kpiMaint.textContent = `${activeTickets.length} Active`;
+                if (activeTickets.length > 0) {
+                    kpiMaintDesc.textContent = `${activeTickets[0].title || 'Ticket'} (${activeTickets[0].status})`;
+                } else {
+                    kpiMaintDesc.textContent = 'No active maintenance tickets';
+                }
             }
         }
 
@@ -1098,28 +1180,43 @@
             const dispMonthlyRent = document.getElementById('dispMonthlyRent');
             const dispDeposit = document.getElementById('dispDeposit');
 
-            if (l && (l.status === 'ACTIVE' || l.status === 'Active')) {
-                badgeTag.className = 'status-badge status-active';
-                badgeTag.textContent = 'Verified Occupant';
-                dispLeaseId.textContent = l.id || l.leaseId || 'LSE-0001';
-                dispUnitLocation.textContent = `${l.property || 'Sunrise Property'} • ${l.unit || 'Unit 101'}`;
-                dispLeaseTerm.textContent = `${l.start_date || l.startDate || 'Jan 01, 2026'} – ${l.end_date || l.endDate || 'Dec 31, 2026'}`;
-                dispMonthlyRent.textContent = `₱${parseFloat(l.rent || l.monthlyRent || 0).toLocaleString('en-US', {minimumFractionDigits: 2})} / month`;
-                dispDeposit.textContent = `₱${parseFloat(l.deposit || 0).toLocaleString('en-US', {minimumFractionDigits: 2})} (Cleared)`;
+            const isLeaseActive = l && (String(l.status).toUpperCase() === 'ACTIVE');
+
+            if (isLeaseActive) {
+                const unit = l.unit || l.unit_number || 'Unit 101';
+                const prop = l.property || l.property_name || 'Sunrise Property';
+                const start = l.start_date || l.startDate || 'Jan 01, 2026';
+                const end = l.end_date || l.endDate || 'Dec 31, 2026';
+                const rent = parseFloat(l.rent || l.monthlyRent || l.monthly_rent || 0);
+                const deposit = parseFloat(l.deposit || l.security_deposit || 0);
+
+                if (badgeTag) {
+                    badgeTag.className = 'status-badge status-active';
+                    badgeTag.textContent = 'Verified Occupant';
+                }
+                if (dispLeaseId) dispLeaseId.textContent = l.id || l.leaseId || l.lease_id || 'LSE-0001';
+                if (dispUnitLocation) dispUnitLocation.textContent = `${prop} • ${unit.startsWith('Unit') ? unit : `Unit ${unit}`}`;
+                if (dispLeaseTerm) dispLeaseTerm.textContent = `${start} – ${end}`;
+                if (dispMonthlyRent) dispMonthlyRent.textContent = `₱${rent.toLocaleString('en-US', {minimumFractionDigits: 2})} / month`;
+                if (dispDeposit) dispDeposit.textContent = `₱${deposit.toLocaleString('en-US', {minimumFractionDigits: 2})} (Cleared)`;
             } else {
-                badgeTag.className = 'status-badge status-inactive';
-                badgeTag.textContent = 'No Active Lease';
-                dispLeaseId.textContent = 'None';
-                dispUnitLocation.textContent = 'Unassigned';
-                dispLeaseTerm.textContent = 'N/A';
-                dispMonthlyRent.textContent = '₱0.00 / month';
-                dispDeposit.textContent = '₱0.00';
+                if (badgeTag) {
+                    badgeTag.className = 'status-badge status-inactive';
+                    badgeTag.textContent = 'No Active Lease';
+                }
+                if (dispLeaseId) dispLeaseId.textContent = 'None';
+                if (dispUnitLocation) dispUnitLocation.textContent = 'Unassigned';
+                if (dispLeaseTerm) dispLeaseTerm.textContent = 'N/A';
+                if (dispMonthlyRent) dispMonthlyRent.textContent = '₱0.00 / month';
+                if (dispDeposit) dispDeposit.textContent = '₱0.00';
             }
         }
 
         function renderRecentPayments() {
-            const invoices = getInvoices().slice(0, 3);
+            const invoices = getTenantInvoices().slice(0, 3);
             const container = document.getElementById('recentPaymentsContainer');
+            if (!container) return;
+            
             container.innerHTML = '';
 
             if (invoices.length === 0) {
@@ -1131,19 +1228,24 @@
                 const row = document.createElement('div');
                 row.className = 'info-row';
 
+                const status = (inv.status || 'Unpaid').toLowerCase();
                 let statusColor = 'var(--muted)';
-                if (inv.status === 'Paid') statusColor = 'var(--success)';
-                else if (inv.status === 'Pending Verification' || inv.status === 'Pending') statusColor = 'var(--warning)';
+                if (status === 'paid') statusColor = 'var(--success)';
+                else if (status.includes('pending')) statusColor = 'var(--warning)';
                 else statusColor = 'var(--danger)';
+
+                const refLabel = inv.refNo || inv.ref_no 
+                    ? `${inv.channel || 'Payment'} (${inv.refNo || inv.ref_no})` 
+                    : (inv.sub || inv.description || 'Invoice');
 
                 row.innerHTML = `
                     <div>
-                        <strong>${inv.type}</strong>
-                        <div style="font-size:11px; color:var(--muted);">${inv.refNo ? `${inv.channel || 'Payment'} (${inv.refNo})` : (inv.sub || 'Invoice')}</div>
+                        <strong>${inv.type || 'Billing'}</strong>
+                        <div style="font-size:11px; color:var(--muted);">${refLabel}</div>
                     </div>
                     <div style="text-align:right;">
                         <strong style="color:${statusColor};">₱${parseFloat(inv.amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}</strong>
-                        <div style="font-size:11px; color:${statusColor}; font-weight:600;">${inv.status}</div>
+                        <div style="font-size:11px; color:${statusColor}; font-weight:600;">${inv.status || 'Pending'}</div>
                     </div>
                 `;
                 container.appendChild(row);
@@ -1152,60 +1254,80 @@
 
         // Isolated Client POV Header Notification Count
         function updateHeaderBadge() {
-            const notifs = getNotifications().filter(n => (n.pov === 'client' || n.pov === 'tenant') && n.status === 'unread');
+            const notifs = getNotifications().filter(n => 
+                (n.pov === 'client' || n.pov === 'tenant') && 
+                (n.status === 'unread' || n.is_read === false)
+            );
             const badge = document.getElementById('clientHeaderNotifBadge');
             if (badge) badge.textContent = notifs.length;
         }
 
         function updateQrDisplay() {
-            const channel = document.getElementById('modalChannelSelect').value;
+            const channelSelect = document.getElementById('modalChannelSelect');
+            if (!channelSelect) return;
+
+            const channel = channelSelect.value;
             const titleLabel = document.getElementById('qrTitleLabel');
             const qrImage = document.getElementById('qrImagePreview');
             const accountName = document.getElementById('qrAccountName');
             const accountDetails = document.getElementById('qrAccountDetails');
 
             if (channel === 'GCash') {
-                titleLabel.textContent = 'Official GCash Payment QR Code';
-                qrImage.src = 'gcash.jpg';
-                accountName.textContent = 'Account: ARGO Property Management';
-                accountDetails.textContent = 'GCash Number: 0917-555-0192';
+                if (titleLabel) titleLabel.textContent = 'Official GCash Payment QR Code';
+                if (qrImage) qrImage.src = 'gcash.jpg';
+                if (accountName) accountName.textContent = 'Account: ARGO Property Management';
+                if (accountDetails) accountDetails.textContent = 'GCash Number: 0917-555-0192';
             } else if (channel === 'MariBank') {
-                titleLabel.textContent = 'Official MariBank Payment QR Code';
-                qrImage.src = 'bank.jpg';
-                accountName.textContent = 'Account: ARGO Property Management Corp.';
-                accountDetails.textContent = 'MariBank Account #: 1029-8849-1002';
+                if (titleLabel) titleLabel.textContent = 'Official MariBank Payment QR Code';
+                if (qrImage) qrImage.src = 'bank.jpg';
+                if (accountName) accountName.textContent = 'Account: ARGO Property Management Corp.';
+                if (accountDetails) accountDetails.textContent = 'MariBank Account #: 1029-8849-1002';
             }
         }
 
         function openPayModal() {
             const ctx = getActiveTenantContext();
-            document.getElementById('modalTenantTag').textContent = `${ctx.name} — ${ctx.lease.property || 'Sunrise Property'} (${ctx.lease.unit || 'Unit 101'})`;
+            const prop = ctx.lease.property || ctx.lease.property_name || 'Sunrise Property';
+            const unit = ctx.lease.unit || ctx.lease.unit_number || 'Unit 101';
+            
+            const modalTag = document.getElementById('modalTenantTag');
+            if (modalTag) modalTag.textContent = `${ctx.name} — ${prop} (${unit.startsWith('Unit') ? unit : `Unit ${unit}`})`;
+            
             populateModalInvoices();
             updateQrDisplay();
-            document.getElementById("payModal").classList.add("show");
+            
+            const modal = document.getElementById("payModal");
+            if (modal) modal.classList.add("show");
         }
 
         function closePayModal() { 
-            document.getElementById("payModal").classList.remove("show"); 
+            const modal = document.getElementById("payModal");
+            if (modal) modal.classList.remove("show"); 
         }
 
         function populateModalInvoices() {
-            const invoices = getInvoices();
+            const invoices = getTenantInvoices();
             const select = document.getElementById('modalInvoiceSelect');
+            if (!select) return;
+            
             select.innerHTML = '';
 
-            const payableInvoices = invoices.filter(inv => inv.status === 'Unpaid' || inv.status === 'Overdue');
+            const payableInvoices = invoices.filter(inv => {
+                const s = (inv.status || '').toLowerCase();
+                return s === 'unpaid' || s === 'overdue';
+            });
 
             if (payableInvoices.length === 0) {
                 select.innerHTML = `<option value="">No unpaid invoices due!</option>`;
-                document.getElementById('modalAmountInput').value = '0.00';
+                const amountInput = document.getElementById('modalAmountInput');
+                if (amountInput) amountInput.value = '0.00';
                 return;
             }
 
             payableInvoices.forEach(inv => {
                 const opt = document.createElement('option');
-                opt.value = inv.id;
-                opt.textContent = `${inv.id} — ${inv.type} (₱${parseFloat(inv.amount || 0).toLocaleString('en-US')})`;
+                opt.value = inv.id || inv.invoice_id;
+                opt.textContent = `${inv.id || inv.invoice_id} — ${inv.type || 'Invoice'} (₱${parseFloat(inv.amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2})})`;
                 select.appendChild(opt);
             });
 
@@ -1214,24 +1336,42 @@
 
         function autoFillInvoiceAmount() {
             const select = document.getElementById('modalInvoiceSelect');
+            if (!select) return;
+
             const invId = select.value;
             if (!invId) return;
 
-            const invoices = getInvoices();
-            const selected = invoices.find(i => i.id === invId);
-            if (selected) {
-                document.getElementById('modalAmountInput').value = selected.amount;
+            const invoices = getTenantInvoices();
+            const selected = invoices.find(i => (i.id || i.invoice_id) === invId);
+            const amountInput = document.getElementById('modalAmountInput');
+
+            if (selected && amountInput) {
+                amountInput.value = parseFloat(selected.amount || 0).toFixed(2);
             }
         }
 
         function submitPayment() {
-            const invoiceId = document.getElementById('modalInvoiceSelect').value;
-            const channel = document.getElementById('modalChannelSelect').value;
-            const amount = parseFloat(document.getElementById('modalAmountInput').value) || 0;
-            let refNo = document.getElementById('modalRefInput').value.trim();
+            const invoiceSelect = document.getElementById('modalInvoiceSelect');
+            const channelSelect = document.getElementById('modalChannelSelect');
+            const amountInput = document.getElementById('modalAmountInput');
+            const refInput = document.getElementById('modalRefInput');
+            const fileInput = document.getElementById('modalFileInput');
+            const notesInput = document.getElementById('modalNotesInput');
+
+            const invoiceId = invoiceSelect ? invoiceSelect.value : '';
+            const channel = channelSelect ? channelSelect.value : 'GCash';
+            const amount = parseFloat(amountInput ? amountInput.value : 0) || 0;
+            let refNo = refInput ? refInput.value.trim() : '';
+            const receiptFile = fileInput && fileInput.files ? fileInput.files[0] : null;
+            const remarks = notesInput ? notesInput.value.trim() : '';
 
             if (!invoiceId) {
                 alert("No active unpaid invoice selected.");
+                return;
+            }
+
+            if (amount <= 0) {
+                alert("Please enter a valid payment amount greater than zero.");
                 return;
             }
 
@@ -1243,12 +1383,22 @@
             if (!refNo.startsWith('#')) refNo = '#' + refNo;
 
             const ctx = getActiveTenantContext();
+            const prop = ctx.lease.property || ctx.lease.property_name || 'Sunrise Property';
+            const unit = ctx.lease.unit || ctx.lease.unit_number || 'Unit 101';
+            const locationStr = `${prop} • ${unit.startsWith('Unit') ? unit : `Unit ${unit}`}`;
 
             // 1. Update Invoice Status
             let invoices = getInvoices();
             invoices = invoices.map(inv => {
-                if (inv.id === invoiceId) {
-                    return { ...inv, status: 'Pending Verification', channel: channel, refNo: refNo };
+                if ((inv.id || inv.invoice_id) === invoiceId) {
+                    return { 
+                        ...inv, 
+                        status: 'Pending Verification', 
+                        channel: channel, 
+                        refNo: refNo,
+                        receiptFileName: receiptFile ? receiptFile.name : null,
+                        notes: remarks
+                    };
                 }
                 return inv;
             });
@@ -1258,14 +1408,18 @@
             const transactions = getTransactions();
             transactions.unshift({
                 refCode: refNo,
-                txnId: `TXN-2026-08-${Math.floor(100 + Math.random() * 900)}`,
+                txnId: `TXN-${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${Math.floor(100 + Math.random() * 900)}`,
                 payer: ctx.name,
-                property_location: `${ctx.lease.property || 'Sunrise Property'} • ${ctx.lease.unit || 'Unit 101'}`,
-                category: invoiceId.startsWith('UTL') ? 'Utility Charges' : 'Monthly Base Rent',
+                tenantId: ctx.userId,
+                leaseId: ctx.lease.id || ctx.lease.leaseId,
+                property_location: locationStr,
+                category: String(invoiceId).startsWith('UTL') ? 'Utility Charges' : 'Monthly Base Rent',
                 direction: 'INFLOW',
                 grossAmount: `₱${amount.toLocaleString('en-US', {minimumFractionDigits: 2})}`,
+                amount: amount,
                 channel: channel,
                 status: 'Pending Audit',
+                receiptAttachment: receiptFile ? receiptFile.name : null,
                 timestamp: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
             });
             saveTransactions(transactions);
@@ -1279,8 +1433,8 @@
                 status: 'unread',
                 title: `${channel} Payment Proof Submitted`,
                 time: 'Just now',
-                description: `Payment proof uploaded by <strong>${ctx.name}</strong> (${ctx.lease.property || 'Sunrise Property'} • ${ctx.lease.unit || 'Unit 101'}) for Invoice <strong>${invoiceId}</strong>. Ref Code: <code>${refNo}</code>.`,
-                property: `${ctx.lease.property || 'Sunrise Property'} • ${ctx.lease.unit || 'Unit 101'}`,
+                description: `Payment proof uploaded by <strong>${ctx.name}</strong> (${locationStr}) for Invoice <strong>${invoiceId}</strong>. Ref Code: <code>${refNo}</code>.`,
+                property: locationStr,
                 amount: `₱${amount.toLocaleString('en-US', {minimumFractionDigits: 2})}`,
                 actionUrl: 'rent-collection.html',
                 actionText: 'Verify Payment'
@@ -1291,19 +1445,23 @@
             renderRecentPayments();
             closePayModal();
 
-            document.getElementById('modalRefInput').value = '';
-            document.getElementById('modalNotesInput').value = '';
+            if (refInput) refInput.value = '';
+            if (notesInput) notesInput.value = '';
+            if (fileInput) fileInput.value = '';
 
             alert(`Payment proof (${refNo}) submitted successfully!\n\nProperty Manager notified for verification.`);
         }
 
         function downloadContractPdf() {
             const ctx = getActiveTenantContext();
-            if (!ctx.lease.id && !ctx.lease.leaseId) {
+            const leaseId = ctx.lease.id || ctx.lease.leaseId || ctx.lease.lease_id;
+            if (!leaseId) {
                 alert("No active lease contract found for download.");
                 return;
             }
-            alert(`Downloading official lease agreement PDF for ${ctx.lease.id || ctx.lease.leaseId}...`);
+            alert(`Downloading official lease agreement PDF for ${leaseId}...`);
+            // Connect to live PDF endpoint if applicable:
+            // window.open(`/api/leases/${leaseId}/contract.pdf`, '_blank');
         }
 
         window.onclick = function(event) {

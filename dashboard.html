@@ -707,103 +707,207 @@
         // Secure Logout Handler (Clears session and replaces history to prevent back-button access)
         function logoutUser() {
             localStorage.removeItem('argo_pov');
+            localStorage.removeItem('user_role');
+            localStorage.removeItem('role');
+            localStorage.removeItem('token');
             localStorage.removeItem('argo_user');
             window.location.replace('index.html');
         }
 
+        // Dynamic Role-Based Sidebar Renderer
         function renderSidebar() {
             const nav = document.getElementById('sidebarNav');
-            nav.innerHTML = `
-                <div class="nav-section-title">OVERVIEW</div>
-                <a href="dashboard.html" class="nav-item active">
-                    <i class="bi bi-grid-1x2"></i>
-                    <span>Dashboard</span>
-                </a>
+            if (!nav) return;
 
-                <div class="nav-section-title">PROPERTY OPERATIONS</div>
-                <a href="properties.html" class="nav-item">
-                    <i class="bi bi-buildings"></i>
-                    <span>Properties</span>
-                </a>
-                <a href="buildings.html" class="nav-item">
-                    <i class="bi bi-building"></i>
-                    <span>Buildings</span>
-                </a>
-                <a href="units.html" class="nav-item">
-                    <i class="bi bi-door-open"></i>
-                    <span>Units</span>
-                </a>
-                <a href="tenants.html" class="nav-item">
-                    <i class="bi bi-people"></i>
-                    <span>Tenants</span>
-                </a>
-                <a href="owners.html" class="nav-item">
-                    <i class="bi bi-person-badge"></i>
-                    <span>Owners</span>
-                </a>
-                <a href="property-ownership.html" class="nav-item">
-                    <i class="bi bi-pie-chart"></i>
-                    <span>Fractional Ownership</span>
-                </a>
-                <a href="leases.html" class="nav-item">
-                    <i class="bi bi-file-earmark-text"></i>
-                    <span>Leases</span>
-                </a>
+            const rawRole = (
+                localStorage.getItem('argo_pov') || 
+                localStorage.getItem('user_role') || 
+                localStorage.getItem('role') || 
+                'admin'
+            ).toLowerCase().trim();
 
-                <div class="nav-section-title">FINANCE & SERVICES</div>
-                <a href="rent-collection.html" class="nav-item">
-                    <i class="bi bi-cash-stack"></i>
-                    <span>Rent Collection</span>
-                </a>
-                <a href="transaction.html" class="nav-item">
-                    <i class="bi bi-receipt-cutoff"></i>
-                    <span>Transactions & Ledger</span>
-                </a>
-                <a href="utilities.html" class="nav-item">
-                    <i class="bi bi-lightning-charge"></i>
-                    <span>Utilities</span>
-                </a>
-                <a href="meter-readings.html" class="nav-item">
-                    <i class="bi bi-speedometer2"></i>
-                    <span>Meter Readings</span>
-                </a>
-                <a href="maintenance.html" class="nav-item">
-                    <i class="bi bi-tools"></i>
-                    <span>Maintenance</span>
-                </a>
+            if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
+                nav.innerHTML = `
+                    <div class="nav-section-title">SELF-SERVICE HOME</div>
+                    <a href="client-dashboard.html" class="nav-item">
+                        <i class="bi bi-house-door"></i>
+                        <span>My Tenancy Home</span>
+                    </a>
+                    <a href="client-billing.html" class="nav-item">
+                        <i class="bi bi-receipt"></i>
+                        <span>Pay Rent & Dues</span>
+                    </a>
+                    <a href="transaction.html" class="nav-item">
+                        <i class="bi bi-receipt-cutoff"></i>
+                        <span>Transactions & Ledger</span>
+                    </a>
+                    <a href="client-utilities.html" class="nav-item">
+                        <i class="bi bi-lightning-charge"></i>
+                        <span>My Utilities & Meters</span>
+                    </a>
+                    <a href="client-maintenance.html" class="nav-item">
+                        <i class="bi bi-tools"></i>
+                        <span>Submit Maintenance</span>
+                    </a>
+                    <a href="inspections.html" class="nav-item">
+                        <i class="bi bi-clipboard-check"></i>
+                        <span>Move-In & Inspections</span>
+                    </a>
+                    <a href="client-documents.html" class="nav-item">
+                        <i class="bi bi-folder2-open"></i>
+                        <span>My Lease & Receipts</span>
+                    </a>
 
-                <div class="nav-section-title">RECORDS & REPORTS</div>
-                <a href="inspections.html" class="nav-item">
-                    <i class="bi bi-clipboard-check"></i>
-                    <span>Inspections</span>
-                </a>
-                <a href="move-in-checklist.html" class="nav-item">
-                    <i class="bi bi-check2-square"></i>
-                    <span>Move-In Checklist</span>
-                </a>
-                <a href="move-out-settlement.html" class="nav-item">
-                    <i class="bi bi-box-arrow-right"></i>
-                    <span>Move-Out Settlement</span>
-                </a>
-                <a href="documents.html" class="nav-item">
-                    <i class="bi bi-folder2-open"></i>
-                    <span>Documents</span>
-                </a>
-                <a href="reports.html" class="nav-item">
-                    <i class="bi bi-bar-chart"></i>
-                    <span>Reports</span>
-                </a>
+                    <div class="nav-section-title">SYSTEM</div>
+                    <a href="account.html" class="nav-item">
+                        <i class="bi bi-gear"></i>
+                        <span>Account Settings</span>
+                    </a>
+                    <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Log Out</span>
+                    </a>
+                `;
+            } else if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
+                nav.innerHTML = `
+                    <div class="nav-section-title">PORTFOLIO OVERVIEW</div>
+                    <a href="owner-dashboard.html" class="nav-item">
+                        <i class="bi bi-speedometer2"></i>
+                        <span>Executive Summary</span>
+                    </a>
+                    <a href="owner-properties.html" class="nav-item">
+                        <i class="bi bi-buildings"></i>
+                        <span>My Properties</span>
+                    </a>
+                    <a href="owner-statements.html" class="nav-item">
+                        <i class="bi bi-file-earmark-text"></i>
+                        <span>Financial Statements</span>
+                    </a>
+                    <a href="property-ownership.html" class="nav-item">
+                        <i class="bi bi-pie-chart"></i>
+                        <span>Fractional Equity</span>
+                    </a>
+                    <a href="owner-documents.html" class="nav-item">
+                        <i class="bi bi-folder2-open"></i>
+                        <span>Legal Vault</span>
+                    </a>
+                    <a href="transaction.html" class="nav-item">
+                        <i class="bi bi-receipt-cutoff"></i>
+                        <span>Yield Audit Ledger</span>
+                    </a>
 
-                <div class="nav-section-title">SYSTEM</div>
-                <a href="settings.html" class="nav-item">
-                    <i class="bi bi-gear"></i>
-                    <span>Settings</span>
-                </a>
-                <a href="#" class="nav-item" onclick="logoutUser(); return false;">
-                    <i class="bi bi-box-arrow-right"></i>
-                    <span>Log Out</span>
-                </a>
-            `;
+                    <div class="nav-section-title">COMMUNICATION & SYSTEM</div>
+                    <a href="notification.html" class="nav-item">
+                        <i class="bi bi-bell"></i>
+                        <span>Notification Center</span>
+                    </a>
+                    <a href="account.html" class="nav-item">
+                        <i class="bi bi-gear"></i>
+                        <span>Account Settings</span>
+                    </a>
+                    <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Log Out</span>
+                    </a>
+                `;
+            } else {
+                // Admin POV
+                nav.innerHTML = `
+                    <div class="nav-section-title">OVERVIEW</div>
+                    <a href="dashboard.html" class="nav-item active">
+                        <i class="bi bi-grid-1x2"></i>
+                        <span>Dashboard</span>
+                    </a>
+
+                    <div class="nav-section-title">PROPERTY OPERATIONS</div>
+                    <a href="properties.html" class="nav-item">
+                        <i class="bi bi-buildings"></i>
+                        <span>Properties</span>
+                    </a>
+                    <a href="buildings.html" class="nav-item">
+                        <i class="bi bi-building"></i>
+                        <span>Buildings</span>
+                    </a>
+                    <a href="units.html" class="nav-item">
+                        <i class="bi bi-door-open"></i>
+                        <span>Units</span>
+                    </a>
+                    <a href="tenants.html" class="nav-item">
+                        <i class="bi bi-people"></i>
+                        <span>Tenants</span>
+                    </a>
+                    <a href="owners.html" class="nav-item">
+                        <i class="bi bi-person-badge"></i>
+                        <span>Owners</span>
+                    </a>
+                    <a href="property-ownership.html" class="nav-item">
+                        <i class="bi bi-pie-chart"></i>
+                        <span>Fractional Ownership</span>
+                    </a>
+                    <a href="leases.html" class="nav-item">
+                        <i class="bi bi-file-earmark-text"></i>
+                        <span>Leases</span>
+                    </a>
+
+                    <div class="nav-section-title">FINANCE & SERVICES</div>
+                    <a href="rent-collection.html" class="nav-item">
+                        <i class="bi bi-cash-stack"></i>
+                        <span>Rent Collection</span>
+                    </a>
+                    <a href="transaction.html" class="nav-item">
+                        <i class="bi bi-receipt-cutoff"></i>
+                        <span>Transactions & Ledger</span>
+                    </a>
+                    <a href="utilities.html" class="nav-item">
+                        <i class="bi bi-lightning-charge"></i>
+                        <span>Utilities</span>
+                    </a>
+                    <a href="meter-readings.html" class="nav-item">
+                        <i class="bi bi-speedometer2"></i>
+                        <span>Meter Readings</span>
+                    </a>
+                    <a href="maintenance.html" class="nav-item">
+                        <i class="bi bi-tools"></i>
+                        <span>Maintenance</span>
+                    </a>
+
+                    <div class="nav-section-title">RECORDS & REPORTS</div>
+                    <a href="inspections.html" class="nav-item">
+                        <i class="bi bi-clipboard-check"></i>
+                        <span>Inspections</span>
+                    </a>
+                    <a href="move-in-checklist.html" class="nav-item">
+                        <i class="bi bi-check2-square"></i>
+                        <span>Move-In Checklist</span>
+                    </a>
+                    <a href="move-out-settlement.html" class="nav-item">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Move-Out Settlement</span>
+                    </a>
+                    <a href="documents.html" class="nav-item">
+                        <i class="bi bi-folder2-open"></i>
+                        <span>Documents</span>
+                    </a>
+                    <a href="reports.html" class="nav-item">
+                        <i class="bi bi-bar-chart"></i>
+                        <span>Reports</span>
+                    </a>
+
+                    <div class="nav-section-title">SYSTEM</div>
+                    <a href="settings.html" class="nav-item">
+                        <i class="bi bi-gear"></i>
+                        <span>Settings</span>
+                    </a>
+                    <a href="account.html" class="nav-item">
+                        <i class="bi bi-person-gear"></i>
+                        <span>Account Settings</span>
+                    </a>
+                    <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Log Out</span>
+                    </a>
+                `;
+            }
         }
 
         // Shared Accessors
@@ -812,10 +916,20 @@
         function getLeases() { return JSON.parse(localStorage.getItem('argo_leases') || '[]'); }
         function getProperties() { return JSON.parse(localStorage.getItem('argo_properties') || '[]'); }
         function getUnits() { return JSON.parse(localStorage.getItem('argo_units') || '[]'); }
+        function getTickets() { return JSON.parse(localStorage.getItem('argo_maintenance_tickets') || '[]'); }
+
+        let adminRentChartInstance = null;
+        let adminOccupancyChartInstance = null;
 
         document.addEventListener('DOMContentLoaded', () => {
-            const role = localStorage.getItem('argo_pov');
-            if (!role) {
+            const rawRole = (
+                localStorage.getItem('argo_pov') || 
+                localStorage.getItem('user_role') || 
+                localStorage.getItem('role') || 
+                ''
+            ).toLowerCase().trim();
+
+            if (!rawRole) {
                 window.location.replace('index.html');
                 return;
             }
@@ -828,11 +942,56 @@
             updateHeaderBadge();
         });
 
+        // Real-Time Cross-Tab Listener
+        window.addEventListener('storage', (e) => {
+            if (['argo_invoices', 'argo_leases', 'argo_properties', 'argo_units', 'argo_notifications', 'argo_maintenance_tickets', 'argo_user', 'argo_pov', 'user_role', 'role'].includes(e.key)) {
+                renderSidebar();
+                loadUserData();
+                updateDashboardMetrics();
+                renderPropertyTable();
+                renderCharts();
+                renderLiveActivityFeed();
+                updateHeaderBadge();
+            }
+        });
+
         function loadUserData() {
+            const rawRole = (
+                localStorage.getItem('argo_pov') || 
+                localStorage.getItem('user_role') || 
+                localStorage.getItem('role') || 
+                'admin'
+            ).toLowerCase().trim();
+
             const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
-            if (user.name) {
-                document.getElementById('userName').textContent = user.name;
-                document.getElementById('userAvatar').textContent = user.avatar || 'JD';
+
+            const nameEl = document.getElementById('userName');
+            const roleEl = document.getElementById('userRoleBadge');
+            const avatarEl = document.getElementById('userAvatar');
+
+            if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
+                if (nameEl) nameEl.textContent = 'Don Ramon Santos';
+                if (roleEl) roleEl.textContent = 'Property Owner';
+                if (avatarEl) {
+                    avatarEl.textContent = 'RS';
+                    avatarEl.style.background = '#059669';
+                }
+            } else if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
+                if (nameEl) nameEl.textContent = 'Maria Santos';
+                if (roleEl) roleEl.textContent = 'Sunrise Property • Unit 101';
+                if (avatarEl) {
+                    avatarEl.textContent = 'MS';
+                    avatarEl.style.background = '#D97706';
+                }
+            } else {
+                const name = user.name || 'Juan Dela Cruz';
+                const role = user.role || 'Property Manager';
+                if (nameEl) nameEl.textContent = name;
+                if (roleEl) roleEl.textContent = role;
+                if (avatarEl) {
+                    avatarEl.textContent = user.avatar || 'JD';
+                    avatarEl.style.background = user.avatarBg || '#2563EB';
+                }
             }
         }
 
@@ -843,60 +1002,83 @@
             const invoices = getInvoices();
 
             let activeOccupied = 0;
-            leases.forEach(l => { if (l.status === 'ACTIVE') activeOccupied++; });
+            units.forEach(u => {
+                const s = (u.status || '').toUpperCase();
+                if (s === 'OCCUPIED') activeOccupied++;
+            });
+
+            // Fallback to active leases count if unit table is not explicitly flagged
+            if (activeOccupied === 0) {
+                leases.forEach(l => { 
+                    if ((l.status || '').toUpperCase() === 'ACTIVE') activeOccupied++; 
+                });
+            }
 
             let pendingOverdueSum = 0;
             let pendingCount = 0;
 
             invoices.forEach(inv => {
-                if (inv.status === 'Unpaid' || inv.status === 'Overdue') {
-                    pendingOverdueSum += (inv.amount || 0);
+                const s = (inv.status || '').toLowerCase();
+                if (s === 'unpaid' || s === 'overdue' || s.includes('pending')) {
+                    pendingOverdueSum += parseFloat(inv.amount || 0);
                     pendingCount++;
                 }
             });
 
-            const totalUnitsCount = units.length;
-            const occupancyRate = totalUnitsCount > 0 ? ((activeOccupied / totalUnitsCount) * 100).toFixed(1) : 0;
+            const totalUnitsCount = units.length || 2;
+            const occupancyRate = totalUnitsCount > 0 ? ((activeOccupied / totalUnitsCount) * 100).toFixed(1) : '0.0';
 
-            document.getElementById('kpiProperties').textContent = properties.length;
-            document.getElementById('kpiUnits').textContent = totalUnitsCount;
-            document.getElementById('kpiOccupancy').textContent = `${occupancyRate}%`;
-            document.getElementById('kpiOverdue').textContent = `₱${pendingOverdueSum.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
-            document.getElementById('kpiOverdueSub').innerHTML = `<span class="danger">${pendingCount} item(s)</span> pending verification / unpaid`;
+            const propEl = document.getElementById('kpiProperties');
+            const unitEl = document.getElementById('kpiUnits');
+            const occEl = document.getElementById('kpiOccupancy');
+            const overdueEl = document.getElementById('kpiOverdue');
+            const overdueSubEl = document.getElementById('kpiOverdueSub');
+
+            if (propEl) propEl.textContent = properties.length;
+            if (unitEl) unitEl.textContent = totalUnitsCount;
+            if (occEl) occEl.textContent = `${occupancyRate}%`;
+            if (overdueEl) overdueEl.textContent = `₱${pendingOverdueSum.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            if (overdueSubEl) overdueSubEl.innerHTML = `<span class="danger">${pendingCount} item(s)</span> pending verification / unpaid`;
         }
 
         function renderPropertyTable() {
             const properties = getProperties();
             const tbody = document.getElementById('propertySummaryTable');
+            if (!tbody) return;
             tbody.innerHTML = '';
 
             if (properties.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--muted); padding:20px;">No managed properties found.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--muted); padding:20px;">No managed properties found. Click "Add Property" to register one.</td></tr>`;
                 return;
             }
 
             properties.forEach(p => {
                 const tr = document.createElement('tr');
+                const unitsCount = p.units_count || p.units || 1;
+                const occ = p.occupancy || '100%';
+                const status = p.status || 'Active';
+
                 tr.innerHTML = `
                     <td><strong>${p.name || 'Property'}</strong></td>
                     <td>${p.type || 'Residential'}</td>
-                    <td>${p.units_count || 0}</td>
-                    <td>${p.occupancy || '0%'}</td>
-                    <td><span class="status status-active">${p.status || 'Active'}</span></td>
+                    <td>${unitsCount}</td>
+                    <td>${occ}</td>
+                    <td><span class="status status-active">${status}</span></td>
                 `;
                 tbody.appendChild(tr);
             });
         }
 
         function renderLiveActivityFeed() {
-            const notifications = getNotifications().filter(n => n.pov === 'admin').slice(0, 4);
+            const notifications = getNotifications().filter(n => n.pov === 'admin' || n.pov === 'all').slice(0, 4);
             const container = document.getElementById('liveActivityFeed');
+            if (!container) return;
             container.innerHTML = '';
 
             if (notifications.length === 0) {
                 container.innerHTML = `
                     <div class="activity-item">
-                        <div class="activity-icon"><i class="bi bi-info-circle"></i></div>
+                        <div class="activity-icon" style="background:#EFF6FF; color:#2563EB;"><i class="bi bi-info-circle"></i></div>
                         <div class="activity-content">
                             <p><strong>System Ready</strong></p>
                             <span>Operations running smoothly</span>
@@ -916,6 +1098,9 @@
                 } else if (n.category === 'maintenance') {
                     iconBi = 'bi-tools';
                     iconStyle = 'background:#FFF1F2; color:#E11D48;';
+                } else if (n.category === 'asset') {
+                    iconBi = 'bi-folder2-open';
+                    iconStyle = 'background:#FEF3C7; color:#D97706;';
                 }
 
                 const item = document.createElement('div');
@@ -932,93 +1117,132 @@
         }
 
         function updateHeaderBadge() {
-            const notifs = getNotifications().filter(n => n.pov === 'admin' && n.status === 'unread');
-            document.getElementById('headerNotifBadge').textContent = notifs.length;
+            const notifs = getNotifications().filter(n => (n.pov === 'admin' || n.pov === 'all') && (n.status === 'unread' || n.is_read === false));
+            const badge = document.getElementById('headerNotifBadge');
+            if (badge) badge.textContent = notifs.length;
         }
 
         function renderCharts() {
             const invoices = getInvoices();
             const leases = getLeases();
             const units = getUnits();
+            const tickets = getTickets();
 
             let paidSum = 0;
             let unpaidSum = 0;
 
             invoices.forEach(inv => {
-                if (inv.status === 'Paid') paidSum += inv.amount;
-                else unpaidSum += inv.amount;
+                const amt = parseFloat(inv.amount || 0);
+                if ((inv.status || '').toLowerCase() === 'paid') paidSum += amt;
+                else unpaidSum += amt;
             });
+
+            if (paidSum === 0 && unpaidSum === 0) {
+                paidSum = 620000;
+                unpaidSum = 45000;
+            }
 
             let activeCount = 0;
-            leases.forEach(l => { if (l.status === 'ACTIVE') activeCount++; });
-            let vacantCount = Math.max(0, units.length - activeCount);
+            let maintenanceUnits = 0;
+
+            units.forEach(u => {
+                const s = (u.status || '').toUpperCase();
+                if (s === 'OCCUPIED') activeCount++;
+                else if (s.includes('MAINTENANCE')) maintenanceUnits++;
+            });
+
+            if (activeCount === 0) {
+                leases.forEach(l => { 
+                    if ((l.status || '').toUpperCase() === 'ACTIVE') activeCount++; 
+                });
+            }
+
+            const totalUnits = units.length || 2;
+            let vacantCount = Math.max(0, totalUnits - activeCount - maintenanceUnits);
 
             // 1. Rent Collection Line Chart
-            const ctx1 = document.getElementById('adminRentChart').getContext('2d');
-            new Chart(ctx1, {
-                type: 'line',
-                data: {
-                    labels: ['March', 'April', 'May', 'June', 'July', 'August'],
-                    datasets: [
-                        {
-                            label: 'Collected Rent (₱)',
-                            data: [465000, 490000, 520000, 550000, 585000, paidSum],
-                            borderColor: '#2563EB',
-                            backgroundColor: 'rgba(37, 99, 235, 0.08)',
-                            borderWidth: 2,
-                            tension: 0.3,
-                            fill: true
-                        },
-                        {
-                            label: 'Pending / Unpaid Dues (₱)',
-                            data: [72000, 90000, 65000, 58000, 45000, unpaidSum],
-                            borderColor: '#E11D48',
-                            backgroundColor: 'rgba(225, 29, 72, 0.08)',
-                            borderWidth: 2,
-                            tension: 0.3,
-                            fill: true
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { position: 'bottom' } },
-                    scales: { y: { beginAtZero: true } }
+            const rentCanvas = document.getElementById('adminRentChart');
+            if (rentCanvas) {
+                const ctx1 = rentCanvas.getContext('2d');
+                if (adminRentChartInstance) {
+                    adminRentChartInstance.destroy();
                 }
-            });
+
+                adminRentChartInstance = new Chart(ctx1, {
+                    type: 'line',
+                    data: {
+                        labels: ['March', 'April', 'May', 'June', 'July', 'August'],
+                        datasets: [
+                            {
+                                label: 'Collected Rent (₱)',
+                                data: [465000, 490000, 520000, 550000, 585000, paidSum],
+                                borderColor: '#2563EB',
+                                backgroundColor: 'rgba(37, 99, 235, 0.08)',
+                                borderWidth: 2,
+                                tension: 0.3,
+                                fill: true
+                            },
+                            {
+                                label: 'Pending / Unpaid Dues (₱)',
+                                data: [72000, 90000, 65000, 58000, 45000, unpaidSum],
+                                borderColor: '#E11D48',
+                                backgroundColor: 'rgba(225, 29, 72, 0.08)',
+                                borderWidth: 2,
+                                tension: 0.3,
+                                fill: true
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { position: 'bottom' } },
+                        scales: { y: { beginAtZero: true } }
+                    }
+                });
+            }
 
             // 2. Unit Occupancy Doughnut Chart
-            const ctx2 = document.getElementById('adminOccupancyChart').getContext('2d');
-            new Chart(ctx2, {
-                type: 'doughnut',
-                data: {
-                    labels: ['Occupied Units', 'Vacant Ready', 'Under Maintenance'],
-                    datasets: [{
-                        data: [activeCount, vacantCount, 0],
-                        backgroundColor: ['#059669', '#D97706', '#E11D48'],
-                        borderWidth: 0
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    cutout: '65%',
-                    plugins: { legend: { position: 'bottom' } }
+            const occCanvas = document.getElementById('adminOccupancyChart');
+            if (occCanvas) {
+                const ctx2 = occCanvas.getContext('2d');
+                if (adminOccupancyChartInstance) {
+                    adminOccupancyChartInstance.destroy();
                 }
-            });
+
+                adminOccupancyChartInstance = new Chart(ctx2, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Occupied Units', 'Vacant Ready', 'Under Maintenance'],
+                        datasets: [{
+                            data: [activeCount, vacantCount, maintenanceUnits],
+                            backgroundColor: ['#059669', '#D97706', '#E11D48'],
+                            borderWidth: 0
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '65%',
+                        plugins: { legend: { position: 'bottom' } }
+                    }
+                });
+            }
         }
 
-        // Profile Dropdown
+        // Profile Dropdown Handler
         const userProfileBtn = document.getElementById('userProfileBtn');
         const userDropdown = document.getElementById('userDropdown');
 
-        userProfileBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            userDropdown.classList.toggle('show');
-        });
+        if (userProfileBtn && userDropdown) {
+            userProfileBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                userDropdown.classList.toggle('show');
+            });
 
-        document.addEventListener('click', () => { userDropdown.classList.remove('show'); });
+            document.addEventListener('click', () => { 
+                userDropdown.classList.remove('show'); 
+            });
+        }
     </script>
 </body>
-</html>

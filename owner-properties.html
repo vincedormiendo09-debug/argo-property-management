@@ -742,27 +742,27 @@
             <div class="kpi-card">
                 <div class="kpi-top">
                     <span class="kpi-label">Total Units Mapped</span>
-                    <div class="kpi-icon" style="background:#EFF6FF; color:var(--primary-blue);"><i class="bi bi-door-open"></i></div>
+                    <div class="kpi-icon" style="background:#EFF6FF; color:var(--primary-blue, #2563EB);"><i class="bi bi-door-open"></i></div>
                 </div>
-                <div class="kpi-value" style="color:var(--primary-blue);" id="kpiTotalUnitsMapped">0 Units</div>
+                <div class="kpi-value" style="color:var(--primary-blue, #2563EB);" id="kpiTotalUnitsMapped">0 Units</div>
                 <div class="kpi-description">Across active assets</div>
             </div>
 
             <div class="kpi-card">
                 <div class="kpi-top">
                     <span class="kpi-label">Average Health Score</span>
-                    <div class="kpi-icon" style="background:#ECFDF5; color:var(--success);"><i class="bi bi-shield-check"></i></div>
+                    <div class="kpi-icon" style="background:#ECFDF5; color:var(--success, #059669);"><i class="bi bi-shield-check"></i></div>
                 </div>
-                <div class="kpi-value" id="kpiAvgHealth" style="color:var(--success);">100%</div>
+                <div class="kpi-value" id="kpiAvgHealth" style="color:var(--success, #059669);">100%</div>
                 <div class="kpi-description" id="kpiHealthDesc">Structural & system condition</div>
             </div>
 
             <div class="kpi-card">
                 <div class="kpi-top">
                     <span class="kpi-label">Active Work Orders</span>
-                    <div class="kpi-icon" style="background:#FEF3C7; color:var(--warning);"><i class="bi bi-tools"></i></div>
+                    <div class="kpi-icon" style="background:#FEF3C7; color:var(--warning, #D97706);"><i class="bi bi-tools"></i></div>
                 </div>
-                <div class="kpi-value" id="kpiActiveWorkOrders" style="color:var(--warning);">0 Tickets</div>
+                <div class="kpi-value" id="kpiActiveWorkOrders" style="color:var(--warning, #D97706);">0 Tickets</div>
                 <div class="kpi-description" id="kpiWorkOrdersDesc">Real-time maintenance logs</div>
             </div>
         </section>
@@ -815,7 +815,7 @@
         </div>
 
         <!-- UNIT CONDITION BREAKDOWN SUB-SECTION -->
-        <div class="table-card">
+        <div class="table-card" style="margin-top:20px;">
             <div class="table-header">
                 <h2>Unit Physical Condition & Maintenance Sub-Ledger</h2>
                 <span style="font-size:12px; color:var(--muted);">Live state synced with Maintenance Desk</span>
@@ -863,11 +863,11 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label>Structural Integrity Score</label>
-                        <input type="text" value="99.0% — No Cracks or Settling" readonly style="background:#F3F4F6;">
+                        <input type="text" id="modalStructuralScore" value="99.0% — No Cracks or Settling" readonly style="background:#F3F4F6;">
                     </div>
                     <div class="form-group">
                         <label>Electrical & HVAC Status</label>
-                        <input type="text" value="97.5% — Fully Functional" readonly style="background:#F3F4F6;">
+                        <input type="text" id="modalHvacScore" value="97.5% — Fully Functional" readonly style="background:#F3F4F6;">
                     </div>
                 </div>
 
@@ -988,7 +988,6 @@
                     </a>
                 `;
             } else {
-                // Admin POV
                 nav.innerHTML = `
                     <div class="nav-section-title">OVERVIEW</div>
                     <a href="dashboard.html" class="nav-item">
@@ -1085,23 +1084,59 @@
 
         // Shared LocalStorage Accessors
         function getProperties() {
-            return JSON.parse(localStorage.getItem('argo_properties') || '[]');
+            try {
+                return JSON.parse(localStorage.getItem('argo_properties') || '[]');
+            } catch (e) {
+                return [];
+            }
         }
 
         function getUnits() {
-            return JSON.parse(localStorage.getItem('argo_units') || '[]');
+            try {
+                return JSON.parse(localStorage.getItem('argo_units') || '[]');
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function getLeases() {
+            try {
+                return JSON.parse(localStorage.getItem('argo_leases') || '[]');
+            } catch (e) {
+                return [];
+            }
         }
 
         function getTickets() {
-            return JSON.parse(localStorage.getItem('argo_maintenance_tickets') || '[]');
+            try {
+                return JSON.parse(localStorage.getItem('argo_maintenance_tickets') || '[]');
+            } catch (e) {
+                return [];
+            }
         }
 
         function getNotifications() {
-            return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
+            try {
+                return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
+            } catch (e) {
+                return [];
+            }
         }
 
         function saveNotifications(notifications) {
             localStorage.setItem('argo_notifications', JSON.stringify(notifications));
+        }
+
+        function getInspections() {
+            try {
+                return JSON.parse(localStorage.getItem('argo_inspections') || '[]');
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function saveInspections(inspections) {
+            localStorage.setItem('argo_inspections', JSON.stringify(inspections));
         }
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -1120,8 +1155,10 @@
 
         // Real-Time Cross-Tab Listener
         window.addEventListener('storage', (e) => {
-            if (e.key === 'argo_properties' || e.key === 'argo_units' || e.key === 'argo_maintenance_tickets' || e.key === 'argo_notifications' || e.key === 'argo_pov') {
+            if (['argo_properties', 'argo_units', 'argo_leases', 'argo_maintenance_tickets', 'argo_notifications', 'argo_pov', 'argo_user'].includes(e.key)) {
                 renderSidebar();
+                loadUserData();
+                populateModalDropdowns();
                 renderPropertyTable();
                 renderUnitConditionBreakdown();
                 updateHeaderBadge();
@@ -1131,8 +1168,11 @@
         function loadUserData() {
             const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
             document.getElementById('userName').textContent = user.name || 'Don Ramon Santos';
-            document.getElementById('userRoleBadge').textContent = 'Property Owner';
-            document.getElementById('userAvatar').textContent = user.avatar || 'RS';
+            document.getElementById('userRoleBadge').textContent = user.role || 'Property Owner';
+            document.getElementById('userAvatar').textContent = user.avatar || (user.name ? user.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'RS');
+            if (user.avatarBg) {
+                document.getElementById('userAvatar').style.background = user.avatarBg;
+            }
         }
 
         function populateModalDropdowns() {
@@ -1147,14 +1187,18 @@
             }
 
             props.forEach(p => {
-                modalPropSelect.innerHTML += `<option value="${p.name} (${p.code || 'PROP'})">${p.name} (${p.code || 'PROP'})</option>`;
+                const propName = p.name || p.property_name || 'Property Asset';
+                const propCode = p.code || p.id || 'PROP';
+                modalPropSelect.innerHTML += `<option value="${propName} (${propCode})">${propName} (${propCode})</option>`;
             });
         }
 
         function renderPropertyTable() {
             const props = getProperties();
+            const units = getUnits();
             const tickets = getTickets();
             const tbody = document.getElementById('propertyTable');
+            if (!tbody) return;
             tbody.innerHTML = '';
 
             if (props.length === 0) {
@@ -1171,7 +1215,7 @@
                         <td><span class="health-badge health-excellent">98.5% • Excellent</span></td>
                         <td><span class="health-badge health-excellent">Active</span></td>
                         <td>
-                            <button class="action-button" title="View Unit Breakdown" onclick="openConditionModal()"><i class="bi bi-eye"></i></button>
+                            <button class="action-button" title="View Unit Breakdown" onclick="openConditionModal('Sunrise Residences (PROP-001)')"><i class="bi bi-eye"></i></button>
                             <button class="action-button" title="Download Inspection Audit" onclick="alert('Downloading inspection audit PDF for Sunrise Residences...')"><i class="bi bi-file-earmark-pdf"></i></button>
                         </td>
                     </tr>
@@ -1187,11 +1231,19 @@
 
             props.forEach(p => {
                 const tr = document.createElement('tr');
+                const propName = p.name || p.property_name || 'Property Asset';
+                const propCode = p.code || p.id || 'PROP-001';
+                const propType = p.type || 'Residential';
+                const propLocation = p.location || p.address || 'Metro Manila';
                 
-                // Determine health based on active tickets linked to this property
+                // Match units belonging to this property
+                const propUnits = units.filter(u => (u.property_name || u.property || '').toLowerCase().includes(propName.toLowerCase()));
+                const unitsCount = propUnits.length > 0 ? propUnits.length : (p.units_count || p.units || 1);
+                
+                // Determine health score based on open/in-progress tickets linked to this property
                 const hasUrgentTicket = tickets.some(t => 
-                    (t.property && t.property.includes(p.name)) && 
-                    (t.status === 'Open' || t.status === 'In Progress')
+                    (t.fullLocation && t.fullLocation.toLowerCase().includes(propName.toLowerCase())) ||
+                    (t.property && t.property.toLowerCase().includes(propName.toLowerCase()))
                 );
 
                 let healthLabel = '98.5% • Excellent';
@@ -1209,17 +1261,17 @@
 
                 tr.innerHTML = `
                     <td>
-                        <div class="asset-name">${p.name}</div>
-                        <div class="asset-code">${p.code || 'PROP-001'} • ${p.type || 'Residential'}</div>
+                        <div class="asset-name">${propName}</div>
+                        <div class="asset-code">${propCode} • ${propType}</div>
                     </td>
-                    <td>${p.location || 'Metro Manila'}</td>
-                    <td>${p.units_count || p.units || 1} Units</td>
+                    <td>${propLocation}</td>
+                    <td>${unitsCount} Units</td>
                     <td>${p.occupancy || '100%'}</td>
                     <td><span class="health-badge ${healthClass}">${healthLabel}</span></td>
-                    <td><span class="health-badge health-excellent">Active</span></td>
+                    <td><span class="health-badge health-excellent">${p.status || 'Active'}</span></td>
                     <td>
-                        <button class="action-button" title="View Unit Breakdown" onclick="openConditionModal()"><i class="bi bi-eye"></i></button>
-                        <button class="action-button" title="Download Inspection Audit" onclick="alert('Downloading inspection audit PDF for ${p.name}...')"><i class="bi bi-file-earmark-pdf"></i></button>
+                        <button class="action-button" title="View Unit Breakdown" onclick="openConditionModal('${propName} (${propCode})')"><i class="bi bi-eye"></i></button>
+                        <button class="action-button" title="Download Inspection Audit" onclick="alert('Downloading inspection audit PDF for ${propName}...')"><i class="bi bi-file-earmark-pdf"></i></button>
                     </td>
                 `;
                 tbody.appendChild(tr);
@@ -1231,8 +1283,10 @@
 
         function renderUnitConditionBreakdown() {
             const units = getUnits();
+            const leases = getLeases();
             const tickets = getTickets();
             const tbody = document.getElementById('unitBreakdownTable');
+            if (!tbody) return;
             tbody.innerHTML = '';
 
             if (units.length === 0) {
@@ -1249,7 +1303,7 @@
                         <td><strong>Unit 204</strong></td>
                         <td>Sunrise Residences • 2BR</td>
                         <td>Vacant Ready</td>
-                        <td><span style="color:var(--primary-blue); font-weight:600;"><i class="bi bi-door-open"></i> Vacant Ready</span></td>
+                        <td><span style="color:var(--primary-blue, #2563EB); font-weight:600;"><i class="bi bi-door-open"></i> Vacant Ready</span></td>
                         <td><span class="health-badge health-good"><i class="bi bi-shield-check" style="margin-right:4px;"></i> Inspect Ready</span></td>
                     </tr>
                 `;
@@ -1266,34 +1320,43 @@
             let activeTicketCount = 0;
 
             units.forEach(u => {
-                const uName = u.unit_no || u.unitNo || u.id;
+                const uName = u.unit_no || u.unitNo || u.unit_name || u.id;
                 const pName = u.property_name || u.property || 'Sunrise Property';
+                const uType = u.type || u.unit_type || '1BR';
 
+                // Look for active lease occupant
+                const matchedLease = leases.find(l => 
+                    (l.status === 'ACTIVE' || l.status === 'Active') && 
+                    (l.unit && (l.unit.includes(uName) || uName.includes(l.unit)))
+                );
+                const occupantName = u.tenant || u.tenant_name || (matchedLease ? matchedLease.tenantName : (u.status === 'OCCUPIED' ? 'Leased Occupant' : 'Vacant Ready'));
+
+                // Look for active maintenance work order
                 const activeTicket = tickets.find(t => 
-                    (t.fullLocation && t.fullLocation.includes(uName)) ||
-                    (t.unit && t.unit.includes(uName))
+                    (t.status === 'In Progress' || t.status === 'Open' || t.status === 'Assigned') &&
+                    ((t.fullLocation && t.fullLocation.includes(uName)) || (t.unit && t.unit.includes(uName)))
                 );
 
                 let statusHtml = '';
                 let ratingHtml = '';
 
-                if (activeTicket && activeTicket.status !== 'Resolved' && activeTicket.status !== 'Completed') {
+                if (activeTicket) {
                     activeTicketCount++;
                     statusHtml = `<span style="color:#B45309; font-weight:700;"><i class="bi bi-tools"></i> Under Maintenance</span>`;
                     ratingHtml = `<span class="health-badge health-attention"><i class="bi bi-exclamation-triangle" style="margin-right:4px;"></i> ${activeTicket.title || 'Work Order'} (${activeTicket.status})</span>`;
-                } else if (u.status === 'OCCUPIED' || u.status === 'Occupied') {
+                } else if (u.status === 'OCCUPIED' || u.status === 'Occupied' || matchedLease) {
                     statusHtml = `<span style="color:#047857; font-weight:600;"><i class="bi bi-check-circle"></i> Occupied</span>`;
                     ratingHtml = `<span class="health-badge health-excellent"><i class="bi bi-shield-check" style="margin-right:4px;"></i> Pass (Good Condition)</span>`;
                 } else {
-                    statusHtml = `<span style="color:var(--primary-blue); font-weight:600;"><i class="bi bi-door-open"></i> Vacant Ready</span>`;
+                    statusHtml = `<span style="color:var(--primary-blue, #2563EB); font-weight:600;"><i class="bi bi-door-open"></i> Vacant Ready</span>`;
                     ratingHtml = `<span class="health-badge health-good"><i class="bi bi-shield-check" style="margin-right:4px;"></i> Inspect Ready</span>`;
                 }
 
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td><strong>${uName}</strong></td>
-                    <td>${pName} • ${u.type || '1BR'}</td>
-                    <td>${(u.status === 'OCCUPIED' || u.status === 'Occupied') ? 'Leased Occupant' : 'Vacant Ready'}</td>
+                    <td>${pName} • ${uType}</td>
+                    <td>${occupantName}</td>
                     <td>${statusHtml}</td>
                     <td>${ratingHtml}</td>
                 `;
@@ -1305,22 +1368,36 @@
         }
 
         function updateHeaderBadge() {
-            const notifs = getNotifications().filter(n => (n.pov === 'owner' || n.pov === 'all') && n.status === 'unread');
+            const notifs = getNotifications().filter(n => (n.pov === 'owner' || n.pov === 'all') && (n.status === 'unread' || n.is_read === false));
             const badge = document.getElementById('ownerNotifBadge');
             if (badge) badge.textContent = notifs.length;
         }
 
-        function openConditionModal() { 
+        function openConditionModal(targetProp = null) { 
+            populateModalDropdowns();
+            const modalPropSelect = document.getElementById('modalPropSelect');
+            if (targetProp && modalPropSelect) {
+                for (let i = 0; i < modalPropSelect.options.length; i++) {
+                    if (modalPropSelect.options[i].value.includes(targetProp) || targetProp.includes(modalPropSelect.options[i].value)) {
+                        modalPropSelect.selectedIndex = i;
+                        break;
+                    }
+                }
+            }
             document.getElementById("conditionModal").classList.add("show"); 
         }
 
         function closeModal() { 
             document.getElementById("conditionModal").classList.remove("show"); 
+            const notesEl = document.getElementById('modalAuditNotes');
+            if (notesEl) notesEl.value = '';
         }
 
         function submitAuditRequest() {
-            const prop = document.getElementById('modalPropSelect').value;
-            const notes = document.getElementById('modalAuditNotes').value.trim();
+            const propSelect = document.getElementById('modalPropSelect');
+            const prop = propSelect ? propSelect.value : '';
+            const notesEl = document.getElementById('modalAuditNotes');
+            const notes = notesEl ? notesEl.value.trim() : '';
 
             if (!prop) {
                 alert("Please select a target property asset.");
@@ -1328,7 +1405,10 @@
             }
 
             const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+            const ownerName = user.name || 'Don Ramon Santos';
+            const today = new Date().toISOString().split('T')[0];
 
+            // 1. Dispatch Notification Alert to Admin POV
             let notifications = getNotifications();
             notifications.unshift({
                 id: `NOTIF-${Date.now()}`,
@@ -1337,7 +1417,7 @@
                 status: 'unread',
                 title: `Asset Inspection Requested by Owner`,
                 time: 'Just now',
-                description: `Owner ${user.name || 'Don Ramon Santos'} requested an engineering inspection audit for <strong>${prop}</strong>. Notes: "${notes || 'Routine structural review.'}"`,
+                description: `Owner <strong>${ownerName}</strong> requested an engineering inspection audit for <strong>${prop}</strong>. Notes: "${notes || 'Routine structural and facility review.'}"`,
                 property: prop,
                 tag: 'Owner Audit Request',
                 tagColor: 'var(--primary)',
@@ -1346,11 +1426,24 @@
             });
             saveNotifications(notifications);
 
-            alert(`Asset inspection audit request submitted to Property Management!`);
+            // 2. Automatically log pending inspection in Inspections Hub
+            let inspections = getInspections();
+            inspections.unshift({
+                id: `INS-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+                unitName: prop.split('(')[0].trim(),
+                propertyInfo: prop,
+                tenant: `Owner: ${ownerName}`,
+                type: 'Maintenance',
+                date: today,
+                inspector: 'Pending Assignment',
+                status: 'Pending',
+                notes: notes || 'Owner requested engineering inspection audit.'
+            });
+            saveInspections(inspections);
+
+            alert(`Asset inspection audit request for "${prop}" submitted to Property Management!`);
             closeModal();
             updateHeaderBadge();
-
-            document.getElementById('modalAuditNotes').value = '';
         }
 
         window.onclick = function(event) {

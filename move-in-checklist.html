@@ -874,7 +874,7 @@
             <div class="modal-body">
                 <div class="form-row">
                     <div class="form-group">
-                        <label>Select Lease / Tenant</label>
+                        <label>Select Lease / Tenant <span style="color:var(--danger, #EF4444);">*</span></label>
                         <select id="modalLeaseSelect">
                             <option value="">Select Lease...</option>
                             <!-- DYNAMICALLY POPULATED -->
@@ -889,26 +889,26 @@
 
                 <!-- ROOM CONDITION CHECKLIST -->
                 <div class="checklist-group">
-                    <div class="checklist-group-title"><i class="bi bi-house-door" style="color:var(--primary);"></i> Living Room & Bedrooms</div>
+                    <div class="checklist-group-title"><i class="bi bi-house-door" style="color:var(--primary, #2563EB);"></i> Living Room & Bedrooms</div>
                     <div class="checklist-item">
                         <label><input type="checkbox" class="chk-item" checked> Walls, paint, and ceiling free from major cracks/scuffs</label>
-                        <span style="color:var(--success); font-weight:600;">PASS</span>
+                        <span class="chk-status" style="color:var(--success, #059669); font-weight:600;">PASS</span>
                     </div>
                     <div class="checklist-item">
                         <label><input type="checkbox" class="chk-item" checked> Windows, blinds, and door locks functioning smoothly</label>
-                        <span style="color:var(--success); font-weight:600;">PASS</span>
+                        <span class="chk-status" style="color:var(--success, #059669); font-weight:600;">PASS</span>
                     </div>
                 </div>
 
                 <div class="checklist-group">
-                    <div class="checklist-group-title"><i class="bi bi-lightning-charge" style="color:var(--warning);"></i> Electrical, Lighting & Appliances</div>
+                    <div class="checklist-group-title"><i class="bi bi-lightning-charge" style="color:var(--warning, #D97706);"></i> Electrical, Lighting & Appliances</div>
                     <div class="checklist-item">
                         <label><input type="checkbox" class="chk-item" checked> All light switches and power outlets operational</label>
-                        <span style="color:var(--success); font-weight:600;">PASS</span>
+                        <span class="chk-status" style="color:var(--success, #059669); font-weight:600;">PASS</span>
                     </div>
                     <div class="checklist-item">
                         <label><input type="checkbox" class="chk-item" id="chkAC"> Air conditioning unit tested & cooling effectively</label>
-                        <span style="color:var(--muted); font-weight:600;" id="statusAC">PENDING</span>
+                        <span class="chk-status" style="color:var(--muted, #64748B); font-weight:600;" id="statusAC">PENDING</span>
                     </div>
                 </div>
 
@@ -916,7 +916,7 @@
                     <div class="checklist-group-title"><i class="bi bi-droplet" style="color:#0284C7;"></i> Kitchen & Plumbing Fixtures</div>
                     <div class="checklist-item">
                         <label><input type="checkbox" class="chk-item" checked> Faucets, sinks, and toilet flush free of leaks</label>
-                        <span style="color:var(--success); font-weight:600;">PASS</span>
+                        <span class="chk-status" style="color:var(--success, #059669); font-weight:600;">PASS</span>
                     </div>
                 </div>
 
@@ -924,21 +924,21 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label>Initial Electricity Meter Reading (kWh)</label>
-                        <input type="number" id="modalElecReading" placeholder="e.g. 1420.50">
+                        <input type="number" step="0.01" id="modalElecReading" placeholder="e.g. 1420.50">
                     </div>
                     <div class="form-group">
                         <label>Initial Water Meter Reading (cu.m)</label>
-                        <input type="number" id="modalWaterReading" placeholder="e.g. 312.00">
+                        <input type="number" step="0.01" id="modalWaterReading" placeholder="e.g. 312.00">
                     </div>
                 </div>
 
                 <!-- KEY INVENTORY ISSUED -->
                 <div class="checklist-group">
-                    <div class="checklist-group-title"><i class="bi bi-key" style="color:var(--primary);"></i> Physical Key & Access Token Inventory Issued</div>
+                    <div class="checklist-group-title"><i class="bi bi-key" style="color:var(--primary, #2563EB);"></i> Physical Key & Access Token Inventory Issued</div>
                     <div class="form-row" style="margin-top:8px;">
                         <div class="form-group" style="margin-bottom:0;">
                             <label>Main Door Keys Issued</label>
-                            <input type="number" id="modalKeysMain" min="1" value="2">
+                            <input type="number" id="modalKeysMain" min="0" value="2">
                         </div>
                         <div class="form-group" style="margin-bottom:0;">
                             <label>Gate / Mailbox Keys</label>
@@ -972,7 +972,7 @@
 
     <!-- ================= JAVASCRIPT ================= -->
     <script>
-        // Secure Logout Handler (Clears session and replaces history to prevent back-button access)
+        // Secure Logout Handler
         function logoutUser() {
             localStorage.removeItem('argo_pov');
             localStorage.removeItem('user_role');
@@ -1079,16 +1079,9 @@
             }
         }
 
-        // Clean Baseline (NO HARDCODED MOCK DATA)
-        const DEFAULT_HANDOVERS = [];
-
+        // Data Layer Functions (Postgres / LocalStorage Sync)
         function getHandovers() {
-            const data = localStorage.getItem('argo_handovers');
-            if (!data) {
-                localStorage.setItem('argo_handovers', JSON.stringify(DEFAULT_HANDOVERS));
-                return DEFAULT_HANDOVERS;
-            }
-            return JSON.parse(data);
+            return JSON.parse(localStorage.getItem('argo_handovers') || '[]');
         }
 
         function saveHandovers(list) {
@@ -1119,31 +1112,33 @@
             localStorage.setItem('argo_inspections', JSON.stringify(inspections));
         }
 
+        function getMeterReadings() {
+            return JSON.parse(localStorage.getItem('argo_meter_readings') || '[]');
+        }
+
+        function saveMeterReadings(readings) {
+            localStorage.setItem('argo_meter_readings', JSON.stringify(readings));
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             const role = localStorage.getItem('argo_pov');
             if (!role) {
                 window.location.replace('index.html');
                 return;
             }
+
             renderSidebar();
             loadUserData();
             populateModalDropdowns();
             renderHandoverTable();
             updateKPIs();
             updateHeaderBadge();
+            initChecklistListeners();
 
-            const chkAC = document.getElementById('chkAC');
-            const statusAC = document.getElementById('statusAC');
-            if (chkAC && statusAC) {
-                chkAC.addEventListener('change', () => {
-                    if (chkAC.checked) {
-                        statusAC.textContent = 'PASS';
-                        statusAC.style.color = 'var(--success)';
-                    } else {
-                        statusAC.textContent = 'PENDING';
-                        statusAC.style.color = 'var(--muted)';
-                    }
-                });
+            // Set default date picker to today
+            const dateInput = document.getElementById('modalHandoverDate');
+            if (dateInput) {
+                dateInput.value = new Date().toISOString().split('T')[0];
             }
         });
 
@@ -1153,6 +1148,29 @@
                 document.getElementById('userName').textContent = user.name;
                 document.getElementById('userAvatar').textContent = user.avatar || 'JD';
             }
+            if (user.role) {
+                const roleBadge = document.getElementById('userRoleBadge');
+                if (roleBadge) roleBadge.textContent = user.role;
+            }
+        }
+
+        function initChecklistListeners() {
+            const items = document.querySelectorAll('.checklist-item');
+            items.forEach(item => {
+                const chk = item.querySelector('.chk-item');
+                const statusSpan = item.querySelector('.chk-status');
+                if (chk && statusSpan) {
+                    chk.addEventListener('change', () => {
+                        if (chk.checked) {
+                            statusSpan.textContent = 'PASS';
+                            statusSpan.style.color = 'var(--success, #059669)';
+                        } else {
+                            statusSpan.textContent = 'PENDING';
+                            statusSpan.style.color = 'var(--muted, #64748B)';
+                        }
+                    });
+                }
+            });
         }
 
         function populateModalDropdowns() {
@@ -1165,14 +1183,19 @@
             if (leaseSelect) {
                 leaseSelect.innerHTML = '<option value="">Select Lease...</option>';
                 leases.forEach(l => {
-                    leaseSelect.innerHTML += `<option value="${l.id}">${l.id} — ${l.tenantName} (${l.unit})</option>`;
+                    const tenantName = l.tenantName || l.tenant || 'Unknown Tenant';
+                    const unitName = l.unit || l.unitName || 'N/A';
+                    leaseSelect.innerHTML += `<option value="${l.id}">${l.id} — ${tenantName} (${unitName})</option>`;
                 });
             }
 
             if (propFilter) {
                 propFilter.innerHTML = '<option value="">All Properties</option>';
                 props.forEach(p => {
-                    propFilter.innerHTML += `<option value="${p.name}">${p.name}</option>`;
+                    const name = p.name || p.propertyName || p.title;
+                    if (name) {
+                        propFilter.innerHTML += `<option value="${name}">${name}</option>`;
+                    }
                 });
             }
         }
@@ -1180,6 +1203,7 @@
         function renderHandoverTable() {
             const handovers = getHandovers();
             const tbody = document.getElementById('handoverTable');
+            if (!tbody) return;
             tbody.innerHTML = '';
 
             if (handovers.length === 0) {
@@ -1190,8 +1214,8 @@
 
             handovers.forEach(h => {
                 const tr = document.createElement('tr');
-                tr.dataset.property = h.property;
-                tr.dataset.status = h.status;
+                tr.dataset.property = h.property || '';
+                tr.dataset.status = h.status || '';
 
                 let badgeHtml = '';
                 if (h.status === 'Completed') {
@@ -1202,29 +1226,32 @@
                     badgeHtml = `<span class="status-badge status-pending"><i class="bi bi-hourglass-split" style="margin-right:4px;"></i> Pending Sign-off</span>`;
                 }
 
-                const scoreColor = h.score >= 100 ? 'var(--success)' : (h.score >= 70 ? 'var(--warning)' : 'var(--danger)');
+                const score = typeof h.score === 'number' ? h.score : 0;
+                const scoreColor = score >= 100 ? 'var(--success, #059669)' : (score >= 70 ? 'var(--warning, #D97706)' : 'var(--danger, #EF4444)');
 
                 tr.innerHTML = `
-                    <td><div class="handover-id">${h.id}</div></td>
+                    <td><div class="handover-id"><strong>${h.id}</strong></div></td>
                     <td>
                         <div class="tenant-name">${h.tenantName}</div>
-                        <div class="property-info">Lease: ${h.leaseId || 'N/A'}</div>
+                        <div class="property-info" style="font-size:12px; color:var(--muted);">Lease: ${h.leaseId || 'N/A'}</div>
                     </td>
                     <td>
                         <div><strong>${h.property}</strong></div>
-                        <div class="property-info">${h.unit}</div>
+                        <div class="property-info" style="font-size:12px; color:var(--muted);">${h.unit}</div>
                     </td>
                     <td>${h.moveInDate}</td>
                     <td>
                         <div class="progress-cell">
-                            <strong>${h.score}%</strong>
-                            <div class="progress-bar-bg"><div class="progress-bar-fill" style="width: ${h.score}%; background:${scoreColor};"></div></div>
+                            <strong>${score}%</strong>
+                            <div class="progress-bar-bg" style="background:#E2E8F0; border-radius:4px; height:6px; overflow:hidden; margin-top:4px;">
+                                <div class="progress-bar-fill" style="width: ${score}%; background:${scoreColor}; height:100%;"></div>
+                            </div>
                         </div>
                     </td>
                     <td>${h.keysIssued}</td>
                     <td>${badgeHtml}</td>
                     <td>
-                        <div class="actions" style="display:flex; gap:4px;">
+                        <div class="actions" style="display:flex; gap:6px;">
                             <button class="action-button" title="View Certificate" onclick="viewCertificate('${h.id}')"><i class="bi bi-file-earmark-check"></i></button>
                             <button class="action-button delete" title="Delete Log" onclick="deleteHandover('${h.id}')"><i class="bi bi-trash"></i></button>
                         </div>
@@ -1239,13 +1266,13 @@
         function saveHandover() {
             const leaseVal = document.getElementById('modalLeaseSelect').value;
             const handoverDate = document.getElementById('modalHandoverDate').value || new Date().toISOString().split('T')[0];
-            const elecReading = document.getElementById('modalElecReading').value || '0.00';
-            const waterReading = document.getElementById('modalWaterReading').value || '0.00';
+            const elecReading = parseFloat(document.getElementById('modalElecReading').value) || 0;
+            const waterReading = parseFloat(document.getElementById('modalWaterReading').value) || 0;
             
-            const mainKeys = parseInt(document.getElementById('modalKeysMain').value) || 2;
-            const mailKeys = parseInt(document.getElementById('modalKeysMail').value) || 1;
-            const rfid = parseInt(document.getElementById('modalRfid').value) || 2;
-            const remotes = parseInt(document.getElementById('modalRemotes').value) || 1;
+            const mainKeys = parseInt(document.getElementById('modalKeysMain').value) || 0;
+            const mailKeys = parseInt(document.getElementById('modalKeysMail').value) || 0;
+            const rfid = parseInt(document.getElementById('modalRfid').value) || 0;
+            const remotes = parseInt(document.getElementById('modalRemotes').value) || 0;
             const notes = document.getElementById('modalNotes').value.trim();
 
             if (!leaseVal) {
@@ -1259,15 +1286,16 @@
             const checkboxes = document.querySelectorAll('.chk-item');
             let checkedCount = 0;
             checkboxes.forEach(c => { if (c.checked) checkedCount++; });
-            const score = Math.round((checkedCount / checkboxes.length) * 100);
+            const score = checkboxes.length > 0 ? Math.round((checkedCount / checkboxes.length) * 100) : 100;
 
-            const tenantName = targetLease.tenantName || 'Tenant';
-            const unit = targetLease.unit || 'Unit';
-            const property = targetLease.property || 'Property';
+            const tenantName = targetLease.tenantName || targetLease.tenant || 'Tenant';
+            const unit = targetLease.unit || targetLease.unitName || 'Unit';
+            const property = targetLease.property || targetLease.propertyName || 'Property';
 
-            const newId = `HND-2026-${Math.floor(100 + Math.random() * 900)}`;
+            const newId = `HND-2026-${Math.floor(1000 + Math.random() * 9000)}`;
             const isFullyCleared = score >= 100;
 
+            // 1. Save Move-In Handover Record
             const newHandover = {
                 id: newId,
                 leaseId: leaseVal,
@@ -1276,15 +1304,53 @@
                 unit: unit,
                 moveInDate: handoverDate,
                 score: score,
-                keysIssued: `${mainKeys + mailKeys} Keys, ${rfid} RFIDs, ${remotes} Remote`,
+                mainKeys: mainKeys,
+                mailKeys: mailKeys,
+                rfidCount: rfid,
+                remotesCount: remotes,
+                keysIssued: `${mainKeys + mailKeys} Keys, ${rfid} RFIDs, ${remotes} Remotes`,
+                elecBaseline: elecReading,
+                waterBaseline: waterReading,
                 status: isFullyCleared ? 'Completed' : 'In Progress',
-                notes: notes || 'Standard move-in clearance signed off.'
+                notes: notes || 'Standard move-in clearance signed off.',
+                createdAt: new Date().toISOString()
             };
 
             let list = getHandovers();
             list.unshift(newHandover);
             saveHandovers(list);
 
+            // 2. Sync Baseline Meter Readings for Utilities
+            if (elecReading > 0 || waterReading > 0) {
+                let readings = getMeterReadings();
+                if (elecReading > 0) {
+                    readings.unshift({
+                        id: `MTR-E-${Date.now()}`,
+                        property: property,
+                        unit: unit,
+                        utilityType: 'Electricity',
+                        readingValue: elecReading,
+                        readingDate: handoverDate,
+                        type: 'Move-in Baseline',
+                        recordedBy: 'Property Admin'
+                    });
+                }
+                if (waterReading > 0) {
+                    readings.unshift({
+                        id: `MTR-W-${Date.now()}`,
+                        property: property,
+                        unit: unit,
+                        utilityType: 'Water',
+                        readingValue: waterReading,
+                        readingDate: handoverDate,
+                        type: 'Move-in Baseline',
+                        recordedBy: 'Property Admin'
+                    });
+                }
+                saveMeterReadings(readings);
+            }
+
+            // 3. Sync to Inspection Log
             let inspections = getInspections();
             inspections.unshift({
                 id: `INS-${Math.floor(1000 + Math.random() * 9000)}`,
@@ -1293,34 +1359,48 @@
                 tenant: tenantName,
                 type: 'Move-in',
                 date: handoverDate,
+                score: `${score}%`,
                 inspector: 'Property Admin',
                 status: isFullyCleared ? 'Completed' : 'Pending'
             });
             saveInspections(inspections);
 
+            // 4. Dispatch Notifications
             let notifications = getNotifications();
             notifications.unshift({
                 id: `NOTIF-${Date.now()}`,
-                pov: 'client',
+                pov: 'admin',
                 category: 'asset',
                 status: 'unread',
-                title: 'Move-In Inspection & Key Handover Cleared!',
+                title: 'Move-In Inspection & Key Handover Cleared',
                 time: 'Just now',
-                description: `Move-In Certificate ${newId} signed off for ${unit} (${property}). Meter baselines logged: Electricity ${elecReading} kWh | Water ${waterReading} cu.m.`,
+                description: `Move-In Certificate ${newId} logged for ${tenantName} - ${property} (${unit}). Meter Baselines: Elec: ${elecReading} kWh | Water: ${waterReading} cu.m.`,
                 property: `${property} • ${unit}`,
                 tag: `Certificate ${newId}`,
-                tagColor: 'var(--success)',
-                actionUrl: 'inspections.html',
-                actionText: 'View Move-In Certificate'
+                tagColor: 'var(--success, #059669)',
+                actionUrl: 'move-in-checklist.html',
+                actionText: 'View Handover'
             });
             saveNotifications(notifications);
 
+            // Re-render UI & Close Modal
             renderHandoverTable();
             updateKPIs();
+            updateHeaderBadge();
             closeModal('handoverModal');
+            resetModalForm();
+        }
 
+        function resetModalForm() {
             document.getElementById('modalLeaseSelect').value = '';
             document.getElementById('modalNotes').value = '';
+            document.getElementById('modalElecReading').value = '';
+            document.getElementById('modalWaterReading').value = '';
+            document.getElementById('modalKeysMain').value = '2';
+            document.getElementById('modalKeysMail').value = '1';
+            document.getElementById('modalRfid').value = '2';
+            document.getElementById('modalRemotes').value = '1';
+            document.getElementById('modalHandoverDate').value = new Date().toISOString().split('T')[0];
         }
 
         function deleteHandover(id) {
@@ -1335,7 +1415,25 @@
             const list = getHandovers();
             const item = list.find(h => h.id === id);
             if (item) {
-                alert(`ARGO Move-In Certificate — ${item.id}\n\nTenant: ${item.tenantName}\nProperty: ${item.property} (${item.unit})\nDate: ${item.moveInDate}\nInspection Score: ${item.score}%\nInventory: ${item.keysIssued}\nNotes: ${item.notes}`);
+                alert(
+                    `==========================================\n` +
+                    `       ARGO MOVE-IN CLEARANCE CERTIFICATE\n` +
+                    `==========================================\n\n` +
+                    `Certificate ID : ${item.id}\n` +
+                    `Tenant Name    : ${item.tenantName}\n` +
+                    `Property & Unit: ${item.property} - ${item.unit}\n` +
+                    `Move-In Date   : ${item.moveInDate}\n` +
+                    `Audit Score    : ${item.score}%\n` +
+                    `Status         : ${item.status}\n\n` +
+                    `[Inventory Issued]\n` +
+                    `Keys & Tokens  : ${item.keysIssued}\n\n` +
+                    `[Utility Baselines]\n` +
+                    `Electricity    : ${item.elecBaseline || 0} kWh\n` +
+                    `Water          : ${item.waterBaseline || 0} cu.m\n\n` +
+                    `[Inspector Notes]\n` +
+                    `${item.notes || 'None'}\n` +
+                    `==========================================`
+                );
             }
         }
 
@@ -1345,12 +1443,19 @@
             const pending = handovers.filter(h => h.status === 'In Progress' || h.status === 'Pending').length;
 
             let totalScoreSum = 0;
-            handovers.forEach(h => totalScoreSum += (h.score || 0));
+            let totalKeys = 0;
+
+            handovers.forEach(h => {
+                totalScoreSum += (h.score || 0);
+                const keysCount = (h.mainKeys || 0) + (h.mailKeys || 0) + (h.rfidCount || 0);
+                totalKeys += keysCount > 0 ? keysCount : 3;
+            });
+
             let avgScore = handovers.length > 0 ? (totalScoreSum / handovers.length).toFixed(1) : 0;
 
             document.getElementById('kpiCompleted').textContent = completed;
             document.getElementById('kpiPending').textContent = pending;
-            document.getElementById('kpiKeysIssued').textContent = `${completed * 3} Sets`;
+            document.getElementById('kpiKeysIssued').textContent = `${totalKeys} Issued`;
             document.getElementById('kpiAvgScore').textContent = `${avgScore}%`;
         }
 
@@ -1360,8 +1465,14 @@
             if (badge) badge.textContent = notifs.length;
         }
 
-        function openHandoverModal() { document.getElementById("handoverModal").classList.add("show"); }
-        function closeModal(modalId) { document.getElementById(modalId).classList.remove("show"); }
+        function openHandoverModal() { 
+            populateModalDropdowns();
+            document.getElementById("handoverModal").classList.add("show"); 
+        }
+
+        function closeModal(modalId) { 
+            document.getElementById(modalId).classList.remove("show"); 
+        }
 
         window.onclick = function(event) {
             if (event.target.classList.contains('modal-overlay')) {
@@ -1377,6 +1488,8 @@
             const rows = document.querySelectorAll("#handoverTable tr");
 
             rows.forEach(row => {
+                if (!row.dataset.property && !row.dataset.status) return;
+
                 const text = row.innerText.toLowerCase();
                 const rowProperty = row.dataset.property || "";
                 const rowStatus = row.dataset.status || "";
@@ -1409,7 +1522,9 @@
                 userDropdown.classList.toggle('show');
             });
 
-            document.addEventListener('click', () => { userDropdown.classList.remove('show'); });
+            document.addEventListener('click', () => { 
+                userDropdown.classList.remove('show'); 
+            });
         }
     </script>
 </body>

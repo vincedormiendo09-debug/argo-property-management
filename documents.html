@@ -637,10 +637,10 @@
     <!-- ================= SIDEBAR ================= -->
     <aside class="sidebar">
         <div class="sidebar-brand">
-            <div class="brand-logo">A</div>
+            <div class="brand-logo" id="brandLogo">A</div>
             <div>
                 <h2>ARGO</h2>
-                <span>Property Management</span>
+                <span id="portalBrandSubtitle">Property Management</span>
             </div>
         </div>
 
@@ -649,16 +649,16 @@
         </nav>
 
         <div class="sidebar-footer">
-            <span>ARGO v0.5</span>
+            <span id="portalVersionText">ARGO v0.5</span>
         </div>
     </aside>
 
     <!-- ================= TOP HEADER ================= -->
     <header class="top-header">
         <div class="header-left">
-            <div class="admin-badge">
-                <i class="bi bi-shield-lock-fill" style="color: #60A5FA;"></i>
-                <span>Admin Command Center</span>
+            <div id="headerRoleBadgeContainer" class="admin-badge">
+                <i id="headerRoleIcon" class="bi bi-shield-lock-fill" style="color: #60A5FA;"></i>
+                <span id="headerRoleBadgeText">Admin Command Center</span>
             </div>
         </div>
 
@@ -723,6 +723,7 @@
                 <option value="Receipt">Receipt</option>
                 <option value="Inspection Report">Inspection Report</option>
                 <option value="Title">Property Title</option>
+                <option value="Other">Other Document</option>
             </select>
 
             <select class="filter-select" id="statusFilter" onchange="filterTable()">
@@ -792,6 +793,7 @@
                             <option value="Receipt">Receipt</option>
                             <option value="Inspection Report">Inspection Report</option>
                             <option value="Title">Property Title</option>
+                            <option value="Other">Other Document</option>
                         </select>
                     </div>
 
@@ -815,7 +817,7 @@
 
                 <div class="form-group">
                     <label>Select File (PDF, JPG, PNG)</label>
-                    <input type="file" id="modalFile">
+                    <input type="file" id="modalFile" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx">
                 </div>
 
                 <div class="form-group">
@@ -836,13 +838,111 @@
         // Secure Logout Handler (Clears session and replaces history to prevent back-button access)
         function logoutUser() {
             localStorage.removeItem('argo_pov');
+            localStorage.removeItem('user_role');
+            localStorage.removeItem('role');
+            localStorage.removeItem('token');
             localStorage.removeItem('argo_user');
             window.location.replace('index.html');
         }
 
+        // Dynamic Role-Based Sidebar Renderer
         function renderSidebar() {
             const nav = document.getElementById('sidebarNav');
-            if (nav) {
+            if (!nav) return;
+
+            const rawRole = (
+                localStorage.getItem('argo_pov') || 
+                localStorage.getItem('user_role') || 
+                localStorage.getItem('role') || 
+                'admin'
+            ).toLowerCase().trim();
+
+            if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
+                nav.innerHTML = `
+                    <div class="nav-section-title">SELF-SERVICE HOME</div>
+                    <a href="client-dashboard.html" class="nav-item">
+                        <i class="bi bi-house-door"></i>
+                        <span>My Tenancy Home</span>
+                    </a>
+                    <a href="client-billing.html" class="nav-item">
+                        <i class="bi bi-receipt"></i>
+                        <span>Pay Rent & Dues</span>
+                    </a>
+                    <a href="transaction.html" class="nav-item">
+                        <i class="bi bi-receipt-cutoff"></i>
+                        <span>Transactions & Ledger</span>
+                    </a>
+                    <a href="client-utilities.html" class="nav-item">
+                        <i class="bi bi-lightning-charge"></i>
+                        <span>My Utilities & Meters</span>
+                    </a>
+                    <a href="client-maintenance.html" class="nav-item">
+                        <i class="bi bi-tools"></i>
+                        <span>Submit Maintenance</span>
+                    </a>
+                    <a href="inspections.html" class="nav-item">
+                        <i class="bi bi-clipboard-check"></i>
+                        <span>Move-In & Inspections</span>
+                    </a>
+                    <a href="client-documents.html" class="nav-item">
+                        <i class="bi bi-folder2-open"></i>
+                        <span>My Lease & Receipts</span>
+                    </a>
+
+                    <div class="nav-section-title">SYSTEM</div>
+                    <a href="account.html" class="nav-item">
+                        <i class="bi bi-gear"></i>
+                        <span>Account Settings</span>
+                    </a>
+                    <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Log Out</span>
+                    </a>
+                `;
+            } else if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
+                nav.innerHTML = `
+                    <div class="nav-section-title">PORTFOLIO OVERVIEW</div>
+                    <a href="owner-dashboard.html" class="nav-item">
+                        <i class="bi bi-speedometer2"></i>
+                        <span>Executive Summary</span>
+                    </a>
+                    <a href="owner-properties.html" class="nav-item">
+                        <i class="bi bi-buildings"></i>
+                        <span>My Properties</span>
+                    </a>
+                    <a href="owner-statements.html" class="nav-item">
+                        <i class="bi bi-file-earmark-text"></i>
+                        <span>Financial Statements</span>
+                    </a>
+                    <a href="property-ownership.html" class="nav-item">
+                        <i class="bi bi-pie-chart"></i>
+                        <span>Fractional Equity</span>
+                    </a>
+                    <a href="owner-documents.html" class="nav-item">
+                        <i class="bi bi-folder2-open"></i>
+                        <span>Legal Vault</span>
+                    </a>
+                    <a href="transaction.html" class="nav-item">
+                        <i class="bi bi-receipt-cutoff"></i>
+                        <span>Yield Audit Ledger</span>
+                    </a>
+
+                    <div class="nav-section-title">COMMUNICATION & SYSTEM</div>
+                    <a href="notification.html" class="nav-item">
+                        <i class="bi bi-bell"></i>
+                        <span>Notification Center</span>
+                    </a>
+                    <a href="account.html" class="nav-item">
+                        <i class="bi bi-gear"></i>
+                        <span>Account Settings</span>
+                    </a>
+                    <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Log Out</span>
+                    </a>
+                `;
+            } else {
+                // Admin POV
                 nav.innerHTML = `
                     <div class="nav-section-title">OVERVIEW</div>
                     <a href="dashboard.html" class="nav-item">
@@ -929,6 +1029,10 @@
                         <i class="bi bi-gear"></i>
                         <span>Settings</span>
                     </a>
+                    <a href="account.html" class="nav-item">
+                        <i class="bi bi-person-gear"></i>
+                        <span>Account Settings</span>
+                    </a>
                     <a href="#" class="nav-item" onclick="logoutUser(); return false;">
                         <i class="bi bi-box-arrow-right"></i>
                         <span>Log Out</span>
@@ -937,8 +1041,39 @@
             }
         }
 
-        // Clean Baseline (NO HARDCODED MOCK SEED DATA)
-        const DEFAULT_DOCUMENTS = [];
+        // Clean Baseline or Seed Documents
+        const DEFAULT_DOCUMENTS = [
+            {
+                id: 'DOC-1001',
+                title: 'Sunrise Residences Title Deed (TCT #49281)',
+                fileType: 'PDF • 4.2 MB',
+                entityName: 'Sunrise Residences',
+                entitySub: 'PROP-001 • Primary Deed',
+                type: 'Title',
+                uploader: 'Property Admin',
+                date: 'Jan 15, 2024',
+                status: 'Active',
+                iconClass: 'bi-journal-check',
+                iconStyle: 'background:#EFF6FF; color:#2563EB;',
+                notes: 'Registered property title for Sunrise Residences.',
+                fileUrl: ''
+            },
+            {
+                id: 'DOC-1002',
+                title: 'Signed Residential Lease Agreement',
+                fileType: 'PDF • 2.4 MB',
+                entityName: 'Maria Santos',
+                entitySub: 'Sunrise Property • Unit 101',
+                type: 'Lease Contract',
+                uploader: 'Juan Dela Cruz',
+                date: 'Jan 01, 2026',
+                status: 'Active',
+                iconClass: 'bi-file-earmark-pdf',
+                iconStyle: 'background:#ECFDF5; color:#059669;',
+                notes: 'Active 1-year residential contract.',
+                fileUrl: ''
+            }
+        ];
 
         function getDocuments() {
             const data = localStorage.getItem('argo_documents');
@@ -946,24 +1081,50 @@
                 localStorage.setItem('argo_documents', JSON.stringify(DEFAULT_DOCUMENTS));
                 return DEFAULT_DOCUMENTS;
             }
-            return JSON.parse(data);
+            try {
+                return JSON.parse(data);
+            } catch (e) {
+                return DEFAULT_DOCUMENTS;
+            }
         }
 
         function saveDocuments(docs) {
             localStorage.setItem('argo_documents', JSON.stringify(docs));
         }
 
+        function getProperties() {
+            try {
+                return JSON.parse(localStorage.getItem('argo_properties') || '[]');
+            } catch (e) {
+                return [];
+            }
+        }
+
         function getLeases() {
-            return JSON.parse(localStorage.getItem('argo_leases') || '[]');
+            try {
+                return JSON.parse(localStorage.getItem('argo_leases') || '[]');
+            } catch (e) {
+                return [];
+            }
         }
 
         function getNotifications() {
-            return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
+            try {
+                return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
+            } catch (e) {
+                return [];
+            }
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            const role = localStorage.getItem('argo_pov');
-            if (!role) {
+            const rawRole = (
+                localStorage.getItem('argo_pov') || 
+                localStorage.getItem('user_role') || 
+                localStorage.getItem('role') || 
+                ''
+            ).toLowerCase().trim();
+
+            if (!rawRole) {
                 window.location.replace('index.html');
                 return;
             }
@@ -974,54 +1135,151 @@
             updateHeaderBadge();
         });
 
+        // Real-Time Cross-Tab Listener
+        window.addEventListener('storage', (e) => {
+            if (['argo_documents', 'argo_notifications', 'argo_leases', 'argo_properties', 'argo_user', 'argo_pov', 'user_role', 'role'].includes(e.key)) {
+                renderSidebar();
+                loadUserData();
+                populateModalDropdowns();
+                renderDocumentTable();
+                updateHeaderBadge();
+            }
+        });
+
         function loadUserData() {
+            const rawRole = (
+                localStorage.getItem('argo_pov') || 
+                localStorage.getItem('user_role') || 
+                localStorage.getItem('role') || 
+                'admin'
+            ).toLowerCase().trim();
+
             const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
-            if (user.name) {
-                document.getElementById('userName').textContent = user.name;
-                document.getElementById('userAvatar').textContent = user.avatar || 'JD';
+
+            const nameEl = document.getElementById('userName');
+            const roleEl = document.getElementById('userRoleBadge');
+            const avatarEl = document.getElementById('userAvatar');
+
+            if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
+                if (nameEl) nameEl.textContent = 'Don Ramon Santos';
+                if (roleEl) roleEl.textContent = 'Property Owner';
+                if (avatarEl) {
+                    avatarEl.textContent = 'RS';
+                    avatarEl.style.background = '#059669';
+                }
+            } else if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
+                if (nameEl) nameEl.textContent = 'Maria Santos';
+                if (roleEl) roleEl.textContent = 'Sunrise Property • Unit 101';
+                if (avatarEl) {
+                    avatarEl.textContent = 'MS';
+                    avatarEl.style.background = '#D97706';
+                }
+            } else {
+                const name = user.name || 'Juan Dela Cruz';
+                const role = user.role || 'Property Manager';
+                if (nameEl) nameEl.textContent = name;
+                if (roleEl) roleEl.textContent = role;
+                if (avatarEl) {
+                    avatarEl.textContent = user.avatar || 'JD';
+                    avatarEl.style.background = user.avatarBg || '#2563EB';
+                }
             }
         }
 
         function populateModalDropdowns() {
             const leases = getLeases();
+            const properties = getProperties();
             const select = document.getElementById('modalDocEntity');
             if (!select) return;
 
             select.innerHTML = '<option value="">Select Entity / Unit...</option>';
-            leases.forEach(l => {
-                select.innerHTML += `<option value="${l.tenantName} • ${l.unit}">${l.tenantName} • ${l.unit}</option>`;
-            });
+            
+            // Add General Properties Option Group
+            if (properties.length > 0) {
+                const propGroup = document.createElement('optgroup');
+                propGroup.label = 'Properties / Assets';
+                properties.forEach(p => {
+                    const opt = document.createElement('option');
+                    opt.value = `${p.name} • ${p.code || 'Property Asset'}`;
+                    opt.textContent = `${p.name} (${p.code || 'PROP'})`;
+                    propGroup.appendChild(opt);
+                });
+                select.appendChild(propGroup);
+            }
+
+            // Add Active Tenancies Option Group
+            if (leases.length > 0) {
+                const leaseGroup = document.createElement('optgroup');
+                leaseGroup.label = 'Active Leases & Tenants';
+                leases.forEach(l => {
+                    const opt = document.createElement('option');
+                    const tName = l.tenantName || l.tenant_name || 'Tenant';
+                    const unit = l.unit || l.unit_number || 'Unit';
+                    opt.value = `${tName} • ${unit}`;
+                    opt.textContent = `${tName} • ${unit}`;
+                    leaseGroup.appendChild(opt);
+                });
+                select.appendChild(leaseGroup);
+            }
+
+            // Default Fallback Option
+            if (properties.length === 0 && leases.length === 0) {
+                select.innerHTML += '<option value="General Portfolio • Document Vault">General Portfolio • Document Vault</option>';
+            }
         }
 
         function renderDocumentTable() {
             const docs = getDocuments();
             const tbody = document.getElementById('documentTable');
+            if (!tbody) return;
+
             tbody.innerHTML = '';
 
             if (docs.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--muted); padding:30px;">No documents found in vault. Click "Upload Document" to add files.</td></tr>`;
-                document.getElementById('showingCountText').textContent = `Showing 0 documents`;
+                const countEl = document.getElementById('showingCountText');
+                if (countEl) countEl.textContent = `Showing 0 documents`;
                 return;
             }
 
             docs.forEach(d => {
                 const tr = document.createElement('tr');
-                tr.dataset.type = d.type;
-                tr.dataset.status = d.status;
+                tr.dataset.type = d.type || 'Other';
+                tr.dataset.status = d.status || 'Active';
 
                 let statusBadge = '';
-                if (d.status === 'Active') {
+                const s = (d.status || 'Active').toLowerCase();
+                if (s === 'active' || s === 'verified') {
                     statusBadge = `<span class="status active">Active</span>`;
-                } else if (d.status === 'Pending') {
+                } else if (s.includes('pending')) {
                     statusBadge = `<span class="status pending">Pending Review</span>`;
                 } else {
                     statusBadge = `<span class="status expired">Expired</span>`;
                 }
 
+                let iconClass = d.iconClass || 'bi-file-earmark-pdf';
+                let iconStyle = d.iconStyle || 'background:#EFF6FF; color:#2563EB;';
+
+                if (!d.iconClass) {
+                    if (d.type === 'Identification') {
+                        iconClass = 'bi-person-vcard';
+                        iconStyle = 'background:#FEF3C7; color:#D97706;';
+                    } else if (d.type === 'Receipt') {
+                        iconClass = 'bi-receipt';
+                        iconStyle = 'background:#ECFDF5; color:#059669;';
+                    } else if (d.type === 'Inspection Report') {
+                        iconClass = 'bi-clipboard-check';
+                        iconStyle = 'background:#EDE9FE; color:#6D28D9;';
+                    } else if (d.type === 'Title') {
+                        iconClass = 'bi-journal-check';
+                        iconStyle = 'background:#EFF6FF; color:#2563EB;';
+                    }
+                }
+
                 tr.innerHTML = `
                     <td>
                         <div class="document-name">
-                            <div class="document-icon" style="${d.iconStyle || ''}"><i class="bi ${d.iconClass || 'bi-file-earmark-pdf'}"></i></div>
+                            <div class="document-icon" style="${iconStyle}"><i class="bi ${iconClass}"></i></div>
                             <div>
                                 <div class="document-title">${d.title}</div>
                                 <div class="document-type">${d.fileType || 'PDF • 1.5 MB'}</div>
@@ -1029,16 +1287,16 @@
                         </div>
                     </td>
                     <td>
-                        <div>${d.entityName || 'General Portfolio'}</div>
-                        <div class="property-info">${d.entitySub || 'Document Vault'}</div>
+                        <div><strong>${d.entityName || 'General Portfolio'}</strong></div>
+                        <div class="property-info" style="font-size:11px; color:var(--muted);">${d.entitySub || 'Document Vault'}</div>
                     </td>
-                    <td>${d.type}</td>
+                    <td>${d.type || 'Other'}</td>
                     <td>${d.uploader || 'Property Admin'}</td>
-                    <td>${d.date}</td>
+                    <td>${d.date || 'N/A'}</td>
                     <td>${statusBadge}</td>
                     <td>
                         <div style="display:flex; gap:6px;">
-                            <button class="action-button" title="View" onclick="alert('Viewing document: ${d.title}')"><i class="bi bi-eye"></i></button>
+                            <button class="action-button" title="View Document" onclick="viewDocument('${d.id}')"><i class="bi bi-eye"></i></button>
                             <button class="action-button delete" title="Delete" onclick="deleteDocument('${d.id}')"><i class="bi bi-trash"></i></button>
                         </div>
                     </td>
@@ -1046,14 +1304,32 @@
                 tbody.appendChild(tr);
             });
 
-            document.getElementById('showingCountText').textContent = `Showing 1–${docs.length} of ${docs.length} documents`;
+            const countEl = document.getElementById('showingCountText');
+            if (countEl) countEl.textContent = `Showing 1–${docs.length} of ${docs.length} documents`;
+        }
+
+        function formatFileSize(bytes) {
+            if (!bytes || bytes === 0) return '0 KB';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
         }
 
         function saveDocument() {
-            const title = document.getElementById('modalDocTitle').value.trim();
-            const type = document.getElementById('modalDocType').value;
-            const entity = document.getElementById('modalDocEntity').value;
-            const status = document.getElementById('modalDocStatus').value;
+            const titleInput = document.getElementById('modalDocTitle');
+            const typeInput = document.getElementById('modalDocType');
+            const entityInput = document.getElementById('modalDocEntity');
+            const statusInput = document.getElementById('modalDocStatus');
+            const notesInput = document.getElementById('modalDocNotes');
+            const fileInput = document.getElementById('modalFile');
+
+            const title = titleInput ? titleInput.value.trim() : '';
+            const type = typeInput ? typeInput.value : 'Other';
+            const entity = entityInput ? entityInput.value : '';
+            const status = statusInput ? statusInput.value : 'Active';
+            const notes = notesInput ? notesInput.value.trim() : '';
+            const file = fileInput && fileInput.files ? fileInput.files[0] : null;
 
             if (!title) {
                 alert("Please enter a document title.");
@@ -1065,7 +1341,8 @@
             const entitySub = parts[1] ? parts[1].trim() : 'Document Vault';
 
             let iconClass = 'bi-file-earmark-pdf';
-            let iconStyle = '';
+            let iconStyle = 'background:#EFF6FF; color:#2563EB;';
+
             if (type === 'Identification') {
                 iconClass = 'bi-person-vcard';
                 iconStyle = 'background:#FEF3C7; color:#D97706;';
@@ -1075,33 +1352,66 @@
             } else if (type === 'Inspection Report') {
                 iconClass = 'bi-clipboard-check';
                 iconStyle = 'background:#EDE9FE; color:#6D28D9;';
+            } else if (type === 'Title') {
+                iconClass = 'bi-journal-check';
+                iconStyle = 'background:#EFF6FF; color:#2563EB;';
             }
 
-            const newDoc = {
-                id: `DOC-${Math.floor(100 + Math.random() * 900)}`,
-                title: title,
-                fileType: 'PDF • 1.5 MB',
-                entityName: entityName,
-                entitySub: entitySub,
-                type: type,
-                uploader: 'Property Admin',
-                date: new Date().toLocaleDateString('en-US', { month:'short', day:'2-digit', year:'numeric' }),
-                status: status,
-                iconClass: iconClass,
-                iconStyle: iconStyle
+            let ext = 'PDF';
+            let formattedSize = '1.5 MB';
+
+            if (file) {
+                ext = (file.name.split('.').pop() || 'PDF').toUpperCase();
+                formattedSize = formatFileSize(file.size);
+            }
+
+            const fileTypeDesc = `${ext} • ${formattedSize}`;
+            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+            const today = new Date().toLocaleDateString('en-US', { month:'short', day:'2-digit', year:'numeric' });
+
+            const proceedSave = (fileDataUrl = '') => {
+                const newDoc = {
+                    id: `DOC-${Math.floor(1000 + Math.random() * 9000)}`,
+                    title: title,
+                    fileType: fileTypeDesc,
+                    entityName: entityName,
+                    entitySub: entitySub,
+                    type: type,
+                    uploader: user.name || 'Property Admin',
+                    date: today,
+                    status: status,
+                    iconClass: iconClass,
+                    iconStyle: iconStyle,
+                    notes: notes,
+                    fileUrl: fileDataUrl
+                };
+
+                let docs = getDocuments();
+                docs.unshift(newDoc);
+                saveDocuments(docs);
+
+                renderDocumentTable();
+                closeModal();
+
+                if (titleInput) titleInput.value = '';
+                if (notesInput) notesInput.value = '';
+                if (fileInput) fileInput.value = '';
+
+                alert(`Document "${title}" successfully uploaded to the system vault!`);
             };
 
-            let docs = getDocuments();
-            docs.unshift(newDoc);
-            saveDocuments(docs);
-
-            renderDocumentTable();
-            closeModal();
-
-            document.getElementById('modalDocTitle').value = '';
-            document.getElementById('modalDocNotes').value = '';
-
-            alert(`Document "${title}" successfully uploaded to the system vault!`);
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    proceedSave(e.target.result);
+                };
+                reader.onerror = function() {
+                    proceedSave('');
+                };
+                reader.readAsDataURL(file);
+            } else {
+                proceedSave('');
+            }
         }
 
         function deleteDocument(id) {
@@ -1112,14 +1422,40 @@
             renderDocumentTable();
         }
 
+        function viewDocument(id) {
+            const docs = getDocuments();
+            const doc = docs.find(d => d.id === id);
+            if (!doc) return;
+
+            if (doc.fileUrl) {
+                const win = window.open();
+                if (win) {
+                    win.document.write(`<iframe src="${doc.fileUrl}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+                    return;
+                }
+            }
+
+            alert(`ARGO Vault Document — ${doc.id}\n\nTitle: ${doc.title}\nType: ${doc.type}\nRelated Entity: ${doc.entityName} (${doc.entitySub})\nUploaded By: ${doc.uploader}\nUpload Date: ${doc.date}\nStatus: ${doc.status}\nNotes: ${doc.notes || 'None'}`);
+        }
+
         function updateHeaderBadge() {
-            const notifs = getNotifications().filter(n => n.pov === 'admin' && n.status === 'unread');
+            const notifs = getNotifications().filter(n => (n.pov === 'admin' || n.pov === 'all') && (n.status === 'unread' || n.is_read === false));
             const badge = document.getElementById('headerNotifBadge');
             if (badge) badge.textContent = notifs.length;
         }
 
-        function openModal() { document.getElementById("documentModal").classList.add("show"); }
-        function closeModal() { document.getElementById("documentModal").classList.remove("show"); }
+        function openModal() { 
+            populateModalDropdowns();
+            const modal = document.getElementById("documentModal");
+            if (modal) modal.classList.add("show"); 
+        }
+
+        function closeModal() { 
+            const modal = document.getElementById("documentModal");
+            if (modal) modal.classList.remove("show"); 
+            const fileInput = document.getElementById('modalFile');
+            if (fileInput) fileInput.value = '';
+        }
 
         window.onclick = function(event) {
             const modal = document.getElementById("documentModal");
@@ -1127,9 +1463,13 @@
         };
 
         function filterTable() {
-            const searchValue = document.getElementById("searchInput").value.toLowerCase();
-            const typeValue = document.getElementById("typeFilter").value;
-            const statusValue = document.getElementById("statusFilter").value;
+            const searchInput = document.getElementById("searchInput");
+            const typeFilter = document.getElementById("typeFilter");
+            const statusFilter = document.getElementById("statusFilter");
+
+            const searchValue = searchInput ? searchInput.value.toLowerCase() : "";
+            const typeValue = typeFilter ? typeFilter.value : "";
+            const statusValue = statusFilter ? statusFilter.value : "";
 
             const rows = document.querySelectorAll("#documentTable tr");
 
@@ -1139,8 +1479,8 @@
                 const rowStatus = row.dataset.status || "";
 
                 const matchesSearch = text.includes(searchValue);
-                const matchesType = typeValue === "" || rowType === typeValue;
-                const matchesStatus = statusValue === "" || rowStatus === statusValue;
+                const matchesType = typeValue === "" || rowType.toLowerCase() === typeValue.toLowerCase();
+                const matchesStatus = statusValue === "" || rowStatus.toLowerCase() === statusValue.toLowerCase();
 
                 if (matchesSearch && matchesType && matchesStatus) {
                     row.style.display = "";
@@ -1151,12 +1491,17 @@
         }
 
         function resetFilters() {
-            document.getElementById("searchInput").value = "";
-            document.getElementById("typeFilter").value = "";
-            document.getElementById("statusFilter").value = "";
+            const searchInput = document.getElementById("searchInput");
+            const typeFilter = document.getElementById("typeFilter");
+            const statusFilter = document.getElementById("statusFilter");
+
+            if (searchInput) searchInput.value = "";
+            if (typeFilter) typeFilter.value = "";
+            if (statusFilter) statusFilter.value = "";
             filterTable();
         }
 
+        // Profile Dropdown Handler
         const userProfileBtn = document.getElementById('userProfileBtn');
         const userDropdown = document.getElementById('userDropdown');
 
@@ -1166,8 +1511,9 @@
                 userDropdown.classList.toggle('show');
             });
 
-            document.addEventListener('click', () => { userDropdown.classList.remove('show'); });
+            document.addEventListener('click', () => { 
+                userDropdown.classList.remove('show'); 
+            });
         }
     </script>
 </body>
-</html>

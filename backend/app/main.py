@@ -1,23 +1,93 @@
 import os
-from fastapi import FastAPI
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, JSONResponse
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 
-from .database import engine, Base
+from .database import engine, Base, get_db
 from . import models
 from .routers import units, properties, tenants, leases, invoices, maintenance
 
-# Disabled: Alembic manages PostgreSQL schema migrations directly
-# models.Base.metadata.create_all(bind=engine)
+# Optional dynamic imports for supplementary modules if present in the routers package
+try:
+    from .routers import auth
+except ImportError:
+    auth = None
+
+try:
+    from .routers import owners
+except ImportError:
+    owners = None
+
+try:
+    from .routers import transactions
+except ImportError:
+    transactions = None
+
+try:
+    from .routers import notifications
+except ImportError:
+    notifications = None
+
+try:
+    from .routers import meter_readings
+except ImportError:
+    meter_readings = None
+
+try:
+    from .routers import inspections
+except ImportError:
+    inspections = None
+
+try:
+    from .routers import documents
+except ImportError:
+    documents = None
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Application Lifespan Context Manager:
+    Verifies live database connectivity on startup and cleanly disposes the pool on shutdown.
+    """
+    # 1. Test live PostgreSQL connection
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        print("✅ [Database] Live PostgreSQL connection established successfully.")
+    except Exception as db_err:
+        print(f"⚠️ [Database] Connection warning on startup: {db_err}")
+
+    # 2. Auto-create tables if AUTO_CREATE_TABLES=true (fallback when not using Alembic)
+    if os.getenv("AUTO_CREATE_TABLES", "false").lower() in ("true", "1", "t"):
+        try:
+            Base.metadata.create_all(bind=engine)
+            print("✅ [Database] Schema tables validated / created.")
+        except Exception as schema_err:
+            print(f"⚠️ [Database] Schema creation warning: {schema_err}")
+
+    yield
+
+    # Teardown logic
+    engine.dispose()
+    print("🔌 [Database] PostgreSQL connection pool disposed cleanly.")
+
 
 app = FastAPI(
     title="ARGO Property Management API",
     description="Multi-Tenant Property Operations Backend Gateway",
-    version="0.5.0"
+    version="0.5.0",
+    lifespan=lifespan
 )
 
-# Enable CORS for frontend integration
+# ==========================================
+# CORS MIDDLEWARE CONFIGURATION
+# ==========================================
+# Configured for seamless communication between web clients, local dev, and live cloud domains
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -27,7 +97,7 @@ app.add_middleware(
 )
 
 # ==========================================
-# 1. MOUNT API ROUTERS
+# 1. MOUNT CORE API ROUTERS
 # ==========================================
 app.include_router(properties.router, prefix="/api/properties", tags=["Properties"])
 app.include_router(units.router, prefix="/api/units", tags=["Units"])
@@ -36,16 +106,68 @@ app.include_router(leases.router, prefix="/api/leases", tags=["Leases"])
 app.include_router(invoices.router, prefix="/api/invoices", tags=["Invoices & Rent Collection"])
 app.include_router(maintenance.router, prefix="/api/maintenance", tags=["Maintenance Work Orders"])
 
+# Mount supplementary routers dynamically if they exist in the codebase
+if auth and hasattr(auth, "router"):
+    app.include_router(auth.router, prefix="/api/auth", tags=["Authentication & Access"])
+
+if owners and hasattr(owners, "router"):
+    app.include_router(owners.router, prefix="/api/owners", tags=["Property Owners"])
+
+if transactions and hasattr(transactions, "router"):
+    app.include_router(transactions.router, prefix="/api/transactions", tags=["Transactions & Ledger"])
+
+if notifications and hasattr(notifications, "router"):
+    app.include_router(notifications.router, prefix="/api/notifications", tags=["Notifications Center"])
+
+if meter_readings and hasattr(meter_readings, "router"):
+    app.include_router(meter_readings.router, prefix="/api/meter-readings", tags=["Meter Readings & Sub-Meters"])
+
+if inspections and hasattr(inspections, "router"):
+    app.include_router(inspections.router, prefix="/api/inspections", tags=["Inspections & Checklists"])
+
+if documents and hasattr(documents, "router"):
+    app.include_router(documents.router, prefix="/api/documents", tags=["Document Vault"])
+
 
 # ==========================================
-# 2. MOUNT FRONTEND STATIC DIRECTORY
+# 2. SYSTEM HEALTH & DIAGNOSTIC ENDPOINTS
 # ==========================================
-# Automatically search candidate locations for the 'frontend' directory
+@app.get("/api/health", tags=["System Health"])
+@app.get("/health", tags=["System Health"])
+def health_check(db: Session = Depends(get_db)):
+    """
+    Live health check endpoint for container orchestrators (Render, Railway, Docker, AWS, Fly.io).
+    """
+    try:
+        db.execute(text("SELECT 1"))
+        return {
+            "status": "online",
+            "database": "connected",
+            "service": "ARGO Property Management API",
+            "version": "0.5.0"
+        }
+    except Exception as e:
+        return JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            content={
+                "status": "degraded",
+                "database": "disconnected",
+                "error": str(e)
+            }
+        )
+
+
+# ==========================================
+# 3. MOUNT FRONTEND STATIC DIRECTORY
+# ==========================================
 current_dir = os.path.dirname(os.path.abspath(__file__))
 candidate_paths = [
     os.path.abspath(os.path.join(current_dir, "../../frontend")),  # Root /frontend
     os.path.abspath(os.path.join(current_dir, "../frontend")),     # /backend/frontend
-    os.path.abspath(os.path.join(current_dir, "../../../frontend"))
+    os.path.abspath(os.path.join(current_dir, "frontend")),        # ./frontend
+    os.path.abspath(os.path.join(current_dir, "../../../frontend")),
+    os.path.abspath(os.path.join(current_dir, "static")),
+    os.path.abspath(os.path.join(current_dir, "../static"))
 ]
 
 frontend_path = None
@@ -62,7 +184,7 @@ else:
 
 
 # ==========================================
-# 3. ROOT REDIRECT
+# 4. ROOT REDIRECT
 # ==========================================
 @app.get("/")
 def read_root():

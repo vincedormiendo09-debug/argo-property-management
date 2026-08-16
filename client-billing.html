@@ -734,7 +734,7 @@
         </div>
 
         <nav class="sidebar-nav" id="sidebarNav">
-            <!-- DYNAMICALLY POPULATED BY JAVASCRIPT -->
+            <!-- DYNAMICALLY POPULATED BY JAVASCRIPT BASED ON ROLE -->
         </nav>
 
         <div class="sidebar-footer">
@@ -963,55 +963,210 @@
 
     <!-- ================= JAVASCRIPT ================= -->
     <script>
-        // Ensure Client Role Perspective Lock
-        localStorage.setItem('argo_pov', 'client');
-
-        // Logout Handler Function with Back Button Prevention
+        // Secure Logout Handler (Clears session and replaces history to prevent back-button access)
         function logoutUser() {
             localStorage.removeItem('argo_pov');
+            localStorage.removeItem('user_role');
+            localStorage.removeItem('role');
+            localStorage.removeItem('token');
             localStorage.removeItem('argo_user');
-            localStorage.clear();
             window.location.replace('index.html');
         }
 
-        // Dynamic Sidebar Renderer with Strict Client Links
+        // Dynamic Role-Based Sidebar Renderer
         function renderSidebar() {
             const nav = document.getElementById('sidebarNav');
             if (!nav) return;
 
-            const currentPath = window.location.pathname.split("/").pop() || 'client-billing.html';
+            const rawRole = (
+                localStorage.getItem('argo_pov') || 
+                localStorage.getItem('user_role') || 
+                localStorage.getItem('role') || 
+                'client'
+            ).toLowerCase().trim();
 
-            const clientLinks = [
-                { section: 'SELF-SERVICE HOME' },
-                { href: 'client-dashboard.html', icon: 'bi-house-door', label: 'My Tenancy Home' },
-                { href: 'client-billing.html', icon: 'bi-receipt', label: 'Pay Rent & Dues' },
-                { href: 'transaction.html', icon: 'bi-receipt-cutoff', label: 'Transactions & Ledger' },
-                { href: 'client-utilities.html', icon: 'bi-lightning-charge', label: 'My Utilities & Meters' },
-                { href: 'client-maintenance.html', icon: 'bi-tools', label: 'Submit Maintenance' },
-                { href: 'inspections.html', icon: 'bi-clipboard-check', label: 'Move-In & Inspections' },
-                { href: 'client-documents.html', icon: 'bi-folder2-open', label: 'My Lease & Receipts' },
-                { section: 'SYSTEM' },
-                { href: 'account.html', icon: 'bi-gear', label: 'Account Settings' },
-                { href: '#', icon: 'bi-box-arrow-right', label: 'Log Out', action: 'logoutUser(); return false;' }
-            ];
+            if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
+                nav.innerHTML = `
+                    <div class="nav-section-title">PORTFOLIO OVERVIEW</div>
+                    <a href="owner-dashboard.html" class="nav-item">
+                        <i class="bi bi-speedometer2"></i>
+                        <span>Executive Summary</span>
+                    </a>
+                    <a href="owner-properties.html" class="nav-item">
+                        <i class="bi bi-buildings"></i>
+                        <span>My Properties</span>
+                    </a>
+                    <a href="owner-statements.html" class="nav-item">
+                        <i class="bi bi-file-earmark-text"></i>
+                        <span>Financial Statements</span>
+                    </a>
+                    <a href="property-ownership.html" class="nav-item">
+                        <i class="bi bi-pie-chart"></i>
+                        <span>Fractional Equity</span>
+                    </a>
+                    <a href="owner-documents.html" class="nav-item">
+                        <i class="bi bi-folder2-open"></i>
+                        <span>Legal Vault</span>
+                    </a>
+                    <a href="transaction.html" class="nav-item">
+                        <i class="bi bi-receipt-cutoff"></i>
+                        <span>Yield Audit Ledger</span>
+                    </a>
 
-            let html = '';
-            clientLinks.forEach(item => {
-                if (item.section) {
-                    html += `<div class="nav-section-title">${item.section}</div>`;
-                } else {
-                    const isActive = (currentPath === item.href) ? 'active' : '';
-                    const clickAttr = item.action ? `href="#" onclick="${item.action}"` : `href="${item.href}"`;
-                    html += `
-                        <a ${clickAttr} class="nav-item ${isActive}">
-                            <i class="bi ${item.icon}"></i>
-                            <span>${item.label}</span>
-                        </a>
-                    `;
-                }
-            });
+                    <div class="nav-section-title">COMMUNICATION & SYSTEM</div>
+                    <a href="notification.html" class="nav-item">
+                        <i class="bi bi-bell"></i>
+                        <span>Notification Center</span>
+                    </a>
+                    <a href="account.html" class="nav-item">
+                        <i class="bi bi-gear"></i>
+                        <span>Account Settings</span>
+                    </a>
+                    <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Log Out</span>
+                    </a>
+                `;
+            } else if (['admin', 'manager', 'property_manager'].includes(rawRole)) {
+                nav.innerHTML = `
+                    <div class="nav-section-title">OVERVIEW</div>
+                    <a href="dashboard.html" class="nav-item">
+                        <i class="bi bi-grid-1x2"></i>
+                        <span>Dashboard</span>
+                    </a>
 
-            nav.innerHTML = html;
+                    <div class="nav-section-title">PROPERTY OPERATIONS</div>
+                    <a href="properties.html" class="nav-item">
+                        <i class="bi bi-buildings"></i>
+                        <span>Properties</span>
+                    </a>
+                    <a href="buildings.html" class="nav-item">
+                        <i class="bi bi-building"></i>
+                        <span>Buildings</span>
+                    </a>
+                    <a href="units.html" class="nav-item">
+                        <i class="bi bi-door-open"></i>
+                        <span>Units</span>
+                    </a>
+                    <a href="tenants.html" class="nav-item">
+                        <i class="bi bi-people"></i>
+                        <span>Tenants</span>
+                    </a>
+                    <a href="owners.html" class="nav-item">
+                        <i class="bi bi-person-badge"></i>
+                        <span>Owners</span>
+                    </a>
+                    <a href="property-ownership.html" class="nav-item">
+                        <i class="bi bi-pie-chart"></i>
+                        <span>Fractional Ownership</span>
+                    </a>
+                    <a href="leases.html" class="nav-item">
+                        <i class="bi bi-file-earmark-text"></i>
+                        <span>Leases</span>
+                    </a>
+
+                    <div class="nav-section-title">FINANCE & SERVICES</div>
+                    <a href="rent-collection.html" class="nav-item">
+                        <i class="bi bi-cash-stack"></i>
+                        <span>Rent Collection</span>
+                    </a>
+                    <a href="transaction.html" class="nav-item">
+                        <i class="bi bi-receipt-cutoff"></i>
+                        <span>Transactions & Ledger</span>
+                    </a>
+                    <a href="utilities.html" class="nav-item">
+                        <i class="bi bi-lightning-charge"></i>
+                        <span>Utilities</span>
+                    </a>
+                    <a href="meter-readings.html" class="nav-item">
+                        <i class="bi bi-speedometer2"></i>
+                        <span>Meter Readings</span>
+                    </a>
+                    <a href="maintenance.html" class="nav-item">
+                        <i class="bi bi-tools"></i>
+                        <span>Maintenance</span>
+                    </a>
+
+                    <div class="nav-section-title">RECORDS & REPORTS</div>
+                    <a href="inspections.html" class="nav-item">
+                        <i class="bi bi-clipboard-check"></i>
+                        <span>Inspections</span>
+                    </a>
+                    <a href="move-in-checklist.html" class="nav-item">
+                        <i class="bi bi-check2-square"></i>
+                        <span>Move-In Checklist</span>
+                    </a>
+                    <a href="move-out-settlement.html" class="nav-item">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Move-Out Settlement</span>
+                    </a>
+                    <a href="documents.html" class="nav-item">
+                        <i class="bi bi-folder2-open"></i>
+                        <span>Documents</span>
+                    </a>
+                    <a href="reports.html" class="nav-item">
+                        <i class="bi bi-bar-chart"></i>
+                        <span>Reports</span>
+                    </a>
+
+                    <div class="nav-section-title">SYSTEM</div>
+                    <a href="settings.html" class="nav-item">
+                        <i class="bi bi-gear"></i>
+                        <span>Settings</span>
+                    </a>
+                    <a href="account.html" class="nav-item">
+                        <i class="bi bi-person-gear"></i>
+                        <span>Account Settings</span>
+                    </a>
+                    <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Log Out</span>
+                    </a>
+                `;
+            } else {
+                // Client / Tenant POV
+                nav.innerHTML = `
+                    <div class="nav-section-title">SELF-SERVICE HOME</div>
+                    <a href="client-dashboard.html" class="nav-item">
+                        <i class="bi bi-house-door"></i>
+                        <span>My Tenancy Home</span>
+                    </a>
+                    <a href="client-billing.html" class="nav-item active">
+                        <i class="bi bi-receipt"></i>
+                        <span>Pay Rent & Dues</span>
+                    </a>
+                    <a href="transaction.html" class="nav-item">
+                        <i class="bi bi-receipt-cutoff"></i>
+                        <span>Transactions & Ledger</span>
+                    </a>
+                    <a href="client-utilities.html" class="nav-item">
+                        <i class="bi bi-lightning-charge"></i>
+                        <span>My Utilities & Meters</span>
+                    </a>
+                    <a href="client-maintenance.html" class="nav-item">
+                        <i class="bi bi-tools"></i>
+                        <span>Submit Maintenance</span>
+                    </a>
+                    <a href="inspections.html" class="nav-item">
+                        <i class="bi bi-clipboard-check"></i>
+                        <span>Move-In & Inspections</span>
+                    </a>
+                    <a href="client-documents.html" class="nav-item">
+                        <i class="bi bi-folder2-open"></i>
+                        <span>My Lease & Receipts</span>
+                    </a>
+
+                    <div class="nav-section-title">SYSTEM</div>
+                    <a href="account.html" class="nav-item">
+                        <i class="bi bi-gear"></i>
+                        <span>Account Settings</span>
+                    </a>
+                    <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Log Out</span>
+                    </a>
+                `;
+            }
         }
 
         // LocalStorage Accessors
@@ -1044,6 +1199,18 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
+            const rawRole = (
+                localStorage.getItem('argo_pov') || 
+                localStorage.getItem('user_role') || 
+                localStorage.getItem('role') || 
+                ''
+            ).toLowerCase().trim();
+
+            if (!rawRole) {
+                window.location.replace('index.html');
+                return;
+            }
+
             renderSidebar();
             loadUserData();
             renderTable();
@@ -1054,13 +1221,25 @@
 
         // Cross-Tab Real-Time Sync Listener
         window.addEventListener('storage', (e) => {
-            if (e.key === 'argo_invoices' || e.key === 'argo_notifications' || e.key === 'argo_leases') {
+            if (e.key === 'argo_invoices' || e.key === 'argo_notifications' || e.key === 'argo_leases' || e.key === 'argo_pov' || e.key === 'user_role' || e.key === 'role') {
+                renderSidebar();
+                loadUserData();
                 renderTable();
                 updateKPIs();
                 populateModalInvoices();
                 updateHeaderBadge();
             }
         });
+
+        function loadUserData() {
+            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+            document.getElementById('userName').textContent = user.name || 'Maria Santos';
+            document.getElementById('userRoleBadge').textContent = user.role || 'Unit Occupant';
+            document.getElementById('userAvatar').textContent = user.avatar || 'MS';
+            if (user.avatarBg) {
+                document.getElementById('userAvatar').style.background = user.avatarBg;
+            }
+        }
 
         function getActiveTenantContext() {
             const user = JSON.parse(localStorage.getItem('argo_user') || '{}');

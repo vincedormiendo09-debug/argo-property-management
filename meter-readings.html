@@ -815,7 +815,7 @@
             <div class="kpi-card">
                 <div class="kpi-top">
                     <span class="kpi-label">Readings Completion</span>
-                    <div class="kpi-icon" style="background:#ECFDF5; color:var(--success);"><i class="bi bi-shield-check"></i></div>
+                    <div class="kpi-icon" style="background:#ECFDF5; color:var(--success, #059669);"><i class="bi bi-shield-check"></i></div>
                 </div>
                 <div class="kpi-value" style="color:#059669;" id="kpiCompletion">0%</div>
                 <div class="kpi-description" id="kpiCompletionDesc">Sub-meter audit log status</div>
@@ -839,6 +839,7 @@
                 <option value="">All Periods</option>
                 <option value="August 2026">August 2026</option>
                 <option value="July 2026">July 2026</option>
+                <option value="June 2026">June 2026</option>
             </select>
 
             <button class="secondary-btn" onclick="resetFilters()">
@@ -905,7 +906,7 @@
 
                     <div class="form-group">
                         <label>Current Dial Reading (New Input)</label>
-                        <input type="number" id="modalCurrDial" step="0.01" placeholder="e.g. 1550.50" onkeyup="calculateConsumption()">
+                        <input type="number" id="modalCurrDial" step="0.01" placeholder="e.g. 1550.50" oninput="calculateConsumption()" onkeyup="calculateConsumption()">
                     </div>
                 </div>
 
@@ -913,7 +914,7 @@
                 <div class="calc-preview-card">
                     <div>
                         <span style="font-size:11px; color:#1E40AF; font-weight:700; display:block;">COMPUTED NET CONSUMPTION</span>
-                        <span style="font-size:11px; color:var(--muted);" id="modalUnitLabel">Measured in units</span>
+                        <span style="font-size:11px; color:var(--muted, #64748B);" id="modalUnitLabel">Measured in units</span>
                     </div>
                     <strong style="font-size:18px; color:#1E40AF;" id="modalNetConsumptionPreview">0.00</strong>
                 </div>
@@ -945,7 +946,12 @@
 
     <!-- ================= JAVASCRIPT ================= -->
     <script>
-        // Secure Logout Handler (Clears session and replaces history to prevent back-button access)
+        // API Base URL for PostgreSQL/Backend integration
+        const API_BASE_URL = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
+            ? 'http://localhost:5000/api'
+            : '/api';
+
+        // Secure Logout Handler
         function logoutUser() {
             localStorage.removeItem('argo_pov');
             localStorage.removeItem('user_role');
@@ -1052,16 +1058,57 @@
             }
         }
 
-        // Clean Baseline (NO HARDCODED MOCK SEED DATA)
-        const DEFAULT_READINGS = [];
+        // Database Sync Handlers with localStorage Fallback
+        async function fetchReadingsFromDB() {
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch(`${API_BASE_URL}/meter-readings`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    if (Array.isArray(data)) {
+                        localStorage.setItem('argo_meter_readings', JSON.stringify(data));
+                        return data;
+                    }
+                }
+            } catch (err) {
+                console.warn('Live API unavailable. Falling back to local storage cache.');
+            }
+            return getReadings();
+        }
 
         function getReadings() {
             const data = localStorage.getItem('argo_meter_readings');
-            if (!data) {
-                localStorage.setItem('argo_meter_readings', JSON.stringify(DEFAULT_READINGS));
-                return DEFAULT_READINGS;
+            return data ? JSON.parse(data) : [];
+        }
+
+        async function persistReadingRecord(readingObj) {
+            try {
+                const token = localStorage.getItem('token');
+                await fetch(`${API_BASE_URL}/meter-readings`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(readingObj)
+                });
+            } catch (err) {
+                console.warn('Could not post to live database API. Stored locally.');
             }
-            return JSON.parse(data);
+        }
+
+        async function removeReadingRecordFromDB(id) {
+            try {
+                const token = localStorage.getItem('token');
+                await fetch(`${API_BASE_URL}/meter-readings/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+            } catch (err) {
+                console.warn('Could not delete on live database API. Handled locally.');
+            }
         }
 
         function saveReadings(readings) {
@@ -1076,7 +1123,8 @@
             return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
         }
 
-        document.addEventListener('DOMContentLoaded', () => {
+        // Initialize Page
+        document.addEventListener('DOMContentLoaded', async () => {
             const role = localStorage.getItem('argo_pov');
             if (!role) {
                 window.location.replace('index.html');
@@ -1084,10 +1132,10 @@
             }
             renderSidebar();
             loadUserData();
+            await fetchReadingsFromDB();
             populateModalDropdowns();
             renderReadingsTable();
             updateKPIs();
-            autoFillPreviousDial();
             updateHeaderBadge();
         });
 
@@ -1097,24 +1145,40 @@
                 document.getElementById('userName').textContent = user.name;
                 document.getElementById('userAvatar').textContent = user.avatar || 'JD';
             }
+            if (user.role) {
+                const roleBadge = document.getElementById('userRoleBadge');
+                if (roleBadge) roleBadge.textContent = user.role;
+            }
         }
 
         function populateModalDropdowns() {
             const leases = getLeases();
+            const readings = getReadings();
             const select = document.getElementById('modalMeterSelect');
             if (!select) return;
 
             select.innerHTML = '<option value="">Select Target Meter...</option>';
+
             leases.forEach(l => {
-                const uName = l.unit || 'Unit';
-                const pName = l.property || 'Property';
-                const tenant = l.tenantName || 'Tenant';
+                const uName = l.unit || l.unitNumber || 'Unit';
+                const pName = l.property || l.propertyName || 'Property';
+                const tenant = l.tenantName || l.tenant || 'Tenant';
+
+                // Locate the most recent reading baseline for Meralco & Maynilad
+                const latestMeralco = readings.find(r => r.tenantName === tenant && r.utility === 'Meralco');
+                const latestMaynilad = readings.find(r => r.tenantName === tenant && r.utility === 'Maynilad');
+
+                const meralcoPrev = latestMeralco ? parseFloat(latestMeralco.currDial) : 0.00;
+                const mayniladPrev = latestMaynilad ? parseFloat(latestMaynilad.currDial) : 0.00;
+
+                const meralcoSerial = latestMeralco?.serial || `MER-${uName.replace(/[^a-zA-Z0-9]/g, '')}-01`;
+                const mayniladSerial = latestMaynilad?.serial || `MAY-${uName.replace(/[^a-zA-Z0-9]/g, '')}-01`;
 
                 select.innerHTML += `
-                    <option value="${tenant}|${pName} • ${uName}|Meralco|#MER-${Math.floor(100000+Math.random()*900000)}|1000.00|kWh">
+                    <option value="${tenant}|${pName} • ${uName}|Meralco|#${meralcoSerial}|${meralcoPrev}|kWh">
                         ${tenant} — ${pName} (${uName}) [Meralco Electric Sub-Meter]
                     </option>
-                    <option value="${tenant}|${pName} • ${uName}|Maynilad|#MAY-${Math.floor(100000+Math.random()*900000)}|100.00|cu.m">
+                    <option value="${tenant}|${pName} • ${uName}|Maynilad|#${mayniladSerial}|${mayniladPrev}|cu.m">
                         ${tenant} — ${pName} (${uName}) [Maynilad Water Sub-Meter]
                     </option>
                 `;
@@ -1127,7 +1191,7 @@
             tbody.innerHTML = '';
 
             if (readings.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:var(--muted); padding:30px;">No sub-meter readings recorded yet. Click "Record Sub-Meter Reading" to log one.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:var(--muted, #64748B); padding:30px;">No sub-meter readings recorded yet. Click "Record Sub-Meter Reading" to log one.</td></tr>`;
                 document.getElementById('showingCountText').textContent = `Showing 0 sub-meter readings`;
                 return;
             }
@@ -1152,14 +1216,14 @@
                         <div class="property-info">Serial ${r.serial || 'N/A'}</div>
                     </td>
                     <td>${utilBadge}</td>
-                    <td>${parseFloat(r.prevDial || 0).toFixed(2)} ${r.unitSymbol}</td>
-                    <td>${parseFloat(r.currDial || 0).toFixed(2)} ${r.unitSymbol}</td>
-                    <td><strong style="color:var(--primary);">${parseFloat(r.consumption || 0).toFixed(2)} ${r.unitSymbol}</strong></td>
+                    <td>${parseFloat(r.prevDial || 0).toFixed(2)} ${r.unitSymbol || ''}</td>
+                    <td>${parseFloat(r.currDial || 0).toFixed(2)} ${r.unitSymbol || ''}</td>
+                    <td><strong style="color:var(--primary, #2563EB);">${parseFloat(r.consumption || 0).toFixed(2)} ${r.unitSymbol || ''}</strong></td>
                     <td>${r.period}</td>
                     <td>${statusBadge}</td>
                     <td>
                         <div style="display:flex; gap:6px;">
-                            <button class="action-button" title="View Reading Details" onclick="alert('Sub-meter Reading Audit for ${r.id}:\\nTenant: ${r.tenantName}\\nUtility: ${r.utility}\\nConsumption: ${r.consumption} ${r.unitSymbol}')"><i class="bi bi-eye"></i></button>
+                            <button class="action-button" title="View Reading Details" onclick="viewReadingDetails('${r.id}')"><i class="bi bi-eye"></i></button>
                             <a href="utilities.html" class="action-button" title="Consolidate Bill"><i class="bi bi-receipt"></i></a>
                             <button class="action-button delete" title="Delete Reading" onclick="deleteReading('${r.id}')"><i class="bi bi-trash"></i></button>
                         </div>
@@ -1201,7 +1265,7 @@
             document.getElementById('modalNetConsumptionPreview').textContent = `${net.toFixed(2)} ${symbol}`;
         }
 
-        function saveReading() {
+        async function saveReading() {
             const selectVal = document.getElementById('modalMeterSelect').value;
             if (!selectVal) {
                 alert("Please select a target meter.");
@@ -1216,19 +1280,21 @@
             const prevDial = parseFloat(val[4]) || 0;
             const symbol = val[5] || 'kWh';
 
-            const currDial = parseFloat(document.getElementById('modalCurrDial').value);
+            const currDialInput = document.getElementById('modalCurrDial').value;
+            const currDial = parseFloat(currDialInput);
             const period = document.getElementById('modalPeriod').value.trim() || 'August 2026';
+            const readingDate = document.getElementById('modalDate').value || new Date().toISOString().split('T')[0];
+            const notes = document.getElementById('modalNotes').value.trim();
 
-            if (isNaN(currDial) || currDial < prevDial) {
-                alert(`Please enter a valid current dial reading greater than or equal to previous baseline (${prevDial}).`);
+            if (currDialInput === '' || isNaN(currDial) || currDial < prevDial) {
+                alert(`Please enter a valid current dial reading greater than or equal to previous baseline (${prevDial.toFixed(2)}).`);
                 return;
             }
 
             const netConsumption = currDial - prevDial;
-            const newReadingId = `MET-2026-${Math.floor(100 + Math.random() * 900)}`;
+            const newReadingId = `MET-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
-            let readings = getReadings();
-            readings.unshift({
+            const newRecord = {
                 id: newReadingId,
                 tenantName: tenantName,
                 unitLocation: unitLocation,
@@ -1239,31 +1305,68 @@
                 consumption: netConsumption,
                 unitSymbol: symbol,
                 period: period,
-                status: 'Unbilled / Ready for Billing'
-            });
+                readingDate: readingDate,
+                notes: notes,
+                status: 'Unbilled / Ready for Billing',
+                createdAt: new Date().toISOString()
+            };
+
+            let readings = getReadings();
+            readings.unshift(newRecord);
             saveReadings(readings);
+
+            // Push to live API if server is up
+            await persistReadingRecord(newRecord);
 
             renderReadingsTable();
             updateKPIs();
+            populateModalDropdowns();
             closeModal();
 
+            // Clear Inputs
             document.getElementById('modalCurrDial').value = '';
             document.getElementById('modalNotes').value = '';
 
-            alert(`Sub-meter reading recorded successfully for ${tenantName}!`);
+            alert(`Sub-meter reading ${newReadingId} recorded successfully for ${tenantName}!`);
         }
 
-        function deleteReading(id) {
+        async function deleteReading(id) {
             if (!confirm("Are you sure you want to delete this meter reading?")) return;
             let readings = getReadings();
             readings = readings.filter(r => r.id !== id);
             saveReadings(readings);
+            await removeReadingRecordFromDB(id);
             renderReadingsTable();
             updateKPIs();
+            populateModalDropdowns();
+        }
+
+        function viewReadingDetails(id) {
+            const readings = getReadings();
+            const r = readings.find(item => item.id === id);
+            if (!r) return;
+
+            alert(
+                `SUB-METER READING AUDIT DETAILS\n` +
+                `------------------------------------\n` +
+                `Reading ID: ${r.id}\n` +
+                `Tenant: ${r.tenantName}\n` +
+                `Unit: ${r.unitLocation}\n` +
+                `Utility Provider: ${r.utility}\n` +
+                `Serial No: ${r.serial}\n` +
+                `Audit Date: ${r.readingDate || 'N/A'}\n` +
+                `Billing Period: ${r.period}\n` +
+                `Baseline Dial: ${parseFloat(r.prevDial).toFixed(2)} ${r.unitSymbol}\n` +
+                `Current Dial: ${parseFloat(r.currDial).toFixed(2)} ${r.unitSymbol}\n` +
+                `Net Consumption: ${parseFloat(r.consumption).toFixed(2)} ${r.unitSymbol}\n` +
+                `Status: ${r.status}\n` +
+                `Notes: ${r.notes || 'None'}`
+            );
         }
 
         function updateKPIs() {
             const readings = getReadings();
+            const leases = getLeases();
 
             const activeMeters = readings.length;
             const powerReadings = readings.filter(r => r.utility === 'Meralco');
@@ -1277,7 +1380,8 @@
                 ? (waterReadings.reduce((sum, r) => sum + parseFloat(r.consumption || 0), 0) / waterReadings.length).toFixed(1)
                 : 0;
 
-            const completionRate = activeMeters > 0 ? 100 : 0;
+            const totalPossibleMeters = leases.length > 0 ? leases.length * 2 : (activeMeters || 1);
+            const completionRate = Math.min(100, Math.round((activeMeters / totalPossibleMeters) * 100));
 
             document.getElementById('kpiActiveMeters').textContent = activeMeters;
             document.getElementById('kpiAvgPower').textContent = `${avgPower} kWh`;
@@ -1291,8 +1395,18 @@
             if (badge) badge.textContent = notifs.length;
         }
 
-        function openModal() { document.getElementById("readingModal").classList.add("show"); }
-        function closeModal() { document.getElementById("readingModal").classList.remove("show"); }
+        function openModal() { 
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('modalDate').value = today;
+            if (!document.getElementById('modalPeriod').value) {
+                document.getElementById('modalPeriod').value = 'August 2026';
+            }
+            document.getElementById("readingModal").classList.add("show"); 
+        }
+
+        function closeModal() { 
+            document.getElementById("readingModal").classList.remove("show"); 
+        }
 
         window.onclick = function(event) {
             const modal = document.getElementById("readingModal");
@@ -1330,6 +1444,7 @@
             filterTable();
         }
 
+        // Profile Dropdown Toggle
         const userProfileBtn = document.getElementById('userProfileBtn');
         const userDropdown = document.getElementById('userDropdown');
 

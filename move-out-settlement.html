@@ -811,7 +811,7 @@
                         </tr>
                     </thead>
                     <tbody id="settlementTable">
-                        <!-- RENDERED DYNAMICALLY FROM LOCALSTORAGE / POSTGRESQL -->
+                        <!-- RENDERED DYNAMICALLY -->
                     </tbody>
                 </table>
             </div>
@@ -858,28 +858,28 @@
                 <!-- ITEMIZED DEDUCTIONS CARD -->
                 <div class="deduction-card">
                     <div class="deduction-title">
-                        <span><i class="bi bi-tools" style="color:var(--danger); margin-right:6px;"></i> Itemized Deductions & Final Utility Cut-offs</span>
+                        <span><i class="bi bi-tools" style="color:var(--danger, #ef4444); margin-right:6px;"></i> Itemized Deductions & Final Utility Cut-offs</span>
                     </div>
 
                     <div class="form-row">
                         <div class="form-group">
                             <label>Unpaid Final Electricity (Utility Cut-off)</label>
-                            <input type="number" id="deductElectric" value="0" oninput="calculateNetRefund()">
+                            <input type="number" id="deductElectric" min="0" step="any" value="0" oninput="calculateNetRefund()">
                         </div>
                         <div class="form-group">
                             <label>Unpaid Final Water (Utility Cut-off)</label>
-                            <input type="number" id="deductWater" value="0" oninput="calculateNetRefund()">
+                            <input type="number" id="deductWater" min="0" step="any" value="0" oninput="calculateNetRefund()">
                         </div>
                     </div>
 
                     <div class="form-row">
                         <div class="form-group">
                             <label>Unit Damages / Repair Costs (₱)</label>
-                            <input type="number" id="deductDamage" value="0" oninput="calculateNetRefund()">
+                            <input type="number" id="deductDamage" min="0" step="any" value="0" oninput="calculateNetRefund()">
                         </div>
                         <div class="form-group">
                             <label>Deep Cleaning & Repainting Fee (₱)</label>
-                            <input type="number" id="deductCleaning" value="0" oninput="calculateNetRefund()">
+                            <input type="number" id="deductCleaning" min="0" step="any" value="0" oninput="calculateNetRefund()">
                         </div>
                     </div>
                 </div>
@@ -887,7 +887,7 @@
                 <!-- NET REFUND CALCULATION BOX -->
                 <div class="calc-box">
                     <div>
-                        <span style="font-size:11px; color:var(--muted); display:block;">CALCULATED NET REFUND TO TENANT</span>
+                        <span style="font-size:11px; color:var(--muted, #6B7280); display:block;">CALCULATED NET REFUND TO TENANT</span>
                         <span id="refundFormula" style="font-size:11px; color:#4B5563;">₱0 - ₱0 Deductions</span>
                     </div>
                     <strong id="netRefundDisplay">₱0.00</strong>
@@ -926,7 +926,22 @@
 
     <!-- ================= JAVASCRIPT ================= -->
     <script>
-        // Secure Logout Handler (Clears session and replaces history to prevent back-button access)
+        // Utility for safe currency parsing
+        function parseCurrency(val) {
+            if (val === undefined || val === null || val === '') return 0;
+            if (typeof val === 'number') return isNaN(val) ? 0 : val;
+            const clean = val.toString().replace(/[^0-9.-]+/g, "");
+            const parsed = parseFloat(clean);
+            return isNaN(parsed) ? 0 : parsed;
+        }
+
+        // Format currency helper
+        function formatPeso(val) {
+            const num = parseCurrency(val);
+            return '₱' + num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        // Secure Logout Handler
         function logoutUser() {
             localStorage.removeItem('argo_pov');
             localStorage.removeItem('user_role');
@@ -1033,16 +1048,14 @@
             }
         }
 
-        // Clean Baseline (NO HARDCODED MOCK DATA)
-        const DEFAULT_SETTLEMENTS = [];
-
+        // Data Storage Getters & Setters
         function getSettlements() {
-            const data = localStorage.getItem('argo_settlements');
-            if (!data) {
-                localStorage.setItem('argo_settlements', JSON.stringify(DEFAULT_SETTLEMENTS));
-                return DEFAULT_SETTLEMENTS;
+            try {
+                return JSON.parse(localStorage.getItem('argo_settlements') || '[]');
+            } catch (e) {
+                console.error("Failed to parse settlements:", e);
+                return [];
             }
-            return JSON.parse(data);
         }
 
         function saveSettlements(list) {
@@ -1050,7 +1063,11 @@
         }
 
         function getNotifications() {
-            return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
+            try {
+                return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
+            } catch (e) {
+                return [];
+            }
         }
 
         function saveNotifications(notifications) {
@@ -1058,7 +1075,11 @@
         }
 
         function getTransactions() {
-            return JSON.parse(localStorage.getItem('argo_transactions') || '[]');
+            try {
+                return JSON.parse(localStorage.getItem('argo_transactions') || '[]');
+            } catch (e) {
+                return [];
+            }
         }
 
         function saveTransactions(transactions) {
@@ -1066,7 +1087,11 @@
         }
 
         function getUnits() {
-            return JSON.parse(localStorage.getItem('argo_units') || '[]');
+            try {
+                return JSON.parse(localStorage.getItem('argo_units') || '[]');
+            } catch (e) {
+                return [];
+            }
         }
 
         function saveUnits(units) {
@@ -1074,7 +1099,11 @@
         }
 
         function getLeases() {
-            return JSON.parse(localStorage.getItem('argo_leases') || '[]');
+            try {
+                return JSON.parse(localStorage.getItem('argo_leases') || '[]');
+            } catch (e) {
+                return [];
+            }
         }
 
         function saveLeases(leases) {
@@ -1082,7 +1111,11 @@
         }
 
         function getProperties() {
-            return JSON.parse(localStorage.getItem('argo_properties') || '[]');
+            try {
+                return JSON.parse(localStorage.getItem('argo_properties') || '[]');
+            } catch (e) {
+                return [];
+            }
         }
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -1100,10 +1133,14 @@
         });
 
         function loadUserData() {
-            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
-            if (user.name) {
-                document.getElementById('userName').textContent = user.name;
-                document.getElementById('userAvatar').textContent = user.avatar || 'JD';
+            try {
+                const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+                if (user.name) {
+                    document.getElementById('userName').textContent = user.name;
+                    document.getElementById('userAvatar').textContent = user.avatar || user.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'JD';
+                }
+            } catch(e) {
+                console.error("Error loading user info", e);
             }
         }
 
@@ -1117,15 +1154,30 @@
             if (leaseSelect) {
                 leaseSelect.innerHTML = '<option value="">Select Lease...</option>';
                 leases.forEach(l => {
-                    const depositVal = l.deposit ? parseFloat(l.deposit.replace(/[^0-9.-]+/g,"")) || (l.rent * 2) : (l.rent || 0) * 2;
+                    const leaseId = l.id || l.lease_id || 'N/A';
+                    const tenantName = l.tenantName || l.tenant_name || 'Unknown Tenant';
+                    const property = l.property || l.property_name || 'Property';
+                    const unit = l.unit || l.unit_no || l.unitNo || 'Unit';
+                    
+                    // Priority: explicit deposit field -> 2x rent calculation -> fallback 0
+                    let depositVal = 0;
+                    if (l.deposit !== undefined && l.deposit !== null) {
+                        depositVal = parseCurrency(l.deposit);
+                    } else if (l.rent !== undefined && l.rent !== null) {
+                        depositVal = parseCurrency(l.rent) * 2;
+                    }
+
+                    const status = (l.status || 'ACTIVE').toUpperCase();
+                    const statusTag = status === 'ENDED' ? ' [ENDED]' : '';
+
                     leaseSelect.innerHTML += `
-                        <option value="${l.id}" 
-                                    data-deposit="${depositVal}" 
-                                    data-lease="${l.id}" 
-                                    data-tenant="${l.tenantName}" 
-                                    data-property="${l.property}" 
-                                    data-unit="${l.unit}">
-                            ${l.id} — ${l.tenantName} (${l.unit})
+                        <option value="${leaseId}" 
+                                data-deposit="${depositVal}" 
+                                data-lease="${leaseId}" 
+                                data-tenant="${tenantName}" 
+                                data-property="${property}" 
+                                data-unit="${unit}">
+                            ${leaseId} — ${tenantName} (${unit})${statusTag}
                         </option>`;
                 });
             }
@@ -1133,7 +1185,8 @@
             if (propFilter) {
                 propFilter.innerHTML = '<option value="">All Properties</option>';
                 props.forEach(p => {
-                    propFilter.innerHTML += `<option value="${p.name}">${p.name}</option>`;
+                    const propName = p.name || p.property_name || p;
+                    propFilter.innerHTML += `<option value="${propName}">${propName}</option>`;
                 });
             }
         }
@@ -1143,45 +1196,51 @@
             const tbody = document.getElementById('settlementTable');
             tbody.innerHTML = '';
 
-            if (settlements.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:var(--muted); padding:30px;">No move-out settlement records found. Click "New Move-Out Settlement" to process one.</td></tr>`;
+            if (!settlements || settlements.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:var(--muted, #6B7280); padding:30px;">No move-out settlement records found. Click "New Move-Out Settlement" to process one.</td></tr>`;
                 document.getElementById('showingCountText').textContent = `Showing 0 exit settlement logs`;
                 return;
             }
 
             settlements.forEach(s => {
                 const tr = document.createElement('tr');
-                tr.dataset.property = s.property;
-                tr.dataset.status = s.status;
+                const prop = s.property || s.property_name || '';
+                const status = s.status || 'Pending Audit';
+                tr.dataset.property = prop;
+                tr.dataset.status = status;
 
                 let badgeHtml = '';
-                if (s.status === 'Full Refund') {
+                if (status === 'Full Refund') {
                     badgeHtml = `<span class="status-badge status-full"><i class="bi bi-check-circle" style="margin-right:4px;"></i> Full Refund</span>`;
-                } else if (s.status === 'Partial Refund') {
+                } else if (status === 'Partial Refund') {
                     badgeHtml = `<span class="status-badge status-partial"><i class="bi bi-pie-chart" style="margin-right:4px;"></i> Partial Refund</span>`;
-                } else if (s.status === 'Forfeited') {
+                } else if (status === 'Forfeited') {
                     badgeHtml = `<span class="status-badge status-forfeited"><i class="bi bi-x-circle" style="margin-right:4px;"></i> Forfeited</span>`;
                 } else {
                     badgeHtml = `<span class="status-badge status-pending"><i class="bi bi-clock-history" style="margin-right:4px;"></i> Pending Audit</span>`;
                 }
 
-                const netColor = s.netRefund > 0 ? 'var(--success)' : 'var(--muted)';
-                const deductColor = s.deductions > 0 ? 'var(--danger)' : 'var(--success)';
+                const initialDep = parseCurrency(s.initialDeposit || s.initial_deposit);
+                const deductions = parseCurrency(s.deductions);
+                const netRefund = parseCurrency(s.netRefund || s.net_refund);
+
+                const netColor = netRefund > 0 ? 'var(--success, #059669)' : 'var(--muted, #6B7280)';
+                const deductColor = deductions > 0 ? 'var(--danger, #E11D48)' : 'var(--success, #059669)';
 
                 tr.innerHTML = `
                     <td><div class="settlement-id">${s.id}</div></td>
                     <td>
-                        <div class="tenant-name">${s.tenantName}</div>
-                        <div class="property-info">Lease: ${s.leaseId || 'N/A'}</div>
+                        <div class="tenant-name">${s.tenantName || s.tenant_name || 'N/A'}</div>
+                        <div class="property-info">Lease: ${s.leaseId || s.lease_id || 'N/A'}</div>
                     </td>
                     <td>
-                        <div><strong>${s.property}</strong></div>
-                        <div class="property-info">${s.unit}</div>
+                        <div><strong>${prop}</strong></div>
+                        <div class="property-info">${s.unit || s.unit_no || 'N/A'}</div>
                     </td>
-                    <td>${s.vacateDate}</td>
-                    <td>₱${parseFloat(s.initialDeposit || 0).toLocaleString('en-US', {minimumFractionDigits:2})}</td>
-                    <td><span style="color:${deductColor}; font-weight:600;">${s.deductions > 0 ? `-₱${parseFloat(s.deductions).toLocaleString('en-US', {minimumFractionDigits:2})}` : '₱0.00'}</span></td>
-                    <td><strong style="color:${netColor};">₱${parseFloat(s.netRefund || 0).toLocaleString('en-US', {minimumFractionDigits:2})}</strong></td>
+                    <td>${s.vacateDate || s.vacate_date || 'N/A'}</td>
+                    <td>${formatPeso(initialDep)}</td>
+                    <td><span style="color:${deductColor}; font-weight:600;">${deductions > 0 ? `-${formatPeso(deductions)}` : '₱0.00'}</span></td>
+                    <td><strong style="color:${netColor};">${formatPeso(netRefund)}</strong></td>
                     <td>${badgeHtml}</td>
                     <td>
                         <div class="actions" style="display:flex; gap:4px;">
@@ -1198,53 +1257,59 @@
 
         function updateKPIs() {
             const settlements = getSettlements();
-            const completed = settlements.filter(s => s.status === 'Full Refund' || s.status === 'Partial Refund' || s.status === 'Forfeited').length;
-            const pending = settlements.filter(s => s.status === 'Pending Audit' || s.status === 'Pending').length;
+            const completed = settlements.filter(s => ['Full Refund', 'Partial Refund', 'Forfeited'].includes(s.status)).length;
+            const pending = settlements.filter(s => ['Pending Audit', 'Pending'].includes(s.status)).length;
 
             let totalDeductions = 0;
             let totalNetRefunds = 0;
 
             settlements.forEach(s => {
-                totalDeductions += parseFloat(s.deductions || 0);
-                totalNetRefunds += parseFloat(s.netRefund || 0);
+                totalDeductions += parseCurrency(s.deductions);
+                totalNetRefunds += parseCurrency(s.netRefund || s.net_refund);
             });
 
             document.getElementById('kpiCompleted').textContent = completed;
             document.getElementById('kpiPending').textContent = pending;
-            document.getElementById('kpiDeductions').textContent = `₱${totalDeductions.toLocaleString('en-US', {minimumFractionDigits:2})}`;
-            document.getElementById('kpiNetRefunds').textContent = `₱${totalNetRefunds.toLocaleString('en-US', {minimumFractionDigits:2})}`;
+            document.getElementById('kpiDeductions').textContent = formatPeso(totalDeductions);
+            document.getElementById('kpiNetRefunds').textContent = formatPeso(totalNetRefunds);
         }
 
         function openSettlementModal() { 
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById("modalVacateDate").value = today;
+            document.getElementById("modalRefCode").value = `REF-${Math.floor(100000 + Math.random() * 900000)}`;
+            populateModalDropdowns();
             document.getElementById("settlementModal").classList.add("show");
             updateDepositBase();
         }
 
-        function closeModal(modalId) { document.getElementById(modalId).classList.remove("show"); }
+        function closeModal(modalId) { 
+            document.getElementById(modalId).classList.remove("show"); 
+        }
 
         function updateDepositBase() {
             const select = document.getElementById("leaseSelect");
             if (!select || select.selectedIndex < 0) return;
 
             const selectedOpt = select.options[select.selectedIndex];
-            const depositVal = parseFloat(selectedOpt.dataset.deposit) || 0;
+            const depositVal = parseCurrency(selectedOpt.dataset.deposit);
 
             document.getElementById("baseDeposit").value = depositVal;
             calculateNetRefund();
         }
 
         function calculateNetRefund() {
-            const base = parseFloat(document.getElementById("baseDeposit").value) || 0;
-            const ele = parseFloat(document.getElementById("deductElectric").value) || 0;
-            const wat = parseFloat(document.getElementById("deductWater").value) || 0;
-            const dam = parseFloat(document.getElementById("deductDamage").value) || 0;
-            const cln = parseFloat(document.getElementById("deductCleaning").value) || 0;
+            const base = Math.max(0, parseCurrency(document.getElementById("baseDeposit").value));
+            const ele = Math.max(0, parseCurrency(document.getElementById("deductElectric").value));
+            const wat = Math.max(0, parseCurrency(document.getElementById("deductWater").value));
+            const dam = Math.max(0, parseCurrency(document.getElementById("deductDamage").value));
+            const cln = Math.max(0, parseCurrency(document.getElementById("deductCleaning").value));
 
             const totalDeductions = ele + wat + dam + cln;
             const netRefund = Math.max(0, base - totalDeductions);
 
             document.getElementById("refundFormula").textContent = `₱${base.toLocaleString()} - ₱${totalDeductions.toLocaleString()} Deductions`;
-            document.getElementById("netRefundDisplay").textContent = `₱${netRefund.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+            document.getElementById("netRefundDisplay").textContent = formatPeso(netRefund);
         }
 
         function saveSettlement() {
@@ -1255,19 +1320,18 @@
             }
 
             const selectedOpt = select.options[select.selectedIndex];
-            
             const leaseId = selectedOpt.dataset.lease || select.value;
             const tenantName = selectedOpt.dataset.tenant || 'Tenant';
             const property = selectedOpt.dataset.property || 'Property';
             const unit = selectedOpt.dataset.unit || 'Unit';
 
             const vacateDateInput = document.getElementById("modalVacateDate").value || new Date().toISOString().split('T')[0];
-            const baseDeposit = parseFloat(document.getElementById("baseDeposit").value) || 0;
+            const baseDeposit = Math.max(0, parseCurrency(document.getElementById("baseDeposit").value));
             
-            const ele = parseFloat(document.getElementById("deductElectric").value) || 0;
-            const wat = parseFloat(document.getElementById("deductWater").value) || 0;
-            const dam = parseFloat(document.getElementById("deductDamage").value) || 0;
-            const cln = parseFloat(document.getElementById("deductCleaning").value) || 0;
+            const ele = Math.max(0, parseCurrency(document.getElementById("deductElectric").value));
+            const wat = Math.max(0, parseCurrency(document.getElementById("deductWater").value));
+            const dam = Math.max(0, parseCurrency(document.getElementById("deductDamage").value));
+            const cln = Math.max(0, parseCurrency(document.getElementById("deductCleaning").value));
             
             const totalDeductions = ele + wat + dam + cln;
             const netRefund = Math.max(0, baseDeposit - totalDeductions);
@@ -1277,29 +1341,42 @@
             const notes = document.getElementById("modalNotes").value.trim();
 
             let statusType = 'Partial Refund';
-            if (totalDeductions === 0) statusType = 'Full Refund';
+            if (totalDeductions === 0 && baseDeposit > 0) statusType = 'Full Refund';
             else if (netRefund === 0) statusType = 'Forfeited';
 
             const newId = `SET-2026-${Math.floor(100 + Math.random() * 900)}`;
 
+            // 1. Create and Save Settlement Record (Normalized keys for DB + LocalStorage)
             const newSettlement = {
                 id: newId,
+                settlement_id: newId,
                 leaseId: leaseId,
+                lease_id: leaseId,
                 tenantName: tenantName,
+                tenant_name: tenantName,
                 property: property,
+                property_name: property,
                 unit: unit,
+                unit_no: unit,
                 vacateDate: vacateDateInput,
+                vacate_date: vacateDateInput,
                 initialDeposit: baseDeposit,
+                initial_deposit: baseDeposit,
                 deductions: totalDeductions,
                 netRefund: netRefund,
+                net_refund: netRefund,
                 status: statusType,
-                notes: notes || 'Exit clearance finalized and deposit disbursed.'
+                paymentMethod: payMethod,
+                referenceCode: refCode,
+                notes: notes || 'Exit clearance finalized and deposit disbursed.',
+                created_at: new Date().toISOString()
             };
 
             let list = getSettlements();
             list.unshift(newSettlement);
             saveSettlements(list);
 
+            // 2. Record Outflow Transaction Ledger if refund amount > 0
             if (netRefund > 0) {
                 let txns = getTransactions();
                 txns.unshift({
@@ -1311,7 +1388,7 @@
                     fullLocation: `${property} • ${unit}`,
                     category: 'Security Deposit Refund',
                     direction: 'OUTFLOW',
-                    grossAmount: `-₱${netRefund.toLocaleString('en-US', {minimumFractionDigits:2})}`,
+                    grossAmount: `-${formatPeso(netRefund)}`,
                     channel: payMethod,
                     status: 'Disbursed',
                     timestamp: new Date().toLocaleDateString('en-US', { month:'short', day:'2-digit', year:'numeric' })
@@ -1319,20 +1396,36 @@
                 saveTransactions(txns);
             }
 
+            // 3. Mark Lease as ENDED
             let leases = getLeases();
-            leases = leases.map(l => l.id === leaseId ? { ...l, status: 'ENDED' } : l);
+            leases = leases.map(l => {
+                const currentLeaseId = l.id || l.lease_id;
+                if (currentLeaseId === leaseId) {
+                    return { ...l, status: 'ENDED', active: false };
+                }
+                return l;
+            });
             saveLeases(leases);
 
+            // 4. Revert Unit Status back to VACANT
             let units = getUnits();
             units = units.map(u => {
-                const fullLoc = `${u.property_name || u.property || ''} • ${u.unit_no || u.unitNo || u.id}`;
-                if (fullLoc.includes(unit) || unit.includes(u.unit_no || u.unitNo || 'XYZ')) {
-                    return { ...u, status: 'VACANT' };
+                const unitIdentifier = (u.unit_no || u.unitNo || u.id || '').toString().toLowerCase();
+                const targetUnit = unit.toString().toLowerCase();
+                const unitProp = (u.property_name || u.property || '').toString().toLowerCase();
+                const targetProp = property.toString().toLowerCase();
+
+                if (
+                    (unitIdentifier === targetUnit && (unitProp === '' || unitProp === targetProp)) ||
+                    (`${unitProp} • ${unitIdentifier}`.includes(targetUnit))
+                ) {
+                    return { ...u, status: 'VACANT', tenant: null, tenantName: null };
                 }
                 return u;
             });
             saveUnits(units);
 
+            // 5. Trigger System Notification
             let notifications = getNotifications();
             notifications.unshift({
                 id: `NOTIF-${Date.now()}`,
@@ -1341,7 +1434,7 @@
                 status: 'unread',
                 title: 'Move-Out Security Deposit Refund Disbursed',
                 time: 'Just now',
-                description: `Exit settlement ${newId} finalized for ${unit}. Deposit held: ₱${baseDeposit.toLocaleString()} | Deductions: ₱${totalDeductions.toLocaleString()} | Net Refund: <strong>₱${netRefund.toLocaleString()}</strong> disbursed via ${payMethod}.`,
+                description: `Exit settlement ${newId} finalized for ${unit}. Deposit held: ${formatPeso(baseDeposit)} | Deductions: ${formatPeso(totalDeductions)} | Net Refund: <strong>${formatPeso(netRefund)}</strong> disbursed via ${payMethod}.`,
                 property: `${property} • ${unit}`,
                 tag: `Ref ${refCode}`,
                 tagColor: 'var(--success)',
@@ -1350,6 +1443,7 @@
             });
             saveNotifications(notifications);
 
+            // 6. Refresh UI and Reset Inputs
             renderSettlementTable();
             updateKPIs();
             closeModal('settlementModal');
@@ -1364,7 +1458,7 @@
 
         function deleteSettlement(id) {
             if (!confirm("Are you sure you want to delete this move-out settlement log?")) return;
-            let list = getSettlements().filter(s => s.id !== id);
+            let list = getSettlements().filter(s => (s.id || s.settlement_id) !== id);
             saveSettlements(list);
             renderSettlementTable();
             updateKPIs();
@@ -1372,20 +1466,29 @@
 
         function viewStatement(id) {
             const list = getSettlements();
-            const item = list.find(s => s.id === id);
+            const item = list.find(s => (s.id || s.settlement_id) === id);
             if (item) {
-                alert(`ARGO Move-Out Settlement Certificate — ${item.id}\n\nTenant: ${item.tenantName}\nLease ID: ${item.leaseId}\nProperty: ${item.property} (${item.unit})\nVacate Date: ${item.vacateDate}\nInitial Deposit: ₱${item.initialDeposit.toLocaleString()}\nTotal Deductions: ₱${item.deductions.toLocaleString()}\nNet Disbursed Refund: ₱${item.netRefund.toLocaleString()}\nStatus: ${item.status}\nNotes: ${item.notes}`);
+                alert(`ARGO Move-Out Settlement Certificate — ${item.id || item.settlement_id}\n\n` +
+                      `Tenant: ${item.tenantName || item.tenant_name || 'N/A'}\n` +
+                      `Lease ID: ${item.leaseId || item.lease_id || 'N/A'}\n` +
+                      `Property: ${item.property || item.property_name || 'N/A'} (${item.unit || item.unit_no || 'N/A'})\n` +
+                      `Vacate Date: ${item.vacateDate || item.vacate_date || 'N/A'}\n` +
+                      `Initial Deposit: ${formatPeso(item.initialDeposit || item.initial_deposit)}\n` +
+                      `Total Deductions: ${formatPeso(item.deductions)}\n` +
+                      `Net Disbursed Refund: ${formatPeso(item.netRefund || item.net_refund)}\n` +
+                      `Status: ${item.status || 'Pending'}\n` +
+                      `Notes: ${item.notes || 'No remarks provided.'}`);
             }
         }
 
         function updateHeaderBadge() {
-            const notifs = getNotifications().filter(n => n.pov === 'admin' && n.status === 'unread');
+            const notifs = getNotifications().filter(n => (n.pov === 'admin' || !n.pov) && n.status === 'unread');
             const badge = document.getElementById('headerNotifBadge');
             if (badge) badge.textContent = notifs.length;
         }
 
         window.onclick = function(event) {
-            if (event.target.classList.contains('modal-overlay')) {
+            if (event.target.classList && event.target.classList.contains('modal-overlay')) {
                 event.target.classList.remove("show");
             }
         };
@@ -1430,8 +1533,9 @@
                 userDropdown.classList.toggle('show');
             });
 
-            document.addEventListener('click', () => { userDropdown.classList.remove('show'); });
+            document.addEventListener('click', () => { 
+                userDropdown.classList.remove('show'); 
+            });
         }
     </script>
 </body>
-</html>

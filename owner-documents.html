@@ -821,7 +821,7 @@
         <div class="table-card">
             <div class="table-header">
                 <h2>Asset Legal Repository</h2>
-                <span style="font-size:12px; color:var(--muted);">Confidential files for Don Ramon Santos</span>
+                <span id="confidentialSubtext" style="font-size:12px; color:var(--muted);">Confidential files for Don Ramon Santos</span>
             </div>
 
             <div class="table-wrapper">
@@ -837,7 +837,7 @@
                         </tr>
                     </thead>
                     <tbody id="documentTable">
-                        <!-- RENDERED DYNAMICALLY FROM LOCALSTORAGE / POSTGRESQL -->
+                        <!-- RENDERED DYNAMICALLY FROM API / LOCALSTORAGE -->
                     </tbody>
                 </table>
             </div>
@@ -862,7 +862,7 @@
 
             <div class="modal-body">
                 <div class="form-group">
-                    <label>Document Title / Description</label>
+                    <label>Document Title / Description <span style="color:var(--danger);">*</span></label>
                     <input type="text" id="modalDocTitle" placeholder="e.g. 2026 Fire Insurance Renewal Policy">
                 </div>
 
@@ -883,14 +883,13 @@
                         <select id="modalDocProperty">
                             <option value="Sunrise Residences (PROP-001)">Sunrise Residences (PROP-001)</option>
                             <option value="Central Business Center (PROP-003)">Central Business Center (PROP-003)</option>
-                            <option value="Sunrise Property">Sunrise Property</option>
                         </select>
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label>Select File (PDF, JPG, PNG)</label>
-                    <input type="file" id="modalDocFile">
+                    <label>Select File (PDF, JPG, PNG, DOCX)</label>
+                    <input type="file" id="modalDocFile" accept=".pdf,.jpg,.jpeg,.png,.docx">
                 </div>
 
                 <div class="form-group">
@@ -901,19 +900,28 @@
 
             <div class="modal-footer">
                 <button class="secondary-btn" onclick="closeModal()">Cancel</button>
-                <button class="primary-btn" onclick="saveOwnerDoc()"><i class="bi bi-upload"></i> Upload to Owner Vault</button>
+                <button class="primary-btn" id="uploadSubmitBtn" onclick="saveOwnerDoc()"><i class="bi bi-upload"></i> Upload to Owner Vault</button>
             </div>
         </div>
     </div>
 
     <!-- ================= JAVASCRIPT ================= -->
     <script>
-        // Secure Logout Handler (Clears session and replaces history to prevent back-button access)
+        // API Configuration (Switches seamlessly between Live Database API and LocalStorage fallback)
+        const API_CONFIG = {
+            BASE_URL: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+                ? 'http://localhost:5000/api'
+                : '/api',
+            USE_LIVE_API: false // Set to true when connected to Node/Express/PostgreSQL backend
+        };
+
+        // Secure Logout Handler
         function logoutUser() {
             localStorage.removeItem('argo_pov');
             localStorage.removeItem('user_role');
             localStorage.removeItem('role');
             localStorage.removeItem('token');
+            localStorage.removeItem('argo_token');
             localStorage.removeItem('argo_user');
             window.location.replace('index.html');
         }
@@ -1010,7 +1018,6 @@
                     </a>
                 `;
             } else {
-                // Admin POV
                 nav.innerHTML = `
                     <div class="nav-section-title">OVERVIEW</div>
                     <a href="dashboard.html" class="nav-item">
@@ -1105,7 +1112,7 @@
             }
         }
 
-        // Default Seed Owner Documents
+        // Default Seed Documents
         const DEFAULT_OWNER_DOCS = [
             {
                 id: 'DOC-OWN-001',
@@ -1115,7 +1122,8 @@
                 category: 'Property Title',
                 uploadDate: 'Jan 15, 2024',
                 status: 'Verified',
-                notes: 'Original land title registered under Don Ramon Santos.'
+                notes: 'Original land title registered under Don Ramon Santos.',
+                fileData: null
             },
             {
                 id: 'DOC-OWN-002',
@@ -1125,7 +1133,8 @@
                 category: 'Insurance Policy',
                 uploadDate: 'Jan 05, 2026',
                 status: 'Verified',
-                notes: 'Fire and structural liability active through Dec 2026.'
+                notes: 'Fire and structural liability active through Dec 2026.',
+                fileData: null
             },
             {
                 id: 'DOC-OWN-003',
@@ -1135,7 +1144,8 @@
                 category: 'Tax Receipt',
                 uploadDate: 'Mar 01, 2026',
                 status: 'Verified',
-                notes: 'Full 2026 annual amilyar paid with 10% early discount.'
+                notes: 'Full 2026 annual amilyar paid with 10% early discount.',
+                fileData: null
             },
             {
                 id: 'DOC-OWN-004',
@@ -1145,18 +1155,42 @@
                 category: 'Deed of Sale',
                 uploadDate: 'Feb 20, 2025',
                 status: 'Verified',
-                notes: 'Certified copy of commercial acquisition deed.'
+                notes: 'Certified copy of commercial acquisition deed.',
+                fileData: null
             }
         ];
 
-        // Shared LocalStorage Accessors
+        // Storage & Database Handlers
+        async function fetchOwnerDocsFromSource() {
+            if (API_CONFIG.USE_LIVE_API) {
+                try {
+                    const token = localStorage.getItem('token') || localStorage.getItem('argo_token');
+                    const res = await fetch(`${API_CONFIG.BASE_URL}/owner/documents`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        localStorage.setItem('argo_owner_documents', JSON.stringify(data));
+                        return data;
+                    }
+                } catch (err) {
+                    console.warn('API fetch failed, reading from local fallback:', err);
+                }
+            }
+            return getOwnerDocs();
+        }
+
         function getOwnerDocs() {
             const data = localStorage.getItem('argo_owner_documents');
             if (!data) {
                 localStorage.setItem('argo_owner_documents', JSON.stringify(DEFAULT_OWNER_DOCS));
                 return DEFAULT_OWNER_DOCS;
             }
-            return JSON.parse(data);
+            try {
+                return JSON.parse(data);
+            } catch (e) {
+                return DEFAULT_OWNER_DOCS;
+            }
         }
 
         function saveOwnerDocs(docs) {
@@ -1171,7 +1205,31 @@
             localStorage.setItem('argo_notifications', JSON.stringify(notifications));
         }
 
-        document.addEventListener('DOMContentLoaded', () => {
+        // Dynamic Property Dropdown Populate
+        function populatePropertyDropdown() {
+            const propSelect = document.getElementById('modalDocProperty');
+            if (!propSelect) return;
+
+            const storedProps = localStorage.getItem('argo_properties');
+            if (storedProps) {
+                try {
+                    const props = JSON.parse(storedProps);
+                    if (Array.isArray(props) && props.length > 0) {
+                        propSelect.innerHTML = '';
+                        props.forEach(p => {
+                            const opt = document.createElement('option');
+                            opt.value = p.name ? `${p.name} (${p.id || p.code || 'PROP'})` : p;
+                            opt.textContent = opt.value;
+                            propSelect.appendChild(opt);
+                        });
+                    }
+                } catch (e) {
+                    console.warn('Error parsing properties for dropdown', e);
+                }
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
             const role = localStorage.getItem('argo_pov');
             if (!role) {
                 window.location.replace('index.html');
@@ -1179,15 +1237,18 @@
             }
             renderSidebar();
             loadUserData();
-            renderDocTable();
+            populatePropertyDropdown();
+            await renderDocTable();
             updateKPIs();
             updateHeaderBadge();
         });
 
         // Cross-tab LocalStorage Sync
         window.addEventListener('storage', (e) => {
-            if (e.key === 'argo_owner_documents' || e.key === 'argo_notifications' || e.key === 'argo_documents' || e.key === 'argo_pov') {
+            if (['argo_owner_documents', 'argo_notifications', 'argo_documents', 'argo_pov', 'argo_properties', 'argo_user'].includes(e.key)) {
                 renderSidebar();
+                loadUserData();
+                populatePropertyDropdown();
                 renderDocTable();
                 updateKPIs();
                 updateHeaderBadge();
@@ -1196,17 +1257,24 @@
 
         function loadUserData() {
             const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
-            document.getElementById('userName').textContent = user.name || 'Don Ramon Santos';
+            const name = user.name || 'Don Ramon Santos';
+            document.getElementById('userName').textContent = name;
             document.getElementById('userRoleBadge').textContent = 'Property Owner';
-            document.getElementById('userAvatar').textContent = user.avatar || 'RS';
+            document.getElementById('userAvatar').textContent = user.avatar || (name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'RS');
+            
+            const subtext = document.getElementById('confidentialSubtext');
+            if (subtext) {
+                subtext.textContent = `Confidential files for ${name}`;
+            }
         }
 
-        function renderDocTable() {
-            const docs = getOwnerDocs();
+        async function renderDocTable() {
+            const docs = await fetchOwnerDocsFromSource();
             const tbody = document.getElementById('documentTable');
+            if (!tbody) return;
             tbody.innerHTML = '';
 
-            if (docs.length === 0) {
+            if (!docs || docs.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--muted); padding:30px;">No documents in vault. Click "Upload Asset Document" to store a file.</td></tr>`;
                 document.getElementById('showingCountText').textContent = `Showing 0 vault documents`;
                 return;
@@ -1214,6 +1282,7 @@
 
             docs.forEach(d => {
                 const tr = document.createElement('tr');
+                tr.dataset.id = d.id;
                 tr.dataset.category = d.category;
                 tr.dataset.status = d.status;
 
@@ -1234,7 +1303,8 @@
                     iconStyle = 'background:#EDE9FE; color:#6D28D9;';
                 }
 
-                let badgeHtml = d.status === 'Verified'
+                const isVerified = (d.status || '').toLowerCase() === 'verified';
+                let badgeHtml = isVerified
                     ? `<span class="status-badge status-verified"><i class="bi bi-check-circle" style="margin-right:4px;"></i> Verified</span>`
                     : `<span class="status-badge status-pending"><i class="bi bi-clock-history" style="margin-right:4px;"></i> Pending Audit</span>`;
 
@@ -1243,18 +1313,18 @@
                         <div class="doc-name">
                             <div class="doc-icon" style="${iconStyle}"><i class="bi ${iconClass}"></i></div>
                             <div>
-                                <div class="doc-title">${d.title}</div>
-                                <div class="doc-type">${d.fileType || 'PDF • 2.5 MB'}</div>
+                                <div class="doc-title">${escapeHtml(d.title)}</div>
+                                <div class="doc-type">${escapeHtml(d.fileType || 'PDF • Uploaded Document')}</div>
                             </div>
                         </div>
                     </td>
-                    <td>${d.property}</td>
-                    <td>${d.category}</td>
-                    <td>${d.uploadDate || 'N/A'}</td>
+                    <td>${escapeHtml(d.property || 'General')}</td>
+                    <td>${escapeHtml(d.category || 'Other')}</td>
+                    <td>${escapeHtml(d.uploadDate || 'N/A')}</td>
                     <td>${badgeHtml}</td>
                     <td>
-                        <button class="action-button" title="View Document" onclick="viewDoc('${d.id}')"><i class="bi bi-eye"></i></button>
-                        <button class="action-button" title="Download PDF" onclick="alert('Downloading file for ${d.title}...')"><i class="bi bi-download"></i></button>
+                        <button class="action-button" title="View Document Details" onclick="viewDoc('${d.id}')"><i class="bi bi-eye"></i></button>
+                        <button class="action-button" title="Download Document" onclick="downloadDoc('${d.id}')"><i class="bi bi-download"></i></button>
                         <button class="action-button" title="Delete File" style="color:var(--danger);" onclick="deleteDoc('${d.id}')"><i class="bi bi-trash"></i></button>
                     </td>
                 `;
@@ -1262,6 +1332,16 @@
             });
 
             document.getElementById('showingCountText').textContent = `Showing 1–${docs.length} of ${docs.length} vault documents`;
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
         }
 
         function updateKPIs() {
@@ -1289,68 +1369,138 @@
 
         function closeModal() { 
             document.getElementById("ownerDocModal").classList.remove("show"); 
+            document.getElementById('modalDocTitle').value = '';
+            document.getElementById('modalDocNotes').value = '';
+            document.getElementById('modalDocFile').value = '';
         }
 
-        function saveOwnerDoc() {
-            const title = document.getElementById('modalDocTitle').value.trim();
+        // Helper to read file to Base64 (Enables real local downloads)
+        function readFileAsBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = error => reject(error);
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function saveOwnerDoc() {
+            const titleInput = document.getElementById('modalDocTitle');
+            const title = titleInput.value.trim();
             const category = document.getElementById('modalDocCategory').value;
             const property = document.getElementById('modalDocProperty').value;
             const notes = document.getElementById('modalDocNotes').value.trim();
+            const fileInput = document.getElementById('modalDocFile');
+            const file = fileInput.files[0];
 
             if (!title) {
                 alert("Please enter a document title.");
+                titleInput.focus();
                 return;
             }
 
-            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
-            const newId = `DOC-OWN-00${Math.floor(5 + Math.random() * 90)}`;
-            const today = new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+            const submitBtn = document.getElementById('uploadSubmitBtn');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = `<i class="bi bi-hourglass-split"></i> Uploading...`;
 
-            const newDoc = {
-                id: newId,
-                title: title,
-                fileType: 'PDF • 3.1 MB • Uploaded File',
-                property: property,
-                category: category,
-                uploadDate: today,
-                status: 'Verified',
-                notes: notes || `Uploaded by ${user.name || 'Don Ramon Santos'} to owner secure vault.`
-            };
+            try {
+                let fileMetadata = 'PDF • 2.5 MB • Vault Storage';
+                let fileData = null;
 
-            let docs = getOwnerDocs();
-            docs.unshift(newDoc);
-            saveOwnerDocs(docs);
+                if (file) {
+                    const ext = file.name.split('.').pop().toUpperCase();
+                    const sizeInMb = (file.size / (1024 * 1024)).toFixed(1);
+                    fileMetadata = `${ext} • ${sizeInMb} MB • ${file.name}`;
+                    try {
+                        fileData = await readFileAsBase64(file);
+                    } catch (e) {
+                        console.warn('Could not encode file into base64', e);
+                    }
+                }
 
-            // Dispatch Notification Alert to Admin POV (documents.html)
-            let notifications = getNotifications();
-            notifications.unshift({
-                id: `NOTIF-${Date.now()}`,
-                pov: 'admin',
-                category: 'asset',
-                status: 'unread',
-                title: 'New Legal Document Uploaded by Owner',
-                time: 'Just now',
-                description: `Owner <strong>${user.name || 'Don Ramon Santos'}</strong> uploaded a new document to the vault: "<strong>${title}</strong>" (${category}) for ${property}.`,
-                property: property,
-                tag: 'Vault File Upload',
-                tagColor: 'var(--primary)',
-                actionUrl: 'documents.html',
-                actionText: 'Inspect Vault File'
-            });
-            saveNotifications(notifications);
+                const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+                const newId = `DOC-OWN-${Date.now().toString().slice(-4)}`;
+                const today = new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
 
-            renderDocTable();
-            updateKPIs();
-            closeModal();
+                const newDoc = {
+                    id: newId,
+                    title: title,
+                    fileType: fileMetadata,
+                    fileName: file ? file.name : `${title.replace(/\s+/g, '_')}.pdf`,
+                    fileData: fileData,
+                    property: property,
+                    category: category,
+                    uploadDate: today,
+                    status: 'Verified',
+                    notes: notes || `Uploaded by ${user.name || 'Don Ramon Santos'} to owner secure vault.`
+                };
 
-            document.getElementById('modalDocTitle').value = '';
-            document.getElementById('modalDocNotes').value = '';
+                // Save to API if live
+                if (API_CONFIG.USE_LIVE_API) {
+                    try {
+                        const token = localStorage.getItem('token') || localStorage.getItem('argo_token');
+                        await fetch(`${API_CONFIG.BASE_URL}/owner/documents`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${token}`
+                            },
+                            body: JSON.stringify(newDoc)
+                        });
+                    } catch (apiErr) {
+                        console.warn('Live API upload failed, falling back to local:', apiErr);
+                    }
+                }
 
-            alert(`Document "${title}" uploaded successfully to the owner secure vault!\n\nProperty Manager notified.`);
+                // Save to LocalStorage
+                let docs = getOwnerDocs();
+                docs.unshift(newDoc);
+                saveOwnerDocs(docs);
+
+                // Dispatch Notification Alert to Admin POV (documents.html)
+                let notifications = getNotifications();
+                notifications.unshift({
+                    id: `NOTIF-${Date.now()}`,
+                    pov: 'admin',
+                    category: 'asset',
+                    status: 'unread',
+                    title: 'New Legal Document Uploaded by Owner',
+                    time: 'Just now',
+                    description: `Owner <strong>${user.name || 'Don Ramon Santos'}</strong> uploaded a new document to the vault: "<strong>${escapeHtml(title)}</strong>" (${category}) for ${escapeHtml(property)}.`,
+                    property: property,
+                    tag: 'Vault File Upload',
+                    tagColor: 'var(--primary)',
+                    actionUrl: 'documents.html',
+                    actionText: 'Inspect Vault File'
+                });
+                saveNotifications(notifications);
+
+                renderDocTable();
+                updateKPIs();
+                updateHeaderBadge();
+                closeModal();
+
+                alert(`Document "${title}" uploaded successfully to the owner secure vault!\n\nProperty Manager notified.`);
+            } catch (err) {
+                console.error(err);
+                alert("An error occurred during upload. Please try again.");
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = `<i class="bi bi-upload"></i> Upload to Owner Vault`;
+            }
         }
 
         function deleteDoc(id) {
             if (!confirm("Are you sure you want to remove this document from the vault?")) return;
+            
+            if (API_CONFIG.USE_LIVE_API) {
+                const token = localStorage.getItem('token') || localStorage.getItem('argo_token');
+                fetch(`${API_CONFIG.BASE_URL}/owner/documents/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                }).catch(e => console.warn('Live delete sync failed', e));
+            }
+
             let docs = getOwnerDocs().filter(d => d.id !== id);
             saveOwnerDocs(docs);
             renderDocTable();
@@ -1361,7 +1511,38 @@
             const docs = getOwnerDocs();
             const doc = docs.find(d => d.id === id);
             if (doc) {
-                alert(`ARGO Vault Document Inspection — ${doc.id}\n\nTitle: ${doc.title}\nCategory: ${doc.category}\nProperty: ${doc.property}\nUpload Date: ${doc.uploadDate}\nStatus: ${doc.status}\nNotes: ${doc.notes}`);
+                alert(`ARGO Vault Document Inspection — ${doc.id}\n\nTitle: ${doc.title}\nCategory: ${doc.category}\nProperty: ${doc.property}\nUpload Date: ${doc.uploadDate}\nStatus: ${doc.status}\nNotes: ${doc.notes || 'None'}`);
+            }
+        }
+
+        function downloadDoc(id) {
+            const docs = getOwnerDocs();
+            const doc = docs.find(d => d.id === id);
+            if (!doc) {
+                alert("Document not found.");
+                return;
+            }
+
+            if (doc.fileData) {
+                // If a real uploaded base64 data exists, download it
+                const a = document.createElement('a');
+                a.href = doc.fileData;
+                a.download = doc.fileName || `${doc.title}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            } else {
+                // Generate a lightweight document summary text file as an instant downloadable receipt
+                const content = `========================================================\nARGO PROPERTY EXECUTIVE VAULT - OFFICIAL RECORD\n========================================================\n\nDocument ID: ${doc.id}\nTitle: ${doc.title}\nCategory: ${doc.category}\nProperty: ${doc.property}\nUpload Date: ${doc.uploadDate}\nStatus: ${doc.status}\nNotes: ${doc.notes || 'None'}\n\n[CONFIDENTIAL DOCUMENT ENCRYPTION HASH: ${btoa(doc.id + doc.title)}]\n========================================================`;
+                const blob = new Blob([content], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${doc.title.replace(/[^a-z0-9]/gi, '_')}_VaultCopy.txt`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
             }
         }
 
@@ -1376,22 +1557,31 @@
             const statusValue = document.getElementById("statusFilter").value;
 
             const rows = document.querySelectorAll("#documentTable tr");
+            let visibleCount = 0;
 
             rows.forEach(row => {
+                if (row.dataset.category === undefined) return; // Skip empty placeholder row
+
                 const text = row.innerText.toLowerCase();
                 const rowCategory = row.dataset.category || "";
                 const rowStatus = row.dataset.status || "";
 
                 const matchesSearch = text.includes(searchValue);
                 const matchesCategory = categoryValue === "" || rowCategory === categoryValue;
-                const matchesStatus = statusValue === "" || rowStatus.includes(statusValue);
+                const matchesStatus = statusValue === "" || rowStatus.toLowerCase().includes(statusValue.toLowerCase());
 
                 if (matchesSearch && matchesCategory && matchesStatus) {
                     row.style.display = "";
+                    visibleCount++;
                 } else {
                     row.style.display = "none";
                 }
             });
+
+            const countText = document.getElementById('showingCountText');
+            if (countText) {
+                countText.textContent = `Showing ${visibleCount} vault ${visibleCount === 1 ? 'document' : 'documents'}`;
+            }
         }
 
         function resetFilters() {
@@ -1417,4 +1607,3 @@
         }
     </script>
 </body>
-</html>

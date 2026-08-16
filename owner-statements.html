@@ -724,7 +724,7 @@
                 <p>Review itemized monthly income statements, operating expense deductions (10% PM commission + repairs), and net cash-flow yield records.</p>
             </div>
 
-            <button class="secondary-btn" onclick="alert('Downloading annual consolidated owner tax statement...')">
+            <button class="secondary-btn" onclick="downloadAnnualStatement()">
                 <i class="bi bi-download"></i>
                 <span>Download Annual Statement</span>
             </button>
@@ -737,34 +737,34 @@
                     <span class="kpi-label">YTD Net Operating Yield (NOI)</span>
                     <div class="kpi-icon"><i class="bi bi-cash-stack"></i></div>
                 </div>
-                <div class="kpi-value" id="kpiNetPayout" style="color:var(--success);">₱0.00</div>
+                <div class="kpi-value" id="kpiNetPayout" style="color:var(--success, #059669);">₱0.00</div>
                 <div class="kpi-description">Net funds transferred to registered account</div>
             </div>
 
             <div class="kpi-card">
                 <div class="kpi-top">
                     <span class="kpi-label">YTD Gross Verified Rent</span>
-                    <div class="kpi-icon" style="background:#EFF6FF; color:var(--primary-blue);"><i class="bi bi-graph-up-arrow"></i></div>
+                    <div class="kpi-icon" style="background:#EFF6FF; color:var(--primary-blue, #2563EB);"><i class="bi bi-graph-up-arrow"></i></div>
                 </div>
-                <div class="kpi-value" id="kpiGrossRent" style="color:var(--primary-blue);">₱0.00</div>
+                <div class="kpi-value" id="kpiGrossRent" style="color:var(--primary-blue, #2563EB);">₱0.00</div>
                 <div class="kpi-description">Total verified tenant payments</div>
             </div>
 
             <div class="kpi-card">
                 <div class="kpi-top">
                     <span class="kpi-label">YTD Expense Deductions</span>
-                    <div class="kpi-icon" style="background:#FFF1F2; color:var(--danger);"><i class="bi bi-receipt"></i></div>
+                    <div class="kpi-icon" style="background:#FFF1F2; color:var(--danger, #E11D48);"><i class="bi bi-receipt"></i></div>
                 </div>
-                <div class="kpi-value" id="kpiDeductions" style="color:var(--danger);">₱0.00</div>
-                <div class="kpi-description">Repairs & 10% PM fee split</div>
+                <div class="kpi-value" id="kpiDeductions" style="color:var(--danger, #E11D48);">₱0.00</div>
+                <div class="kpi-description" id="kpiDeductionsSub">Repairs & PM commission fee split</div>
             </div>
 
             <div class="kpi-card">
                 <div class="kpi-top">
                     <span class="kpi-label">Next Payout Cycle</span>
-                    <div class="kpi-icon" style="background:#FEF3C7; color:var(--warning);"><i class="bi bi-calendar-check"></i></div>
+                    <div class="kpi-icon" style="background:#FEF3C7; color:var(--warning, #D97706);"><i class="bi bi-calendar-check"></i></div>
                 </div>
-                <div class="kpi-value" style="color:var(--warning);">Sep 05, 2026</div>
+                <div class="kpi-value" style="color:var(--warning, #D97706);">Sep 05, 2026</div>
                 <div class="kpi-description">Scheduled monthly transfer</div>
             </div>
         </section>
@@ -778,9 +778,7 @@
 
             <select class="filter-select" id="propertyFilter" onchange="filterTable()">
                 <option value="">All Properties</option>
-                <option value="Sunrise Property">Sunrise Property</option>
-                <option value="Sunrise Residences">Sunrise Residences</option>
-                <option value="Central Business Center">Central Business Center</option>
+                <!-- DYNAMICALLY POPULATED -->
             </select>
 
             <select class="filter-select" id="statusFilter" onchange="filterTable()">
@@ -799,7 +797,7 @@
         <div class="table-card">
             <div class="table-header">
                 <h2>Itemized Monthly Payout Statements</h2>
-                <span style="font-size:12px; color:var(--muted);">Audit trail for Don Ramon Santos</span>
+                <span id="ownerAuditSubtitle" style="font-size:12px; color:var(--muted);">Audit trail for Don Ramon Santos</span>
             </div>
 
             <div class="table-wrapper">
@@ -810,7 +808,7 @@
                             <th>PROPERTY ASSET & LOCATION</th>
                             <th>BILLING PERIOD</th>
                             <th>GROSS INCOME</th>
-                            <th>DEDUCTIONS (10% PM + REPAIRS)</th>
+                            <th>DEDUCTIONS (PM FEE + REPAIRS)</th>
                             <th>NET PAYOUT (NOI)</th>
                             <th>STATUS</th>
                             <th>ACTIONS</th>
@@ -856,19 +854,19 @@
 
                 <!-- DEDUCTIONS SECTION -->
                 <div class="ledger-box">
-                    <div style="font-weight:700; font-size:12px; margin-bottom:8px; color:var(--danger);">OPERATING EXPENSE DEDUCTIONS</div>
-                    <div class="ledger-row"><span>Property Management Commission (10% Split)</span><span id="modalPmFee">-₱0.00</span></div>
+                    <div style="font-weight:700; font-size:12px; margin-bottom:8px; color:var(--danger, #E11D48);">OPERATING EXPENSE DEDUCTIONS</div>
+                    <div class="ledger-row"><span id="modalPmFeeLabel">Property Management Commission (10% Split)</span><span id="modalPmFee">-₱0.00</span></div>
                     <div id="expenseRowsContainer">
                         <!-- DYNAMIC MAINTENANCE & REPAIR DEDUCTIONS -->
                     </div>
-                    <div class="ledger-row total" style="color:var(--danger);"><span>Total Operating Deductions</span><span id="modalDeductionsTotal">-₱0.00</span></div>
+                    <div class="ledger-row total" style="color:var(--danger, #E11D48);"><span>Total Operating Deductions</span><span id="modalDeductionsTotal">-₱0.00</span></div>
                 </div>
 
                 <!-- CALCULATED NET YIELD -->
                 <div class="calc-box" style="background:#ECFDF5; border:1px solid #A7F3D0; display:flex; justify-content:space-between; align-items:center; padding:12px; border-radius:8px;">
                     <div>
                         <span style="font-size:11px; color:#065F46; font-weight:700; display:block;">NET OPERATING YIELD (NOI) TRANSFERRED</span>
-                        <span style="font-size:11px; color:#047857;">BDO Corporate Transfer • Account #0012-8849-1029</span>
+                        <span style="font-size:11px; color:#047857;" id="modalPayoutAccountSub">BDO Corporate Transfer • Account #0012-8849-1029</span>
                     </div>
                     <strong style="font-size:18px; color:#047857;" id="modalNetPayout">₱0.00</strong>
                 </div>
@@ -876,13 +874,30 @@
 
             <div class="modal-footer">
                 <button class="secondary-btn" onclick="closeModal()">Close</button>
-                <button class="primary-btn" onclick="alert('Downloading official PDF statement receipt...')"><i class="bi bi-file-earmark-pdf"></i> Download Official Statement PDF</button>
+                <button class="primary-btn" onclick="downloadCurrentModalStatement()"><i class="bi bi-file-earmark-pdf"></i> Download Official Statement PDF</button>
             </div>
         </div>
     </div>
 
     <!-- ================= JAVASCRIPT ================= -->
     <script>
+        let currentModalStatementData = null;
+
+        // Type-Safe Currency Parser
+        function parseCurrency(val) {
+            if (val === undefined || val === null || val === '') return 0;
+            if (typeof val === 'number') return isNaN(val) ? 0 : val;
+            const clean = val.toString().replace(/[^0-9.-]+/g, "");
+            const parsed = parseFloat(clean);
+            return isNaN(parsed) ? 0 : parsed;
+        }
+
+        // Format Currency Helper
+        function formatPeso(val) {
+            const num = parseCurrency(val);
+            return '₱' + num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
         // Secure Logout Handler (Clears session and replaces history to prevent back-button access)
         function logoutUser() {
             localStorage.removeItem('argo_pov');
@@ -1072,6 +1087,10 @@
                         <i class="bi bi-gear"></i>
                         <span>Settings</span>
                     </a>
+                    <a href="account.html" class="nav-item">
+                        <i class="bi bi-person-gear"></i>
+                        <span>Account Settings</span>
+                    </a>
                     <a href="#" class="nav-item" onclick="logoutUser(); return false;">
                         <i class="bi bi-box-arrow-right"></i>
                         <span>Log Out</span>
@@ -1113,15 +1132,43 @@
 
         // Shared LocalStorage Accessors
         function getInvoices() {
-            return JSON.parse(localStorage.getItem('argo_invoices') || '[]');
+            try {
+                return JSON.parse(localStorage.getItem('argo_invoices') || '[]');
+            } catch (e) {
+                return [];
+            }
         }
 
         function getTickets() {
-            return JSON.parse(localStorage.getItem('argo_maintenance_tickets') || '[]');
+            try {
+                return JSON.parse(localStorage.getItem('argo_maintenance_tickets') || '[]');
+            } catch (e) {
+                return [];
+            }
         }
 
         function getNotifications() {
-            return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
+            try {
+                return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function getProperties() {
+            try {
+                return JSON.parse(localStorage.getItem('argo_properties') || '[]');
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function getOrgSettings() {
+            try {
+                return JSON.parse(localStorage.getItem('argo_org_settings') || '{}');
+            } catch (e) {
+                return {};
+            }
         }
 
         function getStatements() {
@@ -1130,7 +1177,11 @@
                 localStorage.setItem('argo_statements', JSON.stringify(DEFAULT_STATEMENTS));
                 return DEFAULT_STATEMENTS;
             }
-            return JSON.parse(data);
+            try {
+                return JSON.parse(data);
+            } catch (e) {
+                return DEFAULT_STATEMENTS;
+            }
         }
 
         function saveStatements(statements) {
@@ -1145,6 +1196,7 @@
             }
             renderSidebar();
             loadUserData();
+            populatePropertyFilter();
             renderStatementsTable();
             updateOwnerKPIs();
             updateHeaderBadge();
@@ -1152,8 +1204,10 @@
 
         // Live Cross-Tab Listener (Syncs when rent is verified or repairs are logged)
         window.addEventListener('storage', (e) => {
-            if (e.key === 'argo_maintenance_tickets' || e.key === 'argo_invoices' || e.key === 'argo_statements' || e.key === 'argo_notifications' || e.key === 'argo_pov') {
+            if (['argo_maintenance_tickets', 'argo_invoices', 'argo_statements', 'argo_notifications', 'argo_properties', 'argo_org_settings', 'argo_user', 'argo_pov', 'user_role', 'role'].includes(e.key)) {
                 renderSidebar();
+                loadUserData();
+                populatePropertyFilter();
                 renderStatementsTable();
                 updateOwnerKPIs();
                 updateHeaderBadge();
@@ -1162,9 +1216,37 @@
 
         function loadUserData() {
             const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
-            document.getElementById('userName').textContent = user.name || 'Don Ramon Santos';
+            const name = user.name || 'Don Ramon Santos';
+            document.getElementById('userName').textContent = name;
             document.getElementById('userRoleBadge').textContent = 'Property Owner';
-            document.getElementById('userAvatar').textContent = user.avatar || 'RS';
+            document.getElementById('userAvatar').textContent = user.avatar || (name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'RS');
+            
+            const subTitleEl = document.getElementById('ownerAuditSubtitle');
+            if (subTitleEl) subTitleEl.textContent = `Audit trail for ${name}`;
+        }
+
+        function populatePropertyFilter() {
+            const props = getProperties();
+            const statements = getStatements();
+            const filter = document.getElementById('propertyFilter');
+            if (!filter) return;
+
+            const existingVal = filter.value;
+            const propertyNames = new Set();
+
+            props.forEach(p => {
+                if (p.name) propertyNames.add(p.name);
+            });
+            statements.forEach(s => {
+                if (s.property) propertyNames.add(s.property);
+            });
+
+            filter.innerHTML = '<option value="">All Properties</option>';
+            propertyNames.forEach(pName => {
+                filter.innerHTML += `<option value="${pName}">${pName}</option>`;
+            });
+
+            if (existingVal) filter.value = existingVal;
         }
 
         // Calculate verified rent additions dynamically from localStorage invoices
@@ -1174,8 +1256,10 @@
             const verifiedList = [];
 
             invoices.forEach(inv => {
-                if (inv.status === 'Paid') {
-                    verifiedSum += parseFloat(inv.amount || 0);
+                const status = (inv.status || '').toLowerCase();
+                if (status === 'paid') {
+                    const amt = parseCurrency(inv.amount);
+                    verifiedSum += amt;
                     verifiedList.push(inv);
                 }
             });
@@ -1190,8 +1274,9 @@
             const repairList = [];
 
             tickets.forEach(t => {
-                if (t.status === 'Resolved' || t.status === 'Completed' || t.status === 'In Progress') {
-                    const costVal = parseFloat(t.cost || 1500.00);
+                const status = (t.status || '').toLowerCase();
+                if (status === 'resolved' || status === 'completed' || status === 'in progress' || status === 'assigned') {
+                    const costVal = parseCurrency(t.cost || 1500.00);
                     repairSum += costVal;
                     repairList.push({ ...t, cost: costVal });
                 }
@@ -1205,12 +1290,16 @@
             const statements = getStatements();
             const { verifiedSum } = calculateVerifiedRentAdditions();
             const { repairSum } = calculateMaintenanceDeductions();
+            const orgSettings = getOrgSettings();
+            const pmFeeRate = (parseFloat(orgSettings.pmFee) || 10) / 100;
+
             const tbody = document.getElementById('statementTable');
+            if (!tbody) return;
             tbody.innerHTML = '';
 
             statements.forEach((stmt, index) => {
-                let gross = stmt.baseGross;
-                let repairs = stmt.baseRepairs || 0;
+                let gross = parseCurrency(stmt.baseGross);
+                let repairs = parseCurrency(stmt.baseRepairs);
 
                 // Current period dynamically merges verified rent & maintenance repair costs
                 if (index === 0) {
@@ -1218,40 +1307,45 @@
                     if (repairSum > 0) repairs += repairSum;
                 }
 
-                // Core Financial Formula: Net Payout = Gross Rent - (10% PM Fee) - Repairs
-                const pmFee = gross * 0.10;
+                // Core Financial Formula: Net Payout = Gross Rent - (PM Fee) - Repairs
+                const pmFee = gross * pmFeeRate;
                 const totalDeductions = pmFee + repairs;
-                const netPayout = gross - totalDeductions;
+                const netPayout = Math.max(0, gross - totalDeductions);
 
                 const tr = document.createElement('tr');
-                tr.dataset.property = stmt.property;
-                tr.dataset.status = stmt.status;
+                tr.dataset.property = stmt.property || '';
+                tr.dataset.status = stmt.status || '';
 
                 let badgeHtml = stmt.status === 'Disbursed' 
-                    ? `<span class="status-badge status-disbursed"><i class="bi bi-check-circle" style="margin-right:4px;"></i> Disbursed</span>`
-                    : `<span class="status-badge status-processing"><i class="bi bi-clock-history" style="margin-right:4px;"></i> Processing</span>`;
+                    ? `<span class="status-badge status-disbursed" style="background:#ECFDF5; color:#059669; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-check-circle" style="margin-right:4px;"></i> Disbursed</span>`
+                    : `<span class="status-badge status-processing" style="background:#FEF3C7; color:#D97706; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-clock-history" style="margin-right:4px;"></i> Processing</span>`;
 
                 tr.innerHTML = `
-                    <td><div class="statement-id">${stmt.id}</div></td>
+                    <td><div class="statement-id" style="font-weight:600;">${stmt.id}</div></td>
                     <td>
-                        <div class="property-title">${stmt.property}</div>
-                        <div class="property-sub">${stmt.sub}</div>
+                        <div class="property-title" style="font-weight:600;">${stmt.property}</div>
+                        <div class="property-sub" style="font-size:11px; color:var(--muted);">${stmt.sub}</div>
                     </td>
                     <td>${stmt.period}</td>
-                    <td>₱${gross.toLocaleString('en-US', {minimumFractionDigits:2})}</td>
-                    <td><span style="color:var(--danger);">-₱${totalDeductions.toLocaleString('en-US', {minimumFractionDigits:2})}</span></td>
-                    <td><strong style="color:${stmt.status === 'Disbursed' ? 'var(--success)' : 'var(--primary-blue)'};">₱${netPayout.toLocaleString('en-US', {minimumFractionDigits:2})}</strong></td>
+                    <td>${formatPeso(gross)}</td>
+                    <td><span style="color:var(--danger, #E11D48); font-weight:600;">-${formatPeso(totalDeductions)}</span></td>
+                    <td><strong style="color:${stmt.status === 'Disbursed' ? 'var(--success, #059669)' : 'var(--primary-blue, #2563EB)'};">${formatPeso(netPayout)}</strong></td>
                     <td>${badgeHtml}</td>
                     <td>
-                        <button class="action-button" title="View Itemized Statement" onclick="openStatementModal('${stmt.id}', ${gross}, ${repairs}, ${index === 0})"><i class="bi bi-eye"></i></button>
-                        <button class="action-button" title="Download PDF" onclick="alert('Downloading official statement PDF for ${stmt.id}')"><i class="bi bi-download"></i></button>
+                        <div style="display:flex; gap:6px;">
+                            <button class="action-button" title="View Itemized Statement" onclick="openStatementModal('${stmt.id}', ${gross}, ${repairs}, ${index === 0})"><i class="bi bi-eye"></i></button>
+                            <button class="action-button" title="Download Statement Summary" onclick="downloadStatementById('${stmt.id}', '${stmt.property}', '${stmt.period}', ${gross}, ${pmFee}, ${repairs}, ${netPayout}, '${stmt.status}')"><i class="bi bi-download"></i></button>
+                        </div>
                     </td>
                 `;
 
                 tbody.appendChild(tr);
             });
 
-            document.getElementById('showingCountText').textContent = `Showing 1–${statements.length} of ${statements.length} payout statements`;
+            const countEl = document.getElementById('showingCountText');
+            if (countEl) {
+                countEl.textContent = `Showing 1–${statements.length} of ${statements.length} payout statements`;
+            }
         }
 
         // Calculate and Update Top KPI Cards
@@ -1259,63 +1353,93 @@
             const statements = getStatements();
             const { verifiedSum } = calculateVerifiedRentAdditions();
             const { repairSum } = calculateMaintenanceDeductions();
+            const orgSettings = getOrgSettings();
+            const pmFeeRate = (parseFloat(orgSettings.pmFee) || 10) / 100;
+            const pmFeePct = Math.round(pmFeeRate * 100);
 
             let ytdGross = 0;
             let ytdDeductions = 0;
             let ytdNet = 0;
 
             statements.forEach((stmt, index) => {
-                let gross = stmt.baseGross;
-                let repairs = stmt.baseRepairs || 0;
+                let gross = parseCurrency(stmt.baseGross);
+                let repairs = parseCurrency(stmt.baseRepairs);
 
                 if (index === 0) {
                     if (verifiedSum > 0) gross += verifiedSum;
                     if (repairSum > 0) repairs += repairSum;
                 }
 
-                const pmFee = gross * 0.10;
+                const pmFee = gross * pmFeeRate;
                 const deductions = pmFee + repairs;
-                const net = gross - deductions;
+                const net = Math.max(0, gross - deductions);
 
                 ytdGross += gross;
                 ytdDeductions += deductions;
                 ytdNet += net;
             });
 
-            document.getElementById('kpiGrossRent').textContent = `₱${ytdGross.toLocaleString('en-US', {minimumFractionDigits:2})}`;
-            document.getElementById('kpiDeductions').textContent = `₱${ytdDeductions.toLocaleString('en-US', {minimumFractionDigits:2})}`;
-            document.getElementById('kpiNetPayout').textContent = `₱${ytdNet.toLocaleString('en-US', {minimumFractionDigits:2})}`;
+            const grossEl = document.getElementById('kpiGrossRent');
+            const deductEl = document.getElementById('kpiDeductions');
+            const netEl = document.getElementById('kpiNetPayout');
+            const subEl = document.getElementById('kpiDeductionsSub');
+
+            if (grossEl) grossEl.textContent = formatPeso(ytdGross);
+            if (deductEl) deductEl.textContent = formatPeso(ytdDeductions);
+            if (netEl) netEl.textContent = formatPeso(ytdNet);
+            if (subEl) subEl.textContent = `Repairs & ${pmFeePct}% PM fee split`;
         }
 
         function updateHeaderBadge() {
-            const notifs = getNotifications().filter(n => (n.pov === 'owner' || n.pov === 'all') && n.status === 'unread');
+            const notifs = getNotifications().filter(n => (n.pov === 'owner' || n.pov === 'all') && (n.status === 'unread' || n.is_read === false));
             const badge = document.getElementById('ownerNotifBadge');
             if (badge) badge.textContent = notifs.length;
         }
 
         // Open Modal with Itemized Financial Ledger Breakdown
         function openStatementModal(stmtId, grossAmount, repairs, isCurrentPeriod) {
+            const orgSettings = getOrgSettings();
+            const pmFeeRate = (parseFloat(orgSettings.pmFee) || 10) / 100;
+            const pmFeePct = Math.round(pmFeeRate * 100);
+
             document.getElementById('modalStatementTitle').textContent = `Itemized Statement — ${stmtId}`;
 
-            const pmFee = grossAmount * 0.10;
+            const pmFee = grossAmount * pmFeeRate;
             const totalDeductions = pmFee + repairs;
-            const netPayout = grossAmount - totalDeductions;
+            const netPayout = Math.max(0, grossAmount - totalDeductions);
 
             const { verifiedList } = calculateVerifiedRentAdditions();
             const { repairList } = calculateMaintenanceDeductions();
+            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+            const ownerName = user.name || 'Don Ramon Santos';
+
+            currentModalStatementData = {
+                id: stmtId,
+                owner: ownerName,
+                gross: grossAmount,
+                pmFee: pmFee,
+                repairs: repairs,
+                netPayout: netPayout
+            };
+
+            const metaEl = document.getElementById('modalStatementMeta');
+            if (metaEl) {
+                metaEl.innerHTML = `<strong>Owner:</strong> ${ownerName} &nbsp;|&nbsp; <strong>Period:</strong> August 2026 &nbsp;|&nbsp; <strong>Share:</strong> 100% Primary`;
+            }
 
             // 1. Populate Income Revenues
             const incomeContainer = document.getElementById('incomeRowsContainer');
             incomeContainer.innerHTML = `
-                <div class="ledger-row"><span>Unit 102 Rent Collection (Base Portfolio)</span><span>₱22,000.00</span></div>
-                <div class="ledger-row"><span>Unit 103 Rent Collection (Base Portfolio)</span><span>₱98,000.00</span></div>
+                <div class="ledger-row" style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--border);"><span>Unit 102 Rent Collection (Base Portfolio)</span><span>₱22,000.00</span></div>
+                <div class="ledger-row" style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--border);"><span>Unit 103 Rent Collection (Base Portfolio)</span><span>₱98,000.00</span></div>
             `;
 
             if (isCurrentPeriod && verifiedList.length > 0) {
                 verifiedList.forEach(v => {
                     const row = document.createElement('div');
                     row.className = 'ledger-row';
-                    row.innerHTML = `<span style="color:var(--success); font-weight:600;"><i class="bi bi-check2"></i> Verified Rent: ${v.tenantName || 'Maria Santos'} (${v.sub || 'Bldg 2 • Unit 101'})</span><span style="color:var(--success); font-weight:600;">+₱${parseFloat(v.amount || 0).toLocaleString('en-US', {minimumFractionDigits:2})}</span>`;
+                    row.style.cssText = 'display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--border);';
+                    row.innerHTML = `<span style="color:var(--success, #059669); font-weight:600;"><i class="bi bi-check2"></i> Verified Rent: ${v.tenantName || 'Maria Santos'} (${v.sub || 'Bldg 2 • Unit 101'})</span><span style="color:var(--success, #059669); font-weight:600;">+${formatPeso(v.amount)}</span>`;
                     incomeContainer.appendChild(row);
                 });
             }
@@ -1324,27 +1448,32 @@
             const expenseContainer = document.getElementById('expenseRowsContainer');
             expenseContainer.innerHTML = '';
 
+            const pmFeeLabelEl = document.getElementById('modalPmFeeLabel');
+            if (pmFeeLabelEl) pmFeeLabelEl.textContent = `Property Management Commission (${pmFeePct}% Split)`;
+
             if (isCurrentPeriod && repairList.length > 0) {
                 repairList.forEach(r => {
                     const row = document.createElement('div');
                     row.className = 'ledger-row';
-                    row.innerHTML = `<span style="color:var(--danger);"><i class="bi bi-tools"></i> Repair Deduction: ${r.title} (${r.fullLocation || 'Unit 101'}) — ${r.technician || 'Contractor'}</span><span style="color:var(--danger);">-₱${r.cost.toLocaleString('en-US', {minimumFractionDigits:2})}</span>`;
+                    row.style.cssText = 'display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--border);';
+                    row.innerHTML = `<span style="color:var(--danger, #E11D48);"><i class="bi bi-tools"></i> Repair Deduction: ${r.title} (${r.fullLocation || 'Unit 101'}) — ${r.technician || 'Contractor'}</span><span style="color:var(--danger, #E11D48);">-${formatPeso(r.cost)}</span>`;
                     expenseContainer.appendChild(row);
                 });
             } else {
-                expenseContainer.innerHTML = `<div class="ledger-row"><span>Common Area & Plumbing Maintenance (Routine)</span><span>-₱${repairs.toLocaleString('en-US', {minimumFractionDigits:2})}</span></div>`;
+                expenseContainer.innerHTML = `<div class="ledger-row" style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--border);"><span>Common Area & Plumbing Maintenance (Routine)</span><span>-${formatPeso(repairs)}</span></div>`;
             }
 
-            document.getElementById('modalGrossTotal').textContent = `₱${grossAmount.toLocaleString('en-US', {minimumFractionDigits:2})}`;
-            document.getElementById('modalPmFee').textContent = `-₱${pmFee.toLocaleString('en-US', {minimumFractionDigits:2})}`;
-            document.getElementById('modalDeductionsTotal').textContent = `-₱${totalDeductions.toLocaleString('en-US', {minimumFractionDigits:2})}`;
-            document.getElementById('modalNetPayout').textContent = `₱${netPayout.toLocaleString('en-US', {minimumFractionDigits:2})}`;
+            document.getElementById('modalGrossTotal').textContent = formatPeso(grossAmount);
+            document.getElementById('modalPmFee').textContent = `-${formatPeso(pmFee)}`;
+            document.getElementById('modalDeductionsTotal').textContent = `-${formatPeso(totalDeductions)}`;
+            document.getElementById('modalNetPayout').textContent = formatPeso(netPayout);
 
             document.getElementById('statementModal').classList.add('show');
         }
 
         function closeModal() {
             document.getElementById('statementModal').classList.remove('show');
+            currentModalStatementData = null;
         }
 
         window.onclick = function(event) {
@@ -1352,28 +1481,168 @@
             if (event.target === modal) closeModal();
         };
 
+        function downloadStatementById(id, prop, period, gross, pmFee, repairs, net, status) {
+            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+            const ownerName = user.name || 'Don Ramon Santos';
+            const totalDeductions = pmFee + repairs;
+
+            const textContent = 
+`======================================================================
+ARGO PROPERTY MANAGEMENT — OFFICIAL OWNER YIELD STATEMENT
+======================================================================
+Statement ID    : ${id}
+Recipient Owner : ${ownerName}
+Property Asset  : ${prop}
+Billing Period  : ${period}
+Statement Status: ${status}
+Generated Date  : ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+
+----------------------------------------------------------------------
+FINANCIAL REVENUE & EXPENSE SUMMARY
+----------------------------------------------------------------------
+Gross Rental Income Recorded        : ${formatPeso(gross)}
+Less: Property Management Commission: -${formatPeso(pmFee)}
+Less: Maintenance & Unit Repairs   : -${formatPeso(repairs)}
+----------------------------------------------------------------------
+Total Operating Deductions          : -${formatPeso(totalDeductions)}
+======================================================================
+NET OPERATING YIELD (NOI) DISBURSED : ${formatPeso(net)}
+======================================================================
+
+Target Disbursement Account:
+BDO Unibank (Corporate Account) • Acc #: 0012-8849-1029
+Holder: ${ownerName}
+TIN: 231-998-102-000
+
+This official statement is system-generated and verified by ARGO Platform.
+======================================================================`;
+
+            const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `Statement_${id}_${period.replace(/[^a-zA-Z0-9]/g, '_')}.txt`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }
+
+        function downloadCurrentModalStatement() {
+            if (!currentModalStatementData) {
+                alert('No active statement loaded.');
+                return;
+            }
+            downloadStatementById(
+                currentModalStatementData.id,
+                'Sunrise Property Portfolio',
+                'August 2026',
+                currentModalStatementData.gross,
+                currentModalStatementData.pmFee,
+                currentModalStatementData.repairs,
+                currentModalStatementData.netPayout,
+                'Verified'
+            );
+        }
+
+        function downloadAnnualStatement() {
+            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+            const ownerName = user.name || 'Don Ramon Santos';
+            const statements = getStatements();
+            const { verifiedSum } = calculateVerifiedRentAdditions();
+            const { repairSum } = calculateMaintenanceDeductions();
+            const orgSettings = getOrgSettings();
+            const pmFeeRate = (parseFloat(orgSettings.pmFee) || 10) / 100;
+
+            let totalGross = 0;
+            let totalDeduct = 0;
+            let totalNet = 0;
+
+            let details = '';
+            statements.forEach((stmt, index) => {
+                let gross = parseCurrency(stmt.baseGross);
+                let repairs = parseCurrency(stmt.baseRepairs);
+                if (index === 0) {
+                    gross += verifiedSum;
+                    repairs += repairSum;
+                }
+                const pmFee = gross * pmFeeRate;
+                const deductions = pmFee + repairs;
+                const net = Math.max(0, gross - deductions);
+
+                totalGross += gross;
+                totalDeduct += deductions;
+                totalNet += net;
+
+                details += `${stmt.id.padEnd(14)} | ${stmt.period.padEnd(20)} | Gross: ${formatPeso(gross).padStart(12)} | Deductions: ${formatPeso(deductions).padStart(12)} | Net: ${formatPeso(net).padStart(12)}\n`;
+            });
+
+            const content = 
+`======================================================================================
+ARGO PROPERTY MANAGEMENT — CONSOLIDATED ANNUAL OWNER YIELD REPORT (2026)
+======================================================================================
+Owner Profile   : ${ownerName}
+Portfolio Assets: Sunrise Property Group Portfolio
+Report Date     : ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+
+--------------------------------------------------------------------------------------
+HISTORICAL MONTHLY PAYOUT BREAKDOWN
+--------------------------------------------------------------------------------------
+${details}
+--------------------------------------------------------------------------------------
+YTD CONSOLIDATED FINANCIAL TOTALS:
+--------------------------------------------------------------------------------------
+Total YTD Gross Rent Collected   : ${formatPeso(totalGross)}
+Total YTD Operating Deductions   : -${formatPeso(totalDeduct)}
+======================================================================================
+NET ANNUAL PORTFOLIO OPERATING YIELD: ${formatPeso(totalNet)}
+======================================================================================
+Certified True & Correct Copy from ARGO Master Multi-Tenant PostgreSQL Ledger.`;
+
+            const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `Annual_Owner_Statement_2026_${ownerName.replace(/[^a-zA-Z0-9]/g, '_')}.txt`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }
+
         function filterTable() {
             const searchValue = document.getElementById("searchInput").value.toLowerCase();
             const propertyValue = document.getElementById("propertyFilter").value;
             const statusValue = document.getElementById("statusFilter").value;
 
             const rows = document.querySelectorAll("#statementTable tr");
+            let visibleCount = 0;
+            let totalRows = 0;
 
             rows.forEach(row => {
+                if (!row.dataset.property && !row.dataset.status) return;
+                totalRows++;
+
                 const text = row.innerText.toLowerCase();
                 const rowProperty = row.dataset.property || "";
                 const rowStatus = row.dataset.status || "";
 
                 const matchesSearch = text.includes(searchValue);
-                const matchesProperty = propertyValue === "" || rowProperty.includes(propertyValue);
-                const matchesStatus = statusValue === "" || rowStatus.includes(statusValue);
+                const matchesProperty = propertyValue === "" || rowProperty.includes(propertyValue) || propertyValue.includes(rowProperty);
+                const matchesStatus = statusValue === "" || rowStatus.toLowerCase() === statusValue.toLowerCase();
 
                 if (matchesSearch && matchesProperty && matchesStatus) {
                     row.style.display = "";
+                    visibleCount++;
                 } else {
                     row.style.display = "none";
                 }
             });
+
+            const countEl = document.getElementById('showingCountText');
+            if (countEl) {
+                countEl.textContent = `Showing ${visibleCount} of ${totalRows} payout statements`;
+            }
         }
 
         function resetFilters() {
@@ -1399,4 +1668,3 @@
         }
     </script>
 </body>
-</html>

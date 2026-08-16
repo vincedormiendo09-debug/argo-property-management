@@ -678,10 +678,10 @@
     <!-- ================= SIDEBAR ================= -->
     <aside class="sidebar">
         <div class="sidebar-brand">
-            <div class="brand-logo">A</div>
+            <div class="brand-logo" id="brandLogo">A</div>
             <div>
                 <h2>ARGO</h2>
-                <span>Property Management</span>
+                <span id="portalBrandSubtitle">Property Management</span>
             </div>
         </div>
 
@@ -690,16 +690,16 @@
         </nav>
 
         <div class="sidebar-footer">
-            <span>ARGO v0.5</span>
+            <span id="portalVersionText">ARGO v0.5</span>
         </div>
     </aside>
 
     <!-- ================= TOP HEADER ================= -->
     <header class="top-header">
         <div class="header-left">
-            <div class="admin-badge">
-                <i class="bi bi-shield-lock-fill" style="color: #60A5FA;"></i>
-                <span>Admin Command Center</span>
+            <div id="headerRoleBadgeContainer" class="admin-badge">
+                <i id="headerRoleIcon" class="bi bi-shield-lock-fill" style="color: #60A5FA;"></i>
+                <span id="headerRoleBadgeText">Admin Command Center</span>
             </div>
         </div>
 
@@ -739,13 +739,17 @@
         <!-- PAGE HEADER -->
         <div class="page-header">
             <div>
-                <div class="eyebrow">FINANCE & SERVICES (STEP 2)</div>
-                <h1>Utility Charges & Billing Desk</h1>
-                <p>Consolidate sub-meter consumption numbers (Meralco & Maynilad) into tenant invoices and dispatch to Tenant Portal.</p>
+                <div class="eyebrow" id="pageEyebrow">FINANCE & SERVICES (STEP 2)</div>
+                <h1 id="pageTitle">Utility Charges & Billing Desk</h1>
+                <p id="pageDesc">Consolidate sub-meter consumption numbers (Meralco & Maynilad) into tenant invoices and dispatch to Tenant Portal.</p>
             </div>
 
-            <div class="header-btn-group">
-                <button class="primary-btn" onclick="openModal()">
+            <div class="header-btn-group" style="display:flex; gap:10px;">
+                <a href="meter-readings.html" class="secondary-btn" style="text-decoration:none; display:inline-flex; align-items:center; gap:6px;">
+                    <i class="bi bi-speedometer2"></i>
+                    <span>Sub-Meter Readings Hub</span>
+                </a>
+                <button class="primary-btn" id="addChargeBtn" onclick="openModal()">
                     <i class="bi bi-plus-lg"></i>
                     <span>Add Manual Utility Charge</span>
                 </button>
@@ -755,25 +759,37 @@
         <!-- KPI CARDS (DYNAMICALLY RECALCULATED) -->
         <section class="kpi-grid">
             <div class="kpi-card">
-                <div class="kpi-label">Total Utility Charges</div>
+                <div class="kpi-top">
+                    <span class="kpi-label">Total Utility Charges</span>
+                    <div class="kpi-icon"><i class="bi bi-cash-stack"></i></div>
+                </div>
                 <div class="kpi-value" style="color:#2563EB;" id="kpiTotalCharges">₱0.00</div>
                 <div class="kpi-description">Current billing period total</div>
             </div>
 
             <div class="kpi-card">
-                <div class="kpi-label">Collected & Settled</div>
+                <div class="kpi-top">
+                    <span class="kpi-label">Collected & Settled</span>
+                    <div class="kpi-icon" style="background:#ECFDF5; color:#059669;"><i class="bi bi-check-circle"></i></div>
+                </div>
                 <div class="kpi-value" style="color:#059669;" id="kpiPaidCharges">₱0.00</div>
                 <div class="kpi-description">Tenant utility payments</div>
             </div>
 
             <div class="kpi-card">
-                <div class="kpi-label">Pending Tenant Invoicing</div>
+                <div class="kpi-top">
+                    <span class="kpi-label">Pending Tenant Invoicing</span>
+                    <div class="kpi-icon" style="background:#FEF3C7; color:#D97706;"><i class="bi bi-clock"></i></div>
+                </div>
                 <div class="kpi-value" style="color:#D97706;" id="kpiPendingCharges">₱0.00</div>
                 <div class="kpi-description">Awaiting invoice dispatch</div>
             </div>
 
             <div class="kpi-card">
-                <div class="kpi-label">Overdue Utility Dues</div>
+                <div class="kpi-top">
+                    <span class="kpi-label">Overdue Utility Dues</span>
+                    <div class="kpi-icon" style="background:#FFF1F2; color:#E11D48;"><i class="bi bi-exclamation-circle"></i></div>
+                </div>
                 <div class="kpi-value" style="color:#E11D48;" id="kpiOverdueCharges">₱0.00</div>
                 <div class="kpi-description">Requires follow-up notice</div>
             </div>
@@ -823,7 +839,7 @@
                         </tr>
                     </thead>
                     <tbody id="utilityTable">
-                        <!-- RENDERED DYNAMICALLY FROM LOCALSTORAGE / POSTGRESQL -->
+                        <!-- RENDERED DYNAMICALLY FROM DATABASE / LOCALSTORAGE -->
                     </tbody>
                 </table>
             </div>
@@ -848,7 +864,7 @@
 
             <div class="modal-body">
                 <div class="form-group">
-                    <label>Select Unit / Tenant</label>
+                    <label>Select Unit / Tenant <span style="color:var(--danger, #E11D48);">*</span></label>
                     <select id="modalTenantSelect">
                         <option value="">Select Tenant...</option>
                         <!-- DYNAMICALLY POPULATED -->
@@ -858,7 +874,7 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label>Utility Type</label>
-                        <select id="modalTypeSelect">
+                        <select id="modalTypeSelect" onchange="autoFillUtilityNotes()">
                             <option value="Electricity">Electricity (Meralco Sub-Meter)</option>
                             <option value="Water">Water (Maynilad Sub-Meter)</option>
                             <option value="Consolidated">Consolidated (Water + Meralco + HOA)</option>
@@ -874,8 +890,8 @@
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label>Charge Amount (₱)</label>
-                        <input type="number" id="modalAmount" placeholder="e.g. 2368.75">
+                        <label>Charge Amount (₱) <span style="color:var(--danger, #E11D48);">*</span></label>
+                        <input type="number" id="modalAmount" placeholder="e.g. 2368.75" min="0" step="0.01">
                     </div>
 
                     <div class="form-group">
@@ -913,19 +929,130 @@
             HOA_DUES: 1200.00
         };
 
-        // Secure Logout Handler (Clears session and replaces history to prevent back-button access)
+        // Type-Safe Currency Parser
+        function parseCurrency(val) {
+            if (val === undefined || val === null || val === '') return 0;
+            if (typeof val === 'number') return isNaN(val) ? 0 : val;
+            const clean = val.toString().replace(/[^0-9.-]+/g, "");
+            const parsed = parseFloat(clean);
+            return isNaN(parsed) ? 0 : parsed;
+        }
+
+        // Format Currency Helper
+        function formatPeso(val) {
+            const num = parseCurrency(val);
+            return '₱' + num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        // Secure Logout Handler
         function logoutUser() {
             localStorage.removeItem('argo_pov');
             localStorage.removeItem('user_role');
             localStorage.removeItem('role');
             localStorage.removeItem('token');
+            localStorage.removeItem('argo_token');
             localStorage.removeItem('argo_user');
             window.location.replace('index.html');
         }
 
+        // Dynamic Role-Based Sidebar Navigation Renderer
         function renderSidebar() {
             const nav = document.getElementById('sidebarNav');
-            if (nav) {
+            if (!nav) return;
+
+            const rawRole = (
+                localStorage.getItem('argo_pov') || 
+                localStorage.getItem('user_role') || 
+                localStorage.getItem('role') || 
+                'admin'
+            ).toLowerCase().trim();
+
+            if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
+                nav.innerHTML = `
+                    <div class="nav-section-title">SELF-SERVICE HOME</div>
+                    <a href="client-dashboard.html" class="nav-item">
+                        <i class="bi bi-house-door"></i>
+                        <span>My Tenancy Home</span>
+                    </a>
+                    <a href="client-billing.html" class="nav-item">
+                        <i class="bi bi-receipt"></i>
+                        <span>Pay Rent & Dues</span>
+                    </a>
+                    <a href="transaction.html" class="nav-item">
+                        <i class="bi bi-receipt-cutoff"></i>
+                        <span>Transactions & Ledger</span>
+                    </a>
+                    <a href="client-utilities.html" class="nav-item">
+                        <i class="bi bi-lightning-charge"></i>
+                        <span>My Utilities & Meters</span>
+                    </a>
+                    <a href="client-maintenance.html" class="nav-item">
+                        <i class="bi bi-tools"></i>
+                        <span>Submit Maintenance</span>
+                    </a>
+                    <a href="inspections.html" class="nav-item">
+                        <i class="bi bi-clipboard-check"></i>
+                        <span>Move-In & Inspections</span>
+                    </a>
+                    <a href="client-documents.html" class="nav-item">
+                        <i class="bi bi-folder2-open"></i>
+                        <span>My Lease & Receipts</span>
+                    </a>
+
+                    <div class="nav-section-title">SYSTEM</div>
+                    <a href="account.html" class="nav-item">
+                        <i class="bi bi-gear"></i>
+                        <span>Account Settings</span>
+                    </a>
+                    <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Log Out</span>
+                    </a>
+                `;
+            } else if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
+                nav.innerHTML = `
+                    <div class="nav-section-title">PORTFOLIO OVERVIEW</div>
+                    <a href="owner-dashboard.html" class="nav-item">
+                        <i class="bi bi-speedometer2"></i>
+                        <span>Executive Summary</span>
+                    </a>
+                    <a href="owner-properties.html" class="nav-item">
+                        <i class="bi bi-buildings"></i>
+                        <span>My Properties</span>
+                    </a>
+                    <a href="owner-statements.html" class="nav-item">
+                        <i class="bi bi-file-earmark-text"></i>
+                        <span>Financial Statements</span>
+                    </a>
+                    <a href="property-ownership.html" class="nav-item">
+                        <i class="bi bi-pie-chart"></i>
+                        <span>Fractional Equity</span>
+                    </a>
+                    <a href="owner-documents.html" class="nav-item">
+                        <i class="bi bi-folder2-open"></i>
+                        <span>Legal Vault</span>
+                    </a>
+                    <a href="transaction.html" class="nav-item">
+                        <i class="bi bi-receipt-cutoff"></i>
+                        <span>Yield Audit Ledger</span>
+                    </a>
+
+                    <div class="nav-section-title">COMMUNICATION & SYSTEM</div>
+                    <a href="notification.html" class="nav-item">
+                        <i class="bi bi-bell"></i>
+                        <span>Notification Center</span>
+                    </a>
+                    <a href="account.html" class="nav-item">
+                        <i class="bi bi-gear"></i>
+                        <span>Account Settings</span>
+                    </a>
+                    <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Log Out</span>
+                    </a>
+                `;
+            } else {
+                // Admin POV
                 nav.innerHTML = `
                     <div class="nav-section-title">OVERVIEW</div>
                     <a href="dashboard.html" class="nav-item">
@@ -1012,6 +1139,10 @@
                         <i class="bi bi-gear"></i>
                         <span>Settings</span>
                     </a>
+                    <a href="account.html" class="nav-item">
+                        <i class="bi bi-person-gear"></i>
+                        <span>Account Settings</span>
+                    </a>
                     <a href="#" class="nav-item" onclick="logoutUser(); return false;">
                         <i class="bi bi-box-arrow-right"></i>
                         <span>Log Out</span>
@@ -1020,7 +1151,75 @@
             }
         }
 
-        // Clean Baseline (NO HARDCODED MOCK SEED DATA)
+        // Apply Layout Header based on Role
+        function applyRoleLayout() {
+            const rawRole = (
+                localStorage.getItem('argo_pov') || 
+                localStorage.getItem('user_role') || 
+                localStorage.getItem('role') || 
+                'admin'
+            ).toLowerCase().trim();
+
+            let role = 'admin';
+            if (['client', 'tenant', 'client_pov'].includes(rawRole)) role = 'client';
+            else if (['owner', 'property_owner', 'investor'].includes(rawRole)) role = 'owner';
+
+            const brandSub = document.getElementById('portalBrandSubtitle');
+            const brandLogo = document.getElementById('brandLogo');
+            const versionText = document.getElementById('portalVersionText');
+            const headerRoleContainer = document.getElementById('headerRoleBadgeContainer');
+            const headerRoleIcon = document.getElementById('headerRoleIcon');
+            const headerRoleText = document.getElementById('headerRoleBadgeText');
+            const addChargeBtn = document.getElementById('addChargeBtn');
+            const pageEyebrow = document.getElementById('pageEyebrow');
+            const pageDesc = document.getElementById('pageDesc');
+
+            if (role === 'client') {
+                document.documentElement.style.setProperty('--primary', '#2563EB');
+                if (brandSub) brandSub.textContent = 'Tenant Portal';
+                if (brandLogo) brandLogo.style.background = '#2563EB';
+                if (versionText) versionText.textContent = 'ARGO v0.5 (Tenant POV)';
+
+                if (headerRoleContainer) {
+                    headerRoleContainer.className = 'tenant-badge';
+                    headerRoleContainer.innerHTML = '<i class="bi bi-house-door-fill" style="color: #60A5FA;"></i><span>Tenant Self-Service Portal</span>';
+                }
+
+                if (pageEyebrow) pageEyebrow.textContent = 'SELF-SERVICE UTILITIES';
+                if (pageDesc) pageDesc.textContent = 'View your monthly electricity, water sub-meter readings, and billing breakdowns.';
+                if (addChargeBtn) addChargeBtn.style.display = 'none';
+            } else if (role === 'owner') {
+                document.documentElement.style.setProperty('--primary', '#059669');
+                if (brandSub) brandSub.textContent = 'Owner Portal';
+                if (brandLogo) brandLogo.style.background = '#059669';
+                if (versionText) versionText.textContent = 'ARGO v0.5 (Owner POV)';
+
+                if (headerRoleContainer) {
+                    headerRoleContainer.className = 'owner-badge';
+                    headerRoleContainer.innerHTML = '<i class="bi bi-person-badge-fill" style="color: #34D399;"></i><span>Property Owner Executive Portal</span>';
+                }
+
+                if (pageEyebrow) pageEyebrow.textContent = 'PORTFOLIO UTILITIES';
+                if (pageDesc) pageDesc.textContent = 'Audit sub-meter readings and utility billing compliance across your owned properties.';
+                if (addChargeBtn) addChargeBtn.style.display = 'none';
+            } else {
+                document.documentElement.style.setProperty('--primary', '#2563EB');
+                if (brandSub) brandSub.textContent = 'Property Management';
+                if (brandLogo) brandLogo.style.background = '#2563EB';
+                if (versionText) versionText.textContent = 'ARGO v0.5';
+
+                if (headerRoleContainer) {
+                    headerRoleContainer.className = 'admin-badge';
+                    headerRoleContainer.innerHTML = '<i class="bi bi-shield-lock-fill" style="color: #60A5FA;"></i><span>Admin Command Center</span>';
+                }
+
+                if (pageEyebrow) pageEyebrow.textContent = 'FINANCE & SERVICES (STEP 2)';
+                if (pageDesc) pageDesc.textContent = 'Consolidate sub-meter consumption numbers (Meralco & Maynilad) into tenant invoices and dispatch to Tenant Portal.';
+                if (addChargeBtn) addChargeBtn.style.display = 'inline-flex';
+            }
+        }
+
+        // Shared Storage Accessors
         const DEFAULT_CHARGES = [];
 
         function getUtilityCharges() {
@@ -1029,7 +1228,11 @@
                 localStorage.setItem('argo_utility_charges', JSON.stringify(DEFAULT_CHARGES));
                 return DEFAULT_CHARGES;
             }
-            return JSON.parse(data);
+            try {
+                return JSON.parse(data);
+            } catch (e) {
+                return DEFAULT_CHARGES;
+            }
         }
 
         function saveUtilityCharges(charges) {
@@ -1037,7 +1240,11 @@
         }
 
         function getInvoices() {
-            return JSON.parse(localStorage.getItem('argo_invoices') || '[]');
+            try {
+                return JSON.parse(localStorage.getItem('argo_invoices') || '[]');
+            } catch (e) {
+                return [];
+            }
         }
 
         function saveInvoices(invoices) {
@@ -1045,7 +1252,11 @@
         }
 
         function getNotifications() {
-            return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
+            try {
+                return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
+            } catch (e) {
+                return [];
+            }
         }
 
         function saveNotifications(notifications) {
@@ -1053,7 +1264,11 @@
         }
 
         function getReadings() {
-            return JSON.parse(localStorage.getItem('argo_meter_readings') || '[]');
+            try {
+                return JSON.parse(localStorage.getItem('argo_meter_readings') || '[]');
+            } catch (e) {
+                return [];
+            }
         }
 
         function saveReadings(readings) {
@@ -1061,29 +1276,94 @@
         }
 
         function getLeases() {
-            return JSON.parse(localStorage.getItem('argo_leases') || '[]');
+            try {
+                return JSON.parse(localStorage.getItem('argo_leases') || '[]');
+            } catch (e) {
+                return [];
+            }
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            const role = localStorage.getItem('argo_pov');
-            if (!role) {
+            const rawRole = (
+                localStorage.getItem('argo_pov') || 
+                localStorage.getItem('user_role') || 
+                localStorage.getItem('role') || 
+                ''
+            ).toLowerCase().trim();
+
+            if (!rawRole) {
                 window.location.replace('index.html');
                 return;
             }
+
             renderSidebar();
+            applyRoleLayout();
             loadUserData();
             populateModalDropdowns();
             syncUnbilledMeterReadingsIntoCharges();
             renderUtilityTable();
             updateKPIs();
             updateHeaderBadge();
+
+            // Set default date
+            const dueInput = document.getElementById('modalDueDate');
+            if (dueInput) {
+                const now = new Date();
+                now.setDate(now.getDate() + 15);
+                dueInput.value = now.toISOString().split('T')[0];
+            }
+        });
+
+        // Real-Time Cross-Tab Listener
+        window.addEventListener('storage', (e) => {
+            if (['argo_utility_charges', 'argo_invoices', 'argo_meter_readings', 'argo_leases', 'argo_notifications', 'argo_user', 'argo_pov', 'user_role', 'role'].includes(e.key)) {
+                renderSidebar();
+                applyRoleLayout();
+                loadUserData();
+                populateModalDropdowns();
+                syncUnbilledMeterReadingsIntoCharges();
+                renderUtilityTable();
+                updateKPIs();
+                updateHeaderBadge();
+            }
         });
 
         function loadUserData() {
+            const rawRole = (
+                localStorage.getItem('argo_pov') || 
+                localStorage.getItem('user_role') || 
+                localStorage.getItem('role') || 
+                'admin'
+            ).toLowerCase().trim();
+
             const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
-            if (user.name) {
-                document.getElementById('userName').textContent = user.name;
-                document.getElementById('userAvatar').textContent = user.avatar || 'JD';
+            const nameEl = document.getElementById('userName');
+            const roleEl = document.getElementById('userRoleBadge');
+            const avatarEl = document.getElementById('userAvatar');
+
+            if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
+                if (nameEl) nameEl.textContent = 'Don Ramon Santos';
+                if (roleEl) roleEl.textContent = 'Property Owner';
+                if (avatarEl) {
+                    avatarEl.textContent = 'RS';
+                    avatarEl.style.background = '#059669';
+                }
+            } else if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
+                if (nameEl) nameEl.textContent = 'Maria Santos';
+                if (roleEl) roleEl.textContent = 'Sunrise Property • Unit 101';
+                if (avatarEl) {
+                    avatarEl.textContent = 'MS';
+                    avatarEl.style.background = '#D97706';
+                }
+            } else {
+                const name = user.name || 'Property Admin';
+                const role = user.role || 'Property Manager';
+                if (nameEl) nameEl.textContent = name;
+                if (roleEl) roleEl.textContent = role;
+                if (avatarEl) {
+                    avatarEl.textContent = user.avatar || (name.charAt(0) || 'JD');
+                    avatarEl.style.background = user.avatarBg || '#2563EB';
+                }
             }
         }
 
@@ -1094,47 +1374,106 @@
 
             select.innerHTML = '<option value="">Select Tenant...</option>';
             leases.forEach(l => {
-                select.innerHTML += `<option value="${l.tenantName}|${l.unit}">${l.tenantName} — ${l.unit}</option>`;
+                const tName = l.tenantName || l.tenant_name || 'Tenant';
+                const uLoc = l.unit || l.unit_no || 'Unit 101';
+                select.innerHTML += `<option value="${tName}|${uLoc}">${tName} — ${uLoc}</option>`;
             });
+
+            if (leases.length === 0) {
+                select.innerHTML += `<option value="Maria Santos|Sunrise Property • Unit 101">Maria Santos — Sunrise Property • Unit 101</option>`;
+            }
+        }
+
+        function autoFillUtilityNotes() {
+            const type = document.getElementById('modalTypeSelect').value;
+            const period = document.getElementById('modalPeriod').value || 'August 2026';
+            const notesEl = document.getElementById('modalNotes');
+            if (!notesEl) return;
+
+            if (type === 'Electricity') {
+                notesEl.value = `Meralco Sub-Meter Power Consumption @ ₱${RATES.MERALCO_KWH.toFixed(2)}/kWh`;
+            } else if (type === 'Water') {
+                notesEl.value = `Maynilad Sub-Meter Water Consumption @ ₱${RATES.MAYNILAD_CUM.toFixed(2)}/cu.m`;
+            } else if (type === 'Association Dues') {
+                notesEl.value = `Monthly Building HOA & Common Area Association Dues (${period})`;
+                const amtInput = document.getElementById('modalAmount');
+                if (amtInput && !amtInput.value) amtInput.value = RATES.HOA_DUES;
+            } else {
+                notesEl.value = `Consolidated Utilities & Association Charges (${period})`;
+            }
         }
 
         function syncUnbilledMeterReadingsIntoCharges() {
             const readings = getReadings();
             const charges = getUtilityCharges();
+            const invoices = getInvoices();
+            let hasChanges = false;
 
             readings.forEach(r => {
-                if (r.status === 'Unbilled / Ready for Billing') {
-                    const chargePrefix = r.utility === 'Meralco' ? 'UTL-ELE-' : 'UTL-WTR-';
-                    const targetId = `${chargePrefix}${r.id.replace('MET-2026-', '')}`;
+                const isUnbilled = r.status === 'Unbilled / Ready for Billing' || !r.status;
+                const chargePrefix = r.utility === 'Meralco' ? 'UTL-ELE-' : 'UTL-WTR-';
+                const targetId = `${chargePrefix}${r.id ? r.id.replace(/[^0-9]/g, '') : Math.floor(100 + Math.random() * 900)}`;
 
-                    const existingCharge = charges.find(c => c.id === targetId || (c.tenantName === r.tenantName && c.type === (r.utility === 'Meralco' ? 'Electricity' : 'Water') && c.period === r.period));
-                    
-                    if (!existingCharge) {
-                        const calculatedAmount = r.utility === 'Meralco' 
-                            ? r.consumption * RATES.MERALCO_KWH 
-                            : r.consumption * RATES.MAYNILAD_CUM;
+                const existingChargeIndex = charges.findIndex(c => 
+                    c.id === targetId || 
+                    (c.tenantName === r.tenantName && c.type === (r.utility === 'Meralco' ? 'Electricity' : 'Water') && c.period === (r.period || 'August 2026'))
+                );
 
-                        charges.unshift({
-                            id: targetId,
-                            tenantName: r.tenantName,
-                            unitLocation: r.unitLocation,
-                            type: r.utility === 'Meralco' ? 'Electricity' : 'Water',
-                            breakdown: `${r.utility} ${r.consumption.toFixed(2)} ${r.unitSymbol} @ ₱${r.utility === 'Meralco' ? RATES.MERALCO_KWH : RATES.MAYNILAD_CUM}/${r.unitSymbol}`,
-                            period: r.period,
-                            dueDate: 'Aug 15, 2026',
-                            amount: calculatedAmount,
-                            status: 'Pending'
-                        });
+                if (isUnbilled && existingChargeIndex === -1) {
+                    const calculatedAmount = r.utility === 'Meralco' 
+                        ? (parseCurrency(r.consumption) * RATES.MERALCO_KWH) 
+                        : (parseCurrency(r.consumption) * RATES.MAYNILAD_CUM);
+
+                    charges.unshift({
+                        id: targetId,
+                        tenantName: r.tenantName,
+                        unitLocation: r.unitLocation || 'Sunrise Property • Unit 101',
+                        type: r.utility === 'Meralco' ? 'Electricity' : 'Water',
+                        breakdown: `${r.utility} ${parseCurrency(r.consumption).toFixed(2)} ${r.unitSymbol || (r.utility === 'Meralco' ? 'kWh' : 'cu.m')} @ ₱${r.utility === 'Meralco' ? RATES.MERALCO_KWH.toFixed(2) : RATES.MAYNILAD_CUM.toFixed(2)}/${r.unitSymbol || 'unit'}`,
+                        period: r.period || 'August 2026',
+                        dueDate: 'Aug 15, 2026',
+                        amount: calculatedAmount,
+                        status: 'Pending'
+                    });
+                    hasChanges = true;
+                }
+            });
+
+            // Reconcile charge statuses with invoices (if paid in invoices ledger, mark charge as Paid)
+            charges.forEach(c => {
+                const matchedInvoice = invoices.find(inv => inv.id === c.id || (inv.tenantName === c.tenantName && inv.type && inv.type.includes(c.type) && inv.type.includes(c.period)));
+                if (matchedInvoice) {
+                    const invStatus = (matchedInvoice.status || '').toLowerCase();
+                    if (invStatus === 'paid' && c.status !== 'Paid') {
+                        c.status = 'Paid';
+                        hasChanges = true;
                     }
                 }
             });
 
-            saveUtilityCharges(charges);
+            if (hasChanges) {
+                saveUtilityCharges(charges);
+            }
         }
 
         function renderUtilityTable() {
-            const charges = getUtilityCharges();
+            const rawRole = (
+                localStorage.getItem('argo_pov') || 
+                localStorage.getItem('user_role') || 
+                localStorage.getItem('role') || 
+                'admin'
+            ).toLowerCase().trim();
+
+            let charges = getUtilityCharges();
+            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+            const tenantFilterName = user.name || 'Maria Santos';
+
+            if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
+                charges = charges.filter(c => c.tenantName && c.tenantName.toLowerCase().includes(tenantFilterName.toLowerCase()));
+            }
+
             const tbody = document.getElementById('utilityTable');
+            if (!tbody) return;
             tbody.innerHTML = '';
 
             if (charges.length === 0) {
@@ -1145,8 +1484,8 @@
 
             charges.forEach(c => {
                 const tr = document.createElement('tr');
-                tr.dataset.type = c.type;
-                tr.dataset.status = c.status;
+                tr.dataset.type = c.type || 'Other';
+                tr.dataset.status = c.status || 'Pending';
 
                 let badgeType = 'electricity';
                 let iconBi = 'bi-lightning-charge';
@@ -1163,37 +1502,45 @@
                 }
 
                 let statusBadge = '';
-                if (c.status === 'Paid') {
-                    statusBadge = `<span class="status paid"><i class="bi bi-check-circle" style="margin-right:4px;"></i> Paid</span>`;
-                } else if (c.status === 'Overdue') {
-                    statusBadge = `<span class="status overdue"><i class="bi bi-exclamation-circle" style="margin-right:4px;"></i> Overdue</span>`;
+                const s = (c.status || '').toLowerCase();
+                if (s === 'paid') {
+                    statusBadge = `<span class="status paid" style="background:#ECFDF5; color:#059669; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-check-circle" style="margin-right:4px;"></i> Paid</span>`;
+                } else if (s === 'overdue') {
+                    statusBadge = `<span class="status overdue" style="background:#FFF1F2; color:#E11D48; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-exclamation-circle" style="margin-right:4px;"></i> Overdue</span>`;
                 } else {
-                    statusBadge = `<span class="status pending"><i class="bi bi-clock" style="margin-right:4px;"></i> Unpaid / Pending Dispatch</span>`;
+                    statusBadge = `<span class="status pending" style="background:#FEF3C7; color:#D97706; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-clock" style="margin-right:4px;"></i> Unpaid / Pending Dispatch</span>`;
                 }
 
                 let actionsHtml = `
-                    <button class="action-button" title="View Breakdown Details" onclick="alert('Utility Statement Details for ${c.id}:\\nTenant: ${c.tenantName}\\nBreakdown: ${c.breakdown}\\nTotal: ₱${parseFloat(c.amount || 0).toLocaleString('en-US', {minimumFractionDigits:2})}')"><i class="bi bi-eye"></i></button>
+                    <button class="action-button" title="View Breakdown Details" onclick="alert('Utility Statement Details for ${c.id}:\\nTenant: ${escapeQuotes(c.tenantName)}\\nLocation: ${escapeQuotes(c.unitLocation)}\\nBreakdown: ${escapeQuotes(c.breakdown)}\\nTotal: ${formatPeso(c.amount)}')"><i class="bi bi-eye"></i></button>
                 `;
 
-                if (c.status === 'Pending' || c.status === 'Unpaid') {
-                    actionsHtml = `
-                        <button class="action-button dispatch-btn" title="Dispatch Utility Invoice to Tenant Portal" onclick="dispatchUtilityInvoice('${c.id}', '${c.tenantName}', '${c.unitLocation}', ${c.amount}, '${c.period}', '${c.breakdown}', '${c.type}')"><i class="bi bi-send-check" style="font-size:18px;"></i></button>
-                        <button class="action-button" title="View Breakdown Details" onclick="alert('Utility Statement Details for ${c.id}:\\nTenant: ${c.tenantName}\\nBreakdown: ${c.breakdown}')"><i class="bi bi-eye"></i></button>
-                    `;
+                if (!['client', 'tenant', 'owner', 'property_owner'].includes(rawRole)) {
+                    if (s === 'pending' || s === 'unpaid') {
+                        actionsHtml = `
+                            <button class="action-button dispatch-btn" title="Dispatch Utility Invoice to Tenant Portal" style="color:#2563EB;" onclick="dispatchUtilityInvoice('${c.id}', '${escapeQuotes(c.tenantName)}', '${escapeQuotes(c.unitLocation)}', ${parseCurrency(c.amount)}, '${escapeQuotes(c.period)}', '${escapeQuotes(c.breakdown)}', '${escapeQuotes(c.type)}')"><i class="bi bi-send-check" style="font-size:16px;"></i></button>
+                            <button class="action-button" title="View Breakdown Details" onclick="alert('Utility Statement Details for ${c.id}:\\nTenant: ${escapeQuotes(c.tenantName)}\\nBreakdown: ${escapeQuotes(c.breakdown)}')"><i class="bi bi-eye"></i></button>
+                            <button class="action-button delete" title="Delete Charge" onclick="deleteUtilityCharge('${c.id}')"><i class="bi bi-trash"></i></button>
+                        `;
+                    } else {
+                        actionsHtml += `
+                            <button class="action-button delete" title="Delete Charge" onclick="deleteUtilityCharge('${c.id}')"><i class="bi bi-trash"></i></button>
+                        `;
+                    }
                 }
 
                 tr.innerHTML = `
-                    <td><div class="charge-id">${c.id}</div></td>
+                    <td><div class="charge-id" style="font-weight:600;">${c.id}</div></td>
                     <td>
-                        <div class="unit-name">${c.tenantName}</div>
-                        <div class="property-info"><i class="bi bi-geo-alt"></i> ${c.unitLocation || 'Property Unit'}</div>
+                        <div class="unit-name" style="font-weight:600;">${c.tenantName}</div>
+                        <div class="property-info" style="font-size:11px; color:var(--muted);"><i class="bi bi-geo-alt"></i> ${c.unitLocation || 'Property Unit'}</div>
                     </td>
                     <td>
-                        <div><span class="charge-type ${badgeType}"><i class="bi ${iconBi}" style="margin-right:4px;"></i> ${c.type}</span></div>
+                        <div><span class="charge-type ${badgeType}" style="font-weight:600; font-size:11px;"><i class="bi ${iconBi}" style="margin-right:4px;"></i> ${c.type}</span></div>
                         <div style="font-size:11px; color:var(--muted); margin-top:3px;">${c.breakdown}</div>
                     </td>
-                    <td>${c.period}</td>
-                    <td><strong style="color:var(--primary);">₱${parseFloat(c.amount || 0).toLocaleString('en-US', {minimumFractionDigits:2})}</strong></td>
+                    <td>${c.period || 'N/A'}</td>
+                    <td><strong style="color:var(--primary, #2563EB);">${formatPeso(c.amount)}</strong></td>
                     <td>${statusBadge}</td>
                     <td>
                         <div style="display:flex; gap:6px;">${actionsHtml}</div>
@@ -1207,7 +1554,7 @@
         }
 
         function dispatchUtilityInvoice(chargeId, tenantName, locationTag, amount, period, breakdown, type) {
-            if (!confirm(`Dispatch ${type} utility invoice (${chargeId}) for ₱${amount.toLocaleString('en-US', {minimumFractionDigits:2})} directly to ${tenantName}'s Tenant Portal?`)) return;
+            if (!confirm(`Dispatch ${type} utility invoice (${chargeId}) for ${formatPeso(amount)} directly to ${tenantName}'s Tenant Portal?`)) return;
 
             let invoices = getInvoices();
             const categoryType = type === 'Electricity' ? 'Electricity' : (type === 'Water' ? 'Water' : 'Utilities');
@@ -1238,11 +1585,11 @@
                 status: 'unread',
                 title: `New ${typeLabel} Issued (${period})`,
                 time: 'Just now',
-                description: `Your monthly ${typeLabel.toLowerCase()} of ₱${amount.toLocaleString('en-US', {minimumFractionDigits:2})} (${breakdown}) has been issued.`,
+                description: `Your monthly ${typeLabel.toLowerCase()} of ${formatPeso(amount)} (${breakdown}) has been issued.`,
                 property: locationTag || 'Property Unit',
                 tag: 'Status: UNPAID',
-                tagColor: 'var(--warning)',
-                amount: `₱${amount.toLocaleString('en-US', {minimumFractionDigits:2})}`,
+                tagColor: 'var(--warning, #D97706)',
+                amount: formatPeso(amount),
                 actionUrl: 'client-billing.html',
                 actionText: 'Pay via GCash / MariBank'
             });
@@ -1268,37 +1615,6 @@
             alert(`Utility Invoice ${chargeId} successfully dispatched!`);
         }
 
-        function updateKPIs() {
-            const charges = getUtilityCharges();
-
-            let total = 0;
-            let paid = 0;
-            let pending = 0;
-            let overdue = 0;
-
-            charges.forEach(c => {
-                const amt = parseFloat(c.amount || 0);
-                total += amt;
-                if (c.status === 'Paid') paid += amt;
-                else if (c.status === 'Overdue') overdue += amt;
-                else pending += amt;
-            });
-
-            document.getElementById('kpiTotalCharges').textContent = `₱${total.toLocaleString('en-US', {minimumFractionDigits:2})}`;
-            document.getElementById('kpiPaidCharges').textContent = `₱${paid.toLocaleString('en-US', {minimumFractionDigits:2})}`;
-            document.getElementById('kpiPendingCharges').textContent = `₱${pending.toLocaleString('en-US', {minimumFractionDigits:2})}`;
-            document.getElementById('kpiOverdueCharges').textContent = `₱${overdue.toLocaleString('en-US', {minimumFractionDigits:2})}`;
-        }
-
-        function updateHeaderBadge() {
-            const notifs = getNotifications().filter(n => n.pov === 'admin' && n.status === 'unread');
-            const badge = document.getElementById('headerNotifBadge');
-            if (badge) badge.textContent = notifs.length;
-        }
-
-        function openModal() { document.getElementById("utilityModal").classList.add("show"); }
-        function closeModal() { document.getElementById("utilityModal").classList.remove("show"); }
-
         function saveUtility() {
             const selectVal = document.getElementById('modalTenantSelect').value;
             if (!selectVal) {
@@ -1311,12 +1627,19 @@
             const locationTag = tenantVal[1];
             const type = document.getElementById('modalTypeSelect').value;
             const period = document.getElementById('modalPeriod').value.trim() || 'August 2026';
-            const amount = parseFloat(document.getElementById('modalAmount').value) || 0;
+            const amountInput = document.getElementById('modalAmount');
+            const amount = parseFloat(amountInput ? amountInput.value : 0) || 0;
+            const dueDate = document.getElementById('modalDueDate').value || new Date().toISOString().split('T')[0];
             const status = document.getElementById('modalStatusSelect').value;
             const notes = document.getElementById('modalNotes').value.trim() || `${type} billing charge for ${period}`;
 
+            if (amount <= 0) {
+                alert("Please enter a valid utility charge amount.");
+                return;
+            }
+
             const chargePrefix = type === 'Electricity' ? 'UTL-ELE-' : (type === 'Water' ? 'UTL-WTR-' : 'UTL-');
-            const chargeId = `${chargePrefix}2026-${Math.floor(100 + Math.random() * 900)}`;
+            const chargeId = `${chargePrefix}${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`;
 
             let charges = getUtilityCharges();
             charges.unshift({
@@ -1326,7 +1649,7 @@
                 type: type,
                 breakdown: notes,
                 period: period,
-                dueDate: new Date().toISOString().split('T')[0],
+                dueDate: dueDate,
                 amount: amount,
                 status: status
             });
@@ -1336,16 +1659,82 @@
             updateKPIs();
             closeModal();
 
-            document.getElementById('modalAmount').value = '';
+            if (amountInput) amountInput.value = '';
             document.getElementById('modalPeriod').value = '';
             document.getElementById('modalNotes').value = '';
 
             alert(`Utility Charge (${chargeId}) logged successfully for ${tenantName}!`);
         }
 
-        window.onclick = function(event) {
+        function deleteUtilityCharge(id) {
+            if (!confirm("Are you sure you want to delete this utility charge?")) return;
+            let charges = getUtilityCharges();
+            charges = charges.filter(c => c.id !== id);
+            saveUtilityCharges(charges);
+            renderUtilityTable();
+            updateKPIs();
+        }
+
+        function updateKPIs() {
+            const charges = getUtilityCharges();
+
+            let total = 0;
+            let paid = 0;
+            let pending = 0;
+            let overdue = 0;
+
+            charges.forEach(c => {
+                const amt = parseCurrency(c.amount);
+                total += amt;
+                const s = (c.status || '').toLowerCase();
+                if (s === 'paid') paid += amt;
+                else if (s === 'overdue') overdue += amt;
+                else pending += amt;
+            });
+
+            document.getElementById('kpiTotalCharges').textContent = formatPeso(total);
+            document.getElementById('kpiPaidCharges').textContent = formatPeso(paid);
+            document.getElementById('kpiPendingCharges').textContent = formatPeso(pending);
+            document.getElementById('kpiOverdueCharges').textContent = formatPeso(overdue);
+        }
+
+        function updateHeaderBadge() {
+            const rawRole = (
+                localStorage.getItem('argo_pov') || 
+                localStorage.getItem('user_role') || 
+                localStorage.getItem('role') || 
+                'admin'
+            ).toLowerCase().trim();
+
+            let role = 'admin';
+            if (['client', 'tenant', 'client_pov'].includes(rawRole)) role = 'client';
+            else if (['owner', 'property_owner', 'investor'].includes(rawRole)) role = 'owner';
+
+            const notifs = getNotifications().filter(n => (n.pov === role || n.pov === 'all') && (n.status === 'unread' || n.is_read === false));
+            const badge = document.getElementById('headerNotifBadge');
+            if (badge) badge.textContent = notifs.length;
+        }
+
+        function escapeQuotes(str) {
+            return (str || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        }
+
+        function openModal() { 
+            populateModalDropdowns();
+            autoFillUtilityNotes();
             const modal = document.getElementById("utilityModal");
-            if (event.target === modal) closeModal();
+            if (modal) modal.classList.add("show"); 
+        }
+
+        function closeModal() { 
+            const modal = document.getElementById("utilityModal");
+            if (modal) modal.classList.remove("show"); 
+        }
+
+        window.onclick = function(event) {
+            if (event.target.classList && event.target.classList.contains('modal-overlay')) {
+                event.target.classList.remove("show");
+            }
         };
 
         function filterTable() {
@@ -1354,22 +1743,33 @@
             const statusValue = document.getElementById("statusFilter").value;
 
             const rows = document.querySelectorAll("#utilityTable tr");
+            let visibleCount = 0;
+            let totalRows = 0;
 
             rows.forEach(row => {
+                if (row.cells.length === 1) return;
+                totalRows++;
+
                 const text = row.innerText.toLowerCase();
                 const rowType = row.dataset.type || "";
                 const rowStatus = row.dataset.status || "";
 
                 const matchesSearch = text.includes(searchValue);
-                const matchesType = typeValue === "" || rowType.includes(typeValue);
-                const matchesStatus = statusValue === "" || rowStatus.includes(statusValue);
+                const matchesType = typeValue === "" || rowType.toLowerCase().includes(typeValue.toLowerCase());
+                const matchesStatus = statusValue === "" || rowStatus.toLowerCase().includes(statusValue.toLowerCase());
 
                 if (matchesSearch && matchesType && matchesStatus) {
                     row.style.display = "";
+                    visibleCount++;
                 } else {
                     row.style.display = "none";
                 }
             });
+
+            const countEl = document.getElementById('showingCountText');
+            if (countEl) {
+                countEl.textContent = totalRows === 0 ? "Showing 0 utility charges" : `Showing ${visibleCount} of ${totalRows} utility charges`;
+            }
         }
 
         function resetFilters() {
@@ -1379,6 +1779,7 @@
             filterTable();
         }
 
+        // Profile Dropdown Handler
         const userProfileBtn = document.getElementById('userProfileBtn');
         const userDropdown = document.getElementById('userDropdown');
 
@@ -1388,7 +1789,9 @@
                 userDropdown.classList.toggle('show');
             });
 
-            document.addEventListener('click', () => { userDropdown.classList.remove('show'); });
+            document.addEventListener('click', () => { 
+                userDropdown.classList.remove('show'); 
+            });
         }
     </script>
 </body>

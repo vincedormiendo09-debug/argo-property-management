@@ -7,7 +7,7 @@
     const currentPath = rawFilename.split('?')[0].split('#')[0].toLowerCase();
 
     // Shared public pages accessible without login
-    const SHARED_PUBLIC_PAGES = ['index.html', ''];
+    const SHARED_PUBLIC_PAGES = ['index.html', 'login.html', 'register.html', ''];
     if (SHARED_PUBLIC_PAGES.includes(currentPath)) {
         return;
     }
@@ -20,6 +20,7 @@
         ''
     ).toLowerCase().trim();
 
+    const token = localStorage.getItem('token') || localStorage.getItem('argo_token');
     const orgId = localStorage.getItem('organization_id') || 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
 
     // Normalize roles
@@ -101,6 +102,42 @@
 })();
 
 /**
+ * Global Authentication & API Header Helpers
+ */
+function getAuthToken() {
+    return localStorage.getItem('token') || localStorage.getItem('argo_token') || '';
+}
+
+function getAuthHeaders() {
+    const token = getAuthToken();
+    return {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+    };
+}
+
+function getCurrentUser() {
+    try {
+        return JSON.parse(localStorage.getItem('argo_user') || '{}');
+    } catch (e) {
+        return {};
+    }
+}
+
+function getNormalizedRole() {
+    const rawRole = (
+        localStorage.getItem('argo_pov') || 
+        localStorage.getItem('user_role') || 
+        localStorage.getItem('role') || 
+        'admin'
+    ).toLowerCase().trim();
+
+    if (['client', 'tenant', 'client_pov'].includes(rawRole)) return 'client';
+    if (['owner', 'property_owner', 'investor'].includes(rawRole)) return 'owner';
+    return 'admin';
+}
+
+/**
  * Global Logout Helper with Back-Button Prevention
  */
 function logoutUser() {
@@ -108,6 +145,16 @@ function logoutUser() {
     localStorage.removeItem('user_role');
     localStorage.removeItem('role');
     localStorage.removeItem('token');
+    localStorage.removeItem('argo_token');
     localStorage.removeItem('argo_user');
+    localStorage.removeItem('organization_id');
+    sessionStorage.clear();
     window.location.replace('index.html');
 }
+
+// Expose utilities on window object for all modules
+window.logoutUser = logoutUser;
+window.getAuthToken = getAuthToken;
+window.getAuthHeaders = getAuthHeaders;
+window.getCurrentUser = getCurrentUser;
+window.getNormalizedRole = getNormalizedRole;
