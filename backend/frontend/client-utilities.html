@@ -1,0 +1,1534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Utility Sub-Meters & Usage | ARGO Tenant Portal</title>
+
+    <!-- 🔒 Strict Navigation Guard & Role Isolation -->
+    <script src="js/auth.js"></script>
+
+    <!-- Inter Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+    <style>
+        :root {
+            --primary: #2563EB;
+            --sidebar: #0F172A;
+            --active: #1E293B;
+            --canvas: #F3F4F6;
+            --white: #FFFFFF;
+            --border: #E5E7EB;
+            --text: #111827;
+            --muted: #6B7280;
+            --success: #059669;
+            --danger: #E11D48;
+            --warning: #D97706;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--canvas);
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        button, input, select, textarea {
+            font-family: inherit;
+        }
+
+        /* ================= SIDEBAR ================= */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 240px;
+            height: 100vh;
+            background: #0F172A;
+            color: white;
+            padding: 20px 14px;
+            z-index: 1000;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 5px 12px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .brand-logo {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: #2563EB;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 700;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .sidebar-brand h2 {
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .sidebar-brand span {
+            font-size: 9px;
+            color: #94A3B8;
+            margin-top: 1px;
+            display: block;
+            letter-spacing: 0.8px;
+        }
+
+        .sidebar-nav {
+            margin-top: 16px;
+            flex: 1;
+        }
+
+        .nav-section-title {
+            font-size: 10px;
+            font-weight: 700;
+            color: #64748B;
+            letter-spacing: 0.08em;
+            padding: 14px 10px 6px;
+            text-transform: uppercase;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            color: #CBD5E1;
+            text-decoration: none;
+            border-radius: 6px;
+            margin-bottom: 3px;
+            font-size: 13px;
+            transition: 0.15s ease;
+        }
+
+        .nav-item:hover {
+            background: #172033;
+            color: white;
+        }
+
+        .nav-item.active {
+            background: #1E293B;
+            color: white;
+            font-weight: 500;
+        }
+
+        .nav-item.active i {
+            color: #60A5FA;
+        }
+
+        .nav-item i {
+            width: 20px;
+            font-size: 16px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .sidebar-footer {
+            padding: 14px 10px 0;
+            border-top: 1px solid rgba(255,255,255,0.08);
+            font-size: 11px;
+            color: #64748B;
+        }
+
+        /* ================= TOP HEADER ================= */
+        .top-header {
+            position: fixed;
+            top: 0;
+            left: 240px;
+            right: 0;
+            height: 64px;
+            background: var(--sidebar);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 28px;
+            z-index: 900;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            color: white;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .tenant-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #1E293B;
+            border: 1px solid #334155;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #E5E7EB;
+            font-weight: 600;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+        }
+
+        .notification-header-link {
+            position: relative;
+            font-size: 18px;
+            color: #CBD5E1;
+            background: #1E293B;
+            border: 1px solid #334155;
+            width: 38px;
+            height: 38px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            transition: 0.2s ease;
+        }
+
+        .notification-header-link:hover {
+            background: #2563EB;
+            color: white;
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--danger);
+            color: white;
+            font-size: 9px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            border: 2px solid var(--sidebar);
+        }
+
+        /* USER PROFILE DROPDOWN */
+        .user-dropdown-container { position: relative; }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 6px;
+        }
+
+        .user-profile:hover { background: rgba(255,255,255,0.05); }
+
+        .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--warning);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .user-info strong { display: block; font-size: 12px; }
+        .user-info span { display: block; color: #94A3B8; font-size: 10px; }
+
+        .dropdown-menu {
+            position: absolute;
+            right: 0;
+            top: 48px;
+            width: 180px;
+            background: white;
+            border: 1px solid #E5E7EB;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 1000;
+        }
+
+        .dropdown-menu.show { display: flex; }
+
+        .dropdown-item {
+            padding: 10px 14px;
+            color: #374151;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            transition: 0.15s;
+            cursor: pointer;
+        }
+
+        .dropdown-item:hover { background: #F3F4F6; color: #111827; }
+        .dropdown-item.danger { color: var(--danger); }
+        .dropdown-item.danger:hover { background: #FFF1F2; }
+
+        /* ================= MAIN CONTENT ================= */
+        .main-content {
+            margin-left: 240px;
+            padding: 88px 28px 40px;
+            min-height: 100vh;
+            max-width: 1600px;
+        }
+
+        .page-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 22px;
+        }
+
+        .eyebrow {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--muted);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .page-header h1 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .page-header p {
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .primary-btn {
+            border: none;
+            background: var(--primary);
+            color: white;
+            border-radius: 6px;
+            padding: 9px 16px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: 0.2s ease;
+        }
+
+        .primary-btn:hover { background: #1D4ED8; }
+
+        .secondary-btn {
+            height: 38px;
+            border: 1px solid var(--border);
+            background: white;
+            border-radius: 6px;
+            padding: 0 13px;
+            font-size: 12px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            color: var(--text);
+        }
+
+        .secondary-btn:hover { background: #F9FAFB; }
+
+        /* ================= KPI CARDS ================= */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 22px;
+        }
+
+        .kpi-card {
+            background: var(--white);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 18px;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+        }
+
+        .kpi-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .kpi-label {
+            color: var(--muted);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .kpi-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: #EFF6FF;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .kpi-value {
+            font-size: 24px;
+            font-weight: 600;
+            color: #111827;
+        }
+
+        .kpi-description {
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 4px;
+        }
+
+        /* ================= SUB-METER CARDS ================= */
+        .meter-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        .meter-card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+        }
+
+        .meter-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .meter-title-box {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .meter-icon-badge {
+            width: 38px;
+            height: 38px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .badge-meralco { background: #FEF3C7; color: #92400E; }
+        .badge-maynilad { background: #E0F2FE; color: #0369A1; }
+
+        .meter-title-box h2 { font-size: 16px; font-weight: 600; }
+        .meter-serial { font-size: 11px; color: var(--muted); }
+
+        .dial-box-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+            background: #F8FAFC;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px;
+            margin-bottom: 14px;
+            text-align: center;
+        }
+
+        .dial-label { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; margin-bottom: 4px; }
+        .dial-value { font-size: 16px; font-weight: 700; color: var(--text); }
+
+        .usage-breakdown-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            padding: 6px 0;
+            border-bottom: 1px dashed var(--border);
+        }
+
+        .usage-breakdown-row:last-child { border-bottom: none; }
+
+        /* ================= TABLE CARDS ================= */
+        .table-card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+        }
+
+        .table-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .table-header h2 { font-size: 15px; font-weight: 600; }
+
+        .table-wrapper { overflow-x: auto; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 950px;
+        }
+
+        th {
+            background: #F9FAFB;
+            color: var(--muted);
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            text-align: left;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 14px 16px;
+            font-size: 12px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text);
+        }
+
+        tr:hover { background: #F9FAFB; }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 8px;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .status-paid { background: #ECFDF5; color: #047857; }
+        .status-unpaid { background: #FFF1F2; color: #BE123C; }
+
+        /* ================= MODAL & QR CODE PREVIEW ================= */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.55);
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            padding: 20px;
+        }
+
+        .modal-overlay.show { display: flex; }
+
+        .modal {
+            width: 100%;
+            max-width: 520px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+            overflow: hidden;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-header {
+            padding: 18px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 { font-size: 16px; font-weight: 600; }
+
+        .close-btn {
+            border: none;
+            background: none;
+            font-size: 18px;
+            cursor: pointer;
+            color: var(--muted);
+        }
+
+        .modal-body { padding: 20px; overflow-y: auto; flex: 1; }
+        .form-group { margin-bottom: 14px; }
+
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 8px 10px;
+            font-size: 13px;
+            outline: none;
+        }
+
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+        }
+
+        .qr-display-container {
+            background: #F8FAFC;
+            border: 1px dashed #CBD5E1;
+            border-radius: 10px;
+            padding: 14px;
+            text-align: center;
+            margin-bottom: 14px;
+        }
+
+        .qr-title {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 8px;
+        }
+
+        .qr-image-wrapper {
+            width: 170px;
+            height: 170px;
+            margin: 0 auto 8px;
+            background: white;
+            padding: 6px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .qr-image-wrapper img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            border-radius: 4px;
+        }
+
+        .qr-account-info {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .qr-account-sub {
+            font-size: 11px;
+            color: var(--muted);
+        }
+
+        .location-context-tag {
+            background: #EFF6FF;
+            border: 1px solid #BFDBFE;
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 11px;
+            color: #1E40AF;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .modal-footer {
+            padding: 14px 20px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            background: #F9FAFB;
+        }
+
+        /* RESPONSIVE */
+        @media (max-width: 1000px) {
+            .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+            .meter-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar { width: 70px; padding: 20px 8px; }
+            .sidebar-brand h2, .sidebar-brand span, .nav-section-title, .nav-item span { display: none; }
+            .nav-item { justify-content: center; padding: 12px; }
+            .top-header { left: 70px; padding: 0 15px; }
+            .main-content { margin-left: 70px; padding: 85px 15px 30px; }
+            .page-header { flex-direction: column; gap: 14px; }
+            .dial-box-container { grid-template-columns: 1fr; gap: 8px; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ================= SIDEBAR ================= -->
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-logo">A</div>
+            <div>
+                <h2>ARGO</h2>
+                <span>Tenant Portal</span>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav" id="sidebarNav">
+            <!-- DYNAMICALLY POPULATED BY JAVASCRIPT -->
+        </nav>
+
+        <div class="sidebar-footer">
+            <span>ARGO v0.5 (Tenant POV)</span>
+        </div>
+    </aside>
+
+    <!-- ================= TOP HEADER ================= -->
+    <header class="top-header">
+        <div class="header-left">
+            <div class="tenant-badge">
+                <i class="bi bi-house-door-fill" style="color: #60A5FA;"></i>
+                <span>Tenant Self-Service Portal</span>
+            </div>
+        </div>
+
+        <div class="header-right">
+            <!-- EXCLUSIVE CLIENT POV NOTIFICATION BELL -->
+            <a href="notification.html" class="notification-header-link" title="Notifications Center">
+                <i class="bi bi-bell"></i>
+                <div class="notification-badge" id="clientHeaderNotifBadge">0</div>
+            </a>
+
+            <!-- USER PROFILE DROPDOWN -->
+            <div class="user-dropdown-container">
+                <div class="user-profile" id="userProfileBtn">
+                    <div class="avatar" id="userAvatar">MS</div>
+                    <div class="user-info">
+                        <strong id="userName">Maria Santos</strong>
+                        <span id="userRoleBadge">Unit Occupant</span>
+                    </div>
+                    <i class="bi bi-chevron-down" style="font-size: 10px; color: #94A3B8;"></i>
+                </div>
+
+                <div class="dropdown-menu" id="userDropdown">
+                    <a href="account.html" class="dropdown-item">
+                        <i class="bi bi-person-gear"></i>
+                        <span>Account Settings</span>
+                    </a>
+                    <div class="dropdown-item danger" onclick="logoutUser()">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Log Out</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ================= MAIN CONTENT ================= -->
+    <main class="main-content">
+
+        <!-- PAGE HEADER -->
+        <div class="page-header">
+            <div>
+                <div class="eyebrow">SUB-METER TRANSPARENCY DESK</div>
+                <h1>My Unit Utility Sub-Meters</h1>
+                <p>Inspect physical dial readings, sub-meter serials, consumption breakdowns, and rates for Meralco & Maynilad.</p>
+            </div>
+
+            <button class="primary-btn" onclick="openPaymentModal()">
+                <i class="bi bi-qr-code-scan"></i>
+                <span>Pay Utility Statement</span>
+            </button>
+        </div>
+
+        <!-- KPI SUMMARY CARDS -->
+        <section class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-top">
+                    <span class="kpi-label">Current Utility Dues</span>
+                    <div class="kpi-icon" id="kpiDuesIcon" style="background:#ECFDF5; color:var(--success);"><i class="bi bi-receipt"></i></div>
+                </div>
+                <div class="kpi-value" id="kpiCurrentDues" style="color:var(--success);">₱0.00</div>
+                <div class="kpi-description" id="kpiDuesDesc">All utility bills settled</div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-top">
+                    <span class="kpi-label">Electricity Usage (kWh)</span>
+                    <div class="kpi-icon" style="background:#FEF3C7; color:#92400E;"><i class="bi bi-lightning-charge"></i></div>
+                </div>
+                <div class="kpi-value" id="kpiElecUsage">0.00 kWh</div>
+                <div class="kpi-description" id="kpiElecSerialDesc">Meralco Sub-meter #MER-992810</div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-top">
+                    <span class="kpi-label">Water Usage (cu.m)</span>
+                    <div class="kpi-icon" style="background:#DBEAFE; color:#1D4ED8;"><i class="bi bi-droplet"></i></div>
+                </div>
+                <div class="kpi-value" style="color:var(--primary);" id="kpiWaterUsage">0.00 cu.m</div>
+                <div class="kpi-description" id="kpiWaterSerialDesc">Maynilad Sub-meter #MAY-441209</div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-top">
+                    <span class="kpi-label">Sub-Meter Status</span>
+                    <div class="kpi-icon" style="background:#ECFDF5; color:var(--success);"><i class="bi bi-shield-check"></i></div>
+                </div>
+                <div class="kpi-value" style="color:var(--success);">PASS (A+)</div>
+                <div class="kpi-description">Seals verified by PM</div>
+            </div>
+        </section>
+
+        <!-- SUB-METER DIAL INSPECTION CARDS -->
+        <div class="meter-grid">
+
+            <!-- MERALCO ELECTRICITY CARD -->
+            <div class="meter-card">
+                <div class="meter-header">
+                    <div class="meter-title-box">
+                        <div class="meter-icon-badge badge-meralco"><i class="bi bi-lightning-charge"></i></div>
+                        <div>
+                            <h2>Meralco Sub-Meter (Electricity)</h2>
+                            <div class="meter-serial" id="meralcoSerialRate">Serial #: MER-992810 • Rate: ₱12.50 / kWh</div>
+                        </div>
+                    </div>
+                    <span style="background:#FEF3C7; color:#92400E; padding:4px 8px; border-radius:999px; font-size:10px; font-weight:600;">Active Sub-Meter</span>
+                </div>
+
+                <div class="dial-box-container">
+                    <div>
+                        <div class="dial-label">Previous Baseline</div>
+                        <div class="dial-value" id="elecPrevDial">1,420.50 kWh</div>
+                    </div>
+                    <div>
+                        <div class="dial-label">Current Dial</div>
+                        <div class="dial-value" id="elecCurrDial">1,610.00 kWh</div>
+                    </div>
+                    <div>
+                        <div class="dial-label">Net Consumption</div>
+                        <div class="dial-value" style="color:var(--primary);" id="elecNet">189.50 kWh</div>
+                    </div>
+                </div>
+
+                <div style="font-weight:700; font-size:11px; color:var(--muted); text-transform:uppercase; margin-bottom:6px;">COST BREAKDOWN</div>
+                <div class="usage-breakdown-row">
+                    <span id="elecCalcFormula">Power Usage Charge (Net kWh × ₱12.50)</span>
+                    <strong id="elecCost">₱2,368.75</strong>
+                </div>
+                <div class="usage-breakdown-row">
+                    <span>Common Area Electricity Split</span>
+                    <span>Included</span>
+                </div>
+                <div class="usage-breakdown-row" style="font-size:13px; font-weight:700; color:var(--text); padding-top:8px;">
+                    <span>Total Electricity Charge</span>
+                    <span style="color:var(--primary);" id="elecTotalCost">₱2,368.75</span>
+                </div>
+            </div>
+
+            <!-- MAYNILAD WATER CARD -->
+            <div class="meter-card">
+                <div class="meter-header">
+                    <div class="meter-title-box">
+                        <div class="meter-icon-badge badge-maynilad"><i class="bi bi-droplet"></i></div>
+                        <div>
+                            <h2>Maynilad Sub-Meter (Water)</h2>
+                            <div class="meter-serial" id="mayniladSerialRate">Serial #: MAY-441209 • Rate: ₱48.00 / cu.m</div>
+                        </div>
+                    </div>
+                    <span style="background:#DBEAFE; color:#1D4ED8; padding:4px 8px; border-radius:999px; font-size:10px; font-weight:600;">Active Sub-Meter</span>
+                </div>
+
+                <div class="dial-box-container">
+                    <div>
+                        <div class="dial-label">Previous Baseline</div>
+                        <div class="dial-value" id="waterPrevDial">312.00 cu.m</div>
+                    </div>
+                    <div>
+                        <div class="dial-label">Current Dial</div>
+                        <div class="dial-value" id="waterCurrDial">328.50 cu.m</div>
+                    </div>
+                    <div>
+                        <div class="dial-label">Net Consumption</div>
+                        <div class="dial-value" style="color:var(--primary);" id="waterNet">16.50 cu.m</div>
+                    </div>
+                </div>
+
+                <div style="font-weight:700; font-size:11px; color:var(--muted); text-transform:uppercase; margin-bottom:6px;">COST BREAKDOWN</div>
+                <div class="usage-breakdown-row">
+                    <span id="waterCalcFormula">Water Volume Charge (Net cu.m × ₱48.00)</span>
+                    <strong id="waterCost">₱792.00</strong>
+                </div>
+                <div class="usage-breakdown-row">
+                    <span>Sewerage & Environmental Charge</span>
+                    <span>Included</span>
+                </div>
+                <div class="usage-breakdown-row" style="font-size:13px; font-weight:700; color:var(--text); padding-top:8px;">
+                    <span>Total Water Charge</span>
+                    <span style="color:var(--primary);" id="waterTotalCost">₱792.00</span>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- UTILITY SUB-METER STATEMENT HISTORY TABLE -->
+        <div class="table-card">
+            <div class="table-header">
+                <h2>Sub-Meter Billing & Statement History</h2>
+                <a href="client-billing.html" style="font-size:12px; color:var(--primary); text-decoration:none; font-weight:600;">Go to Payment Center <i class="bi bi-arrow-right"></i></a>
+            </div>
+
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>STATEMENT ID</th>
+                            <th>BILLING DESCRIPTION</th>
+                            <th>DUE DATE</th>
+                            <th>TOTAL UTILITY CHARGE</th>
+                            <th>STATUS</th>
+                            <th>ACTIONS</th>
+                        </tr>
+                    </thead>
+                    <tbody id="utilityHistoryTable">
+                        <!-- RENDERED DYNAMICALLY FROM LOCALSTORAGE / POSTGRESQL -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- ================= MODAL: SUBMIT PAYMENT PROOF WITH DYNAMIC QR CODES ================= -->
+    <div class="modal-overlay" id="paymentModal">
+        <div class="modal">
+            <div class="modal-header">
+                <div>
+                    <span class="eyebrow">PAYMENT GATEWAY</span>
+                    <h2>Scan QR Code & Upload Proof</h2>
+                </div>
+                <button class="close-btn" onclick="closePaymentModal()"><i class="bi bi-x-lg"></i></button>
+            </div>
+
+            <div class="modal-body">
+
+                <div class="location-context-tag">
+                    <i class="bi bi-geo-alt-fill"></i>
+                    <span><strong>Tenant Profile:</strong> <span id="modalTenantTag">Loading Profile...</span></span>
+                </div>
+
+                <div class="form-group">
+                    <label>Select Payment Channel</label>
+                    <select id="modalChannelSelect" onchange="updateQrDisplay()">
+                        <option value="GCash" selected>GCash QR Code</option>
+                        <option value="MariBank">MariBank QR Code / Bank Transfer</option>
+                    </select>
+                </div>
+
+                <div class="qr-display-container">
+                    <div class="qr-title" id="qrTitleLabel">Official GCash Payment QR Code</div>
+                    <div class="qr-image-wrapper">
+                        <img id="qrImagePreview" src="gcash.jpg" alt="Official Payment QR Code" onerror="this.src='https://via.placeholder.com/170x170?text=Scan+QR+Code'">
+                    </div>
+                    <div class="qr-account-info" id="qrAccountName">Account: ARGO Property Management</div>
+                    <div class="qr-account-sub" id="qrAccountDetails">GCash Number: 0917-555-0192</div>
+                </div>
+
+                <div class="form-group">
+                    <label>Select Target Utility Invoice</label>
+                    <select id="modalInvoiceSelect" onchange="autoFillInvoiceAmount()">
+                        <!-- POPULATED DYNAMICALLY -->
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Amount Paid (₱)</label>
+                    <input type="number" id="modalAmountInput" placeholder="e.g. 3160.75" value="0.00" step="0.01">
+                </div>
+
+                <div class="form-group">
+                    <label>Transaction Reference Number / Hash ID</label>
+                    <input type="text" id="modalRefInput" placeholder="e.g. #GCASH-992810 or #MARI-88192">
+                </div>
+
+                <div class="form-group">
+                    <label>Upload Screenshot Receipt (JPG, PNG, PDF)</label>
+                    <input type="file" id="modalFileInput" accept="image/*,.pdf">
+                </div>
+
+                <div class="form-group">
+                    <label>Remarks / Notes for Property Manager</label>
+                    <textarea id="modalNotesInput" rows="2" placeholder="Optional notes..."></textarea>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="secondary-btn" onclick="closePaymentModal()">Cancel</button>
+                <button class="primary-btn" onclick="submitPaymentProof()"><i class="bi bi-send"></i> Submit Proof for Verification</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= JAVASCRIPT ================= -->
+    <script>
+        // Secure Logout Handler (Clears session and replaces history to prevent back-button access)
+        function logoutUser() {
+            localStorage.removeItem('argo_pov');
+            localStorage.removeItem('user_role');
+            localStorage.removeItem('role');
+            localStorage.removeItem('token');
+            localStorage.removeItem('argo_user');
+            window.location.replace('index.html');
+        }
+
+        // Lock Client Role Perspective
+        localStorage.setItem('argo_pov', 'client');
+
+        function renderSidebar() {
+            const nav = document.getElementById('sidebarNav');
+            if (nav) {
+                nav.innerHTML = `
+                    <div class="nav-section-title">SELF-SERVICE HOME</div>
+                    <a href="client-dashboard.html" class="nav-item">
+                        <i class="bi bi-house-door"></i>
+                        <span>My Tenancy Home</span>
+                    </a>
+                    <a href="client-billing.html" class="nav-item">
+                        <i class="bi bi-receipt"></i>
+                        <span>Pay Rent & Dues</span>
+                    </a>
+                    <a href="transaction.html" class="nav-item">
+                        <i class="bi bi-receipt-cutoff"></i>
+                        <span>Transactions & Ledger</span>
+                    </a>
+                    <a href="client-utilities.html" class="nav-item active">
+                        <i class="bi bi-lightning-charge"></i>
+                        <span>My Utilities & Meters</span>
+                    </a>
+                    <a href="client-maintenance.html" class="nav-item">
+                        <i class="bi bi-tools"></i>
+                        <span>Submit Maintenance</span>
+                    </a>
+                    <a href="inspections.html" class="nav-item">
+                        <i class="bi bi-clipboard-check"></i>
+                        <span>Move-In & Inspections</span>
+                    </a>
+                    <a href="client-documents.html" class="nav-item">
+                        <i class="bi bi-folder2-open"></i>
+                        <span>My Lease & Receipts</span>
+                    </a>
+
+                    <div class="nav-section-title">SYSTEM</div>
+                    <a href="account.html" class="nav-item">
+                        <i class="bi bi-gear"></i>
+                        <span>Account Settings</span>
+                    </a>
+                    <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Log Out</span>
+                    </a>
+                `;
+            }
+        }
+
+        function getReadings() { return JSON.parse(localStorage.getItem('argo_meter_readings') || '[]'); }
+        function getInvoices() { return JSON.parse(localStorage.getItem('argo_invoices') || '[]'); }
+        function saveInvoices(invoices) { localStorage.setItem('argo_invoices', JSON.stringify(invoices)); }
+        function getTransactions() { return JSON.parse(localStorage.getItem('argo_transactions') || '[]'); }
+        function saveTransactions(transactions) { localStorage.setItem('argo_transactions', JSON.stringify(transactions)); }
+        function getNotifications() { return JSON.parse(localStorage.getItem('argo_notifications') || '[]'); }
+        function saveNotifications(notifications) { localStorage.setItem('argo_notifications', JSON.stringify(notifications)); }
+        function getLeases() { return JSON.parse(localStorage.getItem('argo_leases') || '[]'); }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const rawRole = (
+                localStorage.getItem('argo_pov') || 
+                localStorage.getItem('user_role') || 
+                localStorage.getItem('role') || 
+                ''
+            ).toLowerCase().trim();
+
+            if (!rawRole) {
+                window.location.replace('index.html');
+                return;
+            }
+            renderSidebar();
+            loadUserData();
+            renderSubMeterCards();
+            renderUtilityHistoryTable();
+            updateHeaderBadge();
+        });
+
+        // Cross-Tab Real-Time Storage Listener
+        window.addEventListener('storage', (e) => {
+            if (['argo_meter_readings', 'argo_invoices', 'argo_notifications', 'argo_leases', 'argo_user', 'argo_pov'].includes(e.key)) {
+                loadUserData();
+                renderSubMeterCards();
+                renderUtilityHistoryTable();
+                updateHeaderBadge();
+            }
+        });
+
+        function getActiveTenantContext() {
+            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+            const leases = getLeases();
+            const activeLease = leases.find(l => 
+                (l.tenantId && user.id && l.tenantId === user.id) ||
+                (l.tenantName && user.name && l.tenantName.toLowerCase() === user.name.toLowerCase()) ||
+                (l.status || '').toUpperCase() === 'ACTIVE'
+            ) || leases[0] || {};
+
+            const prop = activeLease.property || activeLease.property_name || 'Sunrise Property';
+            const unit = activeLease.unit || activeLease.unit_number || 'Unit 101';
+            const bldg = activeLease.building || activeLease.building_name || 'Tower A';
+
+            return {
+                userId: user.id || null,
+                name: user.name || user.fullName || activeLease.tenantName || 'Maria Santos',
+                property: prop,
+                building: bldg,
+                unit: unit,
+                fullTag: `${prop} • ${unit.startsWith('Unit') ? unit : `Unit ${unit}`}`
+            };
+        }
+
+        function loadUserData() {
+            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+            const ctx = getActiveTenantContext();
+            const nameEl = document.getElementById('userName');
+            const roleEl = document.getElementById('userRoleBadge');
+            const avatarEl = document.getElementById('userAvatar');
+
+            const name = user.name || user.fullName || ctx.name || 'Maria Santos';
+            const role = user.role || 'Unit Occupant';
+
+            if (nameEl) nameEl.textContent = name;
+            if (roleEl) roleEl.textContent = role;
+            if (avatarEl) {
+                const initials = name
+                    .split(' ')
+                    .filter(Boolean)
+                    .map(n => n[0])
+                    .join('')
+                    .substring(0, 2)
+                    .toUpperCase() || 'MS';
+                avatarEl.textContent = initials;
+                if (user.avatarBg) avatarEl.style.background = user.avatarBg;
+            }
+        }
+
+        function renderSubMeterCards() {
+            const ctx = getActiveTenantContext();
+            const readings = getReadings();
+
+            // Match readings specifically for this tenant's property/unit
+            const elecReading = readings.find(r => 
+                (r.unit === ctx.unit || (r.location && r.location.includes(ctx.unit))) &&
+                (r.utility === 'Meralco' || (r.type && r.type.includes('Electricity')))
+            ) || readings.find(r => r.utility === 'Meralco' || (r.type && r.type.includes('Electricity'))) || {
+                prevDial: 1420.50, currDial: 1610.00, consumption: 189.50, serial: 'MER-992810', rate: 12.50
+            };
+
+            const waterReading = readings.find(r => 
+                (r.unit === ctx.unit || (r.location && r.location.includes(ctx.unit))) &&
+                (r.utility === 'Maynilad' || (r.type && r.type.includes('Water')))
+            ) || readings.find(r => r.utility === 'Maynilad' || (r.type && r.type.includes('Water'))) || {
+                prevDial: 312.00, currDial: 328.50, consumption: 16.50, serial: 'MAY-441209', rate: 48.00
+            };
+
+            // Meralco Updates
+            const elecPrev = parseFloat(elecReading.prevDial || elecReading.prev_dial || 1420.50);
+            const elecCurr = parseFloat(elecReading.currDial || elecReading.curr_dial || 1610.00);
+            const elecNetVal = parseFloat(elecReading.consumption || elecReading.netConsumption || (elecCurr - elecPrev) || 189.50);
+            const elecRate = parseFloat(elecReading.rate || 12.50);
+            const elecCost = elecNetVal * elecRate;
+
+            document.getElementById('elecPrevDial').textContent = `${elecPrev.toFixed(2)} kWh`;
+            document.getElementById('elecCurrDial').textContent = `${elecCurr.toFixed(2)} kWh`;
+            document.getElementById('elecNet').textContent = `${elecNetVal.toFixed(2)} kWh`;
+            document.getElementById('elecCost').textContent = `₱${elecCost.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('elecTotalCost').textContent = `₱${elecCost.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('kpiElecUsage').textContent = `${elecNetVal.toFixed(2)} kWh`;
+            
+            const elecSerial = elecReading.serial || elecReading.serialNo || 'MER-992810';
+            document.getElementById('kpiElecSerialDesc').textContent = `Meralco Sub-meter #${elecSerial}`;
+            document.getElementById('meralcoSerialRate').textContent = `Serial #: ${elecSerial} • Rate: ₱${elecRate.toFixed(2)} / kWh`;
+            document.getElementById('elecCalcFormula').textContent = `Power Usage Charge (Net kWh × ₱${elecRate.toFixed(2)})`;
+
+            // Maynilad Updates
+            const waterPrev = parseFloat(waterReading.prevDial || waterReading.prev_dial || 312.00);
+            const waterCurr = parseFloat(waterReading.currDial || waterReading.curr_dial || 328.50);
+            const waterNetVal = parseFloat(waterReading.consumption || waterReading.netConsumption || (waterCurr - waterPrev) || 16.50);
+            const waterRate = parseFloat(waterReading.rate || 48.00);
+            const waterCost = waterNetVal * waterRate;
+
+            document.getElementById('waterPrevDial').textContent = `${waterPrev.toFixed(2)} cu.m`;
+            document.getElementById('waterCurrDial').textContent = `${waterCurr.toFixed(2)} cu.m`;
+            document.getElementById('waterNet').textContent = `${waterNetVal.toFixed(2)} cu.m`;
+            document.getElementById('waterCost').textContent = `₱${waterCost.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('waterTotalCost').textContent = `₱${waterCost.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('kpiWaterUsage').textContent = `${waterNetVal.toFixed(2)} cu.m`;
+
+            const waterSerial = waterReading.serial || waterReading.serialNo || 'MAY-441209';
+            document.getElementById('kpiWaterSerialDesc').textContent = `Maynilad Sub-meter #${waterSerial}`;
+            document.getElementById('mayniladSerialRate').textContent = `Serial #: ${waterSerial} • Rate: ₱${waterRate.toFixed(2)} / cu.m`;
+            document.getElementById('waterCalcFormula').textContent = `Water Volume Charge (Net cu.m × ₱${waterRate.toFixed(2)})`;
+
+            // Dues Calculation from live invoices for this tenant
+            const invoices = getInvoices();
+            let unpaidUtilityDues = 0;
+            invoices.forEach(inv => {
+                const isUtility = (inv.id && inv.id.includes('UTL')) || 
+                                  (inv.type && (inv.type.includes('Utilities') || inv.type.includes('Electricity') || inv.type.includes('Water')));
+                const isUnpaid = (inv.status === 'Unpaid' || inv.status === 'Overdue');
+                
+                // Scoped check for tenant
+                const isTenantMatch = !inv.tenantName || inv.tenantName.toLowerCase() === ctx.name.toLowerCase() || (inv.sub && inv.sub.includes(ctx.unit));
+
+                if (isUtility && isUnpaid && isTenantMatch) {
+                    unpaidUtilityDues += parseFloat(inv.amount || 0);
+                }
+            });
+
+            const kpiDues = document.getElementById('kpiCurrentDues');
+            const kpiIcon = document.getElementById('kpiDuesIcon');
+            const kpiDuesDesc = document.getElementById('kpiDuesDesc');
+
+            kpiDues.textContent = `₱${unpaidUtilityDues.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+
+            if (unpaidUtilityDues === 0) {
+                kpiDues.style.color = 'var(--success)';
+                kpiIcon.style.background = '#ECFDF5';
+                kpiIcon.style.color = 'var(--success)';
+                kpiDuesDesc.textContent = 'All utility bills settled';
+            } else {
+                kpiDues.style.color = 'var(--danger)';
+                kpiIcon.style.background = '#FFF1F2';
+                kpiIcon.style.color = 'var(--danger)';
+                kpiDuesDesc.textContent = 'Action required: Pay pending dues';
+            }
+        }
+
+        function renderUtilityHistoryTable() {
+            const ctx = getActiveTenantContext();
+            const allInvoices = getInvoices();
+            
+            const utilityInvoices = allInvoices.filter(i => {
+                const isUtil = (i.id && i.id.includes('UTL')) || 
+                               (i.type && (i.type.includes('Electricity') || i.type.includes('Water') || i.type.includes('Utility')));
+                const isTenantMatch = !i.tenantName || i.tenantName.toLowerCase() === ctx.name.toLowerCase() || (i.sub && i.sub.includes(ctx.unit));
+                return isUtil && isTenantMatch;
+            });
+
+            const tbody = document.getElementById('utilityHistoryTable');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            if (utilityInvoices.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--muted); padding:30px;">No utility statement history found. Active utility bills issued by Admin will appear here.</td></tr>`;
+                return;
+            }
+
+            utilityInvoices.forEach(inv => {
+                const tr = document.createElement('tr');
+
+                let badgeHtml = '';
+                const s = (inv.status || '').toLowerCase();
+                if (s === 'paid') {
+                    badgeHtml = `<span class="status-badge status-paid"><i class="bi bi-check-circle" style="margin-right:4px;"></i> Paid</span>`;
+                } else if (s.includes('pending')) {
+                    badgeHtml = `<span class="status-badge status-pending"><i class="bi bi-clock-history" style="margin-right:4px;"></i> Pending Verification</span>`;
+                } else {
+                    badgeHtml = `<span class="status-badge status-unpaid"><i class="bi bi-exclamation-circle" style="margin-right:4px;"></i> ${inv.status || 'Unpaid'}</span>`;
+                }
+
+                const actionButton = (s === 'paid') 
+                    ? `<button class="action-button" title="View Statement Breakdown" onclick="alert('Utility Statement: ${inv.id}\\nType: ${inv.type}\\nAmount: ₱${parseFloat(inv.amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}\\nStatus: Verified Paid')"><i class="bi bi-eye"></i></button>`
+                    : `<button class="primary-btn" style="padding:4px 10px; font-size:11px;" onclick="openPaymentModal('${inv.id}')"><i class="bi bi-qr-code-scan"></i> Pay Bill</button>`;
+
+                tr.innerHTML = `
+                    <td><div style="font-weight:600;">${inv.id}</div></td>
+                    <td>
+                        <div style="font-weight:600;">${inv.type || 'Utility Bill'}</div>
+                        <div style="font-size:11px; color:var(--muted);">${inv.sub || ctx.fullTag}</div>
+                    </td>
+                    <td>${inv.dueDate || inv.due_date || 'N/A'}</td>
+                    <td><strong style="color:var(--primary);">₱${parseFloat(inv.amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}</strong></td>
+                    <td>${badgeHtml}</td>
+                    <td>${actionButton}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function updateHeaderBadge() {
+            const notifs = getNotifications().filter(n => (n.pov === 'client' || n.pov === 'tenant') && n.status === 'unread');
+            const badge = document.getElementById('clientHeaderNotifBadge');
+            if (badge) badge.textContent = notifs.length;
+        }
+
+        function updateQrDisplay() {
+            const channelSelect = document.getElementById('modalChannelSelect');
+            if (!channelSelect) return;
+
+            const channel = channelSelect.value;
+            const titleLabel = document.getElementById('qrTitleLabel');
+            const qrImage = document.getElementById('qrImagePreview');
+            const accountName = document.getElementById('qrAccountName');
+            const accountDetails = document.getElementById('qrAccountDetails');
+
+            if (channel === 'GCash') {
+                if (titleLabel) titleLabel.textContent = 'Official GCash Payment QR Code';
+                if (qrImage) qrImage.src = 'gcash.jpg';
+                if (accountName) accountName.textContent = 'Account: ARGO Property Management';
+                if (accountDetails) accountDetails.textContent = 'GCash Number: 0917-555-0192';
+            } else if (channel === 'MariBank') {
+                if (titleLabel) titleLabel.textContent = 'Official MariBank Payment QR Code';
+                if (qrImage) qrImage.src = 'bank.jpg';
+                if (accountName) accountName.textContent = 'Account: ARGO Property Management Corp.';
+                if (accountDetails) accountDetails.textContent = 'MariBank Account #: 1029-8849-1002';
+            }
+        }
+
+        function openPaymentModal(targetInvoiceId = null) {
+            const ctx = getActiveTenantContext();
+            const modalTag = document.getElementById('modalTenantTag');
+            if (modalTag) modalTag.textContent = `${ctx.name} — ${ctx.fullTag}`;
+
+            populateModalInvoices(targetInvoiceId);
+            updateQrDisplay();
+            
+            const modal = document.getElementById("paymentModal");
+            if (modal) modal.classList.add("show");
+        }
+
+        function closePaymentModal() { 
+            const modal = document.getElementById("paymentModal");
+            if (modal) modal.classList.remove("show"); 
+            const fileInput = document.getElementById('modalFileInput');
+            if (fileInput) fileInput.value = '';
+        }
+
+        function populateModalInvoices(targetInvoiceId = null) {
+            const ctx = getActiveTenantContext();
+            const invoices = getInvoices();
+            const select = document.getElementById('modalInvoiceSelect');
+            if (!select) return;
+
+            select.innerHTML = '';
+
+            const payableInvoices = invoices.filter(inv => {
+                const isUtil = (inv.id && inv.id.includes('UTL')) || 
+                               (inv.type && (inv.type.includes('Electricity') || inv.type.includes('Water') || inv.type.includes('Utility')));
+                const isUnpaid = (inv.status === 'Unpaid' || inv.status === 'Overdue');
+                const isTenantMatch = !inv.tenantName || inv.tenantName.toLowerCase() === ctx.name.toLowerCase() || (inv.sub && inv.sub.includes(ctx.unit));
+                return isUtil && isUnpaid && isTenantMatch;
+            });
+
+            if (payableInvoices.length === 0) {
+                select.innerHTML = `<option value="">No unpaid utility invoices due!</option>`;
+                document.getElementById('modalAmountInput').value = '0.00';
+                return;
+            }
+
+            payableInvoices.forEach(inv => {
+                const opt = document.createElement('option');
+                opt.value = inv.id;
+                opt.textContent = `${inv.id} — ${inv.type} (₱${parseFloat(inv.amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2})})`;
+                if (targetInvoiceId && inv.id === targetInvoiceId) {
+                    opt.selected = true;
+                }
+                select.appendChild(opt);
+            });
+
+            autoFillInvoiceAmount();
+        }
+
+        function autoFillInvoiceAmount() {
+            const select = document.getElementById('modalInvoiceSelect');
+            if (!select) return;
+
+            const invId = select.value;
+            if (!invId) return;
+
+            const invoices = getInvoices();
+            const selected = invoices.find(i => i.id === invId);
+            const amountInput = document.getElementById('modalAmountInput');
+
+            if (selected && amountInput) {
+                amountInput.value = parseFloat(selected.amount || 0).toFixed(2);
+            }
+        }
+
+        function submitPaymentProof() {
+            const invoiceSelect = document.getElementById('modalInvoiceSelect');
+            const channelSelect = document.getElementById('modalChannelSelect');
+            const amountInput = document.getElementById('modalAmountInput');
+            const refInput = document.getElementById('modalRefInput');
+            const fileInput = document.getElementById('modalFileInput');
+            const notesInput = document.getElementById('modalNotesInput');
+
+            const invoiceId = invoiceSelect ? invoiceSelect.value : '';
+            const channel = channelSelect ? channelSelect.value : 'GCash';
+            const amount = parseFloat(amountInput ? amountInput.value : 0) || 0;
+            let refNo = refInput ? refInput.value.trim() : '';
+            const receiptFile = fileInput && fileInput.files ? fileInput.files[0] : null;
+            const remarks = notesInput ? notesInput.value.trim() : '';
+
+            if (!invoiceId) {
+                alert("No active unpaid utility invoice selected.");
+                return;
+            }
+
+            if (amount <= 0) {
+                alert("Please enter a valid payment amount.");
+                return;
+            }
+
+            if (!refNo) {
+                alert("Please enter a valid Payment Reference Number.");
+                return;
+            }
+
+            if (!refNo.startsWith('#')) refNo = '#' + refNo;
+
+            const ctx = getActiveTenantContext();
+
+            // 1. Update Invoice Status in LocalStorage
+            let invoices = getInvoices();
+            invoices = invoices.map(inv => {
+                if (inv.id === invoiceId) {
+                    return { 
+                        ...inv, 
+                        status: 'Pending Verification', 
+                        channel: channel, 
+                        refNo: refNo,
+                        receiptAttachment: receiptFile ? receiptFile.name : null,
+                        notes: remarks
+                    };
+                }
+                return inv;
+            });
+            saveInvoices(invoices);
+
+            // 2. Create Inflow Transaction for Master Ledger
+            const transactions = getTransactions();
+            const newTxn = {
+                refCode: refNo,
+                txnId: `TXN-${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${Math.floor(100 + Math.random() * 900)}`,
+                payer: ctx.name,
+                tenantId: ctx.userId,
+                property_location: ctx.fullTag,
+                category: invoiceId.includes('ELE') ? 'Electricity Charges' : (invoiceId.includes('WTR') ? 'Water Charges' : 'Utility Charges'),
+                direction: 'INFLOW',
+                grossAmount: `₱${amount.toLocaleString('en-US', {minimumFractionDigits: 2})}`,
+                amount: amount,
+                channel: channel,
+                status: 'Pending Audit',
+                receiptAttachment: receiptFile ? receiptFile.name : null,
+                timestamp: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
+            };
+            transactions.unshift(newTxn);
+            saveTransactions(transactions);
+
+            // 3. Create Admin Notification Alert
+            const notifications = getNotifications();
+            const newNotif = {
+                id: `NOTIF-${Date.now()}`,
+                pov: 'admin',
+                category: 'payment',
+                status: 'unread',
+                title: `${channel} Utility Payment Submitted`,
+                time: 'Just now',
+                description: `Utility payment proof uploaded by <strong>${ctx.name}</strong> (${ctx.fullTag}) for Invoice <strong>${invoiceId}</strong>. Ref Code: <code>${refNo}</code>.`,
+                property: ctx.fullTag,
+                tenantName: ctx.name,
+                amount: `₱${amount.toLocaleString('en-US', {minimumFractionDigits: 2})}`,
+                actionUrl: 'rent-collection.html',
+                actionText: 'Verify Utility Payment'
+            };
+            notifications.unshift(newNotif);
+            saveNotifications(notifications);
+
+            renderSubMeterCards();
+            renderUtilityHistoryTable();
+            closePaymentModal();
+
+            if (refInput) refInput.value = '';
+            if (notesInput) notesInput.value = '';
+            if (fileInput) fileInput.value = '';
+
+            alert(`Utility payment proof (${refNo}) uploaded successfully!\n\nProperty Manager notified for verification.`);
+        }
+
+        window.onclick = function(event) {
+            const modal = document.getElementById("paymentModal");
+            if (event.target === modal) closePaymentModal();
+        };
+
+        const userProfileBtn = document.getElementById('userProfileBtn');
+        const userDropdown = document.getElementById('userDropdown');
+
+        if (userProfileBtn && userDropdown) {
+            userProfileBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                userDropdown.classList.toggle('show');
+            });
+
+            document.addEventListener('click', () => { 
+                userDropdown.classList.remove('show'); 
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,1555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inspections | ARGO Property Management</title>
+
+    <!-- 🔒 Strict Navigation Guard & Role Isolation -->
+    <script src="js/auth.js"></script>
+
+    <!-- Inter Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+    <style>
+        :root {
+            --primary: #2563EB;
+            --sidebar: #0F172A;
+            --active: #1E293B;
+            --canvas: #F3F4F6;
+            --white: #FFFFFF;
+            --border: #E5E7EB;
+            --text: #111827;
+            --muted: #6B7280;
+            --success: #059669;
+            --danger: #E11D48;
+            --warning: #D97706;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--canvas);
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        button, input, select, textarea { font-family: inherit; }
+
+        /* ================= SIDEBAR ================= */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 240px;
+            height: 100vh;
+            background: #0F172A;
+            color: white;
+            padding: 20px 14px;
+            z-index: 1000;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 5px 12px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .brand-logo {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: #2563EB;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 700;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .sidebar-brand h2 { font-size: 16px; font-weight: 700; letter-spacing: 0.5px; }
+        .sidebar-brand span { font-size: 9px; color: #94A3B8; margin-top: 1px; display: block; letter-spacing: 0.8px; }
+
+        .sidebar-nav { margin-top: 16px; flex: 1; }
+
+        .nav-section-title {
+            font-size: 10px;
+            font-weight: 700;
+            color: #64748B;
+            letter-spacing: 0.08em;
+            padding: 14px 10px 6px;
+            text-transform: uppercase;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            color: #CBD5E1;
+            text-decoration: none;
+            border-radius: 6px;
+            margin-bottom: 3px;
+            font-size: 13px;
+            transition: 0.15s ease;
+        }
+
+        .nav-item:hover { background: #172033; color: white; }
+        .nav-item.active { background: #1E293B; color: white; font-weight: 500; }
+        .nav-item.active i { color: #60A5FA; }
+        .nav-item i { width: 20px; font-size: 16px; text-align: center; flex-shrink: 0; }
+
+        .sidebar-footer {
+            padding: 14px 10px 0;
+            border-top: 1px solid rgba(255,255,255,0.08);
+            font-size: 11px;
+            color: #64748B;
+        }
+
+        /* ================= HEADER ================= */
+        .top-header {
+            position: fixed;
+            top: 0;
+            left: 240px;
+            right: 0;
+            height: 64px;
+            background: var(--sidebar);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 28px;
+            z-index: 900;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            color: white;
+        }
+
+        .header-left { display: flex; align-items: center; gap: 16px; }
+
+        .admin-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #1E293B;
+            border: 1px solid #334155;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #E5E7EB;
+            font-weight: 600;
+        }
+
+        .header-right { display: flex; align-items: center; gap: 18px; }
+
+        .notification-header-link {
+            position: relative;
+            font-size: 18px;
+            color: #CBD5E1;
+            background: #1E293B;
+            border: 1px solid #334155;
+            width: 38px;
+            height: 38px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            transition: 0.2s ease;
+        }
+
+        .notification-header-link:hover {
+            background: #2563EB;
+            color: white;
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--danger);
+            color: white;
+            font-size: 9px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            border: 2px solid var(--sidebar);
+        }
+
+        /* USER PROFILE DROPDOWN */
+        .user-dropdown-container { position: relative; }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 6px;
+        }
+
+        .user-profile:hover { background: rgba(255,255,255,0.05); }
+
+        .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .user-info strong { display: block; font-size: 12px; }
+        .user-info span { display: block; color: #94A3B8; font-size: 10px; }
+
+        .dropdown-menu {
+            position: absolute;
+            right: 0;
+            top: 48px;
+            width: 180px;
+            background: white;
+            border: 1px solid #E5E7EB;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 1000;
+        }
+
+        .dropdown-menu.show { display: flex; }
+
+        .dropdown-item {
+            padding: 10px 14px;
+            color: #374151;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            transition: 0.15s;
+            cursor: pointer;
+        }
+
+        .dropdown-item:hover { background: #F3F4F6; color: #111827; }
+        .dropdown-item.danger { color: var(--danger); }
+        .dropdown-item.danger:hover { background: #FFF1F2; }
+
+        /* ================= MAIN CONTENT ================= */
+        .main-content {
+            margin-left: 240px;
+            padding: 88px 28px 40px;
+            max-width: 1600px;
+        }
+
+        .page-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 22px;
+        }
+
+        .eyebrow {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--muted);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .page-header h1 { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
+        .page-header p { color: var(--muted); font-size: 13px; }
+
+        .primary-btn {
+            border: none;
+            background: var(--primary);
+            color: white;
+            padding: 9px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: 0.2s ease;
+        }
+
+        .primary-btn:hover { background: #1D4ED8; }
+
+        .secondary-btn {
+            height: 38px;
+            border: 1px solid var(--border);
+            background: white;
+            border-radius: 6px;
+            padding: 0 13px;
+            font-size: 12px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            color: var(--text);
+        }
+
+        .secondary-btn:hover { background: #F9FAFB; }
+
+        /* ================= KPI CARDS ================= */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 22px;
+        }
+
+        .kpi-card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 18px;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+        }
+
+        .kpi-label { color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 8px; }
+        .kpi-value { font-size: 24px; font-weight: 600; color: #111827; }
+        .kpi-description { color: #9CA3AF; font-size: 11px; margin-top: 4px; }
+
+        /* ================= FILTER BAR ================= */
+        .filter-bar {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .search-box { position: relative; flex: 1; min-width: 220px; }
+        .search-box i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); }
+        .search-box input {
+            width: 100%;
+            height: 38px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0 12px 0 36px;
+            font-size: 12px;
+            outline: none;
+        }
+        .search-box input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+
+        .filter-select {
+            height: 38px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0 12px;
+            font-size: 12px;
+            color: var(--text);
+            background: white;
+            outline: none;
+        }
+
+        /* ================= TABLE ================= */
+        .table-card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+        }
+
+        .table-wrapper { overflow-x: auto; }
+
+        table { width: 100%; border-collapse: collapse; min-width: 850px; }
+
+        th {
+            background: #F9FAFB;
+            color: var(--muted);
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            text-align: left;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 14px 16px;
+            font-size: 12px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text);
+        }
+
+        tr:hover { background: #F9FAFB; }
+
+        .inspection-id { font-weight: 600; color: #111827; }
+        .unit-name { font-weight: 600; color: #111827; }
+        .property-info { color: var(--muted); font-size: 11px; margin-top: 2px; }
+
+        /* TYPE & STATUS BADGES */
+        .inspection-type {
+            display: inline-flex;
+            padding: 4px 8px;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: 500;
+        }
+
+        .move-in { color: #1D4ED8; background: #DBEAFE; }
+        .routine { color: #047857; background: #D1FAE5; }
+        .move-out { color: #6D28D9; background: #EDE9FE; }
+        .maintenance-type { color: #C2410C; background: #FFF7ED; }
+
+        .status {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 8px;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: 500;
+        }
+
+        .status.scheduled { color: #1D4ED8; background: #DBEAFE; }
+        .status.completed { color: #047857; background: #D1FAE5; }
+        .status.pending { color: #B45309; background: #FEF3C7; }
+        .status.cancelled { color: #BE123C; background: #FFE4E6; }
+
+        .actions { display: flex; gap: 4px; }
+
+        .action-btn {
+            border: none;
+            background: transparent;
+            color: var(--muted);
+            font-size: 16px;
+            cursor: pointer;
+            padding: 4px 6px;
+            border-radius: 4px;
+        }
+
+        .action-btn:hover { color: var(--primary); background: #EFF6FF; }
+        .action-btn.delete:hover { color: var(--danger); background: #FFF1F2; }
+
+        /* PAGINATION */
+        .table-footer {
+            padding: 14px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            color: var(--muted);
+            font-size: 12px;
+            border-top: 1px solid var(--border);
+        }
+
+        .pagination { display: flex; align-items: center; gap: 4px; }
+
+        .page-button {
+            min-width: 30px;
+            height: 30px;
+            border: 1px solid var(--border);
+            background: white;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .page-button.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        /* ================= MODAL ================= */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.55);
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            padding: 20px;
+        }
+
+        .modal-overlay.show { display: flex; }
+
+        .modal {
+            width: 100%;
+            max-width: 520px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+            overflow: hidden;
+        }
+
+        .modal-header {
+            padding: 18px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 { font-size: 16px; font-weight: 600; }
+
+        .close-btn {
+            border: none;
+            background: none;
+            font-size: 18px;
+            cursor: pointer;
+            color: var(--muted);
+        }
+
+        .modal-body { padding: 20px; }
+        .form-group { margin-bottom: 14px; }
+
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 8px 10px;
+            font-size: 13px;
+            outline: none;
+        }
+
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+        }
+
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+        .modal-footer {
+            padding: 14px 20px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            background: #F9FAFB;
+        }
+
+        /* RESPONSIVE */
+        @media (max-width: 1000px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 768px) {
+            .sidebar { width: 70px; padding: 20px 8px; }
+            .sidebar-brand h2, .sidebar-brand span, .nav-section-title, .nav-item span { display: none; }
+            .nav-item { justify-content: center; padding: 12px; }
+            .top-header { left: 70px; padding: 0 15px; }
+            .main-content { margin-left: 70px; padding: 85px 15px 30px; }
+            .page-header { flex-direction: column; gap: 14px; }
+            .filter-bar { flex-direction: column; align-items: stretch; }
+            .table-footer { flex-direction: column; gap: 12px; align-items: flex-start; }
+            .form-row { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ================= SIDEBAR ================= -->
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-logo" id="brandLogo">A</div>
+            <div>
+                <h2>ARGO</h2>
+                <span id="portalBrandSubtitle">Property Management</span>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav" id="sidebarNav">
+            <!-- POPULATED DYNAMICALLY BY JAVASCRIPT -->
+        </nav>
+
+        <div class="sidebar-footer">
+            <span id="portalVersionText">ARGO v0.5</span>
+        </div>
+    </aside>
+
+    <!-- ================= TOP HEADER ================= -->
+    <header class="top-header">
+        <div class="header-left">
+            <div id="headerRoleBadgeContainer" class="admin-badge">
+                <i id="headerRoleIcon" class="bi bi-shield-lock-fill" style="color: #60A5FA;"></i>
+                <span id="headerRoleBadgeText">Admin Command Center</span>
+            </div>
+        </div>
+
+        <div class="header-right">
+            <a href="notification.html" class="notification-header-link" title="Notifications Center">
+                <i class="bi bi-bell"></i>
+                <div class="notification-badge" id="headerNotifBadge">0</div>
+            </a>
+
+            <div class="user-dropdown-container">
+                <div class="user-profile" id="userProfileBtn">
+                    <div class="avatar" id="userAvatar">JD</div>
+                    <div class="user-info">
+                        <strong id="userName">Property Admin</strong>
+                        <span id="userRoleBadge">Property Manager</span>
+                    </div>
+                    <i class="bi bi-chevron-down" style="font-size: 10px; color: #94A3B8;"></i>
+                </div>
+
+                <div class="dropdown-menu" id="userDropdown">
+                    <a href="account.html" class="dropdown-item">
+                        <i class="bi bi-person-gear"></i>
+                        <span>Account Settings</span>
+                    </a>
+                    <div class="dropdown-item danger" onclick="logoutUser()">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Log Out</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ================= MAIN CONTENT ================= -->
+    <main class="main-content">
+
+        <!-- PAGE HEADER -->
+        <div class="page-header">
+            <div>
+                <div class="eyebrow" id="pageEyebrow">RECORDS & REPORTS</div>
+                <h1>Inspections & Move-In Logs</h1>
+                <p id="pageDesc">Schedule and track property and unit inspections throughout the occupancy lifecycle.</p>
+            </div>
+
+            <button class="primary-btn" id="scheduleInspectionBtn" onclick="openModal()">
+                <i class="bi bi-plus-lg"></i>
+                <span>Schedule Inspection</span>
+            </button>
+        </div>
+
+        <!-- KPI CARDS -->
+        <section class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-label">Total Inspections</div>
+                <div class="kpi-value" id="kpiTotal">0</div>
+                <div class="kpi-description">All recorded inspections</div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-label">Scheduled</div>
+                <div class="kpi-value" style="color: #2563EB;" id="kpiScheduled">0</div>
+                <div class="kpi-description">Upcoming inspections</div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-label">Completed</div>
+                <div class="kpi-value" style="color: #059669;" id="kpiCompleted">0</div>
+                <div class="kpi-description">Successfully completed</div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-label">Pending Review</div>
+                <div class="kpi-value" style="color: #D97706;" id="kpiPending">0</div>
+                <div class="kpi-description">Requires sign-off / follow-up</div>
+            </div>
+        </section>
+
+        <!-- FILTER BAR -->
+        <div class="filter-bar">
+            <div class="search-box">
+                <i class="bi bi-search"></i>
+                <input type="text" id="searchInput" placeholder="Search inspections, units, or tenants..." onkeyup="filterTable()">
+            </div>
+
+            <select class="filter-select" id="typeFilter" onchange="filterTable()">
+                <option value="">All Inspection Types</option>
+                <option value="Move-in">Move-in</option>
+                <option value="Routine">Routine</option>
+                <option value="Move-out">Move-out</option>
+                <option value="Maintenance">Maintenance</option>
+            </select>
+
+            <select class="filter-select" id="statusFilter" onchange="filterTable()">
+                <option value="">All Statuses</option>
+                <option value="Scheduled">Scheduled</option>
+                <option value="Completed">Completed</option>
+                <option value="Pending">Pending</option>
+                <option value="Cancelled">Cancelled</option>
+            </select>
+
+            <button class="secondary-btn" onclick="resetFilters()">
+                <i class="bi bi-arrow-counterclockwise"></i>
+                <span>Reset</span>
+            </button>
+        </div>
+
+        <!-- TABLE -->
+        <div class="table-card">
+            <div class="table-header" style="padding:16px 20px; border-bottom:1px solid var(--border);">
+                <h2 id="tableHeaderTitle">Inspection Records</h2>
+                <span style="font-size:12px; color:var(--muted);" id="locationSubtitle">All Properties</span>
+            </div>
+
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>INSPECTION ID</th>
+                            <th>UNIT</th>
+                            <th>TENANT</th>
+                            <th>TYPE</th>
+                            <th>SCHEDULED DATE</th>
+                            <th>INSPECTOR</th>
+                            <th>STATUS</th>
+                            <th>ACTIONS</th>
+                        </tr>
+                    </thead>
+                    <tbody id="inspectionTable">
+                        <!-- RENDERED DYNAMICALLY FROM LOCALSTORAGE -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- TABLE FOOTER -->
+            <div class="table-footer">
+                <span id="showingCountText">Showing 0 inspections</span>
+            </div>
+        </div>
+    </main>
+
+    <!-- ================= SCHEDULE INSPECTION MODAL ================= -->
+    <div class="modal-overlay" id="inspectionModal">
+        <div class="modal">
+            <div class="modal-header">
+                <div>
+                    <span class="eyebrow">QUALITY ASSURANCE</span>
+                    <h2>Schedule Inspection</h2>
+                </div>
+                <button class="close-btn" onclick="closeModal()"><i class="bi bi-x-lg"></i></button>
+            </div>
+
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Target Unit & Property</label>
+                    <select id="modalUnitSelect" onchange="autoFillTenantFromUnit()">
+                        <option value="">Select unit...</option>
+                        <!-- DYNAMICALLY POPULATED -->
+                    </select>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Inspection Type</label>
+                        <select id="modalTypeSelect">
+                            <option value="Move-in">Move-in</option>
+                            <option value="Routine" selected>Routine</option>
+                            <option value="Move-out">Move-out</option>
+                            <option value="Maintenance">Maintenance</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Scheduled Date</label>
+                        <input type="date" id="modalDateInput">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Assigned Inspector</label>
+                        <input type="text" id="modalInspectorInput" placeholder="e.g. Property Admin">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Tenant Name</label>
+                        <input type="text" id="modalTenantInput" placeholder="e.g. Tenant Name">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Inspection Notes / Scope</label>
+                    <textarea id="modalNotesInput" rows="2" placeholder="Areas to inspect..."></textarea>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="secondary-btn" onclick="closeModal()">Cancel</button>
+                <button class="primary-btn" onclick="saveInspection()"><i class="bi bi-calendar-check"></i> Schedule Inspection</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= JAVASCRIPT ================= -->
+    <script>
+        // Secure Logout Handler (Clears session and replaces history to prevent back-button access)
+        function logoutUser() {
+            localStorage.removeItem('argo_pov');
+            localStorage.removeItem('user_role');
+            localStorage.removeItem('role');
+            localStorage.removeItem('token');
+            localStorage.removeItem('argo_user');
+            window.location.replace('index.html');
+        }
+
+        // Default Seed Inspections if empty
+        const DEFAULT_INSPECTIONS = [
+            {
+                id: 'INS-2026-001',
+                unitName: 'Unit 101',
+                propertyInfo: 'Sunrise Property • Building 2',
+                tenant: 'Maria Santos',
+                type: 'Move-in',
+                date: '2026-01-01',
+                inspector: 'Property Admin',
+                status: 'Completed',
+                notes: 'Full unit condition verified upon move-in.'
+            },
+            {
+                id: 'INS-2026-002',
+                unitName: 'Unit 101',
+                propertyInfo: 'Sunrise Property • Building 2',
+                tenant: 'Maria Santos',
+                type: 'Routine',
+                date: '2026-08-20',
+                inspector: 'Juan Dela Cruz',
+                status: 'Scheduled',
+                notes: 'Quarterly routine electrical and plumbing check.'
+            }
+        ];
+
+        function getInspections() {
+            const data = localStorage.getItem('argo_inspections');
+            if (!data) {
+                localStorage.setItem('argo_inspections', JSON.stringify(DEFAULT_INSPECTIONS));
+                return DEFAULT_INSPECTIONS;
+            }
+            try {
+                return JSON.parse(data);
+            } catch (e) {
+                return DEFAULT_INSPECTIONS;
+            }
+        }
+
+        function saveInspections(inspections) {
+            localStorage.setItem('argo_inspections', JSON.stringify(inspections));
+        }
+
+        function getUnits() {
+            try {
+                return JSON.parse(localStorage.getItem('argo_units') || '[]');
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function getLeases() {
+            try {
+                return JSON.parse(localStorage.getItem('argo_leases') || '[]');
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function getNotifications() {
+            try {
+                return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function saveNotifications(notifications) {
+            localStorage.setItem('argo_notifications', JSON.stringify(notifications));
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const rawRole = (
+                localStorage.getItem('argo_pov') || 
+                localStorage.getItem('user_role') || 
+                localStorage.getItem('role') || 
+                ''
+            ).toLowerCase().trim();
+
+            if (!rawRole) {
+                window.location.replace('index.html');
+                return;
+            }
+
+            applyRoleContext();
+            loadUserData();
+            populateUnitDropdown();
+            renderInspectionTable();
+            updateKPIs();
+            updateHeaderBadge();
+        });
+
+        // Live Cross-Tab Storage Listener
+        window.addEventListener('storage', (e) => {
+            if (['argo_inspections', 'argo_units', 'argo_leases', 'argo_notifications', 'argo_user', 'argo_pov', 'user_role', 'role'].includes(e.key)) {
+                applyRoleContext();
+                loadUserData();
+                populateUnitDropdown();
+                renderInspectionTable();
+                updateKPIs();
+                updateHeaderBadge();
+            }
+        });
+
+        // Dynamic Role Adaptation (Admin POV vs Client POV vs Owner POV)
+        function applyRoleContext() {
+            const rawRole = (
+                localStorage.getItem('argo_pov') || 
+                localStorage.getItem('user_role') || 
+                localStorage.getItem('role') || 
+                'admin'
+            ).toLowerCase().trim();
+
+            let role = 'admin';
+            if (['client', 'tenant', 'client_pov'].includes(rawRole)) role = 'client';
+            else if (['owner', 'property_owner', 'investor'].includes(rawRole)) role = 'owner';
+
+            const nav = document.getElementById('sidebarNav');
+            const brandSub = document.getElementById('portalBrandSubtitle');
+            const brandLogo = document.getElementById('brandLogo');
+            const versionText = document.getElementById('portalVersionText');
+            const headerBadgeContainer = document.getElementById('headerRoleBadgeContainer');
+            const headerBadgeText = document.getElementById('headerRoleBadgeText');
+            const headerRoleIcon = document.getElementById('headerRoleIcon');
+            const scheduleBtn = document.getElementById('scheduleInspectionBtn');
+            const pageEyebrow = document.getElementById('pageEyebrow');
+            const pageDesc = document.getElementById('pageDesc');
+
+            if (role === 'client') {
+                document.documentElement.style.setProperty('--primary', '#2563EB');
+                if (brandSub) brandSub.textContent = 'Tenant Portal';
+                if (brandLogo) brandLogo.style.background = '#2563EB';
+                if (versionText) versionText.textContent = 'ARGO v0.5 (Tenant POV)';
+                
+                if (headerBadgeContainer) {
+                    headerBadgeContainer.className = 'tenant-badge';
+                    headerBadgeContainer.innerHTML = '<i class="bi bi-house-door-fill" style="color: #60A5FA;"></i><span>Tenant Self-Service Portal</span>';
+                }
+                
+                if (pageEyebrow) pageEyebrow.textContent = 'SELF-SERVICE PORTAL';
+                if (pageDesc) pageDesc.textContent = 'View your move-in inspection reports and unit condition checklists.';
+                if (scheduleBtn) scheduleBtn.style.display = 'none';
+
+                if (nav) {
+                    nav.innerHTML = `
+                        <div class="nav-section-title">SELF-SERVICE HOME</div>
+                        <a href="client-dashboard.html" class="nav-item">
+                            <i class="bi bi-house-door"></i>
+                            <span>My Tenancy Home</span>
+                        </a>
+                        <a href="client-billing.html" class="nav-item">
+                            <i class="bi bi-receipt"></i>
+                            <span>Pay Rent & Dues</span>
+                        </a>
+                        <a href="transaction.html" class="nav-item">
+                            <i class="bi bi-receipt-cutoff"></i>
+                            <span>Transactions & Ledger</span>
+                        </a>
+                        <a href="client-utilities.html" class="nav-item">
+                            <i class="bi bi-lightning-charge"></i>
+                            <span>My Utilities & Meters</span>
+                        </a>
+                        <a href="client-maintenance.html" class="nav-item">
+                            <i class="bi bi-tools"></i>
+                            <span>Submit Maintenance</span>
+                        </a>
+                        <a href="inspections.html" class="nav-item active">
+                            <i class="bi bi-clipboard-check"></i>
+                            <span>Move-In & Inspections</span>
+                        </a>
+                        <a href="client-documents.html" class="nav-item">
+                            <i class="bi bi-folder2-open"></i>
+                            <span>My Lease & Receipts</span>
+                        </a>
+
+                        <div class="nav-section-title">SYSTEM</div>
+                        <a href="account.html" class="nav-item">
+                            <i class="bi bi-gear"></i>
+                            <span>Account Settings</span>
+                        </a>
+                        <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                            <i class="bi bi-box-arrow-right"></i>
+                            <span>Log Out</span>
+                        </a>
+                    `;
+                }
+            } else if (role === 'owner') {
+                document.documentElement.style.setProperty('--primary', '#059669');
+                if (brandSub) brandSub.textContent = 'Owner Portal';
+                if (brandLogo) brandLogo.style.background = '#059669';
+                if (versionText) versionText.textContent = 'ARGO v0.5 (Owner POV)';
+
+                if (headerBadgeContainer) {
+                    headerBadgeContainer.className = 'owner-badge';
+                    headerBadgeContainer.innerHTML = '<i class="bi bi-person-badge-fill" style="color: #34D399;"></i><span>Property Owner Executive Portal</span>';
+                }
+
+                if (pageEyebrow) pageEyebrow.textContent = 'QUALITY & AUDIT OVERSIGHT';
+                if (pageDesc) pageDesc.textContent = 'Review comprehensive physical audit reports and inspection logs across your property portfolio.';
+                if (scheduleBtn) scheduleBtn.style.display = 'none';
+
+                if (nav) {
+                    nav.innerHTML = `
+                        <div class="nav-section-title">PORTFOLIO OVERVIEW</div>
+                        <a href="owner-dashboard.html" class="nav-item">
+                            <i class="bi bi-speedometer2"></i>
+                            <span>Executive Summary</span>
+                        </a>
+                        <a href="owner-properties.html" class="nav-item">
+                            <i class="bi bi-buildings"></i>
+                            <span>My Properties</span>
+                        </a>
+                        <a href="owner-statements.html" class="nav-item">
+                            <i class="bi bi-file-earmark-text"></i>
+                            <span>Financial Statements</span>
+                        </a>
+                        <a href="property-ownership.html" class="nav-item">
+                            <i class="bi bi-pie-chart"></i>
+                            <span>Fractional Equity</span>
+                        </a>
+                        <a href="owner-documents.html" class="nav-item">
+                            <i class="bi bi-folder2-open"></i>
+                            <span>Legal Vault</span>
+                        </a>
+                        <a href="transaction.html" class="nav-item">
+                            <i class="bi bi-receipt-cutoff"></i>
+                            <span>Yield Audit Ledger</span>
+                        </a>
+
+                        <div class="nav-section-title">COMMUNICATION & SYSTEM</div>
+                        <a href="notification.html" class="nav-item">
+                            <i class="bi bi-bell"></i>
+                            <span>Notification Center</span>
+                        </a>
+                        <a href="account.html" class="nav-item">
+                            <i class="bi bi-gear"></i>
+                            <span>Account Settings</span>
+                        </a>
+                        <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                            <i class="bi bi-box-arrow-right"></i>
+                            <span>Log Out</span>
+                        </a>
+                    `;
+                }
+            } else {
+                // Admin POV
+                document.documentElement.style.setProperty('--primary', '#2563EB');
+                if (brandSub) brandSub.textContent = 'Property Management';
+                if (brandLogo) brandLogo.style.background = '#2563EB';
+                if (versionText) versionText.textContent = 'ARGO v0.5';
+
+                if (headerBadgeContainer) {
+                    headerBadgeContainer.className = 'admin-badge';
+                    headerBadgeContainer.innerHTML = '<i class="bi bi-shield-lock-fill" style="color: #60A5FA;"></i><span>Admin Command Center</span>';
+                }
+
+                if (pageEyebrow) pageEyebrow.textContent = 'RECORDS & REPORTS';
+                if (pageDesc) pageDesc.textContent = 'Schedule and track property and unit inspections throughout the occupancy lifecycle.';
+                if (scheduleBtn) scheduleBtn.style.display = 'inline-flex';
+
+                if (nav) {
+                    nav.innerHTML = `
+                        <div class="nav-section-title">OVERVIEW</div>
+                        <a href="dashboard.html" class="nav-item">
+                            <i class="bi bi-grid-1x2"></i>
+                            <span>Dashboard</span>
+                        </a>
+
+                        <div class="nav-section-title">PROPERTY OPERATIONS</div>
+                        <a href="properties.html" class="nav-item">
+                            <i class="bi bi-buildings"></i>
+                            <span>Properties</span>
+                        </a>
+                        <a href="buildings.html" class="nav-item">
+                            <i class="bi bi-building"></i>
+                            <span>Buildings</span>
+                        </a>
+                        <a href="units.html" class="nav-item">
+                            <i class="bi bi-door-open"></i>
+                            <span>Units</span>
+                        </a>
+                        <a href="tenants.html" class="nav-item">
+                            <i class="bi bi-people"></i>
+                            <span>Tenants</span>
+                        </a>
+                        <a href="owners.html" class="nav-item">
+                            <i class="bi bi-person-badge"></i>
+                            <span>Owners</span>
+                        </a>
+                        <a href="property-ownership.html" class="nav-item">
+                            <i class="bi bi-pie-chart"></i>
+                            <span>Fractional Ownership</span>
+                        </a>
+                        <a href="leases.html" class="nav-item">
+                            <i class="bi bi-file-earmark-text"></i>
+                            <span>Leases</span>
+                        </a>
+
+                        <div class="nav-section-title">FINANCE & SERVICES</div>
+                        <a href="rent-collection.html" class="nav-item">
+                            <i class="bi bi-cash-stack"></i>
+                            <span>Rent Collection</span>
+                        </a>
+                        <a href="transaction.html" class="nav-item">
+                            <i class="bi bi-receipt-cutoff"></i>
+                            <span>Transactions & Ledger</span>
+                        </a>
+                        <a href="utilities.html" class="nav-item">
+                            <i class="bi bi-lightning-charge"></i>
+                            <span>Utilities</span>
+                        </a>
+                        <a href="meter-readings.html" class="nav-item">
+                            <i class="bi bi-speedometer2"></i>
+                            <span>Meter Readings</span>
+                        </a>
+                        <a href="maintenance.html" class="nav-item">
+                            <i class="bi bi-tools"></i>
+                            <span>Maintenance</span>
+                        </a>
+
+                        <div class="nav-section-title">RECORDS & REPORTS</div>
+                        <a href="inspections.html" class="nav-item active">
+                            <i class="bi bi-clipboard-check"></i>
+                            <span>Inspections</span>
+                        </a>
+                        <a href="move-in-checklist.html" class="nav-item">
+                            <i class="bi bi-check2-square"></i>
+                            <span>Move-In Checklist</span>
+                        </a>
+                        <a href="move-out-settlement.html" class="nav-item">
+                            <i class="bi bi-box-arrow-right"></i>
+                            <span>Move-Out Settlement</span>
+                        </a>
+                        <a href="documents.html" class="nav-item">
+                            <i class="bi bi-folder2-open"></i>
+                            <span>Documents</span>
+                        </a>
+                        <a href="reports.html" class="nav-item">
+                            <i class="bi bi-bar-chart"></i>
+                            <span>Reports</span>
+                        </a>
+
+                        <div class="nav-section-title">SYSTEM</div>
+                        <a href="settings.html" class="nav-item">
+                            <i class="bi bi-gear"></i>
+                            <span>Settings</span>
+                        </a>
+                        <a href="account.html" class="nav-item">
+                            <i class="bi bi-person-gear"></i>
+                            <span>Account Settings</span>
+                        </a>
+                        <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                            <i class="bi bi-box-arrow-right"></i>
+                            <span>Log Out</span>
+                        </a>
+                    `;
+                }
+            }
+        }
+
+        function loadUserData() {
+            const rawRole = (
+                localStorage.getItem('argo_pov') || 
+                localStorage.getItem('user_role') || 
+                localStorage.getItem('role') || 
+                'admin'
+            ).toLowerCase().trim();
+
+            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+
+            const nameEl = document.getElementById('userName');
+            const roleEl = document.getElementById('userRoleBadge');
+            const avatarEl = document.getElementById('userAvatar');
+
+            if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
+                if (nameEl) nameEl.textContent = 'Don Ramon Santos';
+                if (roleEl) roleEl.textContent = 'Property Owner';
+                if (avatarEl) {
+                    avatarEl.textContent = 'RS';
+                    avatarEl.style.background = '#059669';
+                }
+            } else if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
+                if (nameEl) nameEl.textContent = 'Maria Santos';
+                if (roleEl) roleEl.textContent = 'Sunrise Property • Unit 101';
+                if (avatarEl) {
+                    avatarEl.textContent = 'MS';
+                    avatarEl.style.background = '#D97706';
+                }
+            } else {
+                const name = user.name || 'Juan Dela Cruz';
+                const role = user.role || 'Property Manager';
+                if (nameEl) nameEl.textContent = name;
+                if (roleEl) roleEl.textContent = role;
+                if (avatarEl) {
+                    avatarEl.textContent = user.avatar || 'JD';
+                    avatarEl.style.background = user.avatarBg || '#2563EB';
+                }
+            }
+        }
+
+        function populateUnitDropdown() {
+            const units = getUnits();
+            const leases = getLeases();
+            const modalSelect = document.getElementById('modalUnitSelect');
+            if (!modalSelect) return;
+
+            modalSelect.innerHTML = '<option value="">Select unit...</option>';
+            
+            if (units.length > 0) {
+                units.forEach(u => {
+                    const uName = u.unit_no || u.unitNo || u.unit || u.id;
+                    const pName = u.property_name || u.property || 'Sunrise Property';
+                    modalSelect.innerHTML += `<option value="${pName} • ${uName}">${pName} • ${uName}</option>`;
+                });
+            } else if (leases.length > 0) {
+                leases.forEach(l => {
+                    const uName = l.unit || l.unit_number || 'Unit 101';
+                    const pName = l.property || l.property_name || 'Sunrise Property';
+                    modalSelect.innerHTML += `<option value="${pName} • ${uName}">${pName} • ${uName}</option>`;
+                });
+            } else {
+                modalSelect.innerHTML += `<option value="Sunrise Property • Unit 101">Sunrise Property • Unit 101</option>`;
+                modalSelect.innerHTML += `<option value="Sunrise Residences • Unit 204">Sunrise Residences • Unit 204</option>`;
+            }
+        }
+
+        function autoFillTenantFromUnit() {
+            const unitVal = document.getElementById('modalUnitSelect').value;
+            const tenantInput = document.getElementById('modalTenantInput');
+            if (!unitVal || !tenantInput) return;
+
+            const leases = getLeases();
+            const parts = unitVal.split('•');
+            const unitName = parts[1] ? parts[1].trim() : parts[0].trim();
+
+            const matchedLease = leases.find(l => (l.unit && l.unit.includes(unitName)) || (l.unit_number && l.unit_number.includes(unitName)));
+            if (matchedLease && matchedLease.tenantName) {
+                tenantInput.value = matchedLease.tenantName;
+            }
+        }
+
+        function renderInspectionTable() {
+            const rawRole = (
+                localStorage.getItem('argo_pov') || 
+                localStorage.getItem('user_role') || 
+                localStorage.getItem('role') || 
+                'admin'
+            ).toLowerCase().trim();
+
+            let inspections = getInspections();
+            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+            const tenantName = user.name || 'Maria Santos';
+
+            if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
+                inspections = inspections.filter(i => 
+                    (i.tenant && i.tenant.toLowerCase().includes(tenantName.toLowerCase())) || 
+                    (i.unitName && i.unitName.includes('101'))
+                );
+                const subEl = document.getElementById('locationSubtitle');
+                if (subEl) subEl.textContent = 'Sunrise Property • Unit 101';
+            } else {
+                const subEl = document.getElementById('locationSubtitle');
+                if (subEl) subEl.textContent = 'All Properties & Units';
+            }
+
+            const tbody = document.getElementById('inspectionTable');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            if (inspections.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--muted); padding:30px;">No inspection records found.</td></tr>`;
+                const countEl = document.getElementById('showingCountText');
+                if (countEl) countEl.textContent = `Showing 0 inspections`;
+                return;
+            }
+
+            inspections.forEach(ins => {
+                const tr = document.createElement('tr');
+                tr.dataset.type = ins.type || 'Routine';
+                tr.dataset.status = ins.status || 'Scheduled';
+
+                let typeClass = 'routine';
+                const t = (ins.type || '').toLowerCase();
+                if (t === 'move-in') typeClass = 'move-in';
+                else if (t === 'move-out') typeClass = 'move-out';
+                else if (t === 'maintenance') typeClass = 'maintenance-type';
+
+                let statusBadge = '';
+                const s = (ins.status || '').toLowerCase();
+                if (s === 'completed') statusBadge = `<span class="status completed">Completed</span>`;
+                else if (s === 'scheduled') statusBadge = `<span class="status scheduled">Scheduled</span>`;
+                else if (s === 'pending') statusBadge = `<span class="status pending">Pending</span>`;
+                else statusBadge = `<span class="status cancelled">Cancelled</span>`;
+
+                let actionButtons = `
+                    <button class="action-btn" title="View Report" onclick="viewInspectionReport('${ins.id}')"><i class="bi bi-eye"></i></button>
+                `;
+                if (!['client', 'tenant', 'client_pov'].includes(rawRole)) {
+                    actionButtons += `
+                        <button class="action-btn delete" title="Delete" onclick="deleteInspection('${ins.id}')"><i class="bi bi-trash"></i></button>
+                    `;
+                }
+
+                tr.innerHTML = `
+                    <td><div class="inspection-id">${ins.id}</div></td>
+                    <td>
+                        <div class="unit-name">${ins.unitName || 'Unit'}</div>
+                        <div class="property-info" style="font-size:11px; color:var(--muted);">${ins.propertyInfo || 'Property'}</div>
+                    </td>
+                    <td>${ins.tenant || 'N/A'}</td>
+                    <td><span class="inspection-type ${typeClass}">${ins.type || 'Routine'}</span></td>
+                    <td>${ins.date || 'N/A'}</td>
+                    <td>${ins.inspector || 'Property Manager'}</td>
+                    <td>${statusBadge}</td>
+                    <td><div class="actions">${actionButtons}</div></td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            const countEl = document.getElementById('showingCountText');
+            if (countEl) countEl.textContent = `Showing 1–${inspections.length} of ${inspections.length} inspections`;
+        }
+
+        function saveInspection() {
+            const unitSelect = document.getElementById('modalUnitSelect');
+            const typeSelect = document.getElementById('modalTypeSelect');
+            const dateInput = document.getElementById('modalDateInput');
+            const inspectorInput = document.getElementById('modalInspectorInput');
+            const tenantInput = document.getElementById('modalTenantInput');
+            const notesInput = document.getElementById('modalNotesInput');
+
+            const unitLoc = unitSelect ? unitSelect.value : '';
+            const type = typeSelect ? typeSelect.value : 'Routine';
+            const date = dateInput && dateInput.value ? dateInput.value : new Date().toISOString().split('T')[0];
+            const inspector = inspectorInput && inspectorInput.value.trim() ? inspectorInput.value.trim() : 'Property Admin';
+            const tenant = tenantInput && tenantInput.value.trim() ? tenantInput.value.trim() : 'N/A';
+            const notes = notesInput ? notesInput.value.trim() : '';
+
+            if (!unitLoc) {
+                alert("Please select a target unit.");
+                return;
+            }
+
+            const parts = unitLoc.split('•');
+            const unitName = parts[1] ? parts[1].trim() : parts[0].trim();
+            const propertyInfo = parts[0] ? parts[0].trim() : 'Sunrise Property';
+            const inspectionId = `INS-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`;
+
+            const newIns = {
+                id: inspectionId,
+                unitName: unitName,
+                propertyInfo: propertyInfo,
+                tenant: tenant,
+                type: type,
+                date: date,
+                inspector: inspector,
+                status: 'Scheduled',
+                notes: notes
+            };
+
+            let inspections = getInspections();
+            inspections.unshift(newIns);
+            saveInspections(inspections);
+
+            // Push notification to notifications table
+            let notifications = getNotifications();
+            notifications.unshift({
+                id: `NOTIF-${Date.now()}`,
+                pov: 'client',
+                category: 'asset',
+                status: 'unread',
+                title: `${type} Inspection Scheduled`,
+                time: 'Just now',
+                description: `An inspection has been scheduled for <strong>${unitName}</strong> on <strong>${date}</strong> by <strong>${inspector}</strong>.`,
+                property: `${propertyInfo} • ${unitName}`,
+                actionUrl: 'inspections.html',
+                actionText: 'View Inspection'
+            });
+            saveNotifications(notifications);
+
+            renderInspectionTable();
+            updateKPIs();
+            closeModal();
+
+            if (unitSelect) unitSelect.value = '';
+            if (inspectorInput) inspectorInput.value = '';
+            if (tenantInput) tenantInput.value = '';
+            if (notesInput) notesInput.value = '';
+
+            alert(`Inspection (${inspectionId}) scheduled successfully!`);
+        }
+
+        function deleteInspection(id) {
+            if (!confirm("Are you sure you want to delete this inspection record?")) return;
+            let inspections = getInspections();
+            inspections = inspections.filter(i => i.id !== id);
+            saveInspections(inspections);
+            renderInspectionTable();
+            updateKPIs();
+        }
+
+        function viewInspectionReport(id) {
+            const inspections = getInspections();
+            const ins = inspections.find(i => i.id === id);
+            if (!ins) return;
+
+            alert(`ARGO Inspection Report Details\n\nInspection ID: ${ins.id}\nUnit: ${ins.unitName} (${ins.propertyInfo})\nTenant: ${ins.tenant}\nType: ${ins.type}\nDate: ${ins.date}\nInspector: ${ins.inspector}\nStatus: ${ins.status}\nNotes: ${ins.notes || 'Routine condition assessment complete.'}`);
+        }
+
+        function updateKPIs() {
+            const rawRole = (
+                localStorage.getItem('argo_pov') || 
+                localStorage.getItem('user_role') || 
+                localStorage.getItem('role') || 
+                'admin'
+            ).toLowerCase().trim();
+
+            let inspections = getInspections();
+            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+            const tenantName = user.name || 'Maria Santos';
+
+            if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
+                inspections = inspections.filter(i => 
+                    (i.tenant && i.tenant.toLowerCase().includes(tenantName.toLowerCase())) || 
+                    (i.unitName && i.unitName.includes('101'))
+                );
+            }
+
+            let total = inspections.length;
+            let scheduled = inspections.filter(i => (i.status || '').toLowerCase() === 'scheduled').length;
+            let completed = inspections.filter(i => (i.status || '').toLowerCase() === 'completed').length;
+            let pending = inspections.filter(i => (i.status || '').toLowerCase() === 'pending').length;
+
+            const totalEl = document.getElementById('kpiTotal');
+            const schedEl = document.getElementById('kpiScheduled');
+            const compEl = document.getElementById('kpiCompleted');
+            const pendEl = document.getElementById('kpiPending');
+
+            if (totalEl) totalEl.textContent = total;
+            if (schedEl) schedEl.textContent = scheduled;
+            if (compEl) compEl.textContent = completed;
+            if (pendEl) pendEl.textContent = pending;
+        }
+
+        function updateHeaderBadge() {
+            const rawRole = (
+                localStorage.getItem('argo_pov') || 
+                localStorage.getItem('user_role') || 
+                localStorage.getItem('role') || 
+                'admin'
+            ).toLowerCase().trim();
+
+            let role = 'admin';
+            if (['client', 'tenant', 'client_pov'].includes(rawRole)) role = 'client';
+            else if (['owner', 'property_owner', 'investor'].includes(rawRole)) role = 'owner';
+
+            const notifs = getNotifications().filter(n => (n.pov === role || n.pov === 'all') && (n.status === 'unread' || n.is_read === false));
+            const badge = document.getElementById('headerNotifBadge');
+            if (badge) badge.textContent = notifs.length;
+        }
+
+        function openModal() { 
+            populateUnitDropdown();
+            const modal = document.getElementById("inspectionModal"); 
+            if (modal) modal.classList.add("show"); 
+        }
+
+        function closeModal() { 
+            const modal = document.getElementById("inspectionModal"); 
+            if (modal) modal.classList.remove("show"); 
+        }
+
+        window.onclick = function(event) {
+            const modal = document.getElementById("inspectionModal");
+            if (event.target === modal) closeModal();
+        };
+
+        function filterTable() {
+            const searchInput = document.getElementById("searchInput");
+            const typeFilter = document.getElementById("typeFilter");
+            const statusFilter = document.getElementById("statusFilter");
+
+            const searchValue = searchInput ? searchInput.value.toLowerCase() : "";
+            const typeValue = typeFilter ? typeFilter.value : "";
+            const statusValue = statusFilter ? statusFilter.value : "";
+
+            const rows = document.querySelectorAll("#inspectionTable tr");
+
+            rows.forEach(row => {
+                const text = row.innerText.toLowerCase();
+                const rowType = row.dataset.type || "";
+                const rowStatus = row.dataset.status || "";
+
+                const matchesSearch = text.includes(searchValue);
+                const matchesType = typeValue === "" || rowType.toLowerCase() === typeValue.toLowerCase();
+                const matchesStatus = statusValue === "" || rowStatus.toLowerCase() === statusValue.toLowerCase();
+
+                if (matchesSearch && matchesType && matchesStatus) {
+                    row.style.display = "";
+                } else {
+                    row.style.display = "none";
+                }
+            });
+        }
+
+        function resetFilters() {
+            const searchInput = document.getElementById("searchInput");
+            const typeFilter = document.getElementById("typeFilter");
+            const statusFilter = document.getElementById("statusFilter");
+
+            if (searchInput) searchInput.value = "";
+            if (typeFilter) typeFilter.value = "";
+            if (statusFilter) statusFilter.value = "";
+            filterTable();
+        }
+
+        // Profile Dropdown Handler
+        const userProfileBtn = document.getElementById('userProfileBtn');
+        const userDropdown = document.getElementById('userDropdown');
+
+        if (userProfileBtn && userDropdown) {
+            userProfileBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                userDropdown.classList.toggle('show');
+            });
+
+            document.addEventListener('click', () => { 
+                userDropdown.classList.remove('show'); 
+            });
+        }
+    </script>
+</body>

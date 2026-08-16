@@ -1,0 +1,1383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Document Vault | ARGO Tenant Portal</title>
+
+    <!-- 🔒 Strict Navigation Guard & Role Isolation -->
+    <script src="js/auth.js"></script>
+
+    <!-- Inter Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+    <style>
+        :root {
+            --primary: #2563EB;
+            --sidebar: #0F172A;
+            --active: #1E293B;
+            --canvas: #F3F4F6;
+            --white: #FFFFFF;
+            --border: #E5E7EB;
+            --text: #111827;
+            --muted: #6B7280;
+            --success: #059669;
+            --danger: #E11D48;
+            --warning: #D97706;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--canvas);
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        button, input, select, textarea {
+            font-family: inherit;
+        }
+
+        /* ================= SIDEBAR ================= */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 240px;
+            height: 100vh;
+            background: #0F172A;
+            color: white;
+            padding: 20px 14px;
+            z-index: 1000;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 5px 12px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .brand-logo {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: #2563EB;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 700;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .sidebar-brand h2 {
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .sidebar-brand span {
+            font-size: 9px;
+            color: #94A3B8;
+            margin-top: 1px;
+            display: block;
+            letter-spacing: 0.8px;
+        }
+
+        .sidebar-nav {
+            margin-top: 16px;
+            flex: 1;
+        }
+
+        .nav-section-title {
+            font-size: 10px;
+            font-weight: 700;
+            color: #64748B;
+            letter-spacing: 0.08em;
+            padding: 14px 10px 6px;
+            text-transform: uppercase;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            color: #CBD5E1;
+            text-decoration: none;
+            border-radius: 6px;
+            margin-bottom: 3px;
+            font-size: 13px;
+            transition: 0.15s ease;
+        }
+
+        .nav-item:hover {
+            background: #172033;
+            color: white;
+        }
+
+        .nav-item.active {
+            background: #1E293B;
+            color: white;
+            font-weight: 500;
+        }
+
+        .nav-item.active i {
+            color: #60A5FA;
+        }
+
+        .nav-item i {
+            width: 20px;
+            font-size: 16px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .sidebar-footer {
+            padding: 14px 10px 0;
+            border-top: 1px solid rgba(255,255,255,0.08);
+            font-size: 11px;
+            color: #64748B;
+        }
+
+        /* ================= TOP HEADER ================= */
+        .top-header {
+            position: fixed;
+            top: 0;
+            left: 240px;
+            right: 0;
+            height: 64px;
+            background: var(--sidebar);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 28px;
+            z-index: 900;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            color: white;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .tenant-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #1E293B;
+            border: 1px solid #334155;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #E5E7EB;
+            font-weight: 600;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+        }
+
+        .notification-header-link {
+            position: relative;
+            font-size: 18px;
+            color: #CBD5E1;
+            background: #1E293B;
+            border: 1px solid #334155;
+            width: 38px;
+            height: 38px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            transition: 0.2s ease;
+        }
+
+        .notification-header-link:hover {
+            background: #2563EB;
+            color: white;
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--danger);
+            color: white;
+            font-size: 9px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            border: 2px solid var(--sidebar);
+        }
+
+        /* USER PROFILE DROPDOWN */
+        .user-dropdown-container { position: relative; }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 6px;
+        }
+
+        .user-profile:hover { background: rgba(255,255,255,0.05); }
+
+        .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--warning);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .user-info strong { display: block; font-size: 12px; }
+        .user-info span { display: block; color: #94A3B8; font-size: 10px; }
+
+        .dropdown-menu {
+            position: absolute;
+            right: 0;
+            top: 48px;
+            width: 180px;
+            background: white;
+            border: 1px solid #E5E7EB;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 1000;
+        }
+
+        .dropdown-menu.show { display: flex; }
+
+        .dropdown-item {
+            padding: 10px 14px;
+            color: #374151;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            transition: 0.15s;
+            cursor: pointer;
+        }
+
+        .dropdown-item:hover { background: #F3F4F6; color: #111827; }
+        .dropdown-item.danger { color: var(--danger); }
+        .dropdown-item.danger:hover { background: #FFF1F2; }
+
+        /* ================= MAIN CONTENT ================= */
+        .main-content {
+            margin-left: 240px;
+            padding: 88px 28px 40px;
+            min-height: 100vh;
+            max-width: 1600px;
+        }
+
+        .page-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 22px;
+        }
+
+        .eyebrow {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--muted);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .page-header h1 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .page-header p {
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .primary-btn {
+            border: none;
+            background: var(--primary);
+            color: white;
+            border-radius: 6px;
+            padding: 9px 16px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: 0.2s ease;
+        }
+
+        .primary-btn:hover { background: #1D4ED8; }
+
+        .secondary-btn {
+            height: 38px;
+            border: 1px solid var(--border);
+            background: white;
+            border-radius: 6px;
+            padding: 0 13px;
+            font-size: 12px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            color: var(--text);
+        }
+
+        .secondary-btn:hover { background: #F9FAFB; }
+
+        /* ================= KPI CARDS ================= */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 22px;
+        }
+
+        .kpi-card {
+            background: var(--white);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 18px;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+        }
+
+        .kpi-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .kpi-label {
+            color: var(--muted);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .kpi-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: #EFF6FF;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .kpi-value {
+            font-size: 24px;
+            font-weight: 600;
+            color: #111827;
+        }
+
+        .kpi-description {
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 4px;
+        }
+
+        /* ================= FILTER BAR ================= */
+        .filter-bar {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .search-box {
+            position: relative;
+            flex: 1;
+            min-width: 220px;
+        }
+
+        .search-box i {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--muted);
+        }
+
+        .search-box input {
+            width: 100%;
+            height: 38px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0 12px 0 36px;
+            font-size: 12px;
+            outline: none;
+        }
+
+        .search-box input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+        }
+
+        .filter-select {
+            height: 38px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0 12px;
+            font-size: 12px;
+            color: var(--text);
+            background: white;
+            outline: none;
+        }
+
+        /* ================= TABLE CARDS ================= */
+        .table-card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+            margin-bottom: 24px;
+        }
+
+        .table-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .table-header h2 { font-size: 15px; font-weight: 600; }
+
+        .table-wrapper { overflow-x: auto; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 950px;
+        }
+
+        th {
+            background: #F9FAFB;
+            color: var(--muted);
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            text-align: left;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 14px 16px;
+            font-size: 12px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text);
+        }
+
+        tr:hover { background: #F9FAFB; }
+
+        .doc-name {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .doc-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: #EFF6FF;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+
+        .doc-title { font-weight: 600; color: var(--text); }
+        .doc-type { color: var(--muted); font-size: 11px; margin-top: 2px; }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 8px;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .status-active { background: #ECFDF5; color: #047857; }
+        .status-verified { background: #ECFDF5; color: #047857; }
+        .status-pending { background: #FEF3C7; color: #B45309; }
+
+        .action-button {
+            border: none;
+            background: transparent;
+            color: var(--muted);
+            font-size: 16px;
+            cursor: pointer;
+            padding: 4px 6px;
+            border-radius: 4px;
+        }
+
+        .action-button:hover { color: var(--primary); background: #EFF6FF; }
+
+        .table-footer {
+            padding: 14px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: var(--muted);
+            font-size: 12px;
+            border-top: 1px solid var(--border);
+        }
+
+        /* ================= MODAL ================= */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.55);
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            padding: 20px;
+        }
+
+        .modal-overlay.show { display: flex; }
+
+        .modal {
+            width: 100%;
+            max-width: 520px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+            overflow: hidden;
+        }
+
+        .modal-header {
+            padding: 18px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 { font-size: 16px; font-weight: 600; }
+
+        .close-btn {
+            border: none;
+            background: none;
+            font-size: 18px;
+            cursor: pointer;
+            color: var(--muted);
+        }
+
+        .modal-body { padding: 20px; }
+        .form-group { margin-bottom: 14px; }
+
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 8px 10px;
+            font-size: 13px;
+            outline: none;
+        }
+
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+        }
+
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+        .modal-footer {
+            padding: 14px 20px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            background: #F9FAFB;
+        }
+
+        /* RESPONSIVE */
+        @media (max-width: 1000px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 768px) {
+            .sidebar { width: 70px; padding: 20px 8px; }
+            .sidebar-brand h2, .sidebar-brand span, .nav-section-title, .nav-item span { display: none; }
+            .nav-item { justify-content: center; padding: 12px; }
+            .top-header { left: 70px; padding: 0 15px; }
+            .main-content { margin-left: 70px; padding: 85px 15px 30px; }
+            .page-header { flex-direction: column; gap: 14px; }
+            .filter-bar { flex-direction: column; align-items: stretch; }
+            .form-row { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ================= SIDEBAR ================= -->
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-logo">A</div>
+            <div>
+                <h2>ARGO</h2>
+                <span>Tenant Portal</span>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav" id="sidebarNav">
+            <!-- DYNAMICALLY POPULATED BY JAVASCRIPT -->
+        </nav>
+
+        <div class="sidebar-footer">
+            <span>ARGO v0.5 (Tenant POV)</span>
+        </div>
+    </aside>
+
+    <!-- ================= TOP HEADER ================= -->
+    <header class="top-header">
+        <div class="header-left">
+            <div class="tenant-badge">
+                <i class="bi bi-house-door-fill" style="color: #60A5FA;"></i>
+                <span>Tenant Self-Service Portal</span>
+            </div>
+        </div>
+
+        <div class="header-right">
+            <!-- EXCLUSIVE CLIENT POV NOTIFICATION BELL -->
+            <a href="notification.html" class="notification-header-link" title="Notifications Center">
+                <i class="bi bi-bell"></i>
+                <div class="notification-badge" id="clientHeaderNotifBadge">0</div>
+            </a>
+
+            <!-- USER PROFILE DROPDOWN -->
+            <div class="user-dropdown-container">
+                <div class="user-profile" id="userProfileBtn">
+                    <div class="avatar" id="userAvatar">MS</div>
+                    <div class="user-info">
+                        <strong id="userName">Maria Santos</strong>
+                        <span id="userRoleBadge">Unit Occupant</span>
+                    </div>
+                    <i class="bi bi-chevron-down" style="font-size: 10px; color: #94A3B8;"></i>
+                </div>
+
+                <div class="dropdown-menu" id="userDropdown">
+                    <a href="account.html" class="dropdown-item">
+                        <i class="bi bi-person-gear"></i>
+                        <span>Account Settings</span>
+                    </a>
+                    <div class="dropdown-item danger" onclick="logoutUser()">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Log Out</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ================= MAIN CONTENT ================= -->
+    <main class="main-content">
+
+        <!-- PAGE HEADER -->
+        <div class="page-header">
+            <div>
+                <div class="eyebrow">SELF-SERVICE DOCUMENT VAULT</div>
+                <h1>My Leases & Verified Receipts</h1>
+                <p>Access your legally signed lease agreement, official verified payment receipts, move-in checklists, and compliance IDs.</p>
+            </div>
+
+            <button class="primary-btn" onclick="openTenantDocModal()">
+                <i class="bi bi-upload"></i>
+                <span>Upload Document / ID</span>
+            </button>
+        </div>
+
+        <!-- KPI CARDS -->
+        <section class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-top">
+                    <span class="kpi-label">Total Vault Files</span>
+                    <div class="kpi-icon"><i class="bi bi-folder2-open"></i></div>
+                </div>
+                <div class="kpi-value" id="kpiTotalFiles">0 Files</div>
+                <div class="kpi-description">Encrypted personal vault</div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-top">
+                    <span class="kpi-label">Active Signed Leases</span>
+                    <div class="kpi-icon" style="background:#ECFDF5; color:var(--success);"><i class="bi bi-file-earmark-pdf"></i></div>
+                </div>
+                <div class="kpi-value" style="color:var(--success);" id="kpiActiveLeases">0 Active</div>
+                <div class="kpi-description" id="kpiLeaseLocation">Unit Assignment</div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-top">
+                    <span class="kpi-label">Verified Receipts</span>
+                    <div class="kpi-icon" style="background:#EFF6FF; color:var(--primary);"><i class="bi bi-receipt"></i></div>
+                </div>
+                <div class="kpi-value" style="color:var(--primary);" id="kpiReceipts">0 Receipts</div>
+                <div class="kpi-description">Official acknowledged payments</div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-top">
+                    <span class="kpi-label">Pending Verifications</span>
+                    <div class="kpi-icon" style="background:#FEF3C7; color:var(--warning);"><i class="bi bi-clock-history"></i></div>
+                </div>
+                <div class="kpi-value" style="color:var(--warning);" id="kpiPendingVerifications">0 Files</div>
+                <div class="kpi-description">Awaiting admin clearance</div>
+            </div>
+        </section>
+
+        <!-- FILTER BAR -->
+        <div class="filter-bar">
+            <div class="search-box">
+                <i class="bi bi-search"></i>
+                <input type="text" id="searchInput" placeholder="Search document title, category, or file type..." onkeyup="filterTable()">
+            </div>
+
+            <select class="filter-select" id="categoryFilter" onchange="filterTable()">
+                <option value="">All Categories</option>
+                <option value="Lease Contract">Lease Contract</option>
+                <option value="Official Receipt">Official Receipt</option>
+                <option value="Inspection Report">Inspection Report</option>
+                <option value="Identification">Identification / ID</option>
+            </select>
+
+            <select class="filter-select" id="statusFilter" onchange="filterTable()">
+                <option value="">All Statuses</option>
+                <option value="Active">Active / Verified</option>
+                <option value="Pending">Pending Review</option>
+            </select>
+
+            <button class="secondary-btn" onclick="resetFilters()">
+                <i class="bi bi-arrow-counterclockwise"></i>
+                <span>Reset</span>
+            </button>
+        </div>
+
+        <!-- DOCUMENTS TABLE -->
+        <div class="table-card">
+            <div class="table-header">
+                <h2>Personal Document Vault</h2>
+                <span style="font-size:12px; color:var(--muted);" id="locationSubtitle">Assigned Unit Location</span>
+            </div>
+
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>DOCUMENT TITLE</th>
+                            <th>CATEGORY</th>
+                            <th>UPLOADED BY</th>
+                            <th>DATE UPLOADED</th>
+                            <th>STATUS</th>
+                            <th>ACTIONS</th>
+                        </tr>
+                    </thead>
+                    <tbody id="documentTable">
+                        <!-- POPULATED DYNAMICALLY FROM LOCALSTORAGE / POSTGRESQL -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- TABLE FOOTER -->
+            <div class="table-footer">
+                <span id="showingCountText">Showing active vault files</span>
+            </div>
+        </div>
+    </main>
+
+    <!-- ================= MODAL: UPLOAD TENANT DOCUMENT ================= -->
+    <div class="modal-overlay" id="tenantDocModal">
+        <div class="modal">
+            <div class="modal-header">
+                <div>
+                    <span class="eyebrow">TENANT SECURE VAULT</span>
+                    <h2>Upload Document or ID</h2>
+                </div>
+                <button class="close-btn" onclick="closeTenantDocModal()"><i class="bi bi-x-lg"></i></button>
+            </div>
+
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Document Title / Name</label>
+                    <input type="text" id="modalDocTitle" placeholder="e.g. Driver's License ID / Proof of Employment">
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Document Category</label>
+                        <select id="modalDocCategory">
+                            <option value="Identification">Identification / Government ID</option>
+                            <option value="Official Receipt">External Payment Receipt / Proof</option>
+                            <option value="Inspection Report">Inspection / Maintenance Attachment</option>
+                            <option value="Lease Contract">Other Tenancy Document</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Associated Unit</label>
+                        <input type="text" id="modalUnitLocationTag" value="Unit Location" readonly style="background:#F3F4F6;">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Select File (PDF, JPG, PNG)</label>
+                    <input type="file" id="modalDocFile" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx">
+                </div>
+
+                <div class="form-group">
+                    <label>Notes / Remarks</label>
+                    <textarea id="modalDocNotes" rows="2" placeholder="Optional remarks for property management review..."></textarea>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="secondary-btn" onclick="closeTenantDocModal()">Cancel</button>
+                <button class="primary-btn" onclick="saveTenantDoc()"><i class="bi bi-upload"></i> Upload to My Vault</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= JAVASCRIPT ================= -->
+    <script>
+        // Secure Logout Handler
+        function logoutUser() {
+            localStorage.removeItem('argo_pov');
+            localStorage.removeItem('argo_user');
+            window.location.replace('index.html');
+        }
+
+        // Lock Client Role Perspective
+        localStorage.setItem('argo_pov', 'client');
+
+        // Populate User Details from Session
+        function loadUserData() {
+            try {
+                const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+                const userNameEl = document.getElementById('userName');
+                const userAvatarEl = document.getElementById('userAvatar');
+                const userRoleBadgeEl = document.getElementById('userRoleBadge');
+
+                const name = user.name || user.fullName || 'Maria Santos';
+                const role = user.role || 'Unit Occupant';
+
+                if (userNameEl) userNameEl.textContent = name;
+                if (userRoleBadgeEl) userRoleBadgeEl.textContent = role;
+                if (userAvatarEl) {
+                    const initials = name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'MS';
+                    userAvatarEl.textContent = initials;
+                }
+            } catch (err) {
+                console.error("Error loading user profile:", err);
+            }
+        }
+
+        // Dynamic Client Sidebar Navigation Renderer
+        function renderSidebar() {
+            const nav = document.getElementById('sidebarNav');
+            if (!nav) return;
+
+            const currentPath = window.location.pathname.split("/").pop() || 'client-documents.html';
+
+            const clientLinks = [
+                { section: 'SELF-SERVICE HOME' },
+                { href: 'client-dashboard.html', icon: 'bi-house-door', label: 'My Tenancy Home' },
+                { href: 'client-billing.html', icon: 'bi-receipt', label: 'Pay Rent & Dues' },
+                { href: 'transaction.html', icon: 'bi-receipt-cutoff', label: 'Transactions & Ledger' },
+                { href: 'client-utilities.html', icon: 'bi-lightning-charge', label: 'My Utilities & Meters' },
+                { href: 'client-maintenance.html', icon: 'bi-tools', label: 'Submit Maintenance' },
+                { href: 'inspections.html', icon: 'bi-clipboard-check', label: 'Move-In & Inspections' },
+                { href: 'client-documents.html', icon: 'bi-folder2-open', label: 'My Lease & Receipts' },
+                { section: 'SYSTEM' },
+                { href: 'account.html', icon: 'bi-gear', label: 'Account Settings' },
+                { href: '#', icon: 'bi-box-arrow-right', label: 'Log Out', action: 'logoutUser()' }
+            ];
+
+            let html = '';
+            clientLinks.forEach(item => {
+                if (item.section) {
+                    html += `<div class="nav-section-title">${item.section}</div>`;
+                } else {
+                    const isActive = (currentPath === item.href) ? 'active' : '';
+                    const clickAttr = item.action ? `onclick="${item.action}; return false;"` : '';
+                    html += `
+                        <a href="${item.href}" class="nav-item ${isActive}" ${clickAttr}>
+                            <i class="bi ${item.icon}"></i>
+                            <span>${item.label}</span>
+                        </a>
+                    `;
+                }
+            });
+
+            nav.innerHTML = html;
+        }
+
+        const DEFAULT_CLIENT_DOCS = [
+            {
+                id: 'DOC-CLI-001',
+                title: 'Signed Lease Agreement (LSE-0001)',
+                fileType: 'PDF • 2.4 MB • Unit 101 Contract',
+                category: 'Lease Contract',
+                uploadedBy: 'Property Management',
+                uploadDate: 'Jan 01, 2026',
+                status: 'Active',
+                notes: 'Official 1-year tenancy contract.',
+                fileUrl: ''
+            },
+            {
+                id: 'DOC-CLI-002',
+                title: 'Valid Government ID — Maria Santos',
+                fileType: "JPG • 1.2 MB • Driver's License",
+                category: 'Identification',
+                uploadedBy: 'Maria Santos (You)',
+                uploadDate: 'Dec 28, 2025',
+                status: 'Verified',
+                notes: "Driver's License ID verification.",
+                fileUrl: ''
+            }
+        ];
+
+        function getClientDocs() {
+            const data = localStorage.getItem('argo_client_documents');
+            if (!data) {
+                localStorage.setItem('argo_client_documents', JSON.stringify(DEFAULT_CLIENT_DOCS));
+                return DEFAULT_CLIENT_DOCS;
+            }
+            try {
+                return JSON.parse(data);
+            } catch (e) {
+                return DEFAULT_CLIENT_DOCS;
+            }
+        }
+
+        function saveClientDocs(docs) { 
+            localStorage.setItem('argo_client_documents', JSON.stringify(docs)); 
+        }
+
+        function getNotifications() { 
+            try {
+                return JSON.parse(localStorage.getItem('argo_notifications') || '[]'); 
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function saveNotifications(notifications) { 
+            localStorage.setItem('argo_notifications', JSON.stringify(notifications)); 
+        }
+
+        function getLeases() { 
+            try {
+                return JSON.parse(localStorage.getItem('argo_leases') || '[]'); 
+            } catch (e) {
+                return [];
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const role = localStorage.getItem('argo_pov');
+            if (!role) {
+                window.location.replace('index.html');
+                return;
+            }
+            renderSidebar();
+            loadUserData();
+            renderDocTable();
+            updateKPIs();
+            updateHeaderBadge();
+        });
+
+        // Cross-Tab LocalStorage Sync
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'argo_client_documents' || e.key === 'argo_notifications' || e.key === 'argo_leases' || e.key === 'argo_user') {
+                loadUserData();
+                renderDocTable();
+                updateKPIs();
+                updateHeaderBadge();
+            }
+        });
+
+        function getActiveTenantContext() {
+            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+            const leases = getLeases();
+            const activeLease = leases.find(l => (l.status || '').toUpperCase() === 'ACTIVE') || leases[0] || {};
+
+            return {
+                name: user.name || user.fullName || activeLease.tenantName || 'Maria Santos',
+                property: activeLease.property || 'Sunrise Property',
+                unit: activeLease.unit || 'Unit 101',
+                fullTag: `${activeLease.property || 'Sunrise Property'} • ${activeLease.unit || 'Unit 101'}`
+            };
+        }
+
+        function renderDocTable() {
+            const ctx = getActiveTenantContext();
+            const docs = getClientDocs();
+            const tbody = document.getElementById('documentTable');
+            if (!tbody) return;
+
+            tbody.innerHTML = '';
+
+            const subtitleEl = document.getElementById('locationSubtitle');
+            if (subtitleEl) subtitleEl.textContent = ctx.fullTag;
+
+            if (docs.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--muted); padding:30px;">No documents in personal vault. Click "Upload Document / ID" to add a file.</td></tr>`;
+                document.getElementById('showingCountText').textContent = `Showing 0 personal vault files`;
+                return;
+            }
+
+            docs.forEach(d => {
+                const tr = document.createElement('tr');
+                tr.dataset.category = d.category;
+                tr.dataset.status = d.status;
+
+                let iconClass = 'bi-file-earmark-text';
+                let iconStyle = 'background:#EFF6FF; color:var(--primary);';
+
+                if (d.category === 'Lease Contract') {
+                    iconClass = 'bi-file-earmark-pdf';
+                    iconStyle = 'background:#ECFDF5; color:var(--success);';
+                } else if (d.category === 'Official Receipt') {
+                    iconClass = 'bi-receipt';
+                    iconStyle = 'background:#EFF6FF; color:var(--primary);';
+                } else if (d.category === 'Inspection Report') {
+                    iconClass = 'bi-clipboard-check';
+                    iconStyle = 'background:#EDE9FE; color:#6D28D9;';
+                } else if (d.category === 'Identification') {
+                    iconClass = 'bi-person-vcard';
+                    iconStyle = 'background:#FEF3C7; color:#D97706;';
+                }
+
+                let badgeHtml = '';
+                if (d.status === 'Active') {
+                    badgeHtml = `<span class="status-badge status-active"><i class="bi bi-check-circle" style="margin-right:4px;"></i> Active / Signed</span>`;
+                } else if (d.status === 'Verified') {
+                    badgeHtml = `<span class="status-badge status-verified"><i class="bi bi-check-circle" style="margin-right:4px;"></i> Verified</span>`;
+                } else {
+                    badgeHtml = `<span class="status-badge status-pending"><i class="bi bi-clock-history" style="margin-right:4px;"></i> Pending Review</span>`;
+                }
+
+                tr.innerHTML = `
+                    <td>
+                        <div class="doc-name">
+                            <div class="doc-icon" style="${iconStyle}"><i class="bi ${iconClass}"></i></div>
+                            <div>
+                                <div class="doc-title">${d.title}</div>
+                                <div class="doc-type">${d.fileType || 'PDF • 1.5 MB'}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>${d.category}</td>
+                    <td>${d.uploadedBy || 'Property Management'}</td>
+                    <td>${d.uploadDate || 'N/A'}</td>
+                    <td>${badgeHtml}</td>
+                    <td>
+                        <button class="action-button" title="View Document" onclick="viewDoc('${d.id}')"><i class="bi bi-eye"></i></button>
+                        <button class="action-button" title="Download File" onclick="downloadDoc('${d.id}')"><i class="bi bi-download"></i></button>
+                        <button class="action-button" title="Delete File" style="color:var(--danger);" onclick="deleteDoc('${d.id}')"><i class="bi bi-trash"></i></button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('showingCountText').textContent = `Showing 1–${docs.length} of ${docs.length} personal vault files`;
+        }
+
+        function updateKPIs() {
+            const ctx = getActiveTenantContext();
+            const docs = getClientDocs();
+            const total = docs.length;
+            const leases = docs.filter(d => d.category === 'Lease Contract' && (d.status === 'Active' || d.status === 'Verified')).length;
+            const receipts = docs.filter(d => d.category === 'Official Receipt').length;
+            const pending = docs.filter(d => d.status === 'Pending').length;
+
+            const totalEl = document.getElementById('kpiTotalFiles');
+            const leasesEl = document.getElementById('kpiActiveLeases');
+            const locEl = document.getElementById('kpiLeaseLocation');
+            const recEl = document.getElementById('kpiReceipts');
+            const penEl = document.getElementById('kpiPendingVerifications');
+
+            if (totalEl) totalEl.textContent = `${total} Files`;
+            if (leasesEl) leasesEl.textContent = `${leases} Active`;
+            if (locEl) locEl.textContent = ctx.fullTag;
+            if (recEl) recEl.textContent = `${receipts} Receipts`;
+            if (penEl) penEl.textContent = `${pending} Files`;
+        }
+
+        function updateHeaderBadge() {
+            const notifs = getNotifications().filter(n => (n.pov === 'client' || n.pov === 'tenant') && n.status === 'unread');
+            const badge = document.getElementById('clientHeaderNotifBadge');
+            if (badge) badge.textContent = notifs.length;
+        }
+
+        function openTenantDocModal() {
+            const ctx = getActiveTenantContext();
+            document.getElementById('modalUnitLocationTag').value = ctx.fullTag;
+            document.getElementById("tenantDocModal").classList.add("show");
+        }
+
+        function closeTenantDocModal() { 
+            document.getElementById("tenantDocModal").classList.remove("show"); 
+            document.getElementById('modalDocTitle').value = '';
+            document.getElementById('modalDocNotes').value = '';
+            document.getElementById('modalDocFile').value = '';
+        }
+
+        function formatFileSize(bytes) {
+            if (!bytes || bytes === 0) return '0 KB';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        }
+
+        function saveTenantDoc() {
+            const title = document.getElementById('modalDocTitle').value.trim();
+            const category = document.getElementById('modalDocCategory').value;
+            const notes = document.getElementById('modalDocNotes').value.trim();
+            const fileInput = document.getElementById('modalDocFile');
+            const file = fileInput.files ? fileInput.files[0] : null;
+
+            if (!title) {
+                alert("Please enter a document title.");
+                return;
+            }
+
+            const ctx = getActiveTenantContext();
+            const newId = `DOC-CLI-${Date.now().toString().slice(-4)}`;
+            const today = new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+
+            let ext = 'PDF';
+            let formattedSize = '1.8 MB';
+
+            if (file) {
+                ext = (file.name.split('.').pop() || 'PDF').toUpperCase();
+                formattedSize = formatFileSize(file.size);
+            }
+
+            const fileTypeDesc = `${ext} • ${formattedSize} • Uploaded File`;
+
+            const proceedSave = (fileDataUrl = '') => {
+                const newDoc = {
+                    id: newId,
+                    title: title,
+                    fileType: fileTypeDesc,
+                    category: category,
+                    uploadedBy: `${ctx.name} (You)`,
+                    uploadDate: today,
+                    status: 'Pending',
+                    notes: notes || 'Uploaded via Tenant Portal.',
+                    fileUrl: fileDataUrl
+                };
+
+                let docs = getClientDocs();
+                docs.unshift(newDoc);
+                saveClientDocs(docs);
+
+                // Create Admin notification
+                let notifications = getNotifications();
+                notifications.unshift({
+                    id: `NOTIF-${Date.now()}`,
+                    pov: 'admin',
+                    category: 'asset',
+                    status: 'unread',
+                    title: `Tenant Uploaded Document / ID`,
+                    time: 'Just now',
+                    description: `Tenant <strong>${ctx.name}</strong> (${ctx.fullTag}) uploaded a new file: "<strong>${title}</strong>" (${category}).`,
+                    property: ctx.fullTag,
+                    tenantName: ctx.name,
+                    tag: 'Tenant Vault Upload',
+                    tagColor: 'var(--primary)',
+                    actionUrl: 'documents.html',
+                    actionText: 'Review Tenant File'
+                });
+                saveNotifications(notifications);
+
+                renderDocTable();
+                updateKPIs();
+                closeTenantDocModal();
+
+                alert(`Document "${title}" uploaded successfully to your personal vault!\n\nProperty Manager notified for verification.`);
+            };
+
+            // Read file to Base64 for live download/preview if provided
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    proceedSave(e.target.result);
+                };
+                reader.onerror = function() {
+                    proceedSave('');
+                };
+                reader.readAsDataURL(file);
+            } else {
+                proceedSave('');
+            }
+        }
+
+        function deleteDoc(id) {
+            if (!confirm("Are you sure you want to remove this document from your vault?")) return;
+            let docs = getClientDocs().filter(d => d.id !== id);
+            saveClientDocs(docs);
+            renderDocTable();
+            updateKPIs();
+        }
+
+        function viewDoc(id) {
+            const docs = getClientDocs();
+            const doc = docs.find(d => d.id === id);
+            if (!doc) return;
+
+            if (doc.fileUrl) {
+                const win = window.open();
+                if (win) {
+                    win.document.write(`<iframe src="${doc.fileUrl}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+                    return;
+                }
+            }
+
+            alert(`ARGO Tenant Vault Document — ${doc.id}\n\nTitle: ${doc.title}\nCategory: ${doc.category}\nUploaded By: ${doc.uploadedBy}\nUpload Date: ${doc.uploadDate}\nStatus: ${doc.status}\nNotes: ${doc.notes || 'None'}`);
+        }
+
+        function downloadDoc(id) {
+            const docs = getClientDocs();
+            const doc = docs.find(d => d.id === id);
+            if (!doc) return;
+
+            if (doc.fileUrl) {
+                const a = document.createElement('a');
+                a.href = doc.fileUrl;
+                a.download = `${doc.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            } else {
+                alert(`Downloading simulated file for: "${doc.title}" (${doc.fileType}).\n(Connect your S3/Supabase Storage bucket here for cloud storage binary downloads).`);
+            }
+        }
+
+        window.onclick = function(event) {
+            const modal = document.getElementById("tenantDocModal");
+            if (event.target === modal) closeTenantDocModal();
+        };
+
+        function filterTable() {
+            const searchInput = document.getElementById("searchInput");
+            const categorySelect = document.getElementById("categoryFilter");
+            const statusSelect = document.getElementById("statusFilter");
+
+            const searchValue = searchInput ? searchInput.value.toLowerCase() : "";
+            const categoryValue = categorySelect ? categorySelect.value : "";
+            const statusValue = statusSelect ? statusSelect.value : "";
+
+            const rows = document.querySelectorAll("#documentTable tr");
+
+            rows.forEach(row => {
+                const text = row.innerText.toLowerCase();
+                const rowCategory = row.dataset.category || "";
+                const rowStatus = row.dataset.status || "";
+
+                const matchesSearch = text.includes(searchValue);
+                const matchesCategory = categoryValue === "" || rowCategory === categoryValue;
+                const matchesStatus = statusValue === "" || rowStatus.includes(statusValue);
+
+                if (matchesSearch && matchesCategory && matchesStatus) {
+                    row.style.display = "";
+                } else {
+                    row.style.display = "none";
+                }
+            });
+        }
+
+        function resetFilters() {
+            const searchInput = document.getElementById("searchInput");
+            const categoryFilter = document.getElementById("categoryFilter");
+            const statusFilter = document.getElementById("statusFilter");
+
+            if (searchInput) searchInput.value = "";
+            if (categoryFilter) categoryFilter.value = "";
+            if (statusFilter) statusFilter.value = "";
+            filterTable();
+        }
+
+        // Profile Dropdown Handler
+        const userProfileBtn = document.getElementById('userProfileBtn');
+        const userDropdown = document.getElementById('userDropdown');
+
+        if (userProfileBtn && userDropdown) {
+            userProfileBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                userDropdown.classList.toggle('show');
+            });
+
+            document.addEventListener('click', () => { 
+                userDropdown.classList.remove('show'); 
+            });
+        }
+    </script>
+</body>

@@ -1,0 +1,1541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Move-Out Settlement & Clearance | ARGO Property Management</title>
+
+    <!-- 🔒 Strict Navigation Guard & Role Isolation -->
+    <script src="js/auth.js"></script>
+
+    <!-- Inter Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+    <style>
+        :root {
+            --primary: #2563EB;
+            --sidebar: #0F172A;
+            --active: #1E293B;
+            --canvas: #F3F4F6;
+            --white: #FFFFFF;
+            --border: #E5E7EB;
+            --text: #111827;
+            --muted: #6B7280;
+            --success: #059669;
+            --danger: #E11D48;
+            --warning: #D97706;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Inter", sans-serif;
+            background: var(--canvas);
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        button, input, select, textarea {
+            font-family: inherit;
+        }
+
+        /* ================= SIDEBAR ================= */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 240px;
+            height: 100vh;
+            background: #0F172A;
+            color: white;
+            padding: 20px 14px;
+            z-index: 1000;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 5px 12px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .brand-logo {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: #2563EB;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 700;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .sidebar-brand h2 {
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .sidebar-brand span {
+            font-size: 9px;
+            color: #94A3B8;
+            margin-top: 1px;
+            display: block;
+            letter-spacing: 0.8px;
+        }
+
+        .sidebar-nav {
+            margin-top: 16px;
+            flex: 1;
+        }
+
+        .nav-section-title {
+            font-size: 10px;
+            font-weight: 700;
+            color: #64748B;
+            letter-spacing: 0.08em;
+            padding: 14px 10px 6px;
+            text-transform: uppercase;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            color: #CBD5E1;
+            text-decoration: none;
+            border-radius: 6px;
+            margin-bottom: 3px;
+            font-size: 13px;
+            transition: 0.15s ease;
+        }
+
+        .nav-item:hover {
+            background: #172033;
+            color: white;
+        }
+
+        .nav-item.active {
+            background: #1E293B;
+            color: white;
+            font-weight: 500;
+        }
+
+        .nav-item.active i {
+            color: #60A5FA;
+        }
+
+        .nav-item i {
+            width: 20px;
+            font-size: 16px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .sidebar-footer {
+            padding: 14px 10px 0;
+            border-top: 1px solid rgba(255,255,255,0.08);
+            font-size: 11px;
+            color: #64748B;
+        }
+
+        /* ================= HEADER ================= */
+        .top-header {
+            position: fixed;
+            top: 0;
+            left: 240px;
+            right: 0;
+            height: 64px;
+            background: var(--sidebar);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 28px;
+            z-index: 900;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            color: white;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .admin-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #1E293B;
+            border: 1px solid #334155;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #E5E7EB;
+            font-weight: 600;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+        }
+
+        .notification-header-link {
+            position: relative;
+            font-size: 18px;
+            color: #CBD5E1;
+            background: #1E293B;
+            border: 1px solid #334155;
+            width: 38px;
+            height: 38px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            transition: 0.2s ease;
+        }
+
+        .notification-header-link:hover {
+            background: #2563EB;
+            color: white;
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--danger);
+            color: white;
+            font-size: 9px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            border: 2px solid var(--sidebar);
+        }
+
+        /* USER PROFILE DROPDOWN */
+        .user-dropdown-container { position: relative; }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 6px;
+        }
+
+        .user-profile:hover { background: rgba(255,255,255,0.05); }
+
+        .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .user-info strong { display: block; font-size: 12px; }
+        .user-info span { display: block; color: #94A3B8; font-size: 10px; }
+
+        .dropdown-menu {
+            position: absolute;
+            right: 0;
+            top: 48px;
+            width: 180px;
+            background: white;
+            border: 1px solid #E5E7EB;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 1000;
+        }
+
+        .dropdown-menu.show { display: flex; }
+
+        .dropdown-item {
+            padding: 10px 14px;
+            color: #374151;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            transition: 0.15s;
+            cursor: pointer;
+        }
+
+        .dropdown-item:hover { background: #F3F4F6; color: #111827; }
+        .dropdown-item.danger { color: var(--danger); }
+        .dropdown-item.danger:hover { background: #FFF1F2; }
+
+        /* ================= MAIN CONTENT ================= */
+        .main-content {
+            margin-left: 240px;
+            padding: 88px 28px 40px;
+            min-height: 100vh;
+            max-width: 1600px;
+        }
+
+        .page-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 22px;
+        }
+
+        .eyebrow {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--muted);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .page-header h1 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .page-header p {
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .primary-btn {
+            border: none;
+            background: var(--primary);
+            color: white;
+            border-radius: 6px;
+            padding: 9px 16px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: 0.2s ease;
+        }
+
+        .primary-btn:hover { background: #1D4ED8; }
+
+        .secondary-btn {
+            height: 38px;
+            border: 1px solid var(--border);
+            background: white;
+            border-radius: 6px;
+            padding: 0 13px;
+            font-size: 12px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            color: var(--text);
+        }
+
+        .secondary-btn:hover { background: #F9FAFB; }
+
+        /* ================= KPI CARDS ================= */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 22px;
+        }
+
+        .kpi-card {
+            background: var(--white);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 18px;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+        }
+
+        .kpi-label {
+            color: var(--muted);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .kpi-value {
+            font-size: 24px;
+            font-weight: 600;
+            color: #111827;
+        }
+
+        .kpi-description {
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 4px;
+        }
+
+        /* ================= FILTER BAR ================= */
+        .filter-bar {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .search-box {
+            position: relative;
+            flex: 1;
+            min-width: 220px;
+        }
+
+        .search-box i {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--muted);
+        }
+
+        .search-box input {
+            width: 100%;
+            height: 38px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0 12px 0 36px;
+            font-size: 12px;
+            outline: none;
+        }
+
+        .search-box input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+        }
+
+        .filter-select {
+            height: 38px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0 12px;
+            font-size: 12px;
+            color: var(--text);
+            background: white;
+            outline: none;
+        }
+
+        /* ================= TABLE ================= */
+        .table-card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+        }
+
+        .table-wrapper { overflow-x: auto; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 950px;
+        }
+
+        th {
+            background: #F9FAFB;
+            color: var(--muted);
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            text-align: left;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 14px 16px;
+            font-size: 12px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text);
+        }
+
+        tr:hover { background: #F9FAFB; }
+
+        .settlement-id { font-weight: 600; color: var(--text); }
+        .tenant-name { font-weight: 600; color: var(--text); }
+        .property-info { color: var(--muted); font-size: 11px; margin-top: 2px; }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 8px;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: 500;
+        }
+
+        .status-full { background: #ECFDF5; color: #047857; }
+        .status-partial { background: #FEF3C7; color: #B45309; }
+        .status-forfeited { background: #FFF1F2; color: #BE123C; }
+        .status-pending { background: #EFF6FF; color: #1D4ED8; }
+
+        .action-button {
+            border: none;
+            background: transparent;
+            color: var(--muted);
+            font-size: 16px;
+            cursor: pointer;
+            padding: 4px 6px;
+            border-radius: 4px;
+        }
+
+        .action-button:hover { color: var(--primary); background: #EFF6FF; }
+
+        .table-footer {
+            padding: 14px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: var(--muted);
+            font-size: 12px;
+            border-top: 1px solid var(--border);
+        }
+
+        /* ================= MODAL ================= */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.55);
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            padding: 20px;
+        }
+
+        .modal-overlay.show { display: flex; }
+
+        .modal {
+            width: 100%;
+            max-width: 600px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+            overflow: hidden;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-header {
+            padding: 18px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: white;
+        }
+
+        .modal-header h2 { font-size: 16px; font-weight: 600; }
+
+        .close-btn {
+            border: none;
+            background: none;
+            font-size: 18px;
+            cursor: pointer;
+            color: var(--muted);
+        }
+
+        .modal-body { padding: 20px; overflow-y: auto; flex: 1; }
+        .form-group { margin-bottom: 14px; }
+
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 8px 10px;
+            font-size: 13px;
+            outline: none;
+        }
+
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+        }
+
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+        .deduction-card {
+            background: #F9FAFB;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 14px;
+        }
+
+        .deduction-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .calc-box {
+            background: #EFF6FF;
+            border: 1px solid #BFDBFE;
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .calc-box strong { font-size: 16px; color: var(--primary); }
+
+        .modal-footer {
+            padding: 14px 20px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            background: #F9FAFB;
+        }
+
+        /* RESPONSIVE */
+        @media (max-width: 1000px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 768px) {
+            .sidebar { width: 70px; padding: 20px 8px; }
+            .sidebar-brand h2, .sidebar-brand span, .nav-section-title, .nav-item span { display: none; }
+            .nav-item { justify-content: center; padding: 12px; }
+            .top-header { left: 70px; padding: 0 15px; }
+            .main-content { margin-left: 70px; padding: 85px 15px 30px; }
+            .page-header { flex-direction: column; gap: 14px; }
+            .filter-bar { flex-direction: column; align-items: stretch; }
+            .table-footer { flex-direction: column; gap: 12px; align-items: flex-start; }
+            .form-row { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ================= SIDEBAR ================= -->
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-logo">A</div>
+            <div>
+                <h2>ARGO</h2>
+                <span>Property Management</span>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav" id="sidebarNav">
+            <!-- POPULATED DYNAMICALLY BY JAVASCRIPT -->
+        </nav>
+
+        <div class="sidebar-footer">
+            <span>ARGO v0.5</span>
+        </div>
+    </aside>
+
+    <!-- ================= TOP HEADER ================= -->
+    <header class="top-header">
+        <div class="header-left">
+            <div class="admin-badge">
+                <i class="bi bi-shield-lock-fill" style="color: #60A5FA;"></i>
+                <span>Admin Command Center</span>
+            </div>
+        </div>
+
+        <div class="header-right">
+            <a href="notification.html" class="notification-header-link" title="Notifications Center">
+                <i class="bi bi-bell"></i>
+                <div class="notification-badge" id="headerNotifBadge">0</div>
+            </a>
+
+            <div class="user-dropdown-container">
+                <div class="user-profile" id="userProfileBtn">
+                    <div class="avatar" id="userAvatar">JD</div>
+                    <div class="user-info">
+                        <strong id="userName">Property Admin</strong>
+                        <span id="userRoleBadge">Property Manager</span>
+                    </div>
+                    <i class="bi bi-chevron-down" style="font-size: 10px; color: #94A3B8;"></i>
+                </div>
+
+                <div class="dropdown-menu" id="userDropdown">
+                    <a href="account.html" class="dropdown-item">
+                        <i class="bi bi-person-gear"></i>
+                        <span>Account Settings</span>
+                    </a>
+                    <div class="dropdown-item danger" onclick="logoutUser()">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Log Out</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ================= MAIN CONTENT ================= -->
+    <main class="main-content">
+
+        <!-- PAGE HEADER -->
+        <div class="page-header">
+            <div>
+                <div class="eyebrow">OCCUPANCY TERMINATION & REFUNDS</div>
+                <h1>Move-Out Settlement & Clearance</h1>
+                <p>Calculate deposit deductions, reconcile final utility bills, process tenant refunds, and revert unit status.</p>
+            </div>
+
+            <button class="primary-btn" onclick="openSettlementModal()">
+                <i class="bi bi-calculator"></i>
+                <span>New Move-Out Settlement</span>
+            </button>
+        </div>
+
+        <!-- KPI CARDS -->
+        <section class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-label">Completed Settlements</div>
+                <div class="kpi-value" style="color:#059669;" id="kpiCompleted">0</div>
+                <div class="kpi-description">Fully refunded / settled</div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-label">Pending Exit Clearances</div>
+                <div class="kpi-value" style="color:#D97706;" id="kpiPending">0</div>
+                <div class="kpi-description">Awaiting final inspection</div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-label">Total Deductions (YTD)</div>
+                <div class="kpi-value" style="color:#E11D48;" id="kpiDeductions">₱0.00</div>
+                <div class="kpi-description">Repairs & utility cut-offs</div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-label">Net Refunds Disbursed</div>
+                <div class="kpi-value" style="color:#2563EB;" id="kpiNetRefunds">₱0.00</div>
+                <div class="kpi-description">Returned to exiting tenants</div>
+            </div>
+        </section>
+
+        <!-- FILTER BAR -->
+        <div class="filter-bar">
+            <div class="search-box">
+                <i class="bi bi-search"></i>
+                <input type="text" id="searchInput" placeholder="Search settlement ID, tenant name, or unit number..." onkeyup="filterTable()">
+            </div>
+
+            <select class="filter-select" id="propertyFilter" onchange="filterTable()">
+                <option value="">All Properties</option>
+                <!-- DYNAMICALLY POPULATED -->
+            </select>
+
+            <select class="filter-select" id="statusFilter" onchange="filterTable()">
+                <option value="">All Refund Types</option>
+                <option value="Full Refund">Full Refund</option>
+                <option value="Partial Refund">Partial Refund</option>
+                <option value="Forfeited">Forfeited</option>
+                <option value="Pending Audit">Pending Audit</option>
+            </select>
+
+            <button class="secondary-btn" onclick="resetFilters()">
+                <i class="bi bi-arrow-counterclockwise"></i>
+                <span>Reset</span>
+            </button>
+        </div>
+
+        <!-- TABLE -->
+        <div class="table-card">
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>SETTLEMENT ID</th>
+                            <th>TENANT & LEASE</th>
+                            <th>PROPERTY / UNIT</th>
+                            <th>VACATE DATE</th>
+                            <th>INITIAL DEPOSIT</th>
+                            <th>TOTAL DEDUCTIONS</th>
+                            <th>NET REFUND DISBURSED</th>
+                            <th>CLEARANCE STATUS</th>
+                            <th>ACTIONS</th>
+                        </tr>
+                    </thead>
+                    <tbody id="settlementTable">
+                        <!-- RENDERED DYNAMICALLY -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- TABLE FOOTER -->
+            <div class="table-footer">
+                <span id="showingCountText">Showing 0 exit settlement logs</span>
+            </div>
+        </div>
+    </main>
+
+    <!-- ================= MODAL: MOVE-OUT SETTLEMENT DESK ================= -->
+    <div class="modal-overlay" id="settlementModal">
+        <div class="modal">
+            <div class="modal-header">
+                <div>
+                    <span class="eyebrow">DEPOSIT DEDUCTIONS & CLEARANCE</span>
+                    <h2>Exit Settlement Calculation Desk</h2>
+                </div>
+                <button class="close-btn" onclick="closeModal('settlementModal')"><i class="bi bi-x-lg"></i></button>
+            </div>
+
+            <div class="modal-body">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Select Exiting Lease / Tenant</label>
+                        <select id="leaseSelect" onchange="updateDepositBase()">
+                            <option value="">Select Lease...</option>
+                            <!-- DYNAMICALLY POPULATED -->
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Actual Vacate Date</label>
+                        <input type="date" id="modalVacateDate">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Initial Security Deposit Held (₱)</label>
+                    <input type="number" id="baseDeposit" value="0" readonly style="background:#F3F4F6; font-weight:600;">
+                </div>
+
+                <!-- ITEMIZED DEDUCTIONS CARD -->
+                <div class="deduction-card">
+                    <div class="deduction-title">
+                        <span><i class="bi bi-tools" style="color:var(--danger, #ef4444); margin-right:6px;"></i> Itemized Deductions & Final Utility Cut-offs</span>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Unpaid Final Electricity (Utility Cut-off)</label>
+                            <input type="number" id="deductElectric" min="0" step="any" value="0" oninput="calculateNetRefund()">
+                        </div>
+                        <div class="form-group">
+                            <label>Unpaid Final Water (Utility Cut-off)</label>
+                            <input type="number" id="deductWater" min="0" step="any" value="0" oninput="calculateNetRefund()">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Unit Damages / Repair Costs (₱)</label>
+                            <input type="number" id="deductDamage" min="0" step="any" value="0" oninput="calculateNetRefund()">
+                        </div>
+                        <div class="form-group">
+                            <label>Deep Cleaning & Repainting Fee (₱)</label>
+                            <input type="number" id="deductCleaning" min="0" step="any" value="0" oninput="calculateNetRefund()">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- NET REFUND CALCULATION BOX -->
+                <div class="calc-box">
+                    <div>
+                        <span style="font-size:11px; color:var(--muted, #6B7280); display:block;">CALCULATED NET REFUND TO TENANT</span>
+                        <span id="refundFormula" style="font-size:11px; color:#4B5563;">₱0 - ₱0 Deductions</span>
+                    </div>
+                    <strong id="netRefundDisplay">₱0.00</strong>
+                </div>
+
+                <div class="form-row" style="margin-top:14px;">
+                    <div class="form-group">
+                        <label>Refund Payment Method</label>
+                        <select id="modalPayMethod">
+                            <option value="Bank Transfer (BDO)">Bank Transfer (BDO)</option>
+                            <option value="Bank Transfer (BPI)">Bank Transfer (BPI)</option>
+                            <option value="GCash">GCash</option>
+                            <option value="Maya">Maya</option>
+                            <option value="Manager's Check">Manager's Check</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Transaction Reference / Check #</label>
+                        <input type="text" id="modalRefCode" placeholder="e.g. REF-889123041">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Exit Clearance Remarks & Reversion Confirmation</label>
+                    <textarea id="modalNotes" rows="2" placeholder="Keys returned, damage photo audit attached, revert unit status back to VACANT..."></textarea>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="secondary-btn" onclick="closeModal('settlementModal')">Cancel</button>
+                <button class="primary-btn" onclick="saveSettlement()"><i class="bi bi-check-circle"></i> Finalize Settlement & Revert Unit</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= JAVASCRIPT ================= -->
+    <script>
+        // Utility for safe currency parsing
+        function parseCurrency(val) {
+            if (val === undefined || val === null || val === '') return 0;
+            if (typeof val === 'number') return isNaN(val) ? 0 : val;
+            const clean = val.toString().replace(/[^0-9.-]+/g, "");
+            const parsed = parseFloat(clean);
+            return isNaN(parsed) ? 0 : parsed;
+        }
+
+        // Format currency helper
+        function formatPeso(val) {
+            const num = parseCurrency(val);
+            return '₱' + num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        // Secure Logout Handler
+        function logoutUser() {
+            localStorage.removeItem('argo_pov');
+            localStorage.removeItem('user_role');
+            localStorage.removeItem('role');
+            localStorage.removeItem('token');
+            localStorage.removeItem('argo_user');
+            window.location.replace('index.html');
+        }
+
+        function renderSidebar() {
+            const nav = document.getElementById('sidebarNav');
+            if (nav) {
+                nav.innerHTML = `
+                    <div class="nav-section-title">OVERVIEW</div>
+                    <a href="dashboard.html" class="nav-item">
+                        <i class="bi bi-grid-1x2"></i>
+                        <span>Dashboard</span>
+                    </a>
+
+                    <div class="nav-section-title">PROPERTY OPERATIONS</div>
+                    <a href="properties.html" class="nav-item">
+                        <i class="bi bi-buildings"></i>
+                        <span>Properties</span>
+                    </a>
+                    <a href="buildings.html" class="nav-item">
+                        <i class="bi bi-building"></i>
+                        <span>Buildings</span>
+                    </a>
+                    <a href="units.html" class="nav-item">
+                        <i class="bi bi-door-open"></i>
+                        <span>Units</span>
+                    </a>
+                    <a href="tenants.html" class="nav-item">
+                        <i class="bi bi-people"></i>
+                        <span>Tenants</span>
+                    </a>
+                    <a href="owners.html" class="nav-item">
+                        <i class="bi bi-person-badge"></i>
+                        <span>Owners</span>
+                    </a>
+                    <a href="property-ownership.html" class="nav-item">
+                        <i class="bi bi-pie-chart"></i>
+                        <span>Fractional Ownership</span>
+                    </a>
+                    <a href="leases.html" class="nav-item">
+                        <i class="bi bi-file-earmark-text"></i>
+                        <span>Leases</span>
+                    </a>
+
+                    <div class="nav-section-title">FINANCE & SERVICES</div>
+                    <a href="rent-collection.html" class="nav-item">
+                        <i class="bi bi-cash-stack"></i>
+                        <span>Rent Collection</span>
+                    </a>
+                    <a href="transaction.html" class="nav-item">
+                        <i class="bi bi-receipt-cutoff"></i>
+                        <span>Transactions & Ledger</span>
+                    </a>
+                    <a href="utilities.html" class="nav-item">
+                        <i class="bi bi-lightning-charge"></i>
+                        <span>Utilities</span>
+                    </a>
+                    <a href="meter-readings.html" class="nav-item">
+                        <i class="bi bi-speedometer2"></i>
+                        <span>Meter Readings</span>
+                    </a>
+                    <a href="maintenance.html" class="nav-item">
+                        <i class="bi bi-tools"></i>
+                        <span>Maintenance</span>
+                    </a>
+
+                    <div class="nav-section-title">RECORDS & REPORTS</div>
+                    <a href="inspections.html" class="nav-item">
+                        <i class="bi bi-clipboard-check"></i>
+                        <span>Inspections</span>
+                    </a>
+                    <a href="move-in-checklist.html" class="nav-item">
+                        <i class="bi bi-check2-square"></i>
+                        <span>Move-In Checklist</span>
+                    </a>
+                    <a href="move-out-settlement.html" class="nav-item active">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Move-Out Settlement</span>
+                    </a>
+                    <a href="documents.html" class="nav-item">
+                        <i class="bi bi-folder2-open"></i>
+                        <span>Documents</span>
+                    </a>
+                    <a href="reports.html" class="nav-item">
+                        <i class="bi bi-bar-chart"></i>
+                        <span>Reports</span>
+                    </a>
+
+                    <div class="nav-section-title">SYSTEM</div>
+                    <a href="settings.html" class="nav-item">
+                        <i class="bi bi-gear"></i>
+                        <span>Settings</span>
+                    </a>
+                    <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Log Out</span>
+                    </a>
+                `;
+            }
+        }
+
+        // Data Storage Getters & Setters
+        function getSettlements() {
+            try {
+                return JSON.parse(localStorage.getItem('argo_settlements') || '[]');
+            } catch (e) {
+                console.error("Failed to parse settlements:", e);
+                return [];
+            }
+        }
+
+        function saveSettlements(list) {
+            localStorage.setItem('argo_settlements', JSON.stringify(list));
+        }
+
+        function getNotifications() {
+            try {
+                return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function saveNotifications(notifications) {
+            localStorage.setItem('argo_notifications', JSON.stringify(notifications));
+        }
+
+        function getTransactions() {
+            try {
+                return JSON.parse(localStorage.getItem('argo_transactions') || '[]');
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function saveTransactions(transactions) {
+            localStorage.setItem('argo_transactions', JSON.stringify(transactions));
+        }
+
+        function getUnits() {
+            try {
+                return JSON.parse(localStorage.getItem('argo_units') || '[]');
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function saveUnits(units) {
+            localStorage.setItem('argo_units', JSON.stringify(units));
+        }
+
+        function getLeases() {
+            try {
+                return JSON.parse(localStorage.getItem('argo_leases') || '[]');
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function saveLeases(leases) {
+            localStorage.setItem('argo_leases', JSON.stringify(leases));
+        }
+
+        function getProperties() {
+            try {
+                return JSON.parse(localStorage.getItem('argo_properties') || '[]');
+            } catch (e) {
+                return [];
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const role = localStorage.getItem('argo_pov');
+            if (!role) {
+                window.location.replace('index.html');
+                return;
+            }
+            renderSidebar();
+            loadUserData();
+            populateModalDropdowns();
+            renderSettlementTable();
+            updateKPIs();
+            updateHeaderBadge();
+        });
+
+        function loadUserData() {
+            try {
+                const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+                if (user.name) {
+                    document.getElementById('userName').textContent = user.name;
+                    document.getElementById('userAvatar').textContent = user.avatar || user.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'JD';
+                }
+            } catch(e) {
+                console.error("Error loading user info", e);
+            }
+        }
+
+        function populateModalDropdowns() {
+            const leases = getLeases();
+            const props = getProperties();
+
+            const leaseSelect = document.getElementById('leaseSelect');
+            const propFilter = document.getElementById('propertyFilter');
+
+            if (leaseSelect) {
+                leaseSelect.innerHTML = '<option value="">Select Lease...</option>';
+                leases.forEach(l => {
+                    const leaseId = l.id || l.lease_id || 'N/A';
+                    const tenantName = l.tenantName || l.tenant_name || 'Unknown Tenant';
+                    const property = l.property || l.property_name || 'Property';
+                    const unit = l.unit || l.unit_no || l.unitNo || 'Unit';
+                    
+                    // Priority: explicit deposit field -> 2x rent calculation -> fallback 0
+                    let depositVal = 0;
+                    if (l.deposit !== undefined && l.deposit !== null) {
+                        depositVal = parseCurrency(l.deposit);
+                    } else if (l.rent !== undefined && l.rent !== null) {
+                        depositVal = parseCurrency(l.rent) * 2;
+                    }
+
+                    const status = (l.status || 'ACTIVE').toUpperCase();
+                    const statusTag = status === 'ENDED' ? ' [ENDED]' : '';
+
+                    leaseSelect.innerHTML += `
+                        <option value="${leaseId}" 
+                                data-deposit="${depositVal}" 
+                                data-lease="${leaseId}" 
+                                data-tenant="${tenantName}" 
+                                data-property="${property}" 
+                                data-unit="${unit}">
+                            ${leaseId} — ${tenantName} (${unit})${statusTag}
+                        </option>`;
+                });
+            }
+
+            if (propFilter) {
+                propFilter.innerHTML = '<option value="">All Properties</option>';
+                props.forEach(p => {
+                    const propName = p.name || p.property_name || p;
+                    propFilter.innerHTML += `<option value="${propName}">${propName}</option>`;
+                });
+            }
+        }
+
+        function renderSettlementTable() {
+            const settlements = getSettlements();
+            const tbody = document.getElementById('settlementTable');
+            tbody.innerHTML = '';
+
+            if (!settlements || settlements.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:var(--muted, #6B7280); padding:30px;">No move-out settlement records found. Click "New Move-Out Settlement" to process one.</td></tr>`;
+                document.getElementById('showingCountText').textContent = `Showing 0 exit settlement logs`;
+                return;
+            }
+
+            settlements.forEach(s => {
+                const tr = document.createElement('tr');
+                const prop = s.property || s.property_name || '';
+                const status = s.status || 'Pending Audit';
+                tr.dataset.property = prop;
+                tr.dataset.status = status;
+
+                let badgeHtml = '';
+                if (status === 'Full Refund') {
+                    badgeHtml = `<span class="status-badge status-full"><i class="bi bi-check-circle" style="margin-right:4px;"></i> Full Refund</span>`;
+                } else if (status === 'Partial Refund') {
+                    badgeHtml = `<span class="status-badge status-partial"><i class="bi bi-pie-chart" style="margin-right:4px;"></i> Partial Refund</span>`;
+                } else if (status === 'Forfeited') {
+                    badgeHtml = `<span class="status-badge status-forfeited"><i class="bi bi-x-circle" style="margin-right:4px;"></i> Forfeited</span>`;
+                } else {
+                    badgeHtml = `<span class="status-badge status-pending"><i class="bi bi-clock-history" style="margin-right:4px;"></i> Pending Audit</span>`;
+                }
+
+                const initialDep = parseCurrency(s.initialDeposit || s.initial_deposit);
+                const deductions = parseCurrency(s.deductions);
+                const netRefund = parseCurrency(s.netRefund || s.net_refund);
+
+                const netColor = netRefund > 0 ? 'var(--success, #059669)' : 'var(--muted, #6B7280)';
+                const deductColor = deductions > 0 ? 'var(--danger, #E11D48)' : 'var(--success, #059669)';
+
+                tr.innerHTML = `
+                    <td><div class="settlement-id">${s.id}</div></td>
+                    <td>
+                        <div class="tenant-name">${s.tenantName || s.tenant_name || 'N/A'}</div>
+                        <div class="property-info">Lease: ${s.leaseId || s.lease_id || 'N/A'}</div>
+                    </td>
+                    <td>
+                        <div><strong>${prop}</strong></div>
+                        <div class="property-info">${s.unit || s.unit_no || 'N/A'}</div>
+                    </td>
+                    <td>${s.vacateDate || s.vacate_date || 'N/A'}</td>
+                    <td>${formatPeso(initialDep)}</td>
+                    <td><span style="color:${deductColor}; font-weight:600;">${deductions > 0 ? `-${formatPeso(deductions)}` : '₱0.00'}</span></td>
+                    <td><strong style="color:${netColor};">${formatPeso(netRefund)}</strong></td>
+                    <td>${badgeHtml}</td>
+                    <td>
+                        <div class="actions" style="display:flex; gap:4px;">
+                            <button class="action-button" title="View Statement" onclick="viewStatement('${s.id}')"><i class="bi bi-file-earmark-text"></i></button>
+                            <button class="action-button delete" title="Delete Log" onclick="deleteSettlement('${s.id}')"><i class="bi bi-trash"></i></button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('showingCountText').textContent = `Showing 1–${settlements.length} of ${settlements.length} exit settlement logs`;
+        }
+
+        function updateKPIs() {
+            const settlements = getSettlements();
+            const completed = settlements.filter(s => ['Full Refund', 'Partial Refund', 'Forfeited'].includes(s.status)).length;
+            const pending = settlements.filter(s => ['Pending Audit', 'Pending'].includes(s.status)).length;
+
+            let totalDeductions = 0;
+            let totalNetRefunds = 0;
+
+            settlements.forEach(s => {
+                totalDeductions += parseCurrency(s.deductions);
+                totalNetRefunds += parseCurrency(s.netRefund || s.net_refund);
+            });
+
+            document.getElementById('kpiCompleted').textContent = completed;
+            document.getElementById('kpiPending').textContent = pending;
+            document.getElementById('kpiDeductions').textContent = formatPeso(totalDeductions);
+            document.getElementById('kpiNetRefunds').textContent = formatPeso(totalNetRefunds);
+        }
+
+        function openSettlementModal() { 
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById("modalVacateDate").value = today;
+            document.getElementById("modalRefCode").value = `REF-${Math.floor(100000 + Math.random() * 900000)}`;
+            populateModalDropdowns();
+            document.getElementById("settlementModal").classList.add("show");
+            updateDepositBase();
+        }
+
+        function closeModal(modalId) { 
+            document.getElementById(modalId).classList.remove("show"); 
+        }
+
+        function updateDepositBase() {
+            const select = document.getElementById("leaseSelect");
+            if (!select || select.selectedIndex < 0) return;
+
+            const selectedOpt = select.options[select.selectedIndex];
+            const depositVal = parseCurrency(selectedOpt.dataset.deposit);
+
+            document.getElementById("baseDeposit").value = depositVal;
+            calculateNetRefund();
+        }
+
+        function calculateNetRefund() {
+            const base = Math.max(0, parseCurrency(document.getElementById("baseDeposit").value));
+            const ele = Math.max(0, parseCurrency(document.getElementById("deductElectric").value));
+            const wat = Math.max(0, parseCurrency(document.getElementById("deductWater").value));
+            const dam = Math.max(0, parseCurrency(document.getElementById("deductDamage").value));
+            const cln = Math.max(0, parseCurrency(document.getElementById("deductCleaning").value));
+
+            const totalDeductions = ele + wat + dam + cln;
+            const netRefund = Math.max(0, base - totalDeductions);
+
+            document.getElementById("refundFormula").textContent = `₱${base.toLocaleString()} - ₱${totalDeductions.toLocaleString()} Deductions`;
+            document.getElementById("netRefundDisplay").textContent = formatPeso(netRefund);
+        }
+
+        function saveSettlement() {
+            const select = document.getElementById("leaseSelect");
+            if (!select.value) {
+                alert("Please select an exiting lease/tenant.");
+                return;
+            }
+
+            const selectedOpt = select.options[select.selectedIndex];
+            const leaseId = selectedOpt.dataset.lease || select.value;
+            const tenantName = selectedOpt.dataset.tenant || 'Tenant';
+            const property = selectedOpt.dataset.property || 'Property';
+            const unit = selectedOpt.dataset.unit || 'Unit';
+
+            const vacateDateInput = document.getElementById("modalVacateDate").value || new Date().toISOString().split('T')[0];
+            const baseDeposit = Math.max(0, parseCurrency(document.getElementById("baseDeposit").value));
+            
+            const ele = Math.max(0, parseCurrency(document.getElementById("deductElectric").value));
+            const wat = Math.max(0, parseCurrency(document.getElementById("deductWater").value));
+            const dam = Math.max(0, parseCurrency(document.getElementById("deductDamage").value));
+            const cln = Math.max(0, parseCurrency(document.getElementById("deductCleaning").value));
+            
+            const totalDeductions = ele + wat + dam + cln;
+            const netRefund = Math.max(0, baseDeposit - totalDeductions);
+
+            const payMethod = document.getElementById("modalPayMethod").value;
+            const refCode = document.getElementById("modalRefCode").value.trim() || `REF-${Math.floor(100000 + Math.random() * 900000)}`;
+            const notes = document.getElementById("modalNotes").value.trim();
+
+            let statusType = 'Partial Refund';
+            if (totalDeductions === 0 && baseDeposit > 0) statusType = 'Full Refund';
+            else if (netRefund === 0) statusType = 'Forfeited';
+
+            const newId = `SET-2026-${Math.floor(100 + Math.random() * 900)}`;
+
+            // 1. Create and Save Settlement Record (Normalized keys for DB + LocalStorage)
+            const newSettlement = {
+                id: newId,
+                settlement_id: newId,
+                leaseId: leaseId,
+                lease_id: leaseId,
+                tenantName: tenantName,
+                tenant_name: tenantName,
+                property: property,
+                property_name: property,
+                unit: unit,
+                unit_no: unit,
+                vacateDate: vacateDateInput,
+                vacate_date: vacateDateInput,
+                initialDeposit: baseDeposit,
+                initial_deposit: baseDeposit,
+                deductions: totalDeductions,
+                netRefund: netRefund,
+                net_refund: netRefund,
+                status: statusType,
+                paymentMethod: payMethod,
+                referenceCode: refCode,
+                notes: notes || 'Exit clearance finalized and deposit disbursed.',
+                created_at: new Date().toISOString()
+            };
+
+            let list = getSettlements();
+            list.unshift(newSettlement);
+            saveSettlements(list);
+
+            // 2. Record Outflow Transaction Ledger if refund amount > 0
+            if (netRefund > 0) {
+                let txns = getTransactions();
+                txns.unshift({
+                    refCode: refCode.startsWith('#') ? refCode : '#' + refCode,
+                    txnId: `TXN-2026-OUT-${Math.floor(100 + Math.random() * 900)}`,
+                    payer: tenantName,
+                    property: property,
+                    unit: unit,
+                    fullLocation: `${property} • ${unit}`,
+                    category: 'Security Deposit Refund',
+                    direction: 'OUTFLOW',
+                    grossAmount: `-${formatPeso(netRefund)}`,
+                    channel: payMethod,
+                    status: 'Disbursed',
+                    timestamp: new Date().toLocaleDateString('en-US', { month:'short', day:'2-digit', year:'numeric' })
+                });
+                saveTransactions(txns);
+            }
+
+            // 3. Mark Lease as ENDED
+            let leases = getLeases();
+            leases = leases.map(l => {
+                const currentLeaseId = l.id || l.lease_id;
+                if (currentLeaseId === leaseId) {
+                    return { ...l, status: 'ENDED', active: false };
+                }
+                return l;
+            });
+            saveLeases(leases);
+
+            // 4. Revert Unit Status back to VACANT
+            let units = getUnits();
+            units = units.map(u => {
+                const unitIdentifier = (u.unit_no || u.unitNo || u.id || '').toString().toLowerCase();
+                const targetUnit = unit.toString().toLowerCase();
+                const unitProp = (u.property_name || u.property || '').toString().toLowerCase();
+                const targetProp = property.toString().toLowerCase();
+
+                if (
+                    (unitIdentifier === targetUnit && (unitProp === '' || unitProp === targetProp)) ||
+                    (`${unitProp} • ${unitIdentifier}`.includes(targetUnit))
+                ) {
+                    return { ...u, status: 'VACANT', tenant: null, tenantName: null };
+                }
+                return u;
+            });
+            saveUnits(units);
+
+            // 5. Trigger System Notification
+            let notifications = getNotifications();
+            notifications.unshift({
+                id: `NOTIF-${Date.now()}`,
+                pov: 'client',
+                category: 'payment',
+                status: 'unread',
+                title: 'Move-Out Security Deposit Refund Disbursed',
+                time: 'Just now',
+                description: `Exit settlement ${newId} finalized for ${unit}. Deposit held: ${formatPeso(baseDeposit)} | Deductions: ${formatPeso(totalDeductions)} | Net Refund: <strong>${formatPeso(netRefund)}</strong> disbursed via ${payMethod}.`,
+                property: `${property} • ${unit}`,
+                tag: `Ref ${refCode}`,
+                tagColor: 'var(--success)',
+                actionUrl: 'client-billing.html',
+                actionText: 'View Settlement Details'
+            });
+            saveNotifications(notifications);
+
+            // 6. Refresh UI and Reset Inputs
+            renderSettlementTable();
+            updateKPIs();
+            closeModal('settlementModal');
+
+            document.getElementById("leaseSelect").value = '';
+            document.getElementById("deductElectric").value = '0';
+            document.getElementById("deductWater").value = '0';
+            document.getElementById("deductDamage").value = '0';
+            document.getElementById("deductCleaning").value = '0';
+            document.getElementById("modalNotes").value = '';
+        }
+
+        function deleteSettlement(id) {
+            if (!confirm("Are you sure you want to delete this move-out settlement log?")) return;
+            let list = getSettlements().filter(s => (s.id || s.settlement_id) !== id);
+            saveSettlements(list);
+            renderSettlementTable();
+            updateKPIs();
+        }
+
+        function viewStatement(id) {
+            const list = getSettlements();
+            const item = list.find(s => (s.id || s.settlement_id) === id);
+            if (item) {
+                alert(`ARGO Move-Out Settlement Certificate — ${item.id || item.settlement_id}\n\n` +
+                      `Tenant: ${item.tenantName || item.tenant_name || 'N/A'}\n` +
+                      `Lease ID: ${item.leaseId || item.lease_id || 'N/A'}\n` +
+                      `Property: ${item.property || item.property_name || 'N/A'} (${item.unit || item.unit_no || 'N/A'})\n` +
+                      `Vacate Date: ${item.vacateDate || item.vacate_date || 'N/A'}\n` +
+                      `Initial Deposit: ${formatPeso(item.initialDeposit || item.initial_deposit)}\n` +
+                      `Total Deductions: ${formatPeso(item.deductions)}\n` +
+                      `Net Disbursed Refund: ${formatPeso(item.netRefund || item.net_refund)}\n` +
+                      `Status: ${item.status || 'Pending'}\n` +
+                      `Notes: ${item.notes || 'No remarks provided.'}`);
+            }
+        }
+
+        function updateHeaderBadge() {
+            const notifs = getNotifications().filter(n => (n.pov === 'admin' || !n.pov) && n.status === 'unread');
+            const badge = document.getElementById('headerNotifBadge');
+            if (badge) badge.textContent = notifs.length;
+        }
+
+        window.onclick = function(event) {
+            if (event.target.classList && event.target.classList.contains('modal-overlay')) {
+                event.target.classList.remove("show");
+            }
+        };
+
+        function filterTable() {
+            const searchValue = document.getElementById("searchInput").value.toLowerCase();
+            const propertyValue = document.getElementById("propertyFilter").value;
+            const statusValue = document.getElementById("statusFilter").value;
+
+            const rows = document.querySelectorAll("#settlementTable tr");
+
+            rows.forEach(row => {
+                const text = row.innerText.toLowerCase();
+                const rowProperty = row.dataset.property || "";
+                const rowStatus = row.dataset.status || "";
+
+                const matchesSearch = text.includes(searchValue);
+                const matchesProperty = propertyValue === "" || rowProperty === propertyValue;
+                const matchesStatus = statusValue === "" || rowStatus === statusValue;
+
+                if (matchesSearch && matchesProperty && matchesStatus) {
+                    row.style.display = "";
+                } else {
+                    row.style.display = "none";
+                }
+            });
+        }
+
+        function resetFilters() {
+            document.getElementById("searchInput").value = "";
+            document.getElementById("propertyFilter").value = "";
+            document.getElementById("statusFilter").value = "";
+            filterTable();
+        }
+
+        const userProfileBtn = document.getElementById('userProfileBtn');
+        const userDropdown = document.getElementById('userDropdown');
+
+        if (userProfileBtn && userDropdown) {
+            userProfileBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                userDropdown.classList.toggle('show');
+            });
+
+            document.addEventListener('click', () => { 
+                userDropdown.classList.remove('show'); 
+            });
+        }
+    </script>
+</body>

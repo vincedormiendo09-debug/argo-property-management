@@ -1,0 +1,1571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lease & Occupancy Hub | ARGO Property Management</title>
+
+    <!-- 🔒 Strict Role Guard (Executes before rendering) -->
+    <script src="js/auth.js"></script>
+
+    <!-- Inter Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+    <style>
+        :root {
+            --primary: #2563EB;
+            --sidebar: #0F172A;
+            --active: #1E293B;
+            --canvas: #F3F4F6;
+            --white: #FFFFFF;
+            --border: #E5E7EB;
+            --text: #111827;
+            --muted: #6B7280;
+            --success: #059669;
+            --danger: #E11D48;
+            --warning: #D97706;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Inter", sans-serif;
+            background: var(--canvas);
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        button, input, select, textarea {
+            font-family: inherit;
+        }
+
+        /* ================= SIDEBAR ================= */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 240px;
+            height: 100vh;
+            background: #0F172A;
+            color: white;
+            padding: 20px 14px;
+            z-index: 1000;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 5px 12px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .brand-logo {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: #2563EB;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 700;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .sidebar-brand h2 {
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .sidebar-brand span {
+            font-size: 9px;
+            color: #94A3B8;
+            margin-top: 1px;
+            display: block;
+            letter-spacing: 0.8px;
+        }
+
+        .sidebar-nav {
+            margin-top: 16px;
+            flex: 1;
+        }
+
+        .nav-section-title {
+            font-size: 10px;
+            font-weight: 700;
+            color: #64748B;
+            letter-spacing: 0.08em;
+            padding: 14px 10px 6px;
+            text-transform: uppercase;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            color: #CBD5E1;
+            text-decoration: none;
+            border-radius: 6px;
+            margin-bottom: 3px;
+            font-size: 13px;
+            transition: 0.15s ease;
+        }
+
+        .nav-item:hover {
+            background: #172033;
+            color: white;
+        }
+
+        .nav-item.active {
+            background: #1E293B;
+            color: white;
+            font-weight: 500;
+        }
+
+        .nav-item.active i {
+            color: #60A5FA;
+        }
+
+        .nav-item i {
+            width: 20px;
+            font-size: 16px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .sidebar-footer {
+            padding: 14px 10px 0;
+            border-top: 1px solid rgba(255,255,255,0.08);
+            font-size: 11px;
+            color: #64748B;
+        }
+
+        /* ================= HEADER ================= */
+        .top-header {
+            position: fixed;
+            top: 0;
+            left: 240px;
+            right: 0;
+            height: 64px;
+            background: var(--sidebar);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 28px;
+            z-index: 900;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            color: white;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .admin-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #1E293B;
+            border: 1px solid #334155;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #E5E7EB;
+            font-weight: 600;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+        }
+
+        .notification-header-link {
+            position: relative;
+            font-size: 18px;
+            color: #CBD5E1;
+            background: #1E293B;
+            border: 1px solid #334155;
+            width: 38px;
+            height: 38px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            transition: 0.2s ease;
+        }
+
+        .notification-header-link:hover {
+            background: #2563EB;
+            color: white;
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--danger);
+            color: white;
+            font-size: 9px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            border: 2px solid var(--sidebar);
+        }
+
+        /* USER PROFILE DROPDOWN */
+        .user-dropdown-container { position: relative; }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 6px;
+        }
+
+        .user-profile:hover { background: rgba(255,255,255,0.05); }
+
+        .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .user-info strong { display: block; font-size: 12px; }
+        .user-info span { display: block; color: #94A3B8; font-size: 10px; }
+
+        .dropdown-menu {
+            position: absolute;
+            right: 0;
+            top: 48px;
+            width: 180px;
+            background: white;
+            border: 1px solid #E5E7EB;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 1000;
+        }
+
+        .dropdown-menu.show { display: flex; }
+
+        .dropdown-item {
+            padding: 10px 14px;
+            color: #374151;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            transition: 0.15s;
+            cursor: pointer;
+        }
+
+        .dropdown-item:hover { background: #F3F4F6; color: #111827; }
+        .dropdown-item.danger { color: var(--danger); }
+        .dropdown-item.danger:hover { background: #FFF1F2; }
+
+        /* ================= MAIN CONTENT ================= */
+        .main-content {
+            margin-left: 240px;
+            padding: 88px 28px 40px;
+            min-height: 100vh;
+            max-width: 1600px;
+        }
+
+        .page-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 22px;
+        }
+
+        .eyebrow {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--muted);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .page-header h1 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .page-header p {
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .primary-btn {
+            border: none;
+            background: var(--primary);
+            color: white;
+            border-radius: 6px;
+            padding: 9px 16px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: 0.2s ease;
+        }
+
+        .primary-btn:hover { background: #1D4ED8; }
+
+        .secondary-btn {
+            height: 38px;
+            border: 1px solid var(--border);
+            background: white;
+            border-radius: 6px;
+            padding: 0 13px;
+            font-size: 12px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            color: var(--text);
+        }
+
+        .secondary-btn:hover { background: #F9FAFB; }
+
+        /* ================= KPI CARDS ================= */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 22px;
+        }
+
+        .kpi-card {
+            background: var(--white);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 18px;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+        }
+
+        .kpi-label {
+            color: var(--muted);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .kpi-value {
+            font-size: 24px;
+            font-weight: 600;
+            color: #111827;
+        }
+
+        .kpi-description {
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 4px;
+        }
+
+        /* ================= TABS ================= */
+        .tabs {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 4px;
+            display: inline-flex;
+            gap: 4px;
+            margin-bottom: 16px;
+        }
+
+        .tab {
+            border: none;
+            background: transparent;
+            color: var(--muted);
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .tab:hover { background: #F9FAFB; }
+
+        .tab.active {
+            background: #F3F4F6;
+            color: var(--text);
+            font-weight: 600;
+        }
+
+        /* ================= FILTER BAR ================= */
+        .filter-bar {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .search-box {
+            position: relative;
+            flex: 1;
+            min-width: 220px;
+        }
+
+        .search-box i {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--muted);
+        }
+
+        .search-box input {
+            width: 100%;
+            height: 38px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0 12px 0 36px;
+            font-size: 12px;
+            outline: none;
+        }
+
+        .search-box input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+        }
+
+        .filter-select {
+            height: 38px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0 12px;
+            font-size: 12px;
+            color: var(--text);
+            background: white;
+            outline: none;
+        }
+
+        /* ================= TABLE ================= */
+        .table-card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+        }
+
+        .table-wrapper { overflow-x: auto; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 900px;
+        }
+
+        th {
+            background: #F9FAFB;
+            color: var(--muted);
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            text-align: left;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 14px 16px;
+            font-size: 12px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text);
+        }
+
+        tr:hover { background: #F9FAFB; }
+
+        .lease-id { font-weight: 600; color: var(--text); }
+        .tenant-name { font-weight: 600; color: var(--text); }
+        .property-info { color: var(--muted); font-size: 11px; margin-top: 2px; }
+
+        /* STATUS BADGES */
+        .status {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 8px;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: 500;
+        }
+
+        .status.active { color: #047857; background: #ECFDF5; }
+        .status.draft { color: #B45309; background: #FEF3C7; }
+        .status.ended { color: #6B7280; background: #F3F4F6; }
+
+        .action-button {
+            border: none;
+            background: transparent;
+            color: var(--muted);
+            font-size: 16px;
+            cursor: pointer;
+            padding: 4px 6px;
+            border-radius: 4px;
+        }
+
+        .action-button:hover { color: var(--primary); background: #EFF6FF; }
+        .action-button.danger-btn:hover { color: var(--danger); background: #FFF1F2; }
+
+        .table-footer {
+            padding: 14px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: var(--muted);
+            font-size: 12px;
+            border-top: 1px solid var(--border);
+        }
+
+        /* ================= MODAL ================= */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.55);
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            padding: 20px;
+        }
+
+        .modal-overlay.show { display: flex; }
+
+        .modal {
+            width: 100%;
+            max-width: 540px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+            overflow: hidden;
+        }
+
+        .modal-header {
+            padding: 18px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 { font-size: 16px; font-weight: 600; }
+
+        .close-btn {
+            border: none;
+            background: none;
+            font-size: 18px;
+            cursor: pointer;
+            color: var(--muted);
+        }
+
+        .modal-body { padding: 20px; }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .form-group { margin-bottom: 14px; }
+        .form-group.full { grid-column: span 2; }
+
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 8px 10px;
+            font-size: 13px;
+            outline: none;
+        }
+
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+        }
+
+        .modal-footer {
+            padding: 14px 20px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            background: #F9FAFB;
+        }
+
+        /* RESPONSIVE */
+        @media (max-width: 1000px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 768px) {
+            .sidebar { width: 70px; padding: 20px 8px; }
+            .sidebar-brand h2, .sidebar-brand span, .nav-section-title, .nav-item span { display: none; }
+            .nav-item { justify-content: center; padding: 12px; }
+            .top-header { left: 70px; padding: 0 15px; }
+            .main-content { margin-left: 70px; padding: 85px 15px 30px; }
+            .page-header { flex-direction: column; gap: 14px; }
+            .filter-bar { flex-direction: column; align-items: stretch; }
+            .tabs { width: 100%; overflow-x: auto; }
+            .tab { white-space: nowrap; }
+            .table-footer { flex-direction: column; gap: 12px; align-items: flex-start; }
+            .form-grid { grid-template-columns: 1fr; }
+            .form-group.full { grid-column: span 1; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ================= SIDEBAR ================= -->
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-logo">A</div>
+            <div>
+                <h2>ARGO</h2>
+                <span>Property Management</span>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav" id="sidebarNav">
+            <!-- POPULATED DYNAMICALLY BY JAVASCRIPT -->
+        </nav>
+
+        <div class="sidebar-footer">
+            <span>ARGO v0.5</span>
+        </div>
+    </aside>
+
+    <!-- ================= TOP HEADER ================= -->
+    <header class="top-header">
+        <div class="header-left">
+            <div class="admin-badge">
+                <i class="bi bi-shield-lock-fill" style="color: #60A5FA;"></i>
+                <span>Admin Command Center</span>
+            </div>
+        </div>
+
+        <div class="header-right">
+            <!-- NOTIFICATION BELL -->
+            <a href="notification.html" class="notification-header-link" title="Notifications Center">
+                <i class="bi bi-bell"></i>
+                <div class="notification-badge" id="headerNotifBadge">0</div>
+            </a>
+
+            <div class="user-dropdown-container">
+                <div class="user-profile" id="userProfileBtn">
+                    <div class="avatar" id="userAvatar">JD</div>
+                    <div class="user-info">
+                        <strong id="userName">Property Admin</strong>
+                        <span id="userRoleBadge">Property Manager</span>
+                    </div>
+                    <i class="bi bi-chevron-down" style="font-size: 10px; color: #94A3B8;"></i>
+                </div>
+
+                <div class="dropdown-menu" id="userDropdown">
+                    <a href="account.html" class="dropdown-item">
+                        <i class="bi bi-person-gear"></i>
+                        <span>Account Settings</span>
+                    </a>
+                    <div class="dropdown-item danger" onclick="logoutUser()">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Log Out</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ================= MAIN CONTENT ================= -->
+    <main class="main-content">
+
+        <!-- PAGE HEADER -->
+        <div class="page-header">
+            <div>
+                <div class="eyebrow">OCCUPANCY & CONTRACT WORKFLOW</div>
+                <h1>Lease & Occupancy Hub</h1>
+                <p>Manage legal lease agreements, start/end dates, security deposits, and unit occupancy status.</p>
+            </div>
+
+            <button class="primary-btn" onclick="openLeaseModal()">
+                <i class="bi bi-plus-lg"></i>
+                <span>Draft New Lease</span>
+            </button>
+        </div>
+
+        <!-- KPI CARDS -->
+        <section class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-label">Total Lease Agreements</div>
+                <div class="kpi-value" style="color:#2563EB;" id="kpiTotalLeases">0</div>
+                <div class="kpi-description">All-time executed agreements</div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-label">Active Occupancies</div>
+                <div class="kpi-value" style="color:#059669;" id="kpiActiveLeases">0</div>
+                <div class="kpi-description">Units currently occupied</div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-label">Pending / Draft Leases</div>
+                <div class="kpi-value" style="color:#D97706;" id="kpiDraftLeases">0</div>
+                <div class="kpi-description">Awaiting move-in execution</div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-label">Expiring (Next 30 Days)</div>
+                <div class="kpi-value" style="color:#E11D48;" id="kpiExpiringLeases">0</div>
+                <div class="kpi-description">Requires renewal or move-out</div>
+            </div>
+        </section>
+
+        <!-- TABS -->
+        <div class="tabs">
+            <button class="tab active" onclick="setTabFilter('ALL', this)">All Leases</button>
+            <button class="tab" onclick="setTabFilter('ACTIVE', this)">Active Occupancies</button>
+            <button class="tab" onclick="setTabFilter('DRAFT', this)">Drafts / Pending</button>
+            <button class="tab" onclick="setTabFilter('ENDED', this)">Ended / Expired</button>
+        </div>
+
+        <!-- FILTER BAR -->
+        <div class="filter-bar">
+            <div class="search-box">
+                <i class="bi bi-search"></i>
+                <input type="text" id="searchInput" placeholder="Search lease ID, tenant name, or unit number..." onkeyup="applyAllFilters()">
+            </div>
+
+            <select class="filter-select" id="statusFilter" onchange="applyAllFilters()">
+                <option value="">All Statuses</option>
+                <option value="ACTIVE">Active (Occupied)</option>
+                <option value="DRAFT">Draft / Pending</option>
+                <option value="ENDED">Ended (Vacated)</option>
+            </select>
+
+            <button class="secondary-btn" onclick="resetFilters()">
+                <i class="bi bi-arrow-counterclockwise"></i>
+                <span>Reset</span>
+            </button>
+        </div>
+
+        <!-- TABLE -->
+        <div class="table-card">
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>LEASE ID</th>
+                            <th>TENANT NAME</th>
+                            <th>PROPERTY / UNIT</th>
+                            <th>LEASE TERM (START – END)</th>
+                            <th>MONTHLY RENT</th>
+                            <th>DEPOSIT</th>
+                            <th>OCCUPANCY STATUS</th>
+                            <th>ACTIONS & TRANSITIONS</th>
+                        </tr>
+                    </thead>
+                    <tbody id="leaseTable">
+                        <!-- RENDERED DYNAMICALLY FROM LOCALSTORAGE / POSTGRESQL -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- TABLE FOOTER -->
+            <div class="table-footer">
+                <span id="showingCountText">Showing 0 leases</span>
+            </div>
+        </div>
+    </main>
+
+    <!-- ================= MODAL 1: DRAFT NEW LEASE ================= -->
+    <div class="modal-overlay" id="leaseModal">
+        <div class="modal">
+            <div class="modal-header">
+                <div>
+                    <span class="eyebrow">LEASING DESK</span>
+                    <h2>Draft New Lease Agreement</h2>
+                </div>
+                <button class="close-btn" onclick="closeModal('leaseModal')"><i class="bi bi-x-lg"></i></button>
+            </div>
+
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Tenant Name</label>
+                    <select id="modalTenantName">
+                        <option value="">Select Tenant...</option>
+                        <!-- DYNAMICALLY POPULATED -->
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Property & Unit Location</label>
+                    <select id="modalUnitLocation">
+                        <option value="">Select Unit Location...</option>
+                        <!-- DYNAMICALLY POPULATED -->
+                    </select>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Lease Start Date</label>
+                        <input type="date" id="modalStartDate">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Lease End Date</label>
+                        <input type="date" id="modalEndDate">
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Agreed Monthly Rent (₱)</label>
+                        <input type="number" id="modalRentAmount" placeholder="e.g. 15000" min="0" step="0.01">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Security Deposit (₱)</label>
+                        <input type="number" id="modalDepositAmount" placeholder="e.g. 30000" min="0" step="0.01">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Initial Status Strategy</label>
+                    <select id="modalStatusSelect">
+                        <option value="ACTIVE" selected>ACTIVE — Immediate Move-In (Generates Rent Invoice)</option>
+                        <option value="DRAFT">DRAFT — Pending Move-In Execution</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="secondary-btn" onclick="closeModal('leaseModal')">Cancel</button>
+                <button class="primary-btn" onclick="saveLease()"><i class="bi bi-check-lg"></i> Save & Execute Lease</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= MODAL 2: MOVE-OUT / SETTLEMENT ================= -->
+    <div class="modal-overlay" id="moveOutModal">
+        <div class="modal">
+            <div class="modal-header">
+                <div>
+                    <span class="eyebrow">OCCUPANCY TERMINATION</span>
+                    <h2>Process Move-Out & Settlement</h2>
+                </div>
+                <button class="close-btn" onclick="closeModal('moveOutModal')"><i class="bi bi-x-lg"></i></button>
+            </div>
+
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Target Lease / Occupant</label>
+                    <input type="text" id="moveOutLeaseRef" readonly style="background:#F3F4F6; color:#6B7280;">
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Actual Vacate / Move-Out Date</label>
+                        <input type="date" id="moveOutDate">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Security Deposit Refund Status</label>
+                        <select id="moveOutDepositStatus">
+                            <option value="Full Refund">Full Refund (No Damages)</option>
+                            <option value="Partial Refund">Partial Refund (Deductions Applied)</option>
+                            <option value="Forfeited">Forfeited (Unpaid Utility / Damage)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Move-Out Clearance Notes</label>
+                    <textarea id="moveOutNotes" rows="3" placeholder="Key handover confirmed, unit inspected, release unit status back to VACANT..."></textarea>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="secondary-btn" onclick="closeModal('moveOutModal')">Cancel</button>
+                <button class="primary-btn" style="background:#E11D48;" onclick="executeMoveOut()"><i class="bi bi-box-arrow-right"></i> Execute Move-Out & Revert Unit</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= JAVASCRIPT ================= -->
+    <script>
+        // Secure Logout Handler
+        function logoutUser() {
+            localStorage.removeItem('argo_pov');
+            localStorage.removeItem('user_role');
+            localStorage.removeItem('role');
+            localStorage.removeItem('token');
+            localStorage.removeItem('argo_user');
+            window.location.replace('index.html');
+        }
+
+        function renderSidebar() {
+            const nav = document.getElementById('sidebarNav');
+            if (nav) {
+                nav.innerHTML = `
+                    <div class="nav-section-title">OVERVIEW</div>
+                    <a href="dashboard.html" class="nav-item">
+                        <i class="bi bi-grid-1x2"></i>
+                        <span>Dashboard</span>
+                    </a>
+
+                    <div class="nav-section-title">PROPERTY OPERATIONS</div>
+                    <a href="properties.html" class="nav-item">
+                        <i class="bi bi-buildings"></i>
+                        <span>Properties</span>
+                    </a>
+                    <a href="buildings.html" class="nav-item">
+                        <i class="bi bi-building"></i>
+                        <span>Buildings</span>
+                    </a>
+                    <a href="units.html" class="nav-item">
+                        <i class="bi bi-door-open"></i>
+                        <span>Units</span>
+                    </a>
+                    <a href="tenants.html" class="nav-item">
+                        <i class="bi bi-people"></i>
+                        <span>Tenants</span>
+                    </a>
+                    <a href="owners.html" class="nav-item">
+                        <i class="bi bi-person-badge"></i>
+                        <span>Owners</span>
+                    </a>
+                    <a href="property-ownership.html" class="nav-item">
+                        <i class="bi bi-pie-chart"></i>
+                        <span>Fractional Ownership</span>
+                    </a>
+                    <a href="leases.html" class="nav-item active">
+                        <i class="bi bi-file-earmark-text"></i>
+                        <span>Leases</span>
+                    </a>
+
+                    <div class="nav-section-title">FINANCE & SERVICES</div>
+                    <a href="rent-collection.html" class="nav-item">
+                        <i class="bi bi-cash-stack"></i>
+                        <span>Rent Collection</span>
+                    </a>
+                    <a href="transaction.html" class="nav-item">
+                        <i class="bi bi-receipt-cutoff"></i>
+                        <span>Transactions & Ledger</span>
+                    </a>
+                    <a href="utilities.html" class="nav-item">
+                        <i class="bi bi-lightning-charge"></i>
+                        <span>Utilities</span>
+                    </a>
+                    <a href="meter-readings.html" class="nav-item">
+                        <i class="bi bi-speedometer2"></i>
+                        <span>Meter Readings</span>
+                    </a>
+                    <a href="maintenance.html" class="nav-item">
+                        <i class="bi bi-tools"></i>
+                        <span>Maintenance</span>
+                    </a>
+
+                    <div class="nav-section-title">RECORDS & REPORTS</div>
+                    <a href="inspections.html" class="nav-item">
+                        <i class="bi bi-clipboard-check"></i>
+                        <span>Inspections</span>
+                    </a>
+                    <a href="move-in-checklist.html" class="nav-item">
+                        <i class="bi bi-check2-square"></i>
+                        <span>Move-In Checklist</span>
+                    </a>
+                    <a href="move-out-settlement.html" class="nav-item">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Move-Out Settlement</span>
+                    </a>
+                    <a href="documents.html" class="nav-item">
+                        <i class="bi bi-folder2-open"></i>
+                        <span>Documents</span>
+                    </a>
+                    <a href="reports.html" class="nav-item">
+                        <i class="bi bi-bar-chart"></i>
+                        <span>Reports</span>
+                    </a>
+
+                    <div class="nav-section-title">SYSTEM</div>
+                    <a href="settings.html" class="nav-item">
+                        <i class="bi bi-gear"></i>
+                        <span>Settings</span>
+                    </a>
+                    <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Log Out</span>
+                    </a>
+                `;
+            }
+        }
+
+        // Database Schema Fallback
+        const DEFAULT_LEASES = [];
+
+        function getLeases() {
+            try {
+                return JSON.parse(localStorage.getItem('argo_leases') || '[]');
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function saveLeases(leases) {
+            localStorage.setItem('argo_leases', JSON.stringify(leases));
+        }
+
+        function getInvoices() {
+            try {
+                return JSON.parse(localStorage.getItem('argo_invoices') || '[]');
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function saveInvoices(invoices) {
+            localStorage.setItem('argo_invoices', JSON.stringify(invoices));
+        }
+
+        function getTenants() {
+            try {
+                return JSON.parse(localStorage.getItem('argo_tenants') || '[]');
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function saveTenants(tenants) {
+            localStorage.setItem('argo_tenants', JSON.stringify(tenants));
+        }
+
+        function getUnits() {
+            try {
+                return JSON.parse(localStorage.getItem('argo_units') || '[]');
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function saveUnits(units) {
+            localStorage.setItem('argo_units', JSON.stringify(units));
+        }
+
+        function getNotifications() {
+            try {
+                return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
+            } catch (e) {
+                return [];
+            }
+        }
+
+        let activeTabStatus = "ALL";
+        let targetLeaseIdForMoveOut = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const role = localStorage.getItem('argo_pov') || localStorage.getItem('user_role') || localStorage.getItem('role');
+            if (!role) {
+                window.location.replace('index.html');
+                return;
+            }
+            renderSidebar();
+            loadUserData();
+            populateModalDropdowns();
+            renderLeasesTable();
+            updateKPIs();
+            updateHeaderBadge();
+        });
+
+        function loadUserData() {
+            try {
+                const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+                if (user.name) {
+                    const userNameEl = document.getElementById('userName');
+                    const userAvatarEl = document.getElementById('userAvatar');
+                    if (userNameEl) userNameEl.textContent = user.name;
+                    if (userAvatarEl) userAvatarEl.textContent = user.avatar || user.name.substring(0, 2).toUpperCase();
+                }
+            } catch (e) {
+                console.error("Error loading user data", e);
+            }
+        }
+
+        function populateModalDropdowns() {
+            const tenants = getTenants();
+            const units = getUnits();
+
+            const tenantSelect = document.getElementById('modalTenantName');
+            const unitSelect = document.getElementById('modalUnitLocation');
+
+            if (tenantSelect) {
+                tenantSelect.innerHTML = '<option value="">Select Tenant...</option>';
+                tenants.forEach(t => {
+                    const tenantName = t.name || `${t.first_name || ''} ${t.last_name || ''}`.trim() || 'Tenant';
+                    tenantSelect.innerHTML += `<option value="${tenantName}">${tenantName}</option>`;
+                });
+            }
+
+            if (unitSelect) {
+                unitSelect.innerHTML = '<option value="">Select Unit Location...</option>';
+                units.forEach(u => {
+                    const uName = u.unit_no || u.unitNo || u.unit_name || u.id;
+                    const pName = u.property_name || u.property || 'Property';
+                    const unitStatus = u.status ? ` (${u.status})` : '';
+                    unitSelect.innerHTML += `<option value="${pName} • ${uName}">${pName} • ${uName}${unitStatus}</option>`;
+                });
+            }
+        }
+
+        function renderLeasesTable() {
+            const leases = getLeases();
+            const tbody = document.getElementById('leaseTable');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            if (leases.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--muted, #6B7280); padding:30px;">No lease agreements found. Click "Draft New Lease" to add one.</td></tr>`;
+                document.getElementById('showingCountText').textContent = `Showing 0 leases`;
+                return;
+            }
+
+            leases.forEach(l => {
+                const tr = document.createElement('tr');
+                tr.dataset.status = l.status;
+
+                let badgeHtml = '';
+                if (l.status === 'ACTIVE') {
+                    badgeHtml = `<span class="status active" style="background:#ECFDF5; color:#059669; padding:4px 8px; border-radius:4px; font-weight:600; font-size:12px;">ACTIVE (Occupied)</span>`;
+                } else if (l.status === 'DRAFT') {
+                    badgeHtml = `<span class="status draft" style="background:#FEF3C7; color:#D97706; padding:4px 8px; border-radius:4px; font-weight:600; font-size:12px;">DRAFT (Pending Move-In)</span>`;
+                } else {
+                    badgeHtml = `<span class="status ended" style="background:#F3F4F6; color:#6B7280; padding:4px 8px; border-radius:4px; font-weight:600; font-size:12px;">ENDED (Vacated)</span>`;
+                }
+
+                let actionsHtml = `
+                    <button class="action-button" title="View Agreement" onclick="viewLeaseDetails('${l.id}')"><i class="bi bi-eye"></i></button>
+                `;
+
+                if (l.status === 'DRAFT') {
+                    actionsHtml += `
+                        <button class="primary-btn" style="padding:4px 8px; font-size:11px;" onclick="activateLease('${l.id}')">
+                            <i class="bi bi-box-arrow-in-right"></i> Execute Move-In
+                        </button>
+                    `;
+                } else if (l.status === 'ACTIVE') {
+                    actionsHtml += `
+                        <button class="action-button danger-btn" title="Process Move-Out / End Occupancy" onclick="openMoveOutModal('${l.id}', '${escapeQuotes(l.tenantName || l.tenant_name)}', '${escapeQuotes(l.unit)}')">
+                            <i class="bi bi-box-arrow-right"></i>
+                        </button>
+                    `;
+                }
+
+                const displayRent = parseFloat(l.rent || l.rent_amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                const displayDeposit = l.deposit || `₱${parseFloat(l.deposit_amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+
+                tr.innerHTML = `
+                    <td><div class="lease-id" style="font-weight:600;">${l.id}</div></td>
+                    <td>
+                        <div class="tenant-name" style="font-weight:600;">${l.tenantName || l.tenant_name}</div>
+                        <div class="property-info" style="font-size:12px; color:#6B7280;">Individual Occupant</div>
+                    </td>
+                    <td>
+                        <div><strong>${l.property || 'Property'}</strong></div>
+                        <div class="property-info" style="font-size:12px; color:#6B7280;">${l.unit}</div>
+                    </td>
+                    <td>${l.term || `${l.start_date || 'N/A'} – ${l.end_date || 'N/A'}`}</td>
+                    <td><strong>₱${displayRent}</strong></td>
+                    <td>${displayDeposit}</td>
+                    <td>${badgeHtml}</td>
+                    <td>
+                        <div style="display:flex; gap:6px; align-items:center;">${actionsHtml}</div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            applyAllFilters();
+        }
+
+        function escapeQuotes(str) {
+            return (str || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        }
+
+        function viewLeaseDetails(leaseId) {
+            const leases = getLeases();
+            const l = leases.find(item => item.id === leaseId);
+            if (!l) return;
+            alert(`Lease Agreement: ${l.id}\nTenant: ${l.tenantName || l.tenant_name}\nUnit: ${l.unit}\nTerm: ${l.term}\nMonthly Rent: ₱${parseFloat(l.rent || 0).toLocaleString()}\nStatus: ${l.status}`);
+        }
+
+        function updateUnitOccupancyStatus(unitLocation, status) {
+            let units = getUnits();
+            units = units.map(u => {
+                const uNo = u.unit_no || u.unitNo || u.unit_name || u.id || '';
+                const pName = u.property_name || u.property || '';
+                const fullLoc = `${pName} • ${uNo}`;
+                if (fullLoc.includes(unitLocation) || unitLocation.includes(uNo)) {
+                    return { ...u, status: status };
+                }
+                return u;
+            });
+            saveUnits(units);
+        }
+
+        function updateTenantOccupancyStatus(tenantName, status, unitLocation) {
+            let tenants = getTenants();
+            tenants = tenants.map(t => {
+                const tName = t.name || `${t.first_name || ''} ${t.last_name || ''}`.trim();
+                if (tName.toLowerCase() === tenantName.toLowerCase()) {
+                    return {
+                        ...t,
+                        status: status,
+                        unit: status === 'ACTIVE' ? unitLocation : (t.unit || 'None')
+                    };
+                }
+                return t;
+            });
+            saveTenants(tenants);
+        }
+
+        function createRentInvoice(leaseId, tenantName, unitLocation, rentAmount, dueDate) {
+            let invoices = getInvoices();
+            invoices.unshift({
+                id: `INV-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+                lease_id: leaseId,
+                tenantName: tenantName,
+                type: 'Monthly Base Rent',
+                sub: unitLocation,
+                categoryType: 'Rent',
+                dueDate: dueDate !== 'N/A' ? dueDate : new Date().toISOString().split('T')[0],
+                amount: rentAmount,
+                status: 'Unpaid',
+                createdAt: new Date().toISOString()
+            });
+            saveInvoices(invoices);
+        }
+
+        function saveLease() {
+            const tenantName = document.getElementById('modalTenantName').value.trim();
+            const unitLocation = document.getElementById('modalUnitLocation').value.trim();
+            const rent = parseFloat(document.getElementById('modalRentAmount').value) || 0;
+            const deposit = parseFloat(document.getElementById('modalDepositAmount').value) || 0;
+            const status = document.getElementById('modalStatusSelect').value;
+            const startDate = document.getElementById('modalStartDate').value || 'N/A';
+            const endDate = document.getElementById('modalEndDate').value || 'N/A';
+
+            if (!tenantName || !unitLocation) {
+                alert('Please select a tenant and unit location.');
+                return;
+            }
+
+            if (rent <= 0) {
+                alert('Please enter a valid monthly rent amount.');
+                return;
+            }
+
+            const newId = `LSE-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+            const newLease = {
+                id: newId,
+                tenant_name: tenantName,
+                tenantName: tenantName,
+                property: unitLocation.split('•')[0].trim() || 'Property',
+                unit: unitLocation,
+                start_date: startDate,
+                end_date: endDate,
+                term: `${startDate} – ${endDate}`,
+                rent: rent,
+                rent_amount: rent,
+                deposit_amount: deposit,
+                deposit: `₱${deposit.toLocaleString('en-US', { minimumFractionDigits: 2 })} (${status === 'ACTIVE' ? 'Verified' : 'Pending'})`,
+                status: status,
+                created_at: new Date().toISOString()
+            };
+
+            let leases = getLeases();
+            leases.unshift(newLease);
+            saveLeases(leases);
+
+            if (status === 'ACTIVE') {
+                updateUnitOccupancyStatus(unitLocation, 'OCCUPIED');
+                updateTenantOccupancyStatus(tenantName, 'ACTIVE', unitLocation);
+                createRentInvoice(newId, tenantName, unitLocation, rent, endDate);
+            }
+
+            renderLeasesTable();
+            updateKPIs();
+            closeModal('leaseModal');
+
+            // Reset Form Fields
+            document.getElementById('modalTenantName').value = '';
+            document.getElementById('modalUnitLocation').value = '';
+            document.getElementById('modalRentAmount').value = '';
+            document.getElementById('modalDepositAmount').value = '';
+            document.getElementById('modalStartDate').value = '';
+            document.getElementById('modalEndDate').value = '';
+        }
+
+        function activateLease(leaseId) {
+            if (!confirm(`Execute move-in for lease ${leaseId}? This will transition the status to ACTIVE and generate the initial rent invoice.`)) return;
+
+            let leases = getLeases();
+            let targetUnit = '';
+            let targetTenant = '';
+            let targetRent = 0;
+            let targetDueDate = 'N/A';
+
+            leases = leases.map(l => {
+                if (l.id === leaseId) {
+                    targetUnit = l.unit;
+                    targetTenant = l.tenantName || l.tenant_name;
+                    targetRent = l.rent || l.rent_amount || 0;
+                    targetDueDate = l.end_date || (l.term ? l.term.split('–')[1]?.trim() : 'N/A');
+
+                    return {
+                        ...l,
+                        status: 'ACTIVE',
+                        deposit: (l.deposit || '').replace('Pending', 'Verified')
+                    };
+                }
+                return l;
+            });
+            saveLeases(leases);
+
+            if (targetUnit) {
+                updateUnitOccupancyStatus(targetUnit, 'OCCUPIED');
+                updateTenantOccupancyStatus(targetTenant, 'ACTIVE', targetUnit);
+                createRentInvoice(leaseId, targetTenant, targetUnit, targetRent, targetDueDate);
+            }
+
+            renderLeasesTable();
+            updateKPIs();
+        }
+
+        function openMoveOutModal(leaseId, tenantName, unitName) {
+            targetLeaseIdForMoveOut = leaseId;
+            const refInput = document.getElementById("moveOutLeaseRef");
+            const dateInput = document.getElementById("moveOutDate");
+            
+            if (refInput) refInput.value = `${leaseId} — ${tenantName} (${unitName})`;
+            if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
+            
+            document.getElementById("moveOutModal").classList.add("show");
+        }
+
+        function executeMoveOut() {
+            if (!targetLeaseIdForMoveOut) return;
+
+            const moveOutDate = document.getElementById('moveOutDate').value || new Date().toISOString().split('T')[0];
+            const depositStatus = document.getElementById('moveOutDepositStatus').value;
+            const moveOutNotes = document.getElementById('moveOutNotes').value.trim();
+
+            let leases = getLeases();
+            let targetUnit = '';
+            let targetTenant = '';
+
+            leases = leases.map(l => {
+                if (l.id === targetLeaseIdForMoveOut) {
+                    targetUnit = l.unit;
+                    targetTenant = l.tenantName || l.tenant_name;
+                    return {
+                        ...l,
+                        status: 'ENDED',
+                        deposit: `₱0.00 (${depositStatus})`,
+                        move_out_date: moveOutDate,
+                        move_out_notes: moveOutNotes,
+                        settled_at: new Date().toISOString()
+                    };
+                }
+                return l;
+            });
+            saveLeases(leases);
+
+            if (targetUnit) {
+                updateUnitOccupancyStatus(targetUnit, 'VACANT');
+                updateTenantOccupancyStatus(targetTenant, 'INACTIVE', 'None');
+            }
+
+            renderLeasesTable();
+            updateKPIs();
+            closeModal('moveOutModal');
+            targetLeaseIdForMoveOut = null;
+            document.getElementById('moveOutNotes').value = '';
+        }
+
+        function updateKPIs() {
+            const leases = getLeases();
+            let active = 0;
+            let draft = 0;
+            let expiring = 0;
+
+            const now = new Date();
+            const in30Days = new Date();
+            in30Days.setDate(now.getDate() + 30);
+
+            leases.forEach(l => {
+                if (l.status === 'ACTIVE') {
+                    active++;
+
+                    // Parse End Date for Expiration KPI
+                    let rawEnd = l.end_date;
+                    if (!rawEnd && l.term && l.term.includes('–')) {
+                        rawEnd = l.term.split('–')[1].trim();
+                    }
+
+                    if (rawEnd && rawEnd !== 'N/A') {
+                        const endDate = new Date(rawEnd);
+                        if (!isNaN(endDate) && endDate >= now && endDate <= in30Days) {
+                            expiring++;
+                        }
+                    }
+                } else if (l.status === 'DRAFT') {
+                    draft++;
+                }
+            });
+
+            document.getElementById('kpiTotalLeases').textContent = leases.length;
+            document.getElementById('kpiActiveLeases').textContent = active;
+            document.getElementById('kpiDraftLeases').textContent = draft;
+            document.getElementById('kpiExpiringLeases').textContent = expiring;
+        }
+
+        function updateHeaderBadge() {
+            const notifs = getNotifications().filter(n => (n.pov === 'admin' || !n.pov) && n.status === 'unread');
+            const badge = document.getElementById('headerNotifBadge');
+            if (badge) badge.textContent = notifs.length;
+        }
+
+        function openLeaseModal() { 
+            populateModalDropdowns();
+            document.getElementById("leaseModal").classList.add("show"); 
+        }
+
+        function closeModal(modalId) { 
+            document.getElementById(modalId).classList.remove("show"); 
+        }
+
+        window.onclick = function(event) {
+            if (event.target.classList.contains('modal-overlay')) {
+                event.target.classList.remove("show");
+            }
+        };
+
+        function setTabFilter(status, buttonEl) {
+            activeTabStatus = status;
+            document.querySelectorAll(".tab").forEach(tab => tab.classList.remove("active"));
+            buttonEl.classList.add("active");
+            applyAllFilters();
+        }
+
+        function applyAllFilters() {
+            const searchInput = document.getElementById("searchInput");
+            const statusFilter = document.getElementById("statusFilter");
+            const searchQuery = searchInput ? searchInput.value.toLowerCase().trim() : "";
+            const statusVal = statusFilter ? statusFilter.value : "";
+
+            const rows = document.querySelectorAll("#leaseTable tr");
+            let visibleCount = 0;
+            let totalRows = 0;
+
+            rows.forEach(row => {
+                if (row.dataset.status === undefined) return; // Skip empty notification row
+                totalRows++;
+                const text = row.innerText.toLowerCase();
+                const rowStatus = row.dataset.status;
+
+                const matchesTab = (activeTabStatus === "ALL" || rowStatus === activeTabStatus);
+                const matchesSearch = searchQuery === "" || text.includes(searchQuery);
+                const matchesStatus = (statusVal === "" || rowStatus === statusVal);
+
+                if (matchesTab && matchesSearch && matchesStatus) {
+                    row.style.display = "";
+                    visibleCount++;
+                } else {
+                    row.style.display = "none";
+                }
+            });
+
+            const countEl = document.getElementById('showingCountText');
+            if (countEl) {
+                countEl.textContent = totalRows === 0 ? "Showing 0 leases" : `Showing ${visibleCount} of ${totalRows} leases`;
+            }
+        }
+
+        function resetFilters() {
+            const searchInput = document.getElementById("searchInput");
+            const statusFilter = document.getElementById("statusFilter");
+            if (searchInput) searchInput.value = "";
+            if (statusFilter) statusFilter.value = "";
+            
+            const firstTab = document.querySelectorAll('.tab')[0];
+            if (firstTab) setTabFilter('ALL', firstTab);
+        }
+
+        const userProfileBtn = document.getElementById('userProfileBtn');
+        const userDropdown = document.getElementById('userDropdown');
+
+        if (userProfileBtn && userDropdown) {
+            userProfileBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                userDropdown.classList.toggle('show');
+            });
+
+            document.addEventListener('click', () => { 
+                userDropdown.classList.remove('show'); 
+            });
+        }
+    </script>
+</body>
+</html>

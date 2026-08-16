@@ -1,0 +1,1391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account Settings & Profile | ARGO Property Management</title>
+
+    <!-- 🔒 Strict Navigation Guard & Role Isolation -->
+    <script src="js/auth.js"></script>
+
+    <!-- Inter Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+    <style>
+        :root {
+            --primary: #2563EB;
+            --sidebar: #0F172A;
+            --active: #1E293B;
+            --canvas: #F3F4F6;
+            --white: #FFFFFF;
+            --border: #E5E7EB;
+            --text: #111827;
+            --muted: #6B7280;
+            --success: #059669;
+            --danger: #E11D48;
+            --warning: #D97706;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--canvas);
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        button, input, select, textarea {
+            font-family: inherit;
+        }
+
+        /* ================= SIDEBAR ================= */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 240px;
+            height: 100vh;
+            background: #0F172A;
+            color: white;
+            padding: 20px 14px;
+            z-index: 1000;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 5px 12px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .brand-logo {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 700;
+            color: white;
+            flex-shrink: 0;
+            transition: 0.2s ease;
+        }
+
+        .sidebar-brand h2 {
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .sidebar-brand span {
+            font-size: 9px;
+            color: #94A3B8;
+            margin-top: 1px;
+            display: block;
+            letter-spacing: 0.8px;
+        }
+
+        .sidebar-nav {
+            margin-top: 16px;
+            flex: 1;
+        }
+
+        .nav-section-title {
+            font-size: 10px;
+            font-weight: 700;
+            color: #64748B;
+            letter-spacing: 0.08em;
+            padding: 14px 10px 6px;
+            text-transform: uppercase;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            color: #CBD5E1;
+            text-decoration: none;
+            border-radius: 6px;
+            margin-bottom: 3px;
+            font-size: 13px;
+            transition: 0.15s ease;
+        }
+
+        .nav-item:hover {
+            background: #172033;
+            color: white;
+        }
+
+        .nav-item.active {
+            background: #1E293B;
+            color: white;
+            font-weight: 500;
+        }
+
+        .nav-item.active i {
+            color: #60A5FA;
+        }
+
+        .nav-item i {
+            width: 20px;
+            font-size: 16px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .sidebar-footer {
+            padding: 14px 10px 0;
+            border-top: 1px solid rgba(255,255,255,0.08);
+            font-size: 11px;
+            color: #64748B;
+        }
+
+        /* ================= TOP HEADER ================= */
+        .top-header {
+            position: fixed;
+            top: 0;
+            left: 240px;
+            right: 0;
+            height: 64px;
+            background: var(--sidebar);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 28px;
+            z-index: 900;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            color: white;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .role-badge-box {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #1E293B;
+            border: 1px solid #334155;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #E5E7EB;
+            font-weight: 600;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+        }
+
+        .notification-header-link {
+            position: relative;
+            font-size: 18px;
+            color: #CBD5E1;
+            background: #1E293B;
+            border: 1px solid #334155;
+            width: 38px;
+            height: 38px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            transition: 0.2s ease;
+        }
+
+        .notification-header-link:hover {
+            background: var(--primary);
+            color: white;
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--danger);
+            color: white;
+            font-size: 9px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            border: 2px solid var(--sidebar);
+        }
+
+        /* USER PROFILE DROPDOWN */
+        .user-dropdown-container { position: relative; }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 6px;
+        }
+
+        .user-profile:hover { background: rgba(255,255,255,0.05); }
+
+        .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .user-info strong { display: block; font-size: 12px; }
+        .user-info span { display: block; color: #94A3B8; font-size: 10px; }
+
+        .dropdown-menu {
+            position: absolute;
+            right: 0;
+            top: 48px;
+            width: 180px;
+            background: white;
+            border: 1px solid #E5E7EB;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 1000;
+        }
+
+        .dropdown-menu.show { display: flex; }
+
+        .dropdown-item {
+            padding: 10px 14px;
+            color: #374151;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            transition: 0.15s;
+            cursor: pointer;
+        }
+
+        .dropdown-item:hover { background: #F3F4F6; color: #111827; }
+        .dropdown-item.danger { color: var(--danger); }
+        .dropdown-item.danger:hover { background: #FFF1F2; }
+
+        /* ================= MAIN CONTENT ================= */
+        .main-content {
+            margin-left: 240px;
+            padding: 88px 28px 40px;
+            min-height: 100vh;
+            max-width: 1300px;
+        }
+
+        .page-header {
+            margin-bottom: 22px;
+        }
+
+        .eyebrow {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--muted);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .page-header h1 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .page-header p {
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        /* ACCOUNT LAYOUT GRID */
+        .account-grid {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 20px;
+            align-items: start;
+        }
+
+        /* ACCOUNT NAVIGATION MENU */
+        .account-nav-card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+        }
+
+        .user-preview-box {
+            text-align: center;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 16px;
+        }
+
+        .large-avatar {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: 700;
+            margin: 0 auto 12px;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+        }
+
+        .user-preview-box h2 {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .user-preview-box span {
+            font-size: 11px;
+            color: var(--muted);
+            display: block;
+            margin-top: 2px;
+        }
+
+        .role-pill {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-top: 8px;
+        }
+
+        .role-admin { background: #EFF6FF; color: #2563EB; border: 1px solid #BFDBFE; }
+        .role-owner { background: #ECFDF5; color: #059669; border: 1px solid #A7F3D0; }
+        .role-client { background: #FEF3C7; color: #D97706; border: 1px solid #FDE68A; }
+
+        .account-menu-list {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .account-menu-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            color: var(--muted);
+            font-size: 13px;
+            font-weight: 500;
+            text-decoration: none;
+            cursor: pointer;
+            transition: 0.15s;
+        }
+
+        .account-menu-item:hover {
+            background: #F3F4F6;
+            color: var(--text);
+        }
+
+        .account-menu-item.active {
+            background: #EFF6FF;
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        /* SETTINGS SECTION CARDS */
+        .settings-card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+            margin-bottom: 20px;
+        }
+
+        .card-header-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 4px;
+        }
+
+        .card-header-desc {
+            font-size: 12px;
+            color: var(--muted);
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 12px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .form-group.full-width {
+            grid-column: span 2;
+        }
+
+        .form-group label {
+            font-size: 11px;
+            font-weight: 700;
+            color: #374151;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .form-group input, .form-group select, .form-group textarea {
+            height: 40px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0 12px;
+            font-size: 13px;
+            color: var(--text);
+            outline: none;
+            background: white;
+            transition: 0.15s ease;
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+        }
+
+        .form-group input[readonly] {
+            background: #F9FAFB;
+            color: var(--muted);
+            cursor: not-allowed;
+        }
+
+        .toggle-group {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #F3F4F6;
+        }
+
+        .toggle-group:last-child { border-bottom: none; }
+
+        .toggle-title {
+            font-weight: 600;
+            font-size: 13px;
+            color: var(--text);
+        }
+
+        .toggle-desc {
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 2px;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 42px;
+            height: 22px;
+        }
+
+        .switch input { opacity: 0; width: 0; height: 0; }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            inset: 0;
+            background-color: #CBD5E1;
+            transition: .2s;
+            border-radius: 999px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .2s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider { background-color: var(--primary); }
+        input:checked + .slider:before { transform: translateX(20px); }
+
+        .primary-btn {
+            border: none;
+            background: var(--primary);
+            color: white;
+            border-radius: 6px;
+            padding: 10px 18px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: 0.2s ease;
+        }
+
+        .primary-btn:hover { filter: brightness(0.9); }
+
+        .secondary-btn {
+            height: 40px;
+            border: 1px solid var(--border);
+            background: white;
+            border-radius: 6px;
+            padding: 0 16px;
+            font-size: 13px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            color: var(--text);
+        }
+
+        .secondary-btn:hover { background: #F9FAFB; }
+
+        /* RESPONSIVE */
+        @media (max-width: 900px) {
+            .account-grid { grid-template-columns: 1fr; }
+            .form-grid { grid-template-columns: 1fr; }
+            .form-group.full-width { grid-column: span 1; }
+        }
+        @media (max-width: 768px) {
+            .sidebar { width: 70px; padding: 20px 8px; }
+            .sidebar-brand h2, .sidebar-brand span, .nav-section-title, .nav-item span { display: none; }
+            .nav-item { justify-content: center; padding: 12px; }
+            .top-header { left: 70px; padding: 0 15px; }
+            .main-content { margin-left: 70px; padding: 85px 15px 30px; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ================= SIDEBAR ================= -->
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-logo" id="brandLogo">A</div>
+            <div>
+                <h2>ARGO</h2>
+                <span id="portalBrandSubtitle">Property Management</span>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav" id="sidebarNav">
+            <!-- POPULATED DYNAMICALLY BY JAVASCRIPT BASED ON LOGGED-IN ROLE -->
+        </nav>
+
+        <div class="sidebar-footer">
+            <span id="portalVersionText">ARGO v0.5</span>
+        </div>
+    </aside>
+
+    <!-- ================= TOP HEADER ================= -->
+    <header class="top-header">
+        <div class="header-left">
+            <div id="headerRoleBadgeContainer" class="role-badge-box">
+                <i id="headerRoleIcon" class="bi bi-shield-lock-fill" style="color: #60A5FA;"></i>
+                <span id="headerRoleBadgeText">Admin Command Center</span>
+            </div>
+        </div>
+
+        <div class="header-right">
+            <!-- HEADER NOTIFICATION LINK -->
+            <a href="notification.html" class="notification-header-link" title="Notifications Center">
+                <i class="bi bi-bell"></i>
+                <div class="notification-badge" id="headerNotifBadge">0</div>
+            </a>
+
+            <!-- USER PROFILE DROPDOWN -->
+            <div class="user-dropdown-container">
+                <div class="user-profile" id="userProfileBtn">
+                    <div class="avatar" id="userAvatar">JD</div>
+                    <div class="user-info">
+                        <strong id="userName">Property Admin</strong>
+                        <span id="userRoleBadge">Property Manager</span>
+                    </div>
+                    <i class="bi bi-chevron-down" style="font-size: 10px; color: #94A3B8;"></i>
+                </div>
+
+                <div class="dropdown-menu" id="userDropdown">
+                    <a href="account.html" class="dropdown-item">
+                        <i class="bi bi-person-gear"></i>
+                        <span>Account Settings</span>
+                    </a>
+                    <div class="dropdown-item danger" onclick="logoutUser()">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Log Out</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ================= MAIN CONTENT ================= -->
+    <main class="main-content">
+
+        <!-- PAGE HEADER -->
+        <div class="page-header">
+            <div>
+                <div class="eyebrow" id="pageEyebrow">GLOBAL USER CONTEXT</div>
+                <h1>Account Settings & Profile</h1>
+                <p>Manage your personal credentials, contact details, role-based settings, and security preferences.</p>
+            </div>
+        </div>
+
+        <div class="account-grid">
+
+            <!-- LEFT SIDEBAR MENU -->
+            <div class="account-nav-card">
+                <div class="user-preview-box">
+                    <div class="large-avatar" id="largeAvatar">JD</div>
+                    <h2 id="cardUserName">Property Admin</h2>
+                    <span id="cardUserEmail">admin@argo.ph</span>
+                    <div class="role-pill role-admin" id="cardRolePill">Property Manager</div>
+                </div>
+
+                <div class="account-menu-list">
+                    <div class="account-menu-item active" onclick="switchTab('profile', this)">
+                        <i class="bi bi-person-gear"></i>
+                        <span>Personal Profile</span>
+                    </div>
+                    <div class="account-menu-item" onclick="switchTab('role-specs', this)">
+                        <i class="bi bi-sliders"></i>
+                        <span id="tabRoleSpecLabel">Admin Operations</span>
+                    </div>
+                    <div class="account-menu-item" onclick="switchTab('security', this)">
+                        <i class="bi bi-shield-lock"></i>
+                        <span>Security & Password</span>
+                    </div>
+                    <div class="account-menu-item" onclick="switchTab('notifications', this)">
+                        <i class="bi bi-bell-gear"></i>
+                        <span>Alert Preferences</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIGHT SETTINGS PANELS -->
+            <div>
+
+                <!-- TAB 1: PERSONAL PROFILE -->
+                <div class="settings-card tab-panel" id="tab-profile">
+                    <div class="card-header-title">Personal Information</div>
+                    <div class="card-header-desc">Update your official name, email address, and active mobile number across the system.</div>
+
+                    <form onsubmit="handleSaveProfile(event)">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>Full Legal Name</label>
+                                <input type="text" id="inputFullName" value="Juan Dela Cruz" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Email Address</label>
+                                <input type="email" id="inputEmail" value="juan.delacruz@argo.ph" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Mobile Phone Number</label>
+                                <input type="tel" id="inputPhone" value="+63 917 882 9102" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label>System User ID</label>
+                                <input type="text" id="inputUserId" value="USR-2026-001" readonly>
+                            </div>
+                        </div>
+
+                        <div style="margin-top:20px; display:flex; justify-content:flex-end;">
+                            <button class="primary-btn" type="submit"><i class="bi bi-check-lg"></i> Save Profile Changes</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- TAB 2: ROLE-BASED SPECIFIC SETTINGS -->
+                <div class="settings-card tab-panel" id="tab-role-specs" style="display:none;">
+                    <div class="card-header-title" id="roleSpecTitle">Admin Operational Scope & Access Level</div>
+                    <div class="card-header-desc" id="roleSpecDesc">Configure your property management scope, RBAC permissions, and operational digests.</div>
+
+                    <div id="roleSpecFields">
+                        <!-- DYNAMIC FIELDS FOR ROLE -->
+                    </div>
+
+                    <div style="margin-top:20px; display:flex; justify-content:flex-end;">
+                        <button class="primary-btn" onclick="alert('Role specifications updated successfully!')"><i class="bi bi-check-lg"></i> Update Role Preferences</button>
+                    </div>
+                </div>
+
+                <!-- TAB 3: SECURITY & PASSWORD -->
+                <div class="settings-card tab-panel" id="tab-security" style="display:none;">
+                    <div class="card-header-title">Security & Passwords</div>
+                    <div class="card-header-desc">Ensure your account is protected by managing your password and 2-Factor Authentication (2FA).</div>
+
+                    <form onsubmit="event.preventDefault(); alert('Security credentials updated successfully!');">
+                        <div class="form-grid" style="margin-bottom:20px;">
+                            <div class="form-group full-width">
+                                <label>Current Password</label>
+                                <input type="password" placeholder="••••••••••••" required>
+                            </div>
+                            <div class="form-group">
+                                <label>New Password</label>
+                                <input type="password" placeholder="At least 8 characters" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Confirm New Password</label>
+                                <input type="password" placeholder="Must match new password" required>
+                            </div>
+                        </div>
+
+                        <div style="border-top:1px solid var(--border); padding-top:16px;">
+                            <div class="toggle-group">
+                                <div>
+                                    <div class="toggle-title">Two-Factor Authentication (2FA via SMS / OTP)</div>
+                                    <div class="toggle-desc">Require a 6-digit OTP code sent to your phone upon every login.</div>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" checked>
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div style="margin-top:20px; display:flex; justify-content:flex-end;">
+                            <button class="primary-btn" type="submit"><i class="bi bi-shield-check"></i> Update Security Credentials</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- TAB 4: ALERT PREFERENCES -->
+                <div class="settings-card tab-panel" id="tab-notifications" style="display:none;">
+                    <div class="card-header-title">Notification & Broadcast Preferences</div>
+                    <div class="card-header-desc">Control which alert types send instant pings to your notification bell, email, or SMS.</div>
+
+                    <div class="toggle-group">
+                        <div>
+                            <div class="toggle-title">In-App Header Bell Notifications</div>
+                            <div class="toggle-desc">Receive real-time alerts in the top header bell for critical updates.</div>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="toggle-group">
+                        <div>
+                            <div class="toggle-title">Email Billing & Financial Summaries</div>
+                            <div class="toggle-desc">Send automated email copies for verified payments, invoices, and payouts.</div>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="toggle-group">
+                        <div>
+                            <div class="toggle-title">SMS Urgent Maintenance Alerts</div>
+                            <div class="toggle-desc">Receive immediate mobile text messages for emergency property issues.</div>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+
+                    <div style="margin-top:20px; display:flex; justify-content:flex-end;">
+                        <button class="primary-btn" onclick="alert('Notification preferences saved successfully!')"><i class="bi bi-save"></i> Save Preferences</button>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- ================= JAVASCRIPT ================= -->
+    <script>
+        // Secure Logout Handler (Clears session and replaces history to prevent back-button access)
+        function logoutUser() {
+            localStorage.removeItem('argo_pov');
+            localStorage.removeItem('user_role');
+            localStorage.removeItem('role');
+            localStorage.removeItem('token');
+            localStorage.removeItem('argo_user');
+            window.location.replace('index.html');
+        }
+
+        // Tab Switcher Logic
+        function switchTab(tabId, menuItem) {
+            document.querySelectorAll('.account-menu-item').forEach(item => item.classList.remove('active'));
+            menuItem.classList.add('active');
+
+            document.querySelectorAll('.tab-panel').forEach(panel => panel.style.display = 'none');
+            document.getElementById(`tab-${tabId}`).style.display = 'block';
+        }
+
+        // LocalStorage Accessors
+        function getNotifications() {
+            return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
+        }
+
+        function updateHeaderBadge() {
+            const rawRole = (
+                localStorage.getItem('argo_pov') || 
+                localStorage.getItem('user_role') || 
+                localStorage.getItem('role') || 
+                'admin'
+            ).toLowerCase().trim();
+
+            let role = 'admin';
+            if (['client', 'tenant', 'client_pov'].includes(rawRole)) role = 'client';
+            else if (['owner', 'property_owner', 'investor'].includes(rawRole)) role = 'owner';
+
+            const notifs = getNotifications().filter(n => n.pov === role && n.status === 'unread');
+            const badge = document.getElementById('headerNotifBadge');
+            if (badge) badge.textContent = notifs.length;
+        }
+
+        // Handle Save Profile
+        function handleSaveProfile(e) {
+            e.preventDefault();
+            const fullName = document.getElementById('inputFullName').value.trim();
+            const email = document.getElementById('inputEmail').value.trim();
+            const phone = document.getElementById('inputPhone').value.trim();
+
+            const rawRole = (
+                localStorage.getItem('argo_pov') || 
+                localStorage.getItem('user_role') || 
+                localStorage.getItem('role') || 
+                'admin'
+            ).toLowerCase().trim();
+
+            let role = 'admin';
+            if (['client', 'tenant', 'client_pov'].includes(rawRole)) role = 'client';
+            else if (['owner', 'property_owner', 'investor'].includes(rawRole)) role = 'owner';
+
+            const initials = fullName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'US';
+
+            let roleBadge = 'Property Manager';
+            let bg = '#2563EB';
+            if (role === 'owner') { 
+                roleBadge = 'Property Owner'; 
+                bg = '#059669'; 
+            } else if (role === 'client') { 
+                roleBadge = 'Sunrise Property • Unit 101'; 
+                bg = '#D97706'; 
+            }
+
+            const userObj = {
+                name: fullName,
+                email: email,
+                phone: phone,
+                role: roleBadge,
+                avatar: initials,
+                avatarBg: bg
+            };
+
+            localStorage.setItem('argo_user', JSON.stringify(userObj));
+
+            syncUserUI(userObj, role);
+            alert("Personal profile updated and synchronized across all portals!");
+        }
+
+        function syncUserUI(user, role) {
+            document.getElementById('userName').textContent = user.name;
+            document.getElementById('userRoleBadge').textContent = user.role;
+            document.getElementById('userAvatar').textContent = user.avatar;
+            document.getElementById('userAvatar').style.background = user.avatarBg;
+
+            document.getElementById('cardUserName').textContent = user.name;
+            document.getElementById('cardUserEmail').textContent = user.email || `${user.name.toLowerCase().replace(/\s+/g, '.')}@argo.ph`;
+            document.getElementById('largeAvatar').textContent = user.avatar;
+            document.getElementById('largeAvatar').style.background = user.avatarBg;
+
+            if (role === 'admin') {
+                document.getElementById('cardRolePill').textContent = 'Property Manager';
+                document.getElementById('cardRolePill').className = 'role-pill role-admin';
+                document.getElementById('tabRoleSpecLabel').textContent = 'Admin Operations';
+            } else if (role === 'owner') {
+                document.getElementById('cardRolePill').textContent = 'Property Owner';
+                document.getElementById('cardRolePill').className = 'role-pill role-owner';
+                document.getElementById('tabRoleSpecLabel').textContent = 'Payout Bank & Tax';
+            } else if (role === 'client') {
+                document.getElementById('cardRolePill').textContent = 'Tenant (Unit 101)';
+                document.getElementById('cardRolePill').className = 'role-pill role-client';
+                document.getElementById('tabRoleSpecLabel').textContent = 'Lease & E-Wallet';
+            }
+        }
+
+        // Initialize Page & Role-Based Sidebar Renderer with Auth Check
+        document.addEventListener('DOMContentLoaded', () => {
+            const rawRole = (
+                localStorage.getItem('argo_pov') || 
+                localStorage.getItem('user_role') || 
+                localStorage.getItem('role') || 
+                ''
+            ).toLowerCase().trim();
+
+            if (!rawRole) {
+                window.location.replace('index.html');
+                return;
+            }
+
+            let role = 'admin';
+            if (['client', 'tenant', 'client_pov'].includes(rawRole)) role = 'client';
+            else if (['owner', 'property_owner', 'investor'].includes(rawRole)) role = 'owner';
+
+            applyRoleLayout(role);
+            loadUserData(role);
+            applyPOV(role);
+            updateHeaderBadge();
+        });
+
+        // Listen for Storage Changes across Tabs
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'argo_notifications' || e.key === 'argo_user' || e.key === 'argo_pov' || e.key === 'user_role' || e.key === 'role') {
+                const rawRole = (
+                    localStorage.getItem('argo_pov') || 
+                    localStorage.getItem('user_role') || 
+                    localStorage.getItem('role') || 
+                    'admin'
+                ).toLowerCase().trim();
+
+                let role = 'admin';
+                if (['client', 'tenant', 'client_pov'].includes(rawRole)) role = 'client';
+                else if (['owner', 'property_owner', 'investor'].includes(rawRole)) role = 'owner';
+
+                applyRoleLayout(role);
+                loadUserData(role);
+                applyPOV(role);
+                updateHeaderBadge();
+            }
+        });
+
+        function loadUserData(role) {
+            const storedUser = JSON.parse(localStorage.getItem('argo_user') || '{}');
+            let user = {};
+
+            if (role === 'client') {
+                user = {
+                    name: storedUser.name || 'Maria Santos',
+                    email: storedUser.email || 'maria.santos@tenant.ph',
+                    phone: storedUser.phone || '+63 917 123 4567',
+                    role: 'Sunrise Property • Unit 101',
+                    avatar: storedUser.avatar || 'MS',
+                    avatarBg: '#D97706'
+                };
+            } else if (role === 'owner') {
+                user = {
+                    name: storedUser.name || 'Don Ramon Santos',
+                    email: storedUser.email || 'ramon.santos@sunrise-assets.ph',
+                    phone: storedUser.phone || '+63 918 554 9011',
+                    role: 'Property Owner',
+                    avatar: storedUser.avatar || 'RS',
+                    avatarBg: '#059669'
+                };
+            } else {
+                user = {
+                    name: storedUser.name || 'Juan Dela Cruz',
+                    email: storedUser.email || 'juan.delacruz@argo.ph',
+                    phone: storedUser.phone || '+63 917 882 9102',
+                    role: 'Property Manager',
+                    avatar: storedUser.avatar || 'JD',
+                    avatarBg: '#2563EB'
+                };
+            }
+
+            document.getElementById('inputFullName').value = user.name;
+            document.getElementById('inputEmail').value = user.email;
+            document.getElementById('inputPhone').value = user.phone;
+
+            syncUserUI(user, role);
+        }
+
+        // Dynamic Sidebar Layout Adapter based on Logged-in Role
+        function applyRoleLayout(role) {
+            const nav = document.getElementById('sidebarNav');
+            const brandSub = document.getElementById('portalBrandSubtitle');
+            const brandLogo = document.getElementById('brandLogo');
+            const versionText = document.getElementById('portalVersionText');
+            const headerRoleContainer = document.getElementById('headerRoleBadgeContainer');
+            const headerRoleIcon = document.getElementById('headerRoleIcon');
+            const headerRoleText = document.getElementById('headerRoleBadgeText');
+
+            if (role === 'client') {
+                document.documentElement.style.setProperty('--primary', '#2563EB');
+                if (brandSub) brandSub.textContent = 'Tenant Portal';
+                if (brandLogo) brandLogo.style.background = '#2563EB';
+                if (versionText) versionText.textContent = 'ARGO v0.5 (Tenant POV)';
+
+                if (headerRoleContainer) {
+                    headerRoleContainer.className = 'role-badge-box';
+                    headerRoleIcon.className = 'bi bi-house-door-fill';
+                    headerRoleIcon.style.color = '#60A5FA';
+                    headerRoleText.textContent = 'Tenant Self-Service Portal';
+                }
+
+                if (nav) {
+                    nav.innerHTML = `
+                        <div class="nav-section-title">SELF-SERVICE HOME</div>
+                        <a href="client-dashboard.html" class="nav-item">
+                            <i class="bi bi-house-door"></i>
+                            <span>My Tenancy Home</span>
+                        </a>
+                        <a href="client-billing.html" class="nav-item">
+                            <i class="bi bi-receipt"></i>
+                            <span>Pay Rent & Dues</span>
+                        </a>
+                        <a href="transaction.html" class="nav-item">
+                            <i class="bi bi-receipt-cutoff"></i>
+                            <span>Transactions & Ledger</span>
+                        </a>
+                        <a href="client-utilities.html" class="nav-item">
+                            <i class="bi bi-lightning-charge"></i>
+                            <span>My Utilities & Meters</span>
+                        </a>
+                        <a href="client-maintenance.html" class="nav-item">
+                            <i class="bi bi-tools"></i>
+                            <span>Submit Maintenance</span>
+                        </a>
+                        <a href="inspections.html" class="nav-item">
+                            <i class="bi bi-clipboard-check"></i>
+                            <span>Move-In & Inspections</span>
+                        </a>
+                        <a href="client-documents.html" class="nav-item">
+                            <i class="bi bi-folder2-open"></i>
+                            <span>My Lease & Receipts</span>
+                        </a>
+
+                        <div class="nav-section-title">SYSTEM</div>
+                        <a href="account.html" class="nav-item active">
+                            <i class="bi bi-gear"></i>
+                            <span>Account Settings</span>
+                        </a>
+                        <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                            <i class="bi bi-box-arrow-right"></i>
+                            <span>Log Out</span>
+                        </a>
+                    `;
+                }
+            } else if (role === 'owner') {
+                document.documentElement.style.setProperty('--primary', '#059669');
+                if (brandSub) brandSub.textContent = 'Owner Portal';
+                if (brandLogo) brandLogo.style.background = '#059669';
+                if (versionText) versionText.textContent = 'ARGO v0.5 (Owner POV)';
+
+                if (headerRoleContainer) {
+                    headerRoleContainer.className = 'role-badge-box';
+                    headerRoleIcon.className = 'bi bi-person-badge-fill';
+                    headerRoleIcon.style.color = '#34D399';
+                    headerRoleText.textContent = 'Property Owner Executive Portal';
+                }
+
+                if (nav) {
+                    nav.innerHTML = `
+                        <div class="nav-section-title">PORTFOLIO OVERVIEW</div>
+                        <a href="owner-dashboard.html" class="nav-item">
+                            <i class="bi bi-speedometer2"></i>
+                            <span>Executive Summary</span>
+                        </a>
+                        <a href="owner-properties.html" class="nav-item">
+                            <i class="bi bi-buildings"></i>
+                            <span>My Properties</span>
+                        </a>
+                        <a href="owner-statements.html" class="nav-item">
+                            <i class="bi bi-file-earmark-text"></i>
+                            <span>Financial Statements</span>
+                        </a>
+                        <a href="property-ownership.html" class="nav-item">
+                            <i class="bi bi-pie-chart"></i>
+                            <span>Fractional Equity</span>
+                        </a>
+                        <a href="owner-documents.html" class="nav-item">
+                            <i class="bi bi-folder2-open"></i>
+                            <span>Legal Vault</span>
+                        </a>
+                        <a href="transaction.html" class="nav-item">
+                            <i class="bi bi-receipt-cutoff"></i>
+                            <span>Yield Audit Ledger</span>
+                        </a>
+
+                        <div class="nav-section-title">COMMUNICATION & SYSTEM</div>
+                        <a href="notification.html" class="nav-item">
+                            <i class="bi bi-bell"></i>
+                            <span>Notification Center</span>
+                        </a>
+                        <a href="account.html" class="nav-item active">
+                            <i class="bi bi-gear"></i>
+                            <span>Account Settings</span>
+                        </a>
+                        <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                            <i class="bi bi-box-arrow-right"></i>
+                            <span>Log Out</span>
+                        </a>
+                    `;
+                }
+            } else {
+                // Admin POV
+                document.documentElement.style.setProperty('--primary', '#2563EB');
+                if (brandSub) brandSub.textContent = 'Property Management';
+                if (brandLogo) brandLogo.style.background = '#2563EB';
+                if (versionText) versionText.textContent = 'ARGO v0.5';
+
+                if (headerRoleContainer) {
+                    headerRoleContainer.className = 'role-badge-box';
+                    headerRoleIcon.className = 'bi bi-shield-lock-fill';
+                    headerRoleIcon.style.color = '#60A5FA';
+                    headerRoleText.textContent = 'Admin Command Center';
+                }
+
+                if (nav) {
+                    nav.innerHTML = `
+                        <div class="nav-section-title">OVERVIEW</div>
+                        <a href="dashboard.html" class="nav-item">
+                            <i class="bi bi-grid-1x2"></i>
+                            <span>Dashboard</span>
+                        </a>
+
+                        <div class="nav-section-title">PROPERTY OPERATIONS</div>
+                        <a href="properties.html" class="nav-item">
+                            <i class="bi bi-buildings"></i>
+                            <span>Properties</span>
+                        </a>
+                        <a href="buildings.html" class="nav-item">
+                            <i class="bi bi-building"></i>
+                            <span>Buildings</span>
+                        </a>
+                        <a href="units.html" class="nav-item">
+                            <i class="bi bi-door-open"></i>
+                            <span>Units</span>
+                        </a>
+                        <a href="tenants.html" class="nav-item">
+                            <i class="bi bi-people"></i>
+                            <span>Tenants</span>
+                        </a>
+                        <a href="owners.html" class="nav-item">
+                            <i class="bi bi-person-badge"></i>
+                            <span>Owners</span>
+                        </a>
+                        <a href="property-ownership.html" class="nav-item">
+                            <i class="bi bi-pie-chart"></i>
+                            <span>Fractional Ownership</span>
+                        </a>
+                        <a href="leases.html" class="nav-item">
+                            <i class="bi bi-file-earmark-text"></i>
+                            <span>Leases</span>
+                        </a>
+
+                        <div class="nav-section-title">FINANCE & SERVICES</div>
+                        <a href="rent-collection.html" class="nav-item">
+                            <i class="bi bi-cash-stack"></i>
+                            <span>Rent Collection</span>
+                        </a>
+                        <a href="transaction.html" class="nav-item">
+                            <i class="bi bi-receipt-cutoff"></i>
+                            <span>Transactions & Ledger</span>
+                        </a>
+                        <a href="utilities.html" class="nav-item">
+                            <i class="bi bi-lightning-charge"></i>
+                            <span>Utilities</span>
+                        </a>
+                        <a href="meter-readings.html" class="nav-item">
+                            <i class="bi bi-speedometer2"></i>
+                            <span>Meter Readings</span>
+                        </a>
+                        <a href="maintenance.html" class="nav-item">
+                            <i class="bi bi-tools"></i>
+                            <span>Maintenance</span>
+                        </a>
+
+                        <div class="nav-section-title">RECORDS & REPORTS</div>
+                        <a href="inspections.html" class="nav-item">
+                            <i class="bi bi-clipboard-check"></i>
+                            <span>Inspections</span>
+                        </a>
+                        <a href="move-in-checklist.html" class="nav-item">
+                            <i class="bi bi-check2-square"></i>
+                            <span>Move-In Checklist</span>
+                        </a>
+                        <a href="move-out-settlement.html" class="nav-item">
+                            <i class="bi bi-box-arrow-right"></i>
+                            <span>Move-Out Settlement</span>
+                        </a>
+                        <a href="documents.html" class="nav-item">
+                            <i class="bi bi-folder2-open"></i>
+                            <span>Documents</span>
+                        </a>
+                        <a href="reports.html" class="nav-item">
+                            <i class="bi bi-bar-chart"></i>
+                            <span>Reports</span>
+                        </a>
+
+                        <div class="nav-section-title">SYSTEM</div>
+                        <a href="settings.html" class="nav-item">
+                            <i class="bi bi-gear"></i>
+                            <span>Settings</span>
+                        </a>
+                        <a href="account.html" class="nav-item active">
+                            <i class="bi bi-person-gear"></i>
+                            <span>Account Settings</span>
+                        </a>
+                        <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                            <i class="bi bi-box-arrow-right"></i>
+                            <span>Log Out</span>
+                        </a>
+                    `;
+                }
+            }
+        }
+
+        function applyPOV(role) {
+            const inputUserId = document.getElementById('inputUserId');
+            const roleSpecTitle = document.getElementById('roleSpecTitle');
+            const roleSpecDesc = document.getElementById('roleSpecDesc');
+            const roleSpecFields = document.getElementById('roleSpecFields');
+
+            if (role === 'admin') {
+                inputUserId.value = 'USR-2026-001';
+
+                roleSpecTitle.textContent = 'Admin Operational Scope & Access Level';
+                roleSpecDesc.textContent = 'Configure your property management scope, RBAC permissions, and operational digests.';
+                roleSpecFields.innerHTML = `
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Assigned Management Scope</label>
+                            <input type="text" value="Sunrise Group (All 24 Properties)" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label>RBAC Security Level</label>
+                            <input type="text" value="Level 1 — Master Administrator" readonly>
+                        </div>
+                        <div class="form-group full-width">
+                            <label>Emergency Escalation Dispatch Email</label>
+                            <input type="email" value="dispatch@sunrise-properties.ph">
+                        </div>
+                    </div>
+                `;
+
+            } else if (role === 'owner') {
+                inputUserId.value = 'OWN-2026-088';
+
+                roleSpecTitle.textContent = 'Direct Payout Bank Account & Tax ID (TIN)';
+                roleSpecDesc.textContent = 'Manage your verified bank account details where monthly rental yields are automatically disbursed.';
+                roleSpecFields.innerHTML = `
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Disbursement Bank Name</label>
+                            <select>
+                                <option selected>BDO Unibank (Corporate Account)</option>
+                                <option>BPI (Bank of the Philippine Islands)</option>
+                                <option>Metrobank</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Bank Account Number</label>
+                            <input type="text" value="0012-8849-1029">
+                        </div>
+                        <div class="form-group">
+                            <label>Account Holder Name</label>
+                            <input type="text" value="Don Ramon Santos">
+                        </div>
+                        <div class="form-group">
+                            <label>Tax Identification Number (TIN)</label>
+                            <input type="text" value="231-998-102-000">
+                        </div>
+                    </div>
+                `;
+
+            } else if (role === 'client') {
+                inputUserId.value = 'TNT-2026-101';
+
+                roleSpecTitle.textContent = 'Active Tenancy Lease & Payment Receipts E-Wallet';
+                roleSpecDesc.textContent = 'Your verified unit details, registered e-wallet for payment uploads, and emergency contacts.';
+                roleSpecFields.innerHTML = `
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Assigned Residence</label>
+                            <input type="text" value="Sunrise Property • Building 2 • Unit 101" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label>Government ID Verification</label>
+                            <input type="text" value="VERIFIED (Passport #P882910A)" readonly style="color:var(--success); font-weight:700;">
+                        </div>
+                        <div class="form-group">
+                            <label>Registered GCash / Maya Mobile Number</label>
+                            <input type="text" value="+63 917 123 4567">
+                        </div>
+                        <div class="form-group">
+                            <label>Emergency Contact Person & Phone</label>
+                            <input type="text" value="Juan Dela Cruz (+63 917 882 9102)">
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // Profile Dropdown Handler
+        const userProfileBtn = document.getElementById('userProfileBtn');
+        const userDropdown = document.getElementById('userDropdown');
+
+        if (userProfileBtn && userDropdown) {
+            userProfileBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                userDropdown.classList.toggle('show');
+            });
+
+            document.addEventListener('click', () => { 
+                userDropdown.classList.remove('show'); 
+            });
+        }
+    </script>
+</body>
+</html>

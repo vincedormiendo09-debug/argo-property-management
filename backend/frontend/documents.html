@@ -1,0 +1,1519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Documents Vault | ARGO Property Management</title>
+
+    <!-- 🔒 Strict Navigation Guard & Role Isolation -->
+    <script src="js/auth.js"></script>
+
+    <!-- Inter Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+    <style>
+        :root {
+            --primary: #2563EB;
+            --sidebar: #0F172A;
+            --active: #1E293B;
+            --canvas: #F3F4F6;
+            --white: #FFFFFF;
+            --border: #E5E7EB;
+            --text: #111827;
+            --muted: #6B7280;
+            --success: #059669;
+            --danger: #E11D48;
+            --warning: #D97706;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--canvas);
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        button, input, select, textarea {
+            font-family: inherit;
+        }
+
+        /* ================= SIDEBAR ================= */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 240px;
+            height: 100vh;
+            background: #0F172A;
+            color: white;
+            padding: 20px 14px;
+            z-index: 1000;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 5px 12px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .brand-logo {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: #2563EB;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 700;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .sidebar-brand h2 {
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .sidebar-brand span {
+            font-size: 9px;
+            color: #94A3B8;
+            margin-top: 1px;
+            display: block;
+            letter-spacing: 0.8px;
+        }
+
+        .sidebar-nav {
+            margin-top: 16px;
+            flex: 1;
+        }
+
+        .nav-section-title {
+            font-size: 10px;
+            font-weight: 700;
+            color: #64748B;
+            letter-spacing: 0.08em;
+            padding: 14px 10px 6px;
+            text-transform: uppercase;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            color: #CBD5E1;
+            text-decoration: none;
+            border-radius: 6px;
+            margin-bottom: 3px;
+            font-size: 13px;
+            transition: 0.15s ease;
+        }
+
+        .nav-item:hover {
+            background: #172033;
+            color: white;
+        }
+
+        .nav-item.active {
+            background: #1E293B;
+            color: white;
+            font-weight: 500;
+        }
+
+        .nav-item.active i {
+            color: #60A5FA;
+        }
+
+        .nav-item i {
+            width: 20px;
+            font-size: 16px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .sidebar-footer {
+            padding: 14px 10px 0;
+            border-top: 1px solid rgba(255,255,255,0.08);
+            font-size: 11px;
+            color: #64748B;
+        }
+
+        /* ================= TOP HEADER ================= */
+        .top-header {
+            position: fixed;
+            top: 0;
+            left: 240px;
+            right: 0;
+            height: 64px;
+            background: var(--sidebar);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 28px;
+            z-index: 900;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            color: white;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .admin-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #1E293B;
+            border: 1px solid #334155;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #E5E7EB;
+            font-weight: 600;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+        }
+
+        .notification-header-link {
+            position: relative;
+            font-size: 18px;
+            color: #CBD5E1;
+            background: #1E293B;
+            border: 1px solid #334155;
+            width: 38px;
+            height: 38px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            transition: 0.2s ease;
+        }
+
+        .notification-header-link:hover {
+            background: #2563EB;
+            color: white;
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--danger);
+            color: white;
+            font-size: 9px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            border: 2px solid var(--sidebar);
+        }
+
+        /* USER PROFILE DROPDOWN */
+        .user-dropdown-container { position: relative; }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 6px;
+        }
+
+        .user-profile:hover { background: rgba(255,255,255,0.05); }
+
+        .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .user-info strong { display: block; font-size: 12px; }
+        .user-info span { display: block; color: #94A3B8; font-size: 10px; }
+
+        .dropdown-menu {
+            position: absolute;
+            right: 0;
+            top: 48px;
+            width: 180px;
+            background: white;
+            border: 1px solid #E5E7EB;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 1000;
+        }
+
+        .dropdown-menu.show { display: flex; }
+
+        .dropdown-item {
+            padding: 10px 14px;
+            color: #374151;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            transition: 0.15s;
+            cursor: pointer;
+        }
+
+        .dropdown-item:hover { background: #F3F4F6; color: #111827; }
+        .dropdown-item.danger { color: var(--danger); }
+        .dropdown-item.danger:hover { background: #FFF1F2; }
+
+        /* ================= MAIN CONTENT ================= */
+        .main-content {
+            margin-left: 240px;
+            padding: 88px 28px 40px;
+            min-height: 100vh;
+            max-width: 1600px;
+        }
+
+        .page-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 22px;
+        }
+
+        .eyebrow {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--muted);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .page-header h1 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .page-header p {
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .primary-btn {
+            border: none;
+            background: var(--primary);
+            color: white;
+            border-radius: 6px;
+            padding: 9px 16px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: 0.2s ease;
+        }
+
+        .primary-btn:hover { background: #1D4ED8; }
+
+        .secondary-btn {
+            height: 38px;
+            border: 1px solid var(--border);
+            background: white;
+            border-radius: 6px;
+            padding: 0 13px;
+            font-size: 12px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            color: var(--text);
+        }
+
+        .secondary-btn:hover { background: #F9FAFB; }
+
+        /* ================= FILTER BAR ================= */
+        .filter-bar {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .search-box {
+            position: relative;
+            flex: 1;
+            min-width: 220px;
+        }
+
+        .search-box i {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--muted);
+        }
+
+        .search-box input {
+            width: 100%;
+            height: 38px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0 12px 0 36px;
+            font-size: 12px;
+            outline: none;
+        }
+
+        .search-box input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+        }
+
+        .filter-select {
+            height: 38px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0 12px;
+            font-size: 12px;
+            color: var(--text);
+            background: white;
+            outline: none;
+        }
+
+        /* ================= TABLE ================= */
+        .table-card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+        }
+
+        .table-wrapper { overflow-x: auto; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 950px;
+        }
+
+        th {
+            background: #F9FAFB;
+            color: var(--muted);
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            text-align: left;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 14px 16px;
+            font-size: 12px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text);
+        }
+
+        tr:hover { background: #F9FAFB; }
+
+        .document-name {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .document-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: #EFF6FF;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+
+        .document-title { font-weight: 600; color: var(--text); }
+        .document-type { color: var(--muted); font-size: 11px; margin-top: 2px; }
+        .property-info { color: var(--muted); font-size: 11px; margin-top: 2px; }
+
+        /* STATUS BADGES */
+        .status {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 8px;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: 500;
+        }
+
+        .status.active { color: #047857; background: #ECFDF5; }
+        .status.pending { color: #B45309; background: #FEF3C7; }
+        .status.expired { color: #BE123C; background: #FFF1F2; }
+
+        .action-button {
+            border: none;
+            background: transparent;
+            color: var(--muted);
+            font-size: 16px;
+            cursor: pointer;
+            padding: 4px 6px;
+            border-radius: 4px;
+        }
+
+        .action-button:hover { color: var(--primary); background: #EFF6FF; }
+        .action-button.delete:hover { color: var(--danger); background: #FFF1F2; }
+
+        .table-footer {
+            padding: 14px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: var(--muted);
+            font-size: 12px;
+            border-top: 1px solid var(--border);
+        }
+
+        .pagination { display: flex; align-items: center; gap: 4px; }
+
+        .page-button {
+            min-width: 30px;
+            height: 30px;
+            border: 1px solid var(--border);
+            background: white;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .page-button.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        /* ================= MODAL ================= */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.55);
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            padding: 20px;
+        }
+
+        .modal-overlay.show { display: flex; }
+
+        .modal {
+            width: 100%;
+            max-width: 520px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+            overflow: hidden;
+        }
+
+        .modal-header {
+            padding: 18px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 { font-size: 16px; font-weight: 600; }
+
+        .close-btn {
+            border: none;
+            background: none;
+            font-size: 18px;
+            cursor: pointer;
+            color: var(--muted);
+        }
+
+        .modal-body { padding: 20px; }
+        .form-group { margin-bottom: 14px; }
+
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 8px 10px;
+            font-size: 13px;
+            outline: none;
+        }
+
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+        }
+
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+        .modal-footer {
+            padding: 14px 20px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            background: #F9FAFB;
+        }
+
+        /* RESPONSIVE */
+        @media (max-width: 1000px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 768px) {
+            .sidebar { width: 70px; padding: 20px 8px; }
+            .sidebar-brand h2, .sidebar-brand span, .nav-section-title, .nav-item span { display: none; }
+            .nav-item { justify-content: center; padding: 12px; }
+            .top-header { left: 70px; padding: 0 15px; }
+            .main-content { margin-left: 70px; padding: 85px 15px 30px; }
+            .page-header { flex-direction: column; gap: 14px; }
+            .filter-bar { flex-direction: column; align-items: stretch; }
+            .table-footer { flex-direction: column; gap: 12px; align-items: flex-start; }
+            .form-row { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ================= SIDEBAR ================= -->
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-logo" id="brandLogo">A</div>
+            <div>
+                <h2>ARGO</h2>
+                <span id="portalBrandSubtitle">Property Management</span>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav" id="sidebarNav">
+            <!-- POPULATED DYNAMICALLY BY JAVASCRIPT -->
+        </nav>
+
+        <div class="sidebar-footer">
+            <span id="portalVersionText">ARGO v0.5</span>
+        </div>
+    </aside>
+
+    <!-- ================= TOP HEADER ================= -->
+    <header class="top-header">
+        <div class="header-left">
+            <div id="headerRoleBadgeContainer" class="admin-badge">
+                <i id="headerRoleIcon" class="bi bi-shield-lock-fill" style="color: #60A5FA;"></i>
+                <span id="headerRoleBadgeText">Admin Command Center</span>
+            </div>
+        </div>
+
+        <div class="header-right">
+            <a href="notification.html" class="notification-header-link" title="Notifications Center">
+                <i class="bi bi-bell"></i>
+                <div class="notification-badge" id="headerNotifBadge">0</div>
+            </a>
+
+            <div class="user-dropdown-container">
+                <div class="user-profile" id="userProfileBtn">
+                    <div class="avatar" id="userAvatar">JD</div>
+                    <div class="user-info">
+                        <strong id="userName">Property Admin</strong>
+                        <span id="userRoleBadge">Property Manager</span>
+                    </div>
+                    <i class="bi bi-chevron-down" style="font-size: 10px; color: #94A3B8;"></i>
+                </div>
+
+                <div class="dropdown-menu" id="userDropdown">
+                    <a href="account.html" class="dropdown-item">
+                        <i class="bi bi-person-gear"></i>
+                        <span>Account Settings</span>
+                    </a>
+                    <div class="dropdown-item danger" onclick="logoutUser()">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Log Out</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ================= MAIN CONTENT ================= -->
+    <main class="main-content">
+
+        <!-- PAGE HEADER -->
+        <div class="page-header">
+            <div>
+                <div class="eyebrow">RECORDS & REPORTS</div>
+                <h1>Documents Vault</h1>
+                <p>Secure vault for lease contracts, valid IDs, property titles, official receipts, and inspection reports.</p>
+            </div>
+
+            <button class="primary-btn" onclick="openModal()">
+                <i class="bi bi-upload"></i>
+                <span>Upload Document</span>
+            </button>
+        </div>
+
+        <!-- FILTER BAR -->
+        <div class="filter-bar">
+            <div class="search-box">
+                <i class="bi bi-search"></i>
+                <input type="text" id="searchInput" placeholder="Search documents, tenants, or properties..." onkeyup="filterTable()">
+            </div>
+
+            <select class="filter-select" id="typeFilter" onchange="filterTable()">
+                <option value="">All Document Types</option>
+                <option value="Lease Contract">Lease Contract</option>
+                <option value="Identification">Identification</option>
+                <option value="Receipt">Receipt</option>
+                <option value="Inspection Report">Inspection Report</option>
+                <option value="Title">Property Title</option>
+                <option value="Other">Other Document</option>
+            </select>
+
+            <select class="filter-select" id="statusFilter" onchange="filterTable()">
+                <option value="">All Statuses</option>
+                <option value="Active">Active</option>
+                <option value="Pending">Pending Review</option>
+                <option value="Expired">Expired</option>
+            </select>
+
+            <button class="secondary-btn" onclick="resetFilters()">
+                <i class="bi bi-arrow-counterclockwise"></i>
+                <span>Reset</span>
+            </button>
+        </div>
+
+        <!-- TABLE -->
+        <div class="table-card">
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>DOCUMENT</th>
+                            <th>RELATED TO</th>
+                            <th>DOCUMENT TYPE</th>
+                            <th>UPLOADED BY</th>
+                            <th>DATE UPLOADED</th>
+                            <th>STATUS</th>
+                            <th>ACTIONS</th>
+                        </tr>
+                    </thead>
+                    <tbody id="documentTable">
+                        <!-- RENDERED DYNAMICALLY FROM LOCALSTORAGE / POSTGRESQL -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- TABLE FOOTER -->
+            <div class="table-footer">
+                <span id="showingCountText">Showing 0 documents</span>
+            </div>
+        </div>
+    </main>
+
+    <!-- ================= UPLOAD DOCUMENT MODAL ================= -->
+    <div class="modal-overlay" id="documentModal">
+        <div class="modal">
+            <div class="modal-header">
+                <div>
+                    <span class="eyebrow">SECURE VAULT</span>
+                    <h2>Upload Document</h2>
+                </div>
+                <button class="close-btn" onclick="closeModal()"><i class="bi bi-x-lg"></i></button>
+            </div>
+
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Document Title / Name</label>
+                    <input type="text" id="modalDocTitle" placeholder="e.g. Title Deed - Sunrise Residences">
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Document Type</label>
+                        <select id="modalDocType">
+                            <option value="Lease Contract">Lease Contract</option>
+                            <option value="Identification">Identification</option>
+                            <option value="Receipt">Receipt</option>
+                            <option value="Inspection Report">Inspection Report</option>
+                            <option value="Title">Property Title</option>
+                            <option value="Other">Other Document</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Related Entity / Unit</label>
+                        <select id="modalDocEntity">
+                            <option value="">Select Entity / Unit...</option>
+                            <!-- DYNAMICALLY POPULATED -->
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Document Status</label>
+                    <select id="modalDocStatus">
+                        <option value="Active">Active</option>
+                        <option value="Pending">Pending Review</option>
+                        <option value="Expired">Expired</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Select File (PDF, JPG, PNG)</label>
+                    <input type="file" id="modalFile" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx">
+                </div>
+
+                <div class="form-group">
+                    <label>Vault Notes / Description</label>
+                    <textarea id="modalDocNotes" rows="2" placeholder="Optional notes about this file..."></textarea>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="secondary-btn" onclick="closeModal()">Cancel</button>
+                <button class="primary-btn" onclick="saveDocument()"><i class="bi bi-upload"></i> Upload to Vault</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= JAVASCRIPT ================= -->
+    <script>
+        // Secure Logout Handler (Clears session and replaces history to prevent back-button access)
+        function logoutUser() {
+            localStorage.removeItem('argo_pov');
+            localStorage.removeItem('user_role');
+            localStorage.removeItem('role');
+            localStorage.removeItem('token');
+            localStorage.removeItem('argo_user');
+            window.location.replace('index.html');
+        }
+
+        // Dynamic Role-Based Sidebar Renderer
+        function renderSidebar() {
+            const nav = document.getElementById('sidebarNav');
+            if (!nav) return;
+
+            const rawRole = (
+                localStorage.getItem('argo_pov') || 
+                localStorage.getItem('user_role') || 
+                localStorage.getItem('role') || 
+                'admin'
+            ).toLowerCase().trim();
+
+            if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
+                nav.innerHTML = `
+                    <div class="nav-section-title">SELF-SERVICE HOME</div>
+                    <a href="client-dashboard.html" class="nav-item">
+                        <i class="bi bi-house-door"></i>
+                        <span>My Tenancy Home</span>
+                    </a>
+                    <a href="client-billing.html" class="nav-item">
+                        <i class="bi bi-receipt"></i>
+                        <span>Pay Rent & Dues</span>
+                    </a>
+                    <a href="transaction.html" class="nav-item">
+                        <i class="bi bi-receipt-cutoff"></i>
+                        <span>Transactions & Ledger</span>
+                    </a>
+                    <a href="client-utilities.html" class="nav-item">
+                        <i class="bi bi-lightning-charge"></i>
+                        <span>My Utilities & Meters</span>
+                    </a>
+                    <a href="client-maintenance.html" class="nav-item">
+                        <i class="bi bi-tools"></i>
+                        <span>Submit Maintenance</span>
+                    </a>
+                    <a href="inspections.html" class="nav-item">
+                        <i class="bi bi-clipboard-check"></i>
+                        <span>Move-In & Inspections</span>
+                    </a>
+                    <a href="client-documents.html" class="nav-item">
+                        <i class="bi bi-folder2-open"></i>
+                        <span>My Lease & Receipts</span>
+                    </a>
+
+                    <div class="nav-section-title">SYSTEM</div>
+                    <a href="account.html" class="nav-item">
+                        <i class="bi bi-gear"></i>
+                        <span>Account Settings</span>
+                    </a>
+                    <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Log Out</span>
+                    </a>
+                `;
+            } else if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
+                nav.innerHTML = `
+                    <div class="nav-section-title">PORTFOLIO OVERVIEW</div>
+                    <a href="owner-dashboard.html" class="nav-item">
+                        <i class="bi bi-speedometer2"></i>
+                        <span>Executive Summary</span>
+                    </a>
+                    <a href="owner-properties.html" class="nav-item">
+                        <i class="bi bi-buildings"></i>
+                        <span>My Properties</span>
+                    </a>
+                    <a href="owner-statements.html" class="nav-item">
+                        <i class="bi bi-file-earmark-text"></i>
+                        <span>Financial Statements</span>
+                    </a>
+                    <a href="property-ownership.html" class="nav-item">
+                        <i class="bi bi-pie-chart"></i>
+                        <span>Fractional Equity</span>
+                    </a>
+                    <a href="owner-documents.html" class="nav-item">
+                        <i class="bi bi-folder2-open"></i>
+                        <span>Legal Vault</span>
+                    </a>
+                    <a href="transaction.html" class="nav-item">
+                        <i class="bi bi-receipt-cutoff"></i>
+                        <span>Yield Audit Ledger</span>
+                    </a>
+
+                    <div class="nav-section-title">COMMUNICATION & SYSTEM</div>
+                    <a href="notification.html" class="nav-item">
+                        <i class="bi bi-bell"></i>
+                        <span>Notification Center</span>
+                    </a>
+                    <a href="account.html" class="nav-item">
+                        <i class="bi bi-gear"></i>
+                        <span>Account Settings</span>
+                    </a>
+                    <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Log Out</span>
+                    </a>
+                `;
+            } else {
+                // Admin POV
+                nav.innerHTML = `
+                    <div class="nav-section-title">OVERVIEW</div>
+                    <a href="dashboard.html" class="nav-item">
+                        <i class="bi bi-grid-1x2"></i>
+                        <span>Dashboard</span>
+                    </a>
+
+                    <div class="nav-section-title">PROPERTY OPERATIONS</div>
+                    <a href="properties.html" class="nav-item">
+                        <i class="bi bi-buildings"></i>
+                        <span>Properties</span>
+                    </a>
+                    <a href="buildings.html" class="nav-item">
+                        <i class="bi bi-building"></i>
+                        <span>Buildings</span>
+                    </a>
+                    <a href="units.html" class="nav-item">
+                        <i class="bi bi-door-open"></i>
+                        <span>Units</span>
+                    </a>
+                    <a href="tenants.html" class="nav-item">
+                        <i class="bi bi-people"></i>
+                        <span>Tenants</span>
+                    </a>
+                    <a href="owners.html" class="nav-item">
+                        <i class="bi bi-person-badge"></i>
+                        <span>Owners</span>
+                    </a>
+                    <a href="property-ownership.html" class="nav-item">
+                        <i class="bi bi-pie-chart"></i>
+                        <span>Fractional Ownership</span>
+                    </a>
+                    <a href="leases.html" class="nav-item">
+                        <i class="bi bi-file-earmark-text"></i>
+                        <span>Leases</span>
+                    </a>
+
+                    <div class="nav-section-title">FINANCE & SERVICES</div>
+                    <a href="rent-collection.html" class="nav-item">
+                        <i class="bi bi-cash-stack"></i>
+                        <span>Rent Collection</span>
+                    </a>
+                    <a href="transaction.html" class="nav-item">
+                        <i class="bi bi-receipt-cutoff"></i>
+                        <span>Transactions & Ledger</span>
+                    </a>
+                    <a href="utilities.html" class="nav-item">
+                        <i class="bi bi-lightning-charge"></i>
+                        <span>Utilities</span>
+                    </a>
+                    <a href="meter-readings.html" class="nav-item">
+                        <i class="bi bi-speedometer2"></i>
+                        <span>Meter Readings</span>
+                    </a>
+                    <a href="maintenance.html" class="nav-item">
+                        <i class="bi bi-tools"></i>
+                        <span>Maintenance</span>
+                    </a>
+
+                    <div class="nav-section-title">RECORDS & REPORTS</div>
+                    <a href="inspections.html" class="nav-item">
+                        <i class="bi bi-clipboard-check"></i>
+                        <span>Inspections</span>
+                    </a>
+                    <a href="move-in-checklist.html" class="nav-item">
+                        <i class="bi bi-check2-square"></i>
+                        <span>Move-In Checklist</span>
+                    </a>
+                    <a href="move-out-settlement.html" class="nav-item">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Move-Out Settlement</span>
+                    </a>
+                    <a href="documents.html" class="nav-item active">
+                        <i class="bi bi-folder2-open"></i>
+                        <span>Documents</span>
+                    </a>
+                    <a href="reports.html" class="nav-item">
+                        <i class="bi bi-bar-chart"></i>
+                        <span>Reports</span>
+                    </a>
+
+                    <div class="nav-section-title">SYSTEM</div>
+                    <a href="settings.html" class="nav-item">
+                        <i class="bi bi-gear"></i>
+                        <span>Settings</span>
+                    </a>
+                    <a href="account.html" class="nav-item">
+                        <i class="bi bi-person-gear"></i>
+                        <span>Account Settings</span>
+                    </a>
+                    <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Log Out</span>
+                    </a>
+                `;
+            }
+        }
+
+        // Clean Baseline or Seed Documents
+        const DEFAULT_DOCUMENTS = [
+            {
+                id: 'DOC-1001',
+                title: 'Sunrise Residences Title Deed (TCT #49281)',
+                fileType: 'PDF • 4.2 MB',
+                entityName: 'Sunrise Residences',
+                entitySub: 'PROP-001 • Primary Deed',
+                type: 'Title',
+                uploader: 'Property Admin',
+                date: 'Jan 15, 2024',
+                status: 'Active',
+                iconClass: 'bi-journal-check',
+                iconStyle: 'background:#EFF6FF; color:#2563EB;',
+                notes: 'Registered property title for Sunrise Residences.',
+                fileUrl: ''
+            },
+            {
+                id: 'DOC-1002',
+                title: 'Signed Residential Lease Agreement',
+                fileType: 'PDF • 2.4 MB',
+                entityName: 'Maria Santos',
+                entitySub: 'Sunrise Property • Unit 101',
+                type: 'Lease Contract',
+                uploader: 'Juan Dela Cruz',
+                date: 'Jan 01, 2026',
+                status: 'Active',
+                iconClass: 'bi-file-earmark-pdf',
+                iconStyle: 'background:#ECFDF5; color:#059669;',
+                notes: 'Active 1-year residential contract.',
+                fileUrl: ''
+            }
+        ];
+
+        function getDocuments() {
+            const data = localStorage.getItem('argo_documents');
+            if (!data) {
+                localStorage.setItem('argo_documents', JSON.stringify(DEFAULT_DOCUMENTS));
+                return DEFAULT_DOCUMENTS;
+            }
+            try {
+                return JSON.parse(data);
+            } catch (e) {
+                return DEFAULT_DOCUMENTS;
+            }
+        }
+
+        function saveDocuments(docs) {
+            localStorage.setItem('argo_documents', JSON.stringify(docs));
+        }
+
+        function getProperties() {
+            try {
+                return JSON.parse(localStorage.getItem('argo_properties') || '[]');
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function getLeases() {
+            try {
+                return JSON.parse(localStorage.getItem('argo_leases') || '[]');
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function getNotifications() {
+            try {
+                return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
+            } catch (e) {
+                return [];
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const rawRole = (
+                localStorage.getItem('argo_pov') || 
+                localStorage.getItem('user_role') || 
+                localStorage.getItem('role') || 
+                ''
+            ).toLowerCase().trim();
+
+            if (!rawRole) {
+                window.location.replace('index.html');
+                return;
+            }
+            renderSidebar();
+            loadUserData();
+            populateModalDropdowns();
+            renderDocumentTable();
+            updateHeaderBadge();
+        });
+
+        // Real-Time Cross-Tab Listener
+        window.addEventListener('storage', (e) => {
+            if (['argo_documents', 'argo_notifications', 'argo_leases', 'argo_properties', 'argo_user', 'argo_pov', 'user_role', 'role'].includes(e.key)) {
+                renderSidebar();
+                loadUserData();
+                populateModalDropdowns();
+                renderDocumentTable();
+                updateHeaderBadge();
+            }
+        });
+
+        function loadUserData() {
+            const rawRole = (
+                localStorage.getItem('argo_pov') || 
+                localStorage.getItem('user_role') || 
+                localStorage.getItem('role') || 
+                'admin'
+            ).toLowerCase().trim();
+
+            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+
+            const nameEl = document.getElementById('userName');
+            const roleEl = document.getElementById('userRoleBadge');
+            const avatarEl = document.getElementById('userAvatar');
+
+            if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
+                if (nameEl) nameEl.textContent = 'Don Ramon Santos';
+                if (roleEl) roleEl.textContent = 'Property Owner';
+                if (avatarEl) {
+                    avatarEl.textContent = 'RS';
+                    avatarEl.style.background = '#059669';
+                }
+            } else if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
+                if (nameEl) nameEl.textContent = 'Maria Santos';
+                if (roleEl) roleEl.textContent = 'Sunrise Property • Unit 101';
+                if (avatarEl) {
+                    avatarEl.textContent = 'MS';
+                    avatarEl.style.background = '#D97706';
+                }
+            } else {
+                const name = user.name || 'Juan Dela Cruz';
+                const role = user.role || 'Property Manager';
+                if (nameEl) nameEl.textContent = name;
+                if (roleEl) roleEl.textContent = role;
+                if (avatarEl) {
+                    avatarEl.textContent = user.avatar || 'JD';
+                    avatarEl.style.background = user.avatarBg || '#2563EB';
+                }
+            }
+        }
+
+        function populateModalDropdowns() {
+            const leases = getLeases();
+            const properties = getProperties();
+            const select = document.getElementById('modalDocEntity');
+            if (!select) return;
+
+            select.innerHTML = '<option value="">Select Entity / Unit...</option>';
+            
+            // Add General Properties Option Group
+            if (properties.length > 0) {
+                const propGroup = document.createElement('optgroup');
+                propGroup.label = 'Properties / Assets';
+                properties.forEach(p => {
+                    const opt = document.createElement('option');
+                    opt.value = `${p.name} • ${p.code || 'Property Asset'}`;
+                    opt.textContent = `${p.name} (${p.code || 'PROP'})`;
+                    propGroup.appendChild(opt);
+                });
+                select.appendChild(propGroup);
+            }
+
+            // Add Active Tenancies Option Group
+            if (leases.length > 0) {
+                const leaseGroup = document.createElement('optgroup');
+                leaseGroup.label = 'Active Leases & Tenants';
+                leases.forEach(l => {
+                    const opt = document.createElement('option');
+                    const tName = l.tenantName || l.tenant_name || 'Tenant';
+                    const unit = l.unit || l.unit_number || 'Unit';
+                    opt.value = `${tName} • ${unit}`;
+                    opt.textContent = `${tName} • ${unit}`;
+                    leaseGroup.appendChild(opt);
+                });
+                select.appendChild(leaseGroup);
+            }
+
+            // Default Fallback Option
+            if (properties.length === 0 && leases.length === 0) {
+                select.innerHTML += '<option value="General Portfolio • Document Vault">General Portfolio • Document Vault</option>';
+            }
+        }
+
+        function renderDocumentTable() {
+            const docs = getDocuments();
+            const tbody = document.getElementById('documentTable');
+            if (!tbody) return;
+
+            tbody.innerHTML = '';
+
+            if (docs.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--muted); padding:30px;">No documents found in vault. Click "Upload Document" to add files.</td></tr>`;
+                const countEl = document.getElementById('showingCountText');
+                if (countEl) countEl.textContent = `Showing 0 documents`;
+                return;
+            }
+
+            docs.forEach(d => {
+                const tr = document.createElement('tr');
+                tr.dataset.type = d.type || 'Other';
+                tr.dataset.status = d.status || 'Active';
+
+                let statusBadge = '';
+                const s = (d.status || 'Active').toLowerCase();
+                if (s === 'active' || s === 'verified') {
+                    statusBadge = `<span class="status active">Active</span>`;
+                } else if (s.includes('pending')) {
+                    statusBadge = `<span class="status pending">Pending Review</span>`;
+                } else {
+                    statusBadge = `<span class="status expired">Expired</span>`;
+                }
+
+                let iconClass = d.iconClass || 'bi-file-earmark-pdf';
+                let iconStyle = d.iconStyle || 'background:#EFF6FF; color:#2563EB;';
+
+                if (!d.iconClass) {
+                    if (d.type === 'Identification') {
+                        iconClass = 'bi-person-vcard';
+                        iconStyle = 'background:#FEF3C7; color:#D97706;';
+                    } else if (d.type === 'Receipt') {
+                        iconClass = 'bi-receipt';
+                        iconStyle = 'background:#ECFDF5; color:#059669;';
+                    } else if (d.type === 'Inspection Report') {
+                        iconClass = 'bi-clipboard-check';
+                        iconStyle = 'background:#EDE9FE; color:#6D28D9;';
+                    } else if (d.type === 'Title') {
+                        iconClass = 'bi-journal-check';
+                        iconStyle = 'background:#EFF6FF; color:#2563EB;';
+                    }
+                }
+
+                tr.innerHTML = `
+                    <td>
+                        <div class="document-name">
+                            <div class="document-icon" style="${iconStyle}"><i class="bi ${iconClass}"></i></div>
+                            <div>
+                                <div class="document-title">${d.title}</div>
+                                <div class="document-type">${d.fileType || 'PDF • 1.5 MB'}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <div><strong>${d.entityName || 'General Portfolio'}</strong></div>
+                        <div class="property-info" style="font-size:11px; color:var(--muted);">${d.entitySub || 'Document Vault'}</div>
+                    </td>
+                    <td>${d.type || 'Other'}</td>
+                    <td>${d.uploader || 'Property Admin'}</td>
+                    <td>${d.date || 'N/A'}</td>
+                    <td>${statusBadge}</td>
+                    <td>
+                        <div style="display:flex; gap:6px;">
+                            <button class="action-button" title="View Document" onclick="viewDocument('${d.id}')"><i class="bi bi-eye"></i></button>
+                            <button class="action-button delete" title="Delete" onclick="deleteDocument('${d.id}')"><i class="bi bi-trash"></i></button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            const countEl = document.getElementById('showingCountText');
+            if (countEl) countEl.textContent = `Showing 1–${docs.length} of ${docs.length} documents`;
+        }
+
+        function formatFileSize(bytes) {
+            if (!bytes || bytes === 0) return '0 KB';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        }
+
+        function saveDocument() {
+            const titleInput = document.getElementById('modalDocTitle');
+            const typeInput = document.getElementById('modalDocType');
+            const entityInput = document.getElementById('modalDocEntity');
+            const statusInput = document.getElementById('modalDocStatus');
+            const notesInput = document.getElementById('modalDocNotes');
+            const fileInput = document.getElementById('modalFile');
+
+            const title = titleInput ? titleInput.value.trim() : '';
+            const type = typeInput ? typeInput.value : 'Other';
+            const entity = entityInput ? entityInput.value : '';
+            const status = statusInput ? statusInput.value : 'Active';
+            const notes = notesInput ? notesInput.value.trim() : '';
+            const file = fileInput && fileInput.files ? fileInput.files[0] : null;
+
+            if (!title) {
+                alert("Please enter a document title.");
+                return;
+            }
+
+            const parts = entity.split('•');
+            const entityName = parts[0] ? parts[0].trim() : 'General Asset';
+            const entitySub = parts[1] ? parts[1].trim() : 'Document Vault';
+
+            let iconClass = 'bi-file-earmark-pdf';
+            let iconStyle = 'background:#EFF6FF; color:#2563EB;';
+
+            if (type === 'Identification') {
+                iconClass = 'bi-person-vcard';
+                iconStyle = 'background:#FEF3C7; color:#D97706;';
+            } else if (type === 'Receipt') {
+                iconClass = 'bi-receipt';
+                iconStyle = 'background:#ECFDF5; color:#059669;';
+            } else if (type === 'Inspection Report') {
+                iconClass = 'bi-clipboard-check';
+                iconStyle = 'background:#EDE9FE; color:#6D28D9;';
+            } else if (type === 'Title') {
+                iconClass = 'bi-journal-check';
+                iconStyle = 'background:#EFF6FF; color:#2563EB;';
+            }
+
+            let ext = 'PDF';
+            let formattedSize = '1.5 MB';
+
+            if (file) {
+                ext = (file.name.split('.').pop() || 'PDF').toUpperCase();
+                formattedSize = formatFileSize(file.size);
+            }
+
+            const fileTypeDesc = `${ext} • ${formattedSize}`;
+            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+            const today = new Date().toLocaleDateString('en-US', { month:'short', day:'2-digit', year:'numeric' });
+
+            const proceedSave = (fileDataUrl = '') => {
+                const newDoc = {
+                    id: `DOC-${Math.floor(1000 + Math.random() * 9000)}`,
+                    title: title,
+                    fileType: fileTypeDesc,
+                    entityName: entityName,
+                    entitySub: entitySub,
+                    type: type,
+                    uploader: user.name || 'Property Admin',
+                    date: today,
+                    status: status,
+                    iconClass: iconClass,
+                    iconStyle: iconStyle,
+                    notes: notes,
+                    fileUrl: fileDataUrl
+                };
+
+                let docs = getDocuments();
+                docs.unshift(newDoc);
+                saveDocuments(docs);
+
+                renderDocumentTable();
+                closeModal();
+
+                if (titleInput) titleInput.value = '';
+                if (notesInput) notesInput.value = '';
+                if (fileInput) fileInput.value = '';
+
+                alert(`Document "${title}" successfully uploaded to the system vault!`);
+            };
+
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    proceedSave(e.target.result);
+                };
+                reader.onerror = function() {
+                    proceedSave('');
+                };
+                reader.readAsDataURL(file);
+            } else {
+                proceedSave('');
+            }
+        }
+
+        function deleteDocument(id) {
+            if (!confirm("Are you sure you want to delete this document from the vault?")) return;
+            let docs = getDocuments();
+            docs = docs.filter(d => d.id !== id);
+            saveDocuments(docs);
+            renderDocumentTable();
+        }
+
+        function viewDocument(id) {
+            const docs = getDocuments();
+            const doc = docs.find(d => d.id === id);
+            if (!doc) return;
+
+            if (doc.fileUrl) {
+                const win = window.open();
+                if (win) {
+                    win.document.write(`<iframe src="${doc.fileUrl}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+                    return;
+                }
+            }
+
+            alert(`ARGO Vault Document — ${doc.id}\n\nTitle: ${doc.title}\nType: ${doc.type}\nRelated Entity: ${doc.entityName} (${doc.entitySub})\nUploaded By: ${doc.uploader}\nUpload Date: ${doc.date}\nStatus: ${doc.status}\nNotes: ${doc.notes || 'None'}`);
+        }
+
+        function updateHeaderBadge() {
+            const notifs = getNotifications().filter(n => (n.pov === 'admin' || n.pov === 'all') && (n.status === 'unread' || n.is_read === false));
+            const badge = document.getElementById('headerNotifBadge');
+            if (badge) badge.textContent = notifs.length;
+        }
+
+        function openModal() { 
+            populateModalDropdowns();
+            const modal = document.getElementById("documentModal");
+            if (modal) modal.classList.add("show"); 
+        }
+
+        function closeModal() { 
+            const modal = document.getElementById("documentModal");
+            if (modal) modal.classList.remove("show"); 
+            const fileInput = document.getElementById('modalFile');
+            if (fileInput) fileInput.value = '';
+        }
+
+        window.onclick = function(event) {
+            const modal = document.getElementById("documentModal");
+            if (event.target === modal) closeModal();
+        };
+
+        function filterTable() {
+            const searchInput = document.getElementById("searchInput");
+            const typeFilter = document.getElementById("typeFilter");
+            const statusFilter = document.getElementById("statusFilter");
+
+            const searchValue = searchInput ? searchInput.value.toLowerCase() : "";
+            const typeValue = typeFilter ? typeFilter.value : "";
+            const statusValue = statusFilter ? statusFilter.value : "";
+
+            const rows = document.querySelectorAll("#documentTable tr");
+
+            rows.forEach(row => {
+                const text = row.innerText.toLowerCase();
+                const rowType = row.dataset.type || "";
+                const rowStatus = row.dataset.status || "";
+
+                const matchesSearch = text.includes(searchValue);
+                const matchesType = typeValue === "" || rowType.toLowerCase() === typeValue.toLowerCase();
+                const matchesStatus = statusValue === "" || rowStatus.toLowerCase() === statusValue.toLowerCase();
+
+                if (matchesSearch && matchesType && matchesStatus) {
+                    row.style.display = "";
+                } else {
+                    row.style.display = "none";
+                }
+            });
+        }
+
+        function resetFilters() {
+            const searchInput = document.getElementById("searchInput");
+            const typeFilter = document.getElementById("typeFilter");
+            const statusFilter = document.getElementById("statusFilter");
+
+            if (searchInput) searchInput.value = "";
+            if (typeFilter) typeFilter.value = "";
+            if (statusFilter) statusFilter.value = "";
+            filterTable();
+        }
+
+        // Profile Dropdown Handler
+        const userProfileBtn = document.getElementById('userProfileBtn');
+        const userDropdown = document.getElementById('userDropdown');
+
+        if (userProfileBtn && userDropdown) {
+            userProfileBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                userDropdown.classList.toggle('show');
+            });
+
+            document.addEventListener('click', () => { 
+                userDropdown.classList.remove('show'); 
+            });
+        }
+    </script>
+</body>

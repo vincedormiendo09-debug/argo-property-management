@@ -1,0 +1,1708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fractional Ownership Manager | ARGO Property Management</title>
+
+    <!-- 🔒 Strict Navigation Guard & Role Isolation -->
+    <script src="js/auth.js"></script>
+
+    <!-- Inter Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+    <style>
+        :root {
+            --primary: #2563EB;
+            --primary-owner: #059669;
+            --sidebar: #0F172A;
+            --active: #1E293B;
+            --canvas: #F3F4F6;
+            --white: #FFFFFF;
+            --border: #E5E7EB;
+            --text: #111827;
+            --muted: #6B7280;
+            --success: #059669;
+            --danger: #E11D48;
+            --warning: #D97706;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Inter", sans-serif;
+            background: var(--canvas);
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        button, input, select, textarea {
+            font-family: inherit;
+        }
+
+        /* ================= SIDEBAR ================= */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 240px;
+            height: 100vh;
+            background: #0F172A;
+            color: white;
+            padding: 20px 14px;
+            z-index: 1000;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 5px 12px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .brand-logo {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 700;
+            color: white;
+            flex-shrink: 0;
+            transition: 0.2s ease;
+        }
+
+        .sidebar-brand h2 {
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .sidebar-brand span {
+            font-size: 9px;
+            color: #94A3B8;
+            margin-top: 1px;
+            display: block;
+            letter-spacing: 0.8px;
+        }
+
+        .sidebar-nav {
+            margin-top: 16px;
+            flex: 1;
+        }
+
+        .nav-section-title {
+            font-size: 10px;
+            font-weight: 700;
+            color: #64748B;
+            letter-spacing: 0.08em;
+            padding: 14px 10px 6px;
+            text-transform: uppercase;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            color: #CBD5E1;
+            text-decoration: none;
+            border-radius: 6px;
+            margin-bottom: 3px;
+            font-size: 13px;
+            transition: 0.15s ease;
+        }
+
+        .nav-item:hover {
+            background: #172033;
+            color: white;
+        }
+
+        .nav-item.active {
+            background: #1E293B;
+            color: white;
+            font-weight: 500;
+        }
+
+        .nav-item.active i {
+            color: #60A5FA;
+        }
+
+        .nav-item i {
+            width: 20px;
+            font-size: 16px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .sidebar-footer {
+            padding: 14px 10px 0;
+            border-top: 1px solid rgba(255,255,255,0.08);
+            font-size: 11px;
+            color: #64748B;
+        }
+
+        /* ================= HEADER ================= */
+        .top-header {
+            position: fixed;
+            top: 0;
+            left: 240px;
+            right: 0;
+            height: 64px;
+            background: var(--sidebar);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 28px;
+            z-index: 900;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            color: white;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .admin-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #1E293B;
+            border: 1px solid #334155;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #E5E7EB;
+            font-weight: 600;
+        }
+
+        .owner-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #1E293B;
+            border: 1px solid #059669;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #E5E7EB;
+            font-weight: 600;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+        }
+
+        .notification-header-link {
+            position: relative;
+            font-size: 18px;
+            color: #CBD5E1;
+            background: #1E293B;
+            border: 1px solid #334155;
+            width: 38px;
+            height: 38px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            transition: 0.2s ease;
+        }
+
+        .notification-header-link:hover {
+            background: var(--primary);
+            color: white;
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--danger);
+            color: white;
+            font-size: 9px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            border: 2px solid var(--sidebar);
+        }
+
+        /* USER PROFILE DROPDOWN */
+        .user-dropdown-container { position: relative; }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 6px;
+        }
+
+        .user-profile:hover { background: rgba(255,255,255,0.05); }
+
+        .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .user-info strong { display: block; font-size: 12px; }
+        .user-info span { display: block; color: #94A3B8; font-size: 10px; }
+
+        .dropdown-menu {
+            position: absolute;
+            right: 0;
+            top: 48px;
+            width: 180px;
+            background: white;
+            border: 1px solid #E5E7EB;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 1000;
+        }
+
+        .dropdown-menu.show { display: flex; }
+
+        .dropdown-item {
+            padding: 10px 14px;
+            color: #374151;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            transition: 0.15s;
+            cursor: pointer;
+        }
+
+        .dropdown-item:hover { background: #F3F4F6; color: #111827; }
+        .dropdown-item.danger { color: var(--danger); }
+        .dropdown-item.danger:hover { background: #FFF1F2; }
+
+        /* ================= MAIN CONTENT ================= */
+        .main-content {
+            margin-left: 240px;
+            padding: 88px 28px 40px;
+            min-height: 100vh;
+            max-width: 1600px;
+        }
+
+        .page-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 22px;
+        }
+
+        .eyebrow {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--muted);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .page-header h1 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .page-header p {
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .primary-btn {
+            border: none;
+            background: var(--primary);
+            color: white;
+            border-radius: 6px;
+            padding: 9px 16px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: 0.2s ease;
+        }
+
+        .primary-btn:hover { background: #1D4ED8; }
+
+        .secondary-btn {
+            height: 38px;
+            border: 1px solid var(--border);
+            background: white;
+            border-radius: 6px;
+            padding: 0 13px;
+            font-size: 12px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            color: var(--text);
+        }
+
+        .secondary-btn:hover { background: #F9FAFB; }
+
+        /* ================= KPI CARDS ================= */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 22px;
+        }
+
+        .kpi-card {
+            background: var(--white);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 18px;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+        }
+
+        .kpi-label {
+            color: var(--muted);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .kpi-value {
+            font-size: 24px;
+            font-weight: 600;
+            color: #111827;
+        }
+
+        .kpi-description {
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 4px;
+        }
+
+        /* ================= FILTER BAR ================= */
+        .filter-bar {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .search-box {
+            position: relative;
+            flex: 1;
+            min-width: 220px;
+        }
+
+        .search-box i {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--muted);
+        }
+
+        .search-box input {
+            width: 100%;
+            height: 38px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0 12px 0 36px;
+            font-size: 12px;
+            outline: none;
+        }
+
+        .search-box input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+        }
+
+        .filter-select {
+            height: 38px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0 12px;
+            font-size: 12px;
+            color: var(--text);
+            background: white;
+            outline: none;
+        }
+
+        /* ================= TABLE ================= */
+        .table-card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+        }
+
+        .table-wrapper { overflow-x: auto; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 950px;
+        }
+
+        th {
+            background: #F9FAFB;
+            color: var(--muted);
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            text-align: left;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 14px 16px;
+            font-size: 12px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text);
+        }
+
+        tr:hover { background: #F9FAFB; }
+
+        .prop-name { font-weight: 600; color: var(--text); }
+        .prop-code { font-size: 11px; color: var(--muted); margin-top: 2px; }
+        .owner-name { font-weight: 500; color: var(--text); }
+
+        .share-cell {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .share-bar-bg {
+            flex: 1;
+            height: 6px;
+            background: #E5E7EB;
+            border-radius: 999px;
+            overflow: hidden;
+            max-width: 100px;
+        }
+
+        .share-bar-fill {
+            height: 100%;
+            background: var(--primary);
+            border-radius: 999px;
+        }
+
+        .role-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 8px;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: 500;
+        }
+
+        .role-primary { background: #ECFDF5; color: #047857; }
+        .role-coowner { background: #EFF6FF; color: #1D4ED8; }
+
+        .action-button {
+            border: none;
+            background: transparent;
+            color: var(--muted);
+            font-size: 16px;
+            cursor: pointer;
+            padding: 4px 6px;
+            border-radius: 4px;
+        }
+
+        .action-button:hover { color: var(--primary); background: #EFF6FF; }
+        .action-button.delete:hover { color: var(--danger); background: #FFF1F2; }
+
+        .table-footer {
+            padding: 14px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: var(--muted);
+            font-size: 12px;
+            border-top: 1px solid var(--border);
+        }
+
+        /* ================= MODAL ================= */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.55);
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            padding: 20px;
+        }
+
+        .modal-overlay.show { display: flex; }
+
+        .modal {
+            width: 100%;
+            max-width: 520px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+            overflow: hidden;
+        }
+
+        .modal-header {
+            padding: 18px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 { font-size: 16px; font-weight: 600; }
+
+        .close-btn {
+            border: none;
+            background: none;
+            font-size: 18px;
+            cursor: pointer;
+            color: var(--muted);
+        }
+
+        .modal-body { padding: 20px; }
+        .form-group { margin-bottom: 14px; }
+
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 8px 10px;
+            font-size: 13px;
+            outline: none;
+        }
+
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .modal-footer {
+            padding: 14px 20px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            background: #F9FAFB;
+        }
+
+        /* RESPONSIVE */
+        @media (max-width: 1000px) {
+            .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar { width: 70px; padding: 20px 8px; }
+            .sidebar-brand h2, .sidebar-brand span, .nav-section-title, .nav-item span { display: none; }
+            .nav-item { justify-content: center; padding: 12px; }
+            .top-header { left: 70px; padding: 0 15px; }
+            .main-content { margin-left: 70px; padding: 85px 15px 30px; }
+            .page-header { flex-direction: column; gap: 14px; }
+            .filter-bar { flex-direction: column; align-items: stretch; }
+            .table-footer { flex-direction: column; gap: 12px; align-items: flex-start; }
+            .form-row { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ================= SIDEBAR ================= -->
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-logo" id="brandLogo">A</div>
+            <div>
+                <h2>ARGO</h2>
+                <span id="portalBrandSubtitle">Property Management</span>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav" id="sidebarNav">
+            <!-- POPULATED DYNAMICALLY BY JAVASCRIPT BASED ON LOGGED-IN ROLE -->
+        </nav>
+
+        <div class="sidebar-footer">
+            <span id="portalVersionText">ARGO v0.5</span>
+        </div>
+    </aside>
+
+    <!-- ================= TOP HEADER ================= -->
+    <header class="top-header">
+        <div class="header-left">
+            <div id="headerRoleBadgeContainer" class="admin-badge">
+                <i id="headerRoleIcon" class="bi bi-shield-lock-fill" style="color: #60A5FA;"></i>
+                <span id="headerRoleBadgeText">Admin Command Center</span>
+            </div>
+        </div>
+
+        <div class="header-right">
+            <a href="notification.html" class="notification-header-link" title="Notifications Center">
+                <i class="bi bi-bell"></i>
+                <div class="notification-badge" id="headerNotifBadge">0</div>
+            </a>
+
+            <div class="user-dropdown-container">
+                <div class="user-profile" id="userProfileBtn">
+                    <div class="avatar" id="userAvatar">JD</div>
+                    <div class="user-info">
+                        <strong id="userName">Property Admin</strong>
+                        <span id="userRoleBadge">Property Manager</span>
+                    </div>
+                    <i class="bi bi-chevron-down" style="font-size: 10px; color: #94A3B8;"></i>
+                </div>
+
+                <div class="dropdown-menu" id="userDropdown">
+                    <a href="account.html" class="dropdown-item">
+                        <i class="bi bi-person-gear"></i>
+                        <span>Account Settings</span>
+                    </a>
+                    <div class="dropdown-item danger" onclick="logoutUser()">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Log Out</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ================= MAIN CONTENT ================= -->
+    <main class="main-content">
+
+        <!-- PAGE HEADER -->
+        <div class="page-header">
+            <div>
+                <div class="eyebrow" id="pageEyebrow">CAPITAL STRUCTURE & CAP TABLES</div>
+                <h1 id="pageTitle">Fractional Ownership Manager</h1>
+                <p id="pageDesc">Manage co-ownership distributions, fractional equity shares, and primary property owners.</p>
+            </div>
+
+            <button class="primary-btn" id="allocateShareBtn" onclick="openShareModal()">
+                <i class="bi bi-plus-lg"></i>
+                <span>Allocate Equity Share</span>
+            </button>
+        </div>
+
+        <!-- KPI CARDS -->
+        <section class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-label" id="kpiLabel1">Active Property Assets</div>
+                <div class="kpi-value" style="color:#2563EB;" id="kpiProperties">0</div>
+                <div class="kpi-description" id="kpiSub1">Registered properties</div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-label" id="kpiLabel2">100% Allocated Assets</div>
+                <div class="kpi-value" style="color:#059669;" id="kpiAllocated">0</div>
+                <div class="kpi-description" id="kpiSub2">Cap tables balanced</div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-label" id="kpiLabel3">Unallocated Equity Assets</div>
+                <div class="kpi-value" style="color:#D97706;" id="kpiUnallocated">0</div>
+                <div class="kpi-description" id="kpiSub3">Under 100% total share</div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-label" id="kpiLabel4">Average Owners / Asset</div>
+                <div class="kpi-value" id="kpiAvgOwners">0.0</div>
+                <div class="kpi-description" id="kpiSub4">Co-ownership density</div>
+            </div>
+        </section>
+
+        <!-- FILTER BAR -->
+        <div class="filter-bar">
+            <div class="search-box">
+                <i class="bi bi-search"></i>
+                <input type="text" id="searchInput" placeholder="Search property, owner name, or contract ref..." onkeyup="filterTable()">
+            </div>
+
+            <select class="filter-select" id="propertyFilter" onchange="filterTable()">
+                <option value="">All Properties</option>
+                <!-- DYNAMICALLY POPULATED -->
+            </select>
+
+            <select class="filter-select" id="roleFilter" onchange="filterTable()">
+                <option value="">All Ownership Roles</option>
+                <option value="Primary">Primary Managing Owner</option>
+                <option value="Co-Owner">Co-Owner / Fractional Share</option>
+            </select>
+
+            <button class="secondary-btn" onclick="resetFilters()">
+                <i class="bi bi-arrow-counterclockwise"></i>
+                Reset
+            </button>
+        </div>
+
+        <!-- TABLE -->
+        <div class="table-card">
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>PROPERTY & CODE</th>
+                            <th>OWNER / ENTITY</th>
+                            <th>EQUITY SHARE (%)</th>
+                            <th>MANAGEMENT ROLE</th>
+                            <th>EFFECTIVE START DATE</th>
+                            <th>CONTRACT STATUS</th>
+                            <th>ACTIONS</th>
+                        </tr>
+                    </thead>
+                    <tbody id="shareTable">
+                        <!-- RENDERED DYNAMICALLY FROM DATABASE / LOCALSTORAGE -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- TABLE FOOTER -->
+            <div class="table-footer">
+                <span id="showingCountText">Showing 0 share records</span>
+            </div>
+        </div>
+    </main>
+
+    <!-- ================= MODAL: ASSIGN EQUITY SHARE (ADMIN ONLY) ================= -->
+    <div class="modal-overlay" id="shareModal">
+        <div class="modal">
+            <div class="modal-header">
+                <div>
+                    <span class="eyebrow">CAP TABLE ALLOCATION</span>
+                    <h2>Allocate Equity Share</h2>
+                </div>
+                <button class="close-btn" onclick="closeModal('shareModal')"><i class="bi bi-x-lg"></i></button>
+            </div>
+
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Target Property <span style="color:var(--danger, #E11D48);">*</span></label>
+                    <select id="modalPropertySelect">
+                        <option value="">Select Property...</option>
+                        <!-- DYNAMICALLY POPULATED -->
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Target Owner / Capital Partner <span style="color:var(--danger, #E11D48);">*</span></label>
+                    <select id="modalOwnerSelect">
+                        <option value="">Select Registered Owner...</option>
+                        <!-- DYNAMICALLY POPULATED -->
+                    </select>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Equity Share Percentage (%) <span style="color:var(--danger, #E11D48);">*</span></label>
+                        <input type="number" id="modalSharePercent" min="0.01" max="100" step="0.01" placeholder="e.g. 50.00">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Primary Owner Flag</label>
+                        <select id="modalPrimaryRole">
+                            <option value="Primary">Yes — Primary Managing Owner</option>
+                            <option value="Co-Owner">No — Fractional Co-Owner</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Effective Start Date</label>
+                        <input type="date" id="modalStartDate">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Effective End Date (Optional)</label>
+                        <input type="date" id="modalEndDate">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Contract / Deed Reference</label>
+                    <input type="text" id="modalContractRef" placeholder="e.g. Deed of Assignment Ref #2026-991A">
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="secondary-btn" onclick="closeModal('shareModal')">Cancel</button>
+                <button class="primary-btn" onclick="saveShare()"><i class="bi bi-check-lg"></i> Save Share Allocation</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= JAVASCRIPT ================= -->
+    <script>
+        // Secure Logout Handler
+        function logoutUser() {
+            localStorage.removeItem('argo_pov');
+            localStorage.removeItem('user_role');
+            localStorage.removeItem('role');
+            localStorage.removeItem('token');
+            localStorage.removeItem('argo_user');
+            window.location.replace('index.html');
+        }
+
+        // Default Seed Equity Shares
+        const DEFAULT_SHARES = [
+            {
+                id: 'SHR-1001',
+                propertyName: 'Sunrise Residences',
+                propertyCode: 'PROP-001',
+                ownerName: 'Don Ramon Santos',
+                ownerType: 'Primary Managing Owner',
+                sharePercent: 100.00,
+                role: 'Primary',
+                startDate: '2026-01-01',
+                contractRef: 'DEED-2026-001'
+            },
+            {
+                id: 'SHR-1002',
+                propertyName: 'Central Business Center',
+                propertyCode: 'PROP-003',
+                ownerName: 'Don Ramon Santos',
+                ownerType: 'Fractional Capital Partner',
+                sharePercent: 50.00,
+                role: 'Co-Owner',
+                startDate: '2026-01-15',
+                contractRef: 'DEED-2026-042'
+            }
+        ];
+
+        function getShares() {
+            try {
+                const data = localStorage.getItem('argo_shares');
+                if (!data) {
+                    localStorage.setItem('argo_shares', JSON.stringify(DEFAULT_SHARES));
+                    return DEFAULT_SHARES;
+                }
+                return JSON.parse(data);
+            } catch (e) {
+                return DEFAULT_SHARES;
+            }
+        }
+
+        function saveShares(shares) {
+            localStorage.setItem('argo_shares', JSON.stringify(shares));
+        }
+
+        function getProperties() {
+            try {
+                return JSON.parse(localStorage.getItem('argo_properties') || '[]');
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function getOwners() {
+            try {
+                return JSON.parse(localStorage.getItem('argo_owners') || '[]');
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function getNotifications() {
+            try {
+                return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function saveNotifications(notifications) {
+            localStorage.setItem('argo_notifications', JSON.stringify(notifications));
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const rawRole = (
+                localStorage.getItem('argo_pov') || 
+                localStorage.getItem('user_role') || 
+                localStorage.getItem('role') || 
+                ''
+            ).toLowerCase().trim();
+
+            if (!rawRole) {
+                window.location.replace('index.html');
+                return;
+            }
+
+            applyRoleLayout();
+            loadUserData();
+            populateModalDropdowns();
+            renderShareTable();
+            updateKPIs();
+            updateHeaderBadge();
+        });
+
+        // Cross-Tab Real-Time Sync Listener
+        window.addEventListener('storage', (e) => {
+            if (['argo_shares', 'argo_notifications', 'argo_properties', 'argo_owners', 'argo_pov', 'user_role', 'role', 'argo_user'].includes(e.key)) {
+                applyRoleLayout();
+                loadUserData();
+                populateModalDropdowns();
+                renderShareTable();
+                updateKPIs();
+                updateHeaderBadge();
+            }
+        });
+
+        // Dynamic Role Perspective Layout Adapter
+        function applyRoleLayout() {
+            const rawRole = (
+                localStorage.getItem('argo_pov') || 
+                localStorage.getItem('user_role') || 
+                localStorage.getItem('role') || 
+                'admin'
+            ).toLowerCase().trim();
+
+            let role = 'admin';
+            if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
+                role = 'client';
+            } else if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
+                role = 'owner';
+            }
+
+            const nav = document.getElementById('sidebarNav');
+            const brandSub = document.getElementById('portalBrandSubtitle');
+            const brandLogo = document.getElementById('brandLogo');
+            const versionText = document.getElementById('portalVersionText');
+            const headerRoleContainer = document.getElementById('headerRoleBadgeContainer');
+            const headerRoleIcon = document.getElementById('headerRoleIcon');
+            const headerRoleText = document.getElementById('headerRoleBadgeText');
+            const allocateBtn = document.getElementById('allocateShareBtn');
+            const pageEyebrow = document.getElementById('pageEyebrow');
+            const pageTitle = document.getElementById('pageTitle');
+            const pageDesc = document.getElementById('pageDesc');
+
+            if (role === 'client') {
+                document.documentElement.style.setProperty('--primary', '#2563EB');
+                if (brandSub) brandSub.textContent = 'Tenant Portal';
+                if (brandLogo) brandLogo.style.background = '#2563EB';
+                if (versionText) versionText.textContent = 'ARGO v0.5 (Tenant POV)';
+
+                if (headerRoleContainer) {
+                    headerRoleContainer.className = 'tenant-badge';
+                    headerRoleContainer.innerHTML = '<i class="bi bi-house-door-fill" style="color: #60A5FA;"></i><span>Tenant Self-Service Portal</span>';
+                }
+
+                if (pageEyebrow) pageEyebrow.textContent = 'SELF-SERVICE PROPERTY INFO';
+                if (pageTitle) pageTitle.textContent = 'Property & Building Information';
+                if (pageDesc) pageDesc.textContent = 'Overview of building details and property specifications for your assigned unit.';
+                if (allocateBtn) allocateBtn.style.display = 'none';
+
+                if (nav) {
+                    nav.innerHTML = `
+                        <div class="nav-section-title">SELF-SERVICE HOME</div>
+                        <a href="client-dashboard.html" class="nav-item">
+                            <i class="bi bi-house-door"></i>
+                            <span>My Tenancy Home</span>
+                        </a>
+                        <a href="client-billing.html" class="nav-item">
+                            <i class="bi bi-receipt"></i>
+                            <span>Pay Rent & Dues</span>
+                        </a>
+                        <a href="transaction.html" class="nav-item">
+                            <i class="bi bi-receipt-cutoff"></i>
+                            <span>Transactions & Ledger</span>
+                        </a>
+                        <a href="client-utilities.html" class="nav-item">
+                            <i class="bi bi-lightning-charge"></i>
+                            <span>My Utilities & Meters</span>
+                        </a>
+                        <a href="client-maintenance.html" class="nav-item">
+                            <i class="bi bi-tools"></i>
+                            <span>Submit Maintenance</span>
+                        </a>
+                        <a href="inspections.html" class="nav-item">
+                            <i class="bi bi-clipboard-check"></i>
+                            <span>Move-In & Inspections</span>
+                        </a>
+                        <a href="client-documents.html" class="nav-item">
+                            <i class="bi bi-folder2-open"></i>
+                            <span>My Lease & Receipts</span>
+                        </a>
+
+                        <div class="nav-section-title">SYSTEM</div>
+                        <a href="account.html" class="nav-item">
+                            <i class="bi bi-gear"></i>
+                            <span>Account Settings</span>
+                        </a>
+                        <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                            <i class="bi bi-box-arrow-right"></i>
+                            <span>Log Out</span>
+                        </a>
+                    `;
+                }
+            } else if (role === 'owner') {
+                document.documentElement.style.setProperty('--primary', '#059669');
+                if (brandSub) brandSub.textContent = 'Owner Portal';
+                if (brandLogo) brandLogo.style.background = '#059669';
+                if (versionText) versionText.textContent = 'ARGO v0.5 (Owner POV)';
+
+                if (headerRoleContainer) {
+                    headerRoleContainer.className = 'owner-badge';
+                    headerRoleContainer.innerHTML = '<i class="bi bi-person-badge-fill" style="color: #34D399;"></i><span>Property Owner Executive Portal</span>';
+                }
+
+                if (pageEyebrow) pageEyebrow.textContent = 'EQUITY & CAP TABLE OVERSIGHT';
+                if (pageTitle) pageTitle.textContent = 'My Property Equity & Cap Tables';
+                if (pageDesc) pageDesc.textContent = 'Review your fractional equity shares, co-owner distributions, and deed references across owned assets.';
+                if (allocateBtn) allocateBtn.style.display = 'none';
+
+                if (nav) {
+                    nav.innerHTML = `
+                        <div class="nav-section-title">PORTFOLIO OVERVIEW</div>
+                        <a href="owner-dashboard.html" class="nav-item">
+                            <i class="bi bi-speedometer2"></i>
+                            <span>Executive Summary</span>
+                        </a>
+                        <a href="owner-properties.html" class="nav-item">
+                            <i class="bi bi-buildings"></i>
+                            <span>My Properties</span>
+                        </a>
+                        <a href="owner-statements.html" class="nav-item">
+                            <i class="bi bi-file-earmark-text"></i>
+                            <span>Financial Statements</span>
+                        </a>
+                        <a href="property-ownership.html" class="nav-item active">
+                            <i class="bi bi-pie-chart"></i>
+                            <span>Fractional Equity</span>
+                        </a>
+                        <a href="owner-documents.html" class="nav-item">
+                            <i class="bi bi-folder2-open"></i>
+                            <span>Legal Vault</span>
+                        </a>
+                        <a href="transaction.html" class="nav-item">
+                            <i class="bi bi-receipt-cutoff"></i>
+                            <span>Yield Audit Ledger</span>
+                        </a>
+
+                        <div class="nav-section-title">COMMUNICATION & SYSTEM</div>
+                        <a href="notification.html" class="nav-item">
+                            <i class="bi bi-bell"></i>
+                            <span>Notification Center</span>
+                        </a>
+                        <a href="account.html" class="nav-item">
+                            <i class="bi bi-gear"></i>
+                            <span>Account Settings</span>
+                        </a>
+                        <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                            <i class="bi bi-box-arrow-right"></i>
+                            <span>Log Out</span>
+                        </a>
+                    `;
+                }
+            } else {
+                // Admin POV
+                document.documentElement.style.setProperty('--primary', '#2563EB');
+                if (brandSub) brandSub.textContent = 'Property Management';
+                if (brandLogo) brandLogo.style.background = '#2563EB';
+                if (versionText) versionText.textContent = 'ARGO v0.5';
+
+                if (headerRoleContainer) {
+                    headerRoleContainer.className = 'admin-badge';
+                    headerRoleContainer.innerHTML = '<i class="bi bi-shield-lock-fill" style="color: #60A5FA;"></i><span>Admin Command Center</span>';
+                }
+
+                if (pageEyebrow) pageEyebrow.textContent = 'CAPITAL STRUCTURE & CAP TABLES';
+                if (pageTitle) pageTitle.textContent = 'Fractional Ownership Manager';
+                if (pageDesc) pageDesc.textContent = 'Manage co-ownership distributions, fractional equity shares, and primary property owners.';
+                if (allocateBtn) allocateBtn.style.display = 'inline-flex';
+
+                if (nav) {
+                    nav.innerHTML = `
+                        <div class="nav-section-title">OVERVIEW</div>
+                        <a href="dashboard.html" class="nav-item">
+                            <i class="bi bi-grid-1x2"></i>
+                            <span>Dashboard</span>
+                        </a>
+
+                        <div class="nav-section-title">PROPERTY OPERATIONS</div>
+                        <a href="properties.html" class="nav-item">
+                            <i class="bi bi-buildings"></i>
+                            <span>Properties</span>
+                        </a>
+                        <a href="buildings.html" class="nav-item">
+                            <i class="bi bi-building"></i>
+                            <span>Buildings</span>
+                        </a>
+                        <a href="units.html" class="nav-item">
+                            <i class="bi bi-door-open"></i>
+                            <span>Units</span>
+                        </a>
+                        <a href="tenants.html" class="nav-item">
+                            <i class="bi bi-people"></i>
+                            <span>Tenants</span>
+                        </a>
+                        <a href="owners.html" class="nav-item">
+                            <i class="bi bi-person-badge"></i>
+                            <span>Owners</span>
+                        </a>
+                        <a href="property-ownership.html" class="nav-item active">
+                            <i class="bi bi-pie-chart"></i>
+                            <span>Fractional Ownership</span>
+                        </a>
+                        <a href="leases.html" class="nav-item">
+                            <i class="bi bi-file-earmark-text"></i>
+                            <span>Leases</span>
+                        </a>
+
+                        <div class="nav-section-title">FINANCE & SERVICES</div>
+                        <a href="rent-collection.html" class="nav-item">
+                            <i class="bi bi-cash-stack"></i>
+                            <span>Rent Collection</span>
+                        </a>
+                        <a href="transaction.html" class="nav-item">
+                            <i class="bi bi-receipt-cutoff"></i>
+                            <span>Transactions & Ledger</span>
+                        </a>
+                        <a href="utilities.html" class="nav-item">
+                            <i class="bi bi-lightning-charge"></i>
+                            <span>Utilities</span>
+                        </a>
+                        <a href="meter-readings.html" class="nav-item">
+                            <i class="bi bi-speedometer2"></i>
+                            <span>Meter Readings</span>
+                        </a>
+                        <a href="maintenance.html" class="nav-item">
+                            <i class="bi bi-tools"></i>
+                            <span>Maintenance</span>
+                        </a>
+
+                        <div class="nav-section-title">RECORDS & REPORTS</div>
+                        <a href="inspections.html" class="nav-item">
+                            <i class="bi bi-clipboard-check"></i>
+                            <span>Inspections</span>
+                        </a>
+                        <a href="move-in-checklist.html" class="nav-item">
+                            <i class="bi bi-check2-square"></i>
+                            <span>Move-In Checklist</span>
+                        </a>
+                        <a href="move-out-settlement.html" class="nav-item">
+                            <i class="bi bi-box-arrow-right"></i>
+                            <span>Move-Out Settlement</span>
+                        </a>
+                        <a href="documents.html" class="nav-item">
+                            <i class="bi bi-folder2-open"></i>
+                            <span>Documents</span>
+                        </a>
+                        <a href="reports.html" class="nav-item">
+                            <i class="bi bi-bar-chart"></i>
+                            <span>Reports</span>
+                        </a>
+
+                        <div class="nav-section-title">SYSTEM</div>
+                        <a href="settings.html" class="nav-item">
+                            <i class="bi bi-gear"></i>
+                            <span>Settings</span>
+                        </a>
+                        <a href="account.html" class="nav-item">
+                            <i class="bi bi-person-gear"></i>
+                            <span>Account Settings</span>
+                        </a>
+                        <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                            <i class="bi bi-box-arrow-right"></i>
+                            <span>Log Out</span>
+                        </a>
+                    `;
+                }
+            }
+        }
+
+        function loadUserData() {
+            const rawRole = (
+                localStorage.getItem('argo_pov') || 
+                localStorage.getItem('user_role') || 
+                localStorage.getItem('role') || 
+                'admin'
+            ).toLowerCase().trim();
+
+            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+
+            if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
+                document.getElementById('userName').textContent = 'Don Ramon Santos';
+                document.getElementById('userRoleBadge').textContent = 'Property Owner';
+                document.getElementById('userAvatar').textContent = 'RS';
+                document.getElementById('userAvatar').style.background = '#059669';
+            } else if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
+                document.getElementById('userName').textContent = 'Maria Santos';
+                document.getElementById('userRoleBadge').textContent = 'Sunrise Property • Unit 101';
+                document.getElementById('userAvatar').textContent = 'MS';
+                document.getElementById('userAvatar').style.background = '#D97706';
+            } else {
+                document.getElementById('userName').textContent = user.name || 'Property Admin';
+                document.getElementById('userRoleBadge').textContent = 'Property Manager';
+                document.getElementById('userAvatar').textContent = user.avatar || 'JD';
+                document.getElementById('userAvatar').style.background = '#2563EB';
+            }
+        }
+
+        function populateModalDropdowns() {
+            const props = getProperties();
+            const owners = getOwners();
+
+            const propFilter = document.getElementById('propertyFilter');
+            const propModalSelect = document.getElementById('modalPropertySelect');
+            const ownerModalSelect = document.getElementById('modalOwnerSelect');
+
+            if (propFilter) {
+                propFilter.innerHTML = '<option value="">All Properties</option>';
+                props.forEach(p => propFilter.innerHTML += `<option value="${p.name}">${p.name}</option>`);
+            }
+
+            if (propModalSelect) {
+                propModalSelect.innerHTML = '<option value="">Select Property...</option>';
+                if (props.length > 0) {
+                    props.forEach(p => propModalSelect.innerHTML += `<option value="${p.name} • ${p.code || 'PROP'}">${p.name} (${p.code || 'PROP'})</option>`);
+                } else {
+                    propModalSelect.innerHTML += `<option value="Sunrise Residences • PROP-001">Sunrise Residences (PROP-001)</option>`;
+                    propModalSelect.innerHTML += `<option value="Central Business Center • PROP-003">Central Business Center (PROP-003)</option>`;
+                }
+            }
+
+            if (ownerModalSelect) {
+                ownerModalSelect.innerHTML = '<option value="">Select Registered Owner...</option>';
+                if (owners.length > 0) {
+                    owners.forEach(o => ownerModalSelect.innerHTML += `<option value="${o.name}">${o.name} (${o.type || 'Owner'})</option>`);
+                } else {
+                    ownerModalSelect.innerHTML += `<option value="Don Ramon Santos">Don Ramon Santos (Individual)</option>`;
+                    ownerModalSelect.innerHTML += `<option value="Metro Investment Holdings Inc.">Metro Investment Holdings Inc. (Organization)</option>`;
+                }
+            }
+        }
+
+        function renderShareTable() {
+            const rawRole = (
+                localStorage.getItem('argo_pov') || 
+                localStorage.getItem('user_role') || 
+                localStorage.getItem('role') || 
+                'admin'
+            ).toLowerCase().trim();
+
+            let shares = getShares();
+            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+            const ownerFilterName = user.name || 'Ramon Santos';
+
+            if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
+                shares = shares.filter(s => {
+                    const ownerField = (s.ownerName || s.owner_name || '').toLowerCase();
+                    return ownerField.includes(ownerFilterName.toLowerCase()) || ownerField.includes('santos');
+                });
+            }
+
+            const tbody = document.getElementById('shareTable');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            if (shares.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--muted); padding:30px;">No equity share records found.</td></tr>`;
+                document.getElementById('showingCountText').textContent = `Showing 0 share records`;
+                return;
+            }
+
+            shares.forEach(s => {
+                const tr = document.createElement('tr');
+                const propName = s.propertyName || s.property_name || s.property || 'Property';
+                const propCode = s.propertyCode || s.property_code || 'PROP';
+                const ownerName = s.ownerName || s.owner_name || 'Owner';
+                const ownerType = s.ownerType || s.owner_type || 'Capital Partner';
+                const shareVal = parseFloat(s.sharePercent || s.share_percent || s.share || 0);
+                const roleType = s.role || (s.is_primary ? 'Primary' : 'Co-Owner');
+                const startDate = s.startDate || s.start_date || 'Immediate';
+                const deedRef = s.contractRef || s.contract_ref || 'DEED-2026-001';
+
+                tr.dataset.property = propName;
+                tr.dataset.role = roleType;
+
+                let roleBadge = roleType === 'Primary' 
+                    ? `<span class="role-badge role-primary">Primary Managing Owner</span>` 
+                    : `<span class="role-badge role-coowner">Co-Owner / Fractional</span>`;
+
+                let actionHtml = '';
+                if (!['owner', 'property_owner', 'investor', 'client', 'tenant'].includes(rawRole)) {
+                    actionHtml = `
+                        <div class="actions">
+                            <button class="action-button delete" title="Remove Share" onclick="deleteShare('${s.id}')"><i class="bi bi-trash"></i></button>
+                        </div>
+                    `;
+                } else {
+                    actionHtml = `
+                        <div class="actions">
+                            <button class="action-button" title="View Cap Table Deed" onclick="alert('Deed Reference for ${escapeQuotes(propName)}:\\nOwner: ${escapeQuotes(ownerName)}\\nEquity Share: ${shareVal.toFixed(2)}%\\nDeed Ref: ${escapeQuotes(deedRef)}')"><i class="bi bi-eye"></i></button>
+                        </div>
+                    `;
+                }
+
+                tr.innerHTML = `
+                    <td>
+                        <div class="prop-name" style="font-weight:600;">${propName}</div>
+                        <div class="prop-code" style="font-size:11px; color:var(--muted);">${propCode}</div>
+                    </td>
+                    <td>
+                        <div class="owner-name" style="font-weight:600;">${ownerName}</div>
+                        <div class="prop-code" style="font-size:11px; color:var(--muted);">${ownerType}</div>
+                    </td>
+                    <td>
+                        <div class="share-cell">
+                            <strong>${shareVal.toFixed(2)}%</strong>
+                            <div class="share-bar-bg" style="background:#E2E8F0; border-radius:4px; height:6px; overflow:hidden; margin-top:4px;">
+                                <div class="share-bar-fill" style="width: ${Math.min(100, shareVal)}%; background:var(--primary, #2563EB); height:100%;"></div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>${roleBadge}</td>
+                    <td>${startDate}</td>
+                    <td><span class="role-badge role-primary" style="background:#ECFDF5; color:#059669; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;">Active</span></td>
+                    <td>${actionHtml}</td>
+                `;
+
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('showingCountText').textContent = `Showing 1–${shares.length} of ${shares.length} share records`;
+        }
+
+        function saveShare() {
+            const propSelect = document.getElementById('modalPropertySelect');
+            const ownerSelect = document.getElementById('modalOwnerSelect');
+            const shareInput = document.getElementById('modalSharePercent');
+            const roleSelect = document.getElementById('modalPrimaryRole');
+            const startInput = document.getElementById('modalStartDate');
+            const endInput = document.getElementById('modalEndDate');
+            const contractInput = document.getElementById('modalContractRef');
+
+            const propVal = propSelect ? propSelect.value : '';
+            const ownerName = ownerSelect ? ownerSelect.value : '';
+            const percent = parseFloat(shareInput ? shareInput.value : 0);
+            const role = roleSelect ? roleSelect.value : 'Primary';
+            const startDate = startInput && startInput.value ? startInput.value : new Date().toISOString().split('T')[0];
+            const endDate = endInput && endInput.value ? endInput.value : null;
+            const contractRef = contractInput ? contractInput.value.trim() : '';
+
+            if (!propVal || !ownerName || isNaN(percent) || percent <= 0 || percent > 100) {
+                alert("Please select a property and owner, and specify a valid equity share percentage between 0.01% and 100.00%.");
+                return;
+            }
+
+            const parts = propVal.split('•');
+            const propName = parts[0].trim();
+            const propCode = parts[1] ? parts[1].trim() : 'PROP';
+
+            let shares = getShares();
+
+            // Validate total equity share allocation for the selected property
+            const existingShareTotal = shares
+                .filter(s => (s.propertyName || s.property_name || s.property) === propName)
+                .reduce((sum, s) => sum + parseFloat(s.sharePercent || s.share_percent || s.share || 0), 0);
+
+            if (existingShareTotal + percent > 100.01) {
+                const available = Math.max(0, 100 - existingShareTotal).toFixed(2);
+                if (!confirm(`Warning: Allocating ${percent.toFixed(2)}% will cause total equity on ${propName} to reach ${(existingShareTotal + percent).toFixed(2)}% (Available unallocated: ${available}%).\n\nDo you wish to proceed?`)) {
+                    return;
+                }
+            }
+
+            const newShare = {
+                id: `SHR-${Math.floor(1000 + Math.random() * 9000)}`,
+                propertyName: propName,
+                property_name: propName,
+                propertyCode: propCode,
+                property_code: propCode,
+                ownerName: ownerName,
+                owner_name: ownerName,
+                ownerType: role === 'Primary' ? 'Primary Managing Owner' : 'Fractional Capital Partner',
+                sharePercent: percent,
+                share_percent: percent,
+                role: role,
+                is_primary: role === 'Primary',
+                startDate: startDate,
+                start_date: startDate,
+                endDate: endDate,
+                end_date: endDate,
+                contractRef: contractRef || `DEED-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`,
+                contract_ref: contractRef || `DEED-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`,
+                created_at: new Date().toISOString()
+            };
+
+            shares.unshift(newShare);
+            saveShares(shares);
+
+            // Log Admin / System Notification
+            let notifications = getNotifications();
+            notifications.unshift({
+                id: `NOTIF-${Date.now()}`,
+                pov: 'owner',
+                category: 'asset',
+                status: 'unread',
+                title: 'New Property Equity Share Allocated',
+                time: 'Just now',
+                description: `Ownership share of <strong>${percent.toFixed(2)}%</strong> (${role}) allocated for <strong>${propName}</strong> under <strong>${ownerName}</strong>.`,
+                property: propName,
+                actionUrl: 'property-ownership.html',
+                actionText: 'View Cap Table'
+            });
+            saveNotifications(notifications);
+
+            renderShareTable();
+            updateKPIs();
+            closeModal('shareModal');
+
+            if (propSelect) propSelect.value = '';
+            if (ownerSelect) ownerSelect.value = '';
+            if (shareInput) shareInput.value = '';
+            if (contractInput) contractInput.value = '';
+            if (startInput) startInput.value = '';
+            if (endInput) endInput.value = '';
+
+            alert("Equity share allocation successfully saved!");
+        }
+
+        function deleteShare(id) {
+            if (!confirm("Are you sure you want to remove this equity share allocation?")) return;
+            let shares = getShares();
+            shares = shares.filter(s => s.id !== id);
+            saveShares(shares);
+            renderShareTable();
+            updateKPIs();
+        }
+
+        function escapeQuotes(str) {
+            return (str || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        }
+
+        function updateKPIs() {
+            const rawRole = (
+                localStorage.getItem('argo_pov') || 
+                localStorage.getItem('user_role') || 
+                localStorage.getItem('role') || 
+                'admin'
+            ).toLowerCase().trim();
+
+            let shares = getShares();
+            const props = getProperties();
+            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+            const ownerFilterName = user.name || 'Ramon Santos';
+
+            if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
+                shares = shares.filter(s => {
+                    const ownerField = (s.ownerName || s.owner_name || '').toLowerCase();
+                    return ownerField.includes(ownerFilterName.toLowerCase()) || ownerField.includes('santos');
+                });
+
+                document.getElementById('kpiLabel1').textContent = 'Owned Portfolio Assets';
+                document.getElementById('kpiLabel2').textContent = 'Primary Ownership Shares';
+                document.getElementById('kpiLabel3').textContent = 'Fractional Co-Ownerships';
+                document.getElementById('kpiLabel4').textContent = 'Average Portfolio Share';
+
+                const totalOwnedProps = new Set(shares.map(s => s.propertyName || s.property_name || s.property)).size;
+                const primaryShares = shares.filter(s => s.role === 'Primary' || s.is_primary).length;
+                const coOwnerShares = shares.filter(s => s.role === 'Co-Owner' || !s.is_primary).length;
+                
+                let avgShareSum = 0;
+                shares.forEach(s => avgShareSum += parseFloat(s.sharePercent || s.share_percent || s.share || 0));
+                const avgShare = shares.length > 0 ? (avgShareSum / shares.length).toFixed(1) : "0.0";
+
+                document.getElementById('kpiProperties').textContent = totalOwnedProps;
+                document.getElementById('kpiAllocated').textContent = primaryShares;
+                document.getElementById('kpiUnallocated').textContent = coOwnerShares;
+                document.getElementById('kpiAvgOwners').textContent = `${avgShare}%`;
+                return;
+            }
+
+            // Admin KPI Calculations across all Cap Tables
+            let propShareMap = {};
+            shares.forEach(s => {
+                const pName = s.propertyName || s.property_name || s.property || 'Property';
+                if (!propShareMap[pName]) propShareMap[pName] = { sum: 0, count: 0 };
+                propShareMap[pName].sum += parseFloat(s.sharePercent || s.share_percent || s.share || 0);
+                propShareMap[pName].count += 1;
+            });
+
+            let totalProps = props.length || Object.keys(propShareMap).length;
+            let fullyAllocated = 0;
+            let totalOwnersCount = 0;
+
+            Object.keys(propShareMap).forEach(pName => {
+                if (propShareMap[pName].sum >= 99.99) fullyAllocated++;
+                totalOwnersCount += propShareMap[pName].count;
+            });
+
+            let avgOwners = Object.keys(propShareMap).length > 0 
+                ? (totalOwnersCount / Object.keys(propShareMap).length).toFixed(1) 
+                : "0.0";
+
+            document.getElementById('kpiLabel1').textContent = 'Active Property Assets';
+            document.getElementById('kpiLabel2').textContent = '100% Allocated Assets';
+            document.getElementById('kpiLabel3').textContent = 'Unallocated Equity Assets';
+            document.getElementById('kpiLabel4').textContent = 'Average Owners / Asset';
+
+            document.getElementById('kpiProperties').textContent = totalProps;
+            document.getElementById('kpiAllocated').textContent = fullyAllocated;
+            document.getElementById('kpiUnallocated').textContent = Math.max(0, totalProps - fullyAllocated);
+            document.getElementById('kpiAvgOwners').textContent = avgOwners;
+        }
+
+        function updateHeaderBadge() {
+            const rawRole = (
+                localStorage.getItem('argo_pov') || 
+                localStorage.getItem('user_role') || 
+                localStorage.getItem('role') || 
+                'admin'
+            ).toLowerCase().trim();
+
+            let role = 'admin';
+            if (['client', 'tenant', 'client_pov'].includes(rawRole)) role = 'client';
+            else if (['owner', 'property_owner', 'investor'].includes(rawRole)) role = 'owner';
+
+            const notifs = getNotifications().filter(n => (n.pov === role || n.pov === 'all') && (n.status === 'unread' || n.is_read === false));
+            const badge = document.getElementById('headerNotifBadge');
+            if (badge) badge.textContent = notifs.length;
+        }
+
+        function openShareModal() { 
+            populateModalDropdowns();
+            const modal = document.getElementById("shareModal");
+            if (modal) modal.classList.add("show"); 
+        }
+
+        function closeModal(modalId) { 
+            const modal = document.getElementById(modalId);
+            if (modal) modal.classList.remove("show"); 
+        }
+
+        window.onclick = function(event) {
+            if (event.target.classList && event.target.classList.contains('modal-overlay')) {
+                event.target.classList.remove("show");
+            }
+        };
+
+        function filterTable() {
+            const searchInput = document.getElementById("searchInput");
+            const propFilter = document.getElementById("propertyFilter");
+            const roleFilter = document.getElementById("roleFilter");
+
+            const searchValue = searchInput ? searchInput.value.toLowerCase().trim() : "";
+            const propertyValue = propFilter ? propFilter.value : "";
+            const roleValue = roleFilter ? roleFilter.value : "";
+
+            const rows = document.querySelectorAll("#shareTable tr");
+            let visibleCount = 0;
+            let totalRows = 0;
+
+            rows.forEach(row => {
+                if (row.cells.length === 1) return;
+                totalRows++;
+
+                const text = row.innerText.toLowerCase();
+                const rowProperty = row.dataset.property || "";
+                const rowRole = row.dataset.role || "";
+
+                const matchesSearch = text.includes(searchValue);
+                const matchesProperty = propertyValue === "" || rowProperty === propertyValue;
+                const matchesRole = roleValue === "" || rowRole === roleValue;
+
+                if (matchesSearch && matchesProperty && matchesRole) {
+                    row.style.display = "";
+                    visibleCount++;
+                } else {
+                    row.style.display = "none";
+                }
+            });
+
+            const countEl = document.getElementById('showingCountText');
+            if (countEl) {
+                countEl.textContent = totalRows === 0 ? "Showing 0 share records" : `Showing ${visibleCount} of ${totalRows} share records`;
+            }
+        }
+
+        function resetFilters() {
+            const searchInput = document.getElementById("searchInput");
+            const propFilter = document.getElementById("propertyFilter");
+            const roleFilter = document.getElementById("roleFilter");
+
+            if (searchInput) searchInput.value = "";
+            if (propFilter) propFilter.value = "";
+            if (roleFilter) roleFilter.value = "";
+            filterTable();
+        }
+
+        // Profile Dropdown Handler
+        const userProfileBtn = document.getElementById('userProfileBtn');
+        const userDropdown = document.getElementById('userDropdown');
+
+        if (userProfileBtn && userDropdown) {
+            userProfileBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                userDropdown.classList.toggle('show');
+            });
+
+            document.addEventListener('click', () => { 
+                userDropdown.classList.remove('show'); 
+            });
+        }
+    </script>
+</body>

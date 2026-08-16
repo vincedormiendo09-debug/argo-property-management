@@ -1,0 +1,1556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Center & Invoices | ARGO Tenant Portal</title>
+
+    <!-- 🔒 Strict Navigation Guard & Role Isolation -->
+    <script src="js/auth.js"></script>
+
+    <!-- Inter Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+    <style>
+        :root {
+            --primary: #2563EB;
+            --sidebar: #0F172A;
+            --active: #1E293B;
+            --canvas: #F3F4F6;
+            --white: #FFFFFF;
+            --border: #E5E7EB;
+            --text: #111827;
+            --muted: #6B7280;
+            --success: #059669;
+            --danger: #E11D48;
+            --warning: #D97706;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--canvas);
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        button, input, select, textarea {
+            font-family: inherit;
+        }
+
+        /* ================= SIDEBAR ================= */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 240px;
+            height: 100vh;
+            background: #0F172A;
+            color: white;
+            padding: 20px 14px;
+            z-index: 1000;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 5px 12px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .brand-logo {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: #2563EB;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 700;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .sidebar-brand h2 {
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .sidebar-brand span {
+            font-size: 9px;
+            color: #94A3B8;
+            margin-top: 1px;
+            display: block;
+            letter-spacing: 0.8px;
+        }
+
+        .sidebar-nav {
+            margin-top: 16px;
+            flex: 1;
+        }
+
+        .nav-section-title {
+            font-size: 10px;
+            font-weight: 700;
+            color: #64748B;
+            letter-spacing: 0.08em;
+            padding: 14px 10px 6px;
+            text-transform: uppercase;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            color: #CBD5E1;
+            text-decoration: none;
+            border-radius: 6px;
+            margin-bottom: 3px;
+            font-size: 13px;
+            transition: 0.15s ease;
+        }
+
+        .nav-item:hover {
+            background: #172033;
+            color: white;
+        }
+
+        .nav-item.active {
+            background: #1E293B;
+            color: white;
+            font-weight: 500;
+        }
+
+        .nav-item.active i {
+            color: #60A5FA;
+        }
+
+        .nav-item i {
+            width: 20px;
+            font-size: 16px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .sidebar-footer {
+            padding: 14px 10px 0;
+            border-top: 1px solid rgba(255,255,255,0.08);
+            font-size: 11px;
+            color: #64748B;
+        }
+
+        /* ================= TOP HEADER ================= */
+        .top-header {
+            position: fixed;
+            top: 0;
+            left: 240px;
+            right: 0;
+            height: 64px;
+            background: var(--sidebar);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 28px;
+            z-index: 900;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            color: white;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .tenant-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #1E293B;
+            border: 1px solid #334155;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #E5E7EB;
+            font-weight: 600;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+        }
+
+        .notification-header-link {
+            position: relative;
+            font-size: 18px;
+            color: #CBD5E1;
+            background: #1E293B;
+            border: 1px solid #334155;
+            width: 38px;
+            height: 38px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            transition: 0.2s ease;
+        }
+
+        .notification-header-link:hover {
+            background: #2563EB;
+            color: white;
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--danger);
+            color: white;
+            font-size: 9px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            border: 2px solid var(--sidebar);
+        }
+
+        /* USER PROFILE DROPDOWN */
+        .user-dropdown-container { position: relative; }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 6px;
+        }
+
+        .user-profile:hover { background: rgba(255,255,255,0.05); }
+
+        .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--warning);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .user-info strong { display: block; font-size: 12px; }
+        .user-info span { display: block; color: #94A3B8; font-size: 10px; }
+
+        .dropdown-menu {
+            position: absolute;
+            right: 0;
+            top: 48px;
+            width: 180px;
+            background: white;
+            border: 1px solid #E5E7EB;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 1000;
+        }
+
+        .dropdown-menu.show { display: flex; }
+
+        .dropdown-item {
+            padding: 10px 14px;
+            color: #374151;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            transition: 0.15s;
+            cursor: pointer;
+        }
+
+        .dropdown-item:hover { background: #F3F4F6; color: #111827; }
+        .dropdown-item.danger { color: var(--danger); }
+        .dropdown-item.danger:hover { background: #FFF1F2; }
+
+        /* ================= MAIN CONTENT ================= */
+        .main-content {
+            margin-left: 240px;
+            padding: 88px 28px 40px;
+            min-height: 100vh;
+            max-width: 1600px;
+        }
+
+        .page-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 22px;
+        }
+
+        .eyebrow {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--muted);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .page-header h1 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .page-header p {
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .primary-btn {
+            border: none;
+            background: var(--primary);
+            color: white;
+            border-radius: 6px;
+            padding: 9px 16px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: 0.2s ease;
+        }
+
+        .primary-btn:hover { background: #1D4ED8; }
+
+        .secondary-btn {
+            height: 38px;
+            border: 1px solid var(--border);
+            background: white;
+            border-radius: 6px;
+            padding: 0 13px;
+            font-size: 12px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            color: var(--text);
+        }
+
+        .secondary-btn:hover { background: #F9FAFB; }
+
+        /* ================= KPI CARDS ================= */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 22px;
+        }
+
+        .kpi-card {
+            background: var(--white);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 18px;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+        }
+
+        .kpi-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .kpi-label {
+            color: var(--muted);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .kpi-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: #EFF6FF;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .kpi-value {
+            font-size: 24px;
+            font-weight: 600;
+            color: #111827;
+        }
+
+        .kpi-description {
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 4px;
+        }
+
+        /* ================= FILTER BAR ================= */
+        .filter-bar {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .search-box {
+            position: relative;
+            flex: 1;
+            min-width: 220px;
+        }
+
+        .search-box i {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--muted);
+        }
+
+        .search-box input {
+            width: 100%;
+            height: 38px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0 12px 0 36px;
+            font-size: 12px;
+            outline: none;
+        }
+
+        .search-box input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+        }
+
+        .filter-select {
+            height: 38px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0 12px;
+            font-size: 12px;
+            color: var(--text);
+            background: white;
+            outline: none;
+        }
+
+        /* ================= TABLE ================= */
+        .table-card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+        }
+
+        .table-wrapper { overflow-x: auto; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 950px;
+        }
+
+        th {
+            background: #F9FAFB;
+            color: var(--muted);
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            text-align: left;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 14px 16px;
+            font-size: 12px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text);
+        }
+
+        tr:hover { background: #F9FAFB; }
+
+        .invoice-id { font-weight: 600; color: var(--text); }
+        .invoice-type { font-weight: 600; color: var(--text); }
+        .invoice-sub { color: var(--muted); font-size: 11px; margin-top: 2px; }
+
+        /* TYPE BADGES */
+        .type-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+        .type-rent { background: #EFF6FF; color: #1D4ED8; }
+        .type-elec { background: #FEF3C7; color: #92400E; }
+        .type-water { background: #E0F2FE; color: #0369A1; }
+
+        /* STATUS BADGES */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 8px;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .status-paid { background: #ECFDF5; color: #047857; }
+        .status-pending { background: #FEF3C7; color: #B45309; }
+        .status-unpaid { background: #FFF1F2; color: #BE123C; }
+
+        .action-button {
+            border: none;
+            background: transparent;
+            color: var(--muted);
+            font-size: 16px;
+            cursor: pointer;
+            padding: 4px 6px;
+            border-radius: 4px;
+        }
+
+        .action-button:hover { color: var(--primary); background: #EFF6FF; }
+
+        .table-footer {
+            padding: 14px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: var(--muted);
+            font-size: 12px;
+            border-top: 1px solid var(--border);
+        }
+
+        /* ================= MODAL & QR CODE PREVIEW ================= */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.55);
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            padding: 20px;
+        }
+
+        .modal-overlay.show { display: flex; }
+
+        .modal {
+            width: 100%;
+            max-width: 520px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+            overflow: hidden;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-header {
+            padding: 18px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 { font-size: 16px; font-weight: 600; }
+
+        .close-btn {
+            border: none;
+            background: none;
+            font-size: 18px;
+            cursor: pointer;
+            color: var(--muted);
+        }
+
+        .modal-body { padding: 20px; overflow-y: auto; flex: 1; }
+        .form-group { margin-bottom: 14px; }
+
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 8px 10px;
+            font-size: 13px;
+            outline: none;
+        }
+
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+        }
+
+        .qr-display-container {
+            background: #F8FAFC;
+            border: 1px dashed #CBD5E1;
+            border-radius: 10px;
+            padding: 14px;
+            text-align: center;
+            margin-bottom: 14px;
+        }
+
+        .qr-title {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 8px;
+        }
+
+        .qr-image-wrapper {
+            width: 170px;
+            height: 170px;
+            margin: 0 auto 8px;
+            background: white;
+            padding: 6px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .qr-image-wrapper img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            border-radius: 4px;
+        }
+
+        .qr-account-info {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .qr-account-sub {
+            font-size: 11px;
+            color: var(--muted);
+        }
+
+        .location-context-tag {
+            background: #EFF6FF;
+            border: 1px solid #BFDBFE;
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 11px;
+            color: #1E40AF;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .modal-footer {
+            padding: 14px 20px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            background: #F9FAFB;
+        }
+
+        /* RESPONSIVE */
+        @media (max-width: 1000px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 768px) {
+            .sidebar { width: 70px; padding: 20px 8px; }
+            .sidebar-brand h2, .sidebar-brand span, .nav-section-title, .nav-item span { display: none; }
+            .nav-item { justify-content: center; padding: 12px; }
+            .top-header { left: 70px; padding: 0 15px; }
+            .main-content { margin-left: 70px; padding: 85px 15px 30px; }
+            .page-header { flex-direction: column; gap: 14px; }
+            .filter-bar { flex-direction: column; align-items: stretch; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ================= SIDEBAR ================= -->
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-logo">A</div>
+            <div>
+                <h2>ARGO</h2>
+                <span>Tenant Portal</span>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav" id="sidebarNav">
+            <!-- DYNAMICALLY POPULATED BY JAVASCRIPT BASED ON ROLE -->
+        </nav>
+
+        <div class="sidebar-footer">
+            <span>ARGO v0.5 (Tenant POV)</span>
+        </div>
+    </aside>
+
+    <!-- ================= TOP HEADER ================= -->
+    <header class="top-header">
+        <div class="header-left">
+            <div class="tenant-badge">
+                <i class="bi bi-house-door-fill" style="color: #60A5FA;"></i>
+                <span>Tenant Self-Service Portal</span>
+            </div>
+        </div>
+
+        <div class="header-right">
+            <!-- EXCLUSIVE CLIENT POV NOTIFICATION BELL -->
+            <a href="notification.html" class="notification-header-link" title="Notifications Center">
+                <i class="bi bi-bell"></i>
+                <div class="notification-badge" id="clientHeaderNotifBadge">0</div>
+            </a>
+
+            <!-- USER PROFILE DROPDOWN -->
+            <div class="user-dropdown-container">
+                <div class="user-profile" id="userProfileBtn">
+                    <div class="avatar" id="userAvatar">MS</div>
+                    <div class="user-info">
+                        <strong id="userName">Maria Santos</strong>
+                        <span id="userRoleBadge">Unit Occupant</span>
+                    </div>
+                    <i class="bi bi-chevron-down" style="font-size: 10px; color: #94A3B8;"></i>
+                </div>
+
+                <div class="dropdown-menu" id="userDropdown">
+                    <a href="account.html" class="dropdown-item">
+                        <i class="bi bi-person-gear"></i>
+                        <span>Account Settings</span>
+                    </a>
+                    <div class="dropdown-item danger" onclick="logoutUser()">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Log Out</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ================= MAIN CONTENT ================= -->
+    <main class="main-content">
+
+        <!-- PAGE HEADER -->
+        <div class="page-header">
+            <div>
+                <div class="eyebrow">SELF-SERVICE PAYMENT CENTER</div>
+                <h1>My Invoices & Payment Uploads</h1>
+                <p>View itemized monthly rent, electricity (Meralco), and water (Maynilad) invoices, scan official QR codes, and upload reference codes for verification.</p>
+            </div>
+
+            <button class="primary-btn" onclick="openPaymentModal()">
+                <i class="bi bi-qr-code-scan"></i>
+                <span>Scan QR & Pay Bill / Dues</span>
+            </button>
+        </div>
+
+        <!-- KPI CARDS -->
+        <section class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-top">
+                    <span class="kpi-label">Total Outstanding Balance</span>
+                    <div class="kpi-icon" id="kpiBalanceIcon" style="background:#ECFDF5; color:var(--success);"><i class="bi bi-wallet2"></i></div>
+                </div>
+                <div class="kpi-value" id="kpiOutstandingBalance" style="color:var(--success);">₱0.00</div>
+                <div class="kpi-description" id="kpiBalanceDesc">Account is fully up to date</div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-top">
+                    <span class="kpi-label">Next Billing Due</span>
+                    <div class="kpi-icon"><i class="bi bi-calendar-event"></i></div>
+                </div>
+                <div class="kpi-value" id="kpiNextDueDate">No Due Date</div>
+                <div class="kpi-description">Monthly rent & utility cycle</div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-top">
+                    <span class="kpi-label">YTD Payments Made</span>
+                    <div class="kpi-icon" style="background:#EFF6FF; color:var(--primary);"><i class="bi bi-cash-stack"></i></div>
+                </div>
+                <div class="kpi-value" id="kpiYtdPayments" style="color:var(--primary);">₱0.00</div>
+                <div class="kpi-description">Verified & cleared payments</div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-top">
+                    <span class="kpi-label">Pending Verification</span>
+                    <div class="kpi-icon" style="background:#FEF3C7; color:var(--warning);"><i class="bi bi-clock-history"></i></div>
+                </div>
+                <div class="kpi-value" id="kpiPendingAmount" style="color:var(--warning);">₱0.00</div>
+                <div class="kpi-description" id="kpiPendingDesc">No pending proofs</div>
+            </div>
+        </section>
+
+        <!-- FILTER BAR -->
+        <div class="filter-bar">
+            <div class="search-box">
+                <i class="bi bi-search"></i>
+                <input type="text" id="searchInput" placeholder="Search invoices, electricity, water, or reference codes..." onkeyup="filterTable()">
+            </div>
+
+            <select class="filter-select" id="statusFilter" onchange="filterTable()">
+                <option value="">All Invoice Statuses</option>
+                <option value="Paid">Paid</option>
+                <option value="Pending Verification">Pending Verification</option>
+                <option value="Unpaid">Unpaid / Overdue</option>
+            </select>
+
+            <button class="secondary-btn" onclick="resetFilters()">
+                <i class="bi bi-arrow-counterclockwise"></i>
+                <span>Reset</span>
+            </button>
+        </div>
+
+        <!-- INVOICES TABLE -->
+        <div class="table-card">
+            <div class="table-header" style="padding:16px 20px; border-bottom:1px solid var(--border);">
+                <h2>Itemized Invoices & Billing History</h2>
+                <span style="font-size:12px; color:var(--muted);" id="locationSubtitle">Assigned Unit Location</span>
+            </div>
+
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>INVOICE ID</th>
+                            <th>BILLING DESCRIPTION</th>
+                            <th>DUE DATE</th>
+                            <th>AMOUNT</th>
+                            <th>CHANNEL & REF #</th>
+                            <th>STATUS</th>
+                            <th>ACTIONS</th>
+                        </tr>
+                    </thead>
+                    <tbody id="invoiceTable">
+                        <!-- RENDERED DYNAMICALLY FROM LOCALSTORAGE / POSTGRESQL -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- TABLE FOOTER -->
+            <div class="table-footer">
+                <span id="showingCountText">Showing 0 invoices</span>
+            </div>
+        </div>
+    </main>
+
+    <!-- ================= MODAL: SUBMIT PAYMENT PROOF WITH DYNAMIC QR CODES ================= -->
+    <div class="modal-overlay" id="paymentModal">
+        <div class="modal">
+            <div class="modal-header">
+                <div>
+                    <span class="eyebrow">PAYMENT GATEWAY</span>
+                    <h2>Scan QR Code & Upload Proof</h2>
+                </div>
+                <button class="close-btn" onclick="closePaymentModal()"><i class="bi bi-x-lg"></i></button>
+            </div>
+
+            <div class="modal-body">
+                <div class="location-context-tag">
+                    <i class="bi bi-geo-alt-fill"></i>
+                    <span><strong>Tenant Profile:</strong> <span id="modalTenantTag">Loading Profile...</span></span>
+                </div>
+
+                <div class="form-group">
+                    <label>Select Payment Channel</label>
+                    <select id="modalChannelSelect" onchange="updateQrDisplay()">
+                        <option value="GCash" selected>GCash QR Code</option>
+                        <option value="MariBank">MariBank QR Code / Bank Transfer</option>
+                    </select>
+                </div>
+
+                <div class="qr-display-container">
+                    <div class="qr-title" id="qrTitleLabel">Official GCash Payment QR Code</div>
+                    <div class="qr-image-wrapper">
+                        <img id="qrImagePreview" src="gcash.jpg" alt="Official Payment QR Code" onerror="this.src='https://via.placeholder.com/170x170?text=Scan+QR+Code'">
+                    </div>
+                    <div class="qr-account-info" id="qrAccountName">Account: ARGO Property Management</div>
+                    <div class="qr-account-sub" id="qrAccountDetails">GCash Number: 0917-555-0192</div>
+                </div>
+
+                <div class="form-group">
+                    <label>Select Target Invoice to Pay</label>
+                    <select id="modalInvoiceSelect" onchange="autoFillInvoiceAmount()">
+                        <!-- POPULATED DYNAMICALLY -->
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Amount Paid (₱)</label>
+                    <input type="number" id="modalAmountInput" placeholder="e.g. 15000.00" value="0.00">
+                </div>
+
+                <div class="form-group">
+                    <label>Transaction Reference Number / Hash ID</label>
+                    <input type="text" id="modalRefInput" placeholder="e.g. #GCASH-992810 or #MARI-88192">
+                </div>
+
+                <div class="form-group">
+                    <label>Upload Screenshot Receipt (JPG, PNG, PDF)</label>
+                    <input type="file" id="modalFileInput">
+                </div>
+
+                <div class="form-group">
+                    <label>Remarks / Notes for Property Manager</label>
+                    <textarea id="modalNotesInput" rows="2" placeholder="Optional notes..."></textarea>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="secondary-btn" onclick="closePaymentModal()">Cancel</button>
+                <button class="primary-btn" onclick="submitPaymentProof()"><i class="bi bi-send"></i> Submit Proof for Verification</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= JAVASCRIPT ================= -->
+    <script>
+        // Secure Logout Handler (Clears session and replaces history to prevent back-button access)
+        function logoutUser() {
+            localStorage.removeItem('argo_pov');
+            localStorage.removeItem('user_role');
+            localStorage.removeItem('role');
+            localStorage.removeItem('token');
+            localStorage.removeItem('argo_user');
+            window.location.replace('index.html');
+        }
+
+        // Dynamic Role-Based Sidebar Renderer
+        function renderSidebar() {
+            const nav = document.getElementById('sidebarNav');
+            if (!nav) return;
+
+            const rawRole = (
+                localStorage.getItem('argo_pov') || 
+                localStorage.getItem('user_role') || 
+                localStorage.getItem('role') || 
+                'client'
+            ).toLowerCase().trim();
+
+            if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
+                nav.innerHTML = `
+                    <div class="nav-section-title">PORTFOLIO OVERVIEW</div>
+                    <a href="owner-dashboard.html" class="nav-item">
+                        <i class="bi bi-speedometer2"></i>
+                        <span>Executive Summary</span>
+                    </a>
+                    <a href="owner-properties.html" class="nav-item">
+                        <i class="bi bi-buildings"></i>
+                        <span>My Properties</span>
+                    </a>
+                    <a href="owner-statements.html" class="nav-item">
+                        <i class="bi bi-file-earmark-text"></i>
+                        <span>Financial Statements</span>
+                    </a>
+                    <a href="property-ownership.html" class="nav-item">
+                        <i class="bi bi-pie-chart"></i>
+                        <span>Fractional Equity</span>
+                    </a>
+                    <a href="owner-documents.html" class="nav-item">
+                        <i class="bi bi-folder2-open"></i>
+                        <span>Legal Vault</span>
+                    </a>
+                    <a href="transaction.html" class="nav-item">
+                        <i class="bi bi-receipt-cutoff"></i>
+                        <span>Yield Audit Ledger</span>
+                    </a>
+
+                    <div class="nav-section-title">COMMUNICATION & SYSTEM</div>
+                    <a href="notification.html" class="nav-item">
+                        <i class="bi bi-bell"></i>
+                        <span>Notification Center</span>
+                    </a>
+                    <a href="account.html" class="nav-item">
+                        <i class="bi bi-gear"></i>
+                        <span>Account Settings</span>
+                    </a>
+                    <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Log Out</span>
+                    </a>
+                `;
+            } else if (['admin', 'manager', 'property_manager'].includes(rawRole)) {
+                nav.innerHTML = `
+                    <div class="nav-section-title">OVERVIEW</div>
+                    <a href="dashboard.html" class="nav-item">
+                        <i class="bi bi-grid-1x2"></i>
+                        <span>Dashboard</span>
+                    </a>
+
+                    <div class="nav-section-title">PROPERTY OPERATIONS</div>
+                    <a href="properties.html" class="nav-item">
+                        <i class="bi bi-buildings"></i>
+                        <span>Properties</span>
+                    </a>
+                    <a href="buildings.html" class="nav-item">
+                        <i class="bi bi-building"></i>
+                        <span>Buildings</span>
+                    </a>
+                    <a href="units.html" class="nav-item">
+                        <i class="bi bi-door-open"></i>
+                        <span>Units</span>
+                    </a>
+                    <a href="tenants.html" class="nav-item">
+                        <i class="bi bi-people"></i>
+                        <span>Tenants</span>
+                    </a>
+                    <a href="owners.html" class="nav-item">
+                        <i class="bi bi-person-badge"></i>
+                        <span>Owners</span>
+                    </a>
+                    <a href="property-ownership.html" class="nav-item">
+                        <i class="bi bi-pie-chart"></i>
+                        <span>Fractional Ownership</span>
+                    </a>
+                    <a href="leases.html" class="nav-item">
+                        <i class="bi bi-file-earmark-text"></i>
+                        <span>Leases</span>
+                    </a>
+
+                    <div class="nav-section-title">FINANCE & SERVICES</div>
+                    <a href="rent-collection.html" class="nav-item">
+                        <i class="bi bi-cash-stack"></i>
+                        <span>Rent Collection</span>
+                    </a>
+                    <a href="transaction.html" class="nav-item">
+                        <i class="bi bi-receipt-cutoff"></i>
+                        <span>Transactions & Ledger</span>
+                    </a>
+                    <a href="utilities.html" class="nav-item">
+                        <i class="bi bi-lightning-charge"></i>
+                        <span>Utilities</span>
+                    </a>
+                    <a href="meter-readings.html" class="nav-item">
+                        <i class="bi bi-speedometer2"></i>
+                        <span>Meter Readings</span>
+                    </a>
+                    <a href="maintenance.html" class="nav-item">
+                        <i class="bi bi-tools"></i>
+                        <span>Maintenance</span>
+                    </a>
+
+                    <div class="nav-section-title">RECORDS & REPORTS</div>
+                    <a href="inspections.html" class="nav-item">
+                        <i class="bi bi-clipboard-check"></i>
+                        <span>Inspections</span>
+                    </a>
+                    <a href="move-in-checklist.html" class="nav-item">
+                        <i class="bi bi-check2-square"></i>
+                        <span>Move-In Checklist</span>
+                    </a>
+                    <a href="move-out-settlement.html" class="nav-item">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Move-Out Settlement</span>
+                    </a>
+                    <a href="documents.html" class="nav-item">
+                        <i class="bi bi-folder2-open"></i>
+                        <span>Documents</span>
+                    </a>
+                    <a href="reports.html" class="nav-item">
+                        <i class="bi bi-bar-chart"></i>
+                        <span>Reports</span>
+                    </a>
+
+                    <div class="nav-section-title">SYSTEM</div>
+                    <a href="settings.html" class="nav-item">
+                        <i class="bi bi-gear"></i>
+                        <span>Settings</span>
+                    </a>
+                    <a href="account.html" class="nav-item">
+                        <i class="bi bi-person-gear"></i>
+                        <span>Account Settings</span>
+                    </a>
+                    <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Log Out</span>
+                    </a>
+                `;
+            } else {
+                // Client / Tenant POV
+                nav.innerHTML = `
+                    <div class="nav-section-title">SELF-SERVICE HOME</div>
+                    <a href="client-dashboard.html" class="nav-item">
+                        <i class="bi bi-house-door"></i>
+                        <span>My Tenancy Home</span>
+                    </a>
+                    <a href="client-billing.html" class="nav-item active">
+                        <i class="bi bi-receipt"></i>
+                        <span>Pay Rent & Dues</span>
+                    </a>
+                    <a href="transaction.html" class="nav-item">
+                        <i class="bi bi-receipt-cutoff"></i>
+                        <span>Transactions & Ledger</span>
+                    </a>
+                    <a href="client-utilities.html" class="nav-item">
+                        <i class="bi bi-lightning-charge"></i>
+                        <span>My Utilities & Meters</span>
+                    </a>
+                    <a href="client-maintenance.html" class="nav-item">
+                        <i class="bi bi-tools"></i>
+                        <span>Submit Maintenance</span>
+                    </a>
+                    <a href="inspections.html" class="nav-item">
+                        <i class="bi bi-clipboard-check"></i>
+                        <span>Move-In & Inspections</span>
+                    </a>
+                    <a href="client-documents.html" class="nav-item">
+                        <i class="bi bi-folder2-open"></i>
+                        <span>My Lease & Receipts</span>
+                    </a>
+
+                    <div class="nav-section-title">SYSTEM</div>
+                    <a href="account.html" class="nav-item">
+                        <i class="bi bi-gear"></i>
+                        <span>Account Settings</span>
+                    </a>
+                    <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Log Out</span>
+                    </a>
+                `;
+            }
+        }
+
+        // LocalStorage Accessors
+        function getInvoices() {
+            return JSON.parse(localStorage.getItem('argo_invoices') || '[]');
+        }
+
+        function saveInvoices(invoices) { 
+            localStorage.setItem('argo_invoices', JSON.stringify(invoices)); 
+        }
+
+        function getTransactions() { 
+            return JSON.parse(localStorage.getItem('argo_transactions') || '[]'); 
+        }
+
+        function saveTransactions(transactions) { 
+            localStorage.setItem('argo_transactions', JSON.stringify(transactions)); 
+        }
+
+        function getNotifications() { 
+            return JSON.parse(localStorage.getItem('argo_notifications') || '[]'); 
+        }
+
+        function saveNotifications(notifications) { 
+            localStorage.setItem('argo_notifications', JSON.stringify(notifications)); 
+        }
+
+        function getLeases() { 
+            return JSON.parse(localStorage.getItem('argo_leases') || '[]'); 
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const rawRole = (
+                localStorage.getItem('argo_pov') || 
+                localStorage.getItem('user_role') || 
+                localStorage.getItem('role') || 
+                ''
+            ).toLowerCase().trim();
+
+            if (!rawRole) {
+                window.location.replace('index.html');
+                return;
+            }
+
+            renderSidebar();
+            loadUserData();
+            renderTable();
+            updateKPIs();
+            populateModalInvoices();
+            updateHeaderBadge();
+        });
+
+        // Cross-Tab Real-Time Sync Listener
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'argo_invoices' || e.key === 'argo_notifications' || e.key === 'argo_leases' || e.key === 'argo_pov' || e.key === 'user_role' || e.key === 'role') {
+                renderSidebar();
+                loadUserData();
+                renderTable();
+                updateKPIs();
+                populateModalInvoices();
+                updateHeaderBadge();
+            }
+        });
+
+        function loadUserData() {
+            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+            document.getElementById('userName').textContent = user.name || 'Maria Santos';
+            document.getElementById('userRoleBadge').textContent = user.role || 'Unit Occupant';
+            document.getElementById('userAvatar').textContent = user.avatar || 'MS';
+            if (user.avatarBg) {
+                document.getElementById('userAvatar').style.background = user.avatarBg;
+            }
+        }
+
+        function getActiveTenantContext() {
+            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+            const leases = getLeases();
+            const activeLease = leases.find(l => l.status === 'ACTIVE' || l.status === 'Active') || leases[0] || {};
+
+            return {
+                name: user.name || activeLease.tenantName || 'Maria Santos',
+                property: activeLease.property || 'Sunrise Property',
+                unit: activeLease.unit || 'Unit 101',
+                fullTag: `${activeLease.property || 'Sunrise Property'} • ${activeLease.unit || 'Unit 101'}`
+            };
+        }
+
+        function renderTable() {
+            const invoices = getInvoices();
+            const tbody = document.getElementById('invoiceTable');
+            tbody.innerHTML = '';
+
+            const ctx = getActiveTenantContext();
+            document.getElementById('locationSubtitle').textContent = ctx.fullTag;
+
+            if (invoices.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--muted); padding:30px;">No invoice records found. Active dues issued by Admin will appear here.</td></tr>`;
+                document.getElementById('showingCountText').textContent = `Showing 0 invoices`;
+                return;
+            }
+
+            invoices.forEach(inv => {
+                const tr = document.createElement('tr');
+                tr.dataset.status = inv.status;
+
+                let badgeHtml = '';
+                if (inv.status === 'Paid') {
+                    badgeHtml = `<span class="status-badge status-paid"><i class="bi bi-check-circle" style="margin-right:4px;"></i> Paid</span>`;
+                } else if (inv.status === 'Pending Verification' || inv.status === 'Pending') {
+                    badgeHtml = `<span class="status-badge status-pending"><i class="bi bi-clock-history" style="margin-right:4px;"></i> Pending Verification</span>`;
+                } else {
+                    badgeHtml = `<span class="status-badge status-unpaid"><i class="bi bi-exclamation-circle" style="margin-right:4px;"></i> Unpaid</span>`;
+                }
+
+                let typePill = '';
+                if (inv.type && (inv.type.includes('Electricity') || inv.id.includes('ELE'))) {
+                    typePill = `<span class="type-pill type-elec"><i class="bi bi-lightning-charge"></i> Electricity</span>`;
+                } else if (inv.type && (inv.type.includes('Water') || inv.id.includes('WTR'))) {
+                    typePill = `<span class="type-pill type-water"><i class="bi bi-droplet"></i> Water</span>`;
+                } else {
+                    typePill = `<span class="type-pill type-rent"><i class="bi bi-house-door"></i> Base Rent</span>`;
+                }
+
+                const channelInfo = inv.refNo ? `${inv.channel || 'GCash'} (${inv.refNo})` : (inv.channel || 'Pending Upload');
+
+                tr.innerHTML = `
+                    <td><div class="invoice-id">${inv.id}</div></td>
+                    <td>
+                        <div>${typePill}</div>
+                        <div class="invoice-type" style="margin-top:2px;">${inv.type}</div>
+                        <div class="invoice-sub">${inv.sub || ctx.fullTag}</div>
+                    </td>
+                    <td>${inv.dueDate || 'N/A'}</td>
+                    <td><strong>₱${parseFloat(inv.amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}</strong></td>
+                    <td>${channelInfo}</td>
+                    <td>${badgeHtml}</td>
+                    <td>
+                        <button class="action-button" title="View Breakdown" onclick="alert('Invoice Breakdown for ${inv.id}:\\nType: ${inv.type}\\nDetails: ${inv.sub || ctx.fullTag}\\nAmount: ₱${parseFloat(inv.amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}')"><i class="bi bi-eye"></i></button>
+                        <button class="action-button" title="Download Official PDF Receipt" onclick="alert('Downloading official statement receipt PDF for ${inv.id}')"><i class="bi bi-download"></i></button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('showingCountText').textContent = `Showing 1–${invoices.length} of ${invoices.length} invoices`;
+        }
+
+        function updateKPIs() {
+            const invoices = getInvoices();
+
+            let totalOutstanding = 0;
+            let totalPending = 0;
+            let totalYtdPaid = 0;
+            let earliestDueDate = null;
+
+            invoices.forEach(inv => {
+                const amt = parseFloat(inv.amount || 0);
+                if (inv.status === 'Unpaid' || inv.status === 'Overdue') {
+                    totalOutstanding += amt;
+                    if (!earliestDueDate && inv.dueDate) earliestDueDate = inv.dueDate;
+                } else if (inv.status === 'Pending Verification' || inv.status === 'Pending') {
+                    totalPending += amt;
+                } else if (inv.status === 'Paid') {
+                    totalYtdPaid += amt;
+                }
+            });
+
+            const kpiBal = document.getElementById('kpiOutstandingBalance');
+            const kpiBalIcon = document.getElementById('kpiBalanceIcon');
+            const kpiBalDesc = document.getElementById('kpiBalanceDesc');
+
+            kpiBal.textContent = `₱${totalOutstanding.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+            if (totalOutstanding === 0) {
+                kpiBal.style.color = 'var(--success)';
+                kpiBalIcon.style.background = '#ECFDF5';
+                kpiBalIcon.style.color = 'var(--success)';
+                kpiBalDesc.textContent = 'All accounts settled';
+            } else {
+                kpiBal.style.color = 'var(--danger)';
+                kpiBalIcon.style.background = '#FFF1F2';
+                kpiBalIcon.style.color = 'var(--danger)';
+                kpiBalDesc.textContent = 'Action required: Pay pending dues';
+            }
+
+            document.getElementById('kpiNextDueDate').textContent = earliestDueDate || 'No Due Date';
+            document.getElementById('kpiYtdPayments').textContent = `₱${totalYtdPaid.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+            document.getElementById('kpiPendingAmount').textContent = `₱${totalPending.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+            document.getElementById('kpiPendingDesc').textContent = totalPending > 0 ? 'Verification in progress' : 'No pending proofs';
+        }
+
+        // Strict Client POV Notification Count
+        function updateHeaderBadge() {
+            const notifs = getNotifications().filter(n => (n.pov === 'client' || n.pov === 'tenant') && n.status === 'unread');
+            const badge = document.getElementById('clientHeaderNotifBadge');
+            if (badge) badge.textContent = notifs.length;
+        }
+
+        function updateQrDisplay() {
+            const channel = document.getElementById('modalChannelSelect').value;
+            const titleLabel = document.getElementById('qrTitleLabel');
+            const qrImage = document.getElementById('qrImagePreview');
+            const accountName = document.getElementById('qrAccountName');
+            const accountDetails = document.getElementById('qrAccountDetails');
+
+            if (channel === 'GCash') {
+                titleLabel.textContent = 'Official GCash Payment QR Code';
+                qrImage.src = 'gcash.jpg';
+                accountName.textContent = 'Account: ARGO Property Management';
+                accountDetails.textContent = 'GCash Number: 0917-555-0192';
+            } else if (channel === 'MariBank') {
+                titleLabel.textContent = 'Official MariBank Payment QR Code';
+                qrImage.src = 'bank.jpg';
+                accountName.textContent = 'Account: ARGO Property Management Corp.';
+                accountDetails.textContent = 'MariBank Account #: 1029-8849-1002';
+            }
+        }
+
+        function openPaymentModal() {
+            const ctx = getActiveTenantContext();
+            document.getElementById('modalTenantTag').textContent = `${ctx.name} — ${ctx.fullTag}`;
+            populateModalInvoices();
+            updateQrDisplay();
+            document.getElementById("paymentModal").classList.add("show");
+        }
+
+        function closePaymentModal() { 
+            document.getElementById("paymentModal").classList.remove("show"); 
+        }
+
+        function populateModalInvoices() {
+            const invoices = getInvoices();
+            const select = document.getElementById('modalInvoiceSelect');
+            select.innerHTML = '';
+
+            const payableInvoices = invoices.filter(inv => inv.status === 'Unpaid' || inv.status === 'Overdue');
+
+            if (payableInvoices.length === 0) {
+                select.innerHTML = `<option value="">No unpaid invoices due!</option>`;
+                document.getElementById('modalAmountInput').value = '0.00';
+                return;
+            }
+
+            payableInvoices.forEach(inv => {
+                const opt = document.createElement('option');
+                opt.value = inv.id;
+                opt.textContent = `${inv.id} — ${inv.type} (₱${parseFloat(inv.amount || 0).toLocaleString('en-US')})`;
+                select.appendChild(opt);
+            });
+
+            autoFillInvoiceAmount();
+        }
+
+        function autoFillInvoiceAmount() {
+            const select = document.getElementById('modalInvoiceSelect');
+            const invId = select.value;
+            if (!invId) return;
+
+            const invoices = getInvoices();
+            const selected = invoices.find(i => i.id === invId);
+            if (selected) {
+                document.getElementById('modalAmountInput').value = selected.amount;
+            }
+        }
+
+        function submitPaymentProof() {
+            const invoiceId = document.getElementById('modalInvoiceSelect').value;
+            const channel = document.getElementById('modalChannelSelect').value;
+            const amount = parseFloat(document.getElementById('modalAmountInput').value) || 0;
+            let refNo = document.getElementById('modalRefInput').value.trim();
+
+            if (!invoiceId) {
+                alert("No active unpaid invoice selected.");
+                return;
+            }
+
+            if (!refNo) {
+                alert("Please enter a valid Payment Reference Number.");
+                return;
+            }
+
+            if (!refNo.startsWith('#')) refNo = '#' + refNo;
+
+            const ctx = getActiveTenantContext();
+
+            // 1. Update Invoice Status
+            let invoices = getInvoices();
+            invoices = invoices.map(inv => {
+                if (inv.id === invoiceId) {
+                    return { ...inv, status: 'Pending Verification', channel: channel, refNo: refNo };
+                }
+                return inv;
+            });
+            saveInvoices(invoices);
+
+            // 2. Log Master Audit Transaction
+            const transactions = getTransactions();
+            const newTxn = {
+                refCode: refNo,
+                txnId: `TXN-2026-08-${Math.floor(100 + Math.random() * 900)}`,
+                payer: ctx.name,
+                property_location: ctx.fullTag,
+                category: invoiceId.includes('ELE') ? 'Electricity Charges' : (invoiceId.includes('WTR') ? 'Water Charges' : 'Monthly Base Rent'),
+                direction: 'INFLOW',
+                grossAmount: `₱${amount.toLocaleString('en-US', {minimumFractionDigits: 2})}`,
+                channel: channel,
+                status: 'Pending Audit',
+                timestamp: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
+            };
+            transactions.unshift(newTxn);
+            saveTransactions(transactions);
+
+            // 3. Dispatch Notification Alert to Admin POV
+            const notifications = getNotifications();
+            notifications.unshift({
+                id: `NOTIF-${Date.now()}`,
+                pov: 'admin',
+                category: 'payment',
+                status: 'unread',
+                title: `${channel} Payment Proof Submitted`,
+                time: 'Just now',
+                description: `Payment proof uploaded by <strong>${ctx.name}</strong> (${ctx.fullTag}) for Invoice <strong>${invoiceId}</strong>. Ref Code: <code>${refNo}</code>.`,
+                property: ctx.fullTag,
+                tenantName: ctx.name,
+                amount: `₱${amount.toLocaleString('en-US', {minimumFractionDigits: 2})}`,
+                actionUrl: 'rent-collection.html',
+                actionText: 'Verify Payment'
+            });
+            saveNotifications(notifications);
+
+            renderTable();
+            updateKPIs();
+            closePaymentModal();
+
+            document.getElementById('modalRefInput').value = '';
+            document.getElementById('modalNotesInput').value = '';
+
+            alert(`Payment proof (${refNo}) submitted successfully!\n\nProperty Manager notified for verification.`);
+        }
+
+        window.onclick = function(event) {
+            const modal = document.getElementById("paymentModal");
+            if (event.target === modal) closePaymentModal();
+        };
+
+        function filterTable() {
+            const searchValue = document.getElementById("searchInput").value.toLowerCase();
+            const statusValue = document.getElementById("statusFilter").value;
+
+            const rows = document.querySelectorAll("#invoiceTable tr");
+
+            rows.forEach(row => {
+                const text = row.innerText.toLowerCase();
+                const rowStatus = row.dataset.status || "";
+
+                const matchesSearch = text.includes(searchValue);
+                const matchesStatus = statusValue === "" || rowStatus.includes(statusValue);
+
+                if (matchesSearch && matchesStatus) {
+                    row.style.display = "";
+                } else {
+                    row.style.display = "none";
+                }
+            });
+        }
+
+        function resetFilters() {
+            document.getElementById("searchInput").value = "";
+            document.getElementById("statusFilter").value = "";
+            filterTable();
+        }
+
+        // Profile Dropdown Handler
+        const userProfileBtn = document.getElementById('userProfileBtn');
+        const userDropdown = document.getElementById('userDropdown');
+
+        if (userProfileBtn && userDropdown) {
+            userProfileBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                userDropdown.classList.toggle('show');
+            });
+
+            document.addEventListener('click', () => { 
+                userDropdown.classList.remove('show'); 
+            });
+        }
+    </script>
+</body>

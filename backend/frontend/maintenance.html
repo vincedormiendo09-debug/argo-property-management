@@ -1,0 +1,1645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maintenance Operations & Contractor Dispatch | ARGO Property Management</title>
+
+    <!-- Inter Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+    <style>
+        :root {
+            --primary: #2563EB;
+            --sidebar: #0F172A;
+            --active: #1E293B;
+            --canvas: #F3F4F6;
+            --white: #FFFFFF;
+            --border: #E5E7EB;
+            --text: #111827;
+            --muted: #6B7280;
+            --success: #059669;
+            --danger: #E11D48;
+            --warning: #D97706;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--canvas);
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        button, input, select, textarea { font-family: inherit; }
+
+        /* ================= SIDEBAR ================= */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 240px;
+            height: 100vh;
+            background: #0F172A;
+            color: white;
+            padding: 20px 14px;
+            z-index: 1000;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 5px 12px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .brand-logo {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: #2563EB;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 700;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .sidebar-brand h2 { font-size: 16px; font-weight: 700; letter-spacing: 0.5px; }
+        .sidebar-brand span { font-size: 9px; color: #94A3B8; margin-top: 1px; display: block; letter-spacing: 0.8px; }
+
+        .sidebar-nav { margin-top: 16px; flex: 1; }
+
+        .nav-section-title {
+            font-size: 10px;
+            font-weight: 700;
+            color: #64748B;
+            letter-spacing: 0.08em;
+            padding: 14px 10px 6px;
+            text-transform: uppercase;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            color: #CBD5E1;
+            text-decoration: none;
+            border-radius: 6px;
+            margin-bottom: 3px;
+            font-size: 13px;
+            transition: 0.15s ease;
+        }
+
+        .nav-item:hover { background: #172033; color: white; }
+        .nav-item.active { background: #1E293B; color: white; font-weight: 500; }
+        .nav-item.active i { color: #60A5FA; }
+        .nav-item i { width: 20px; font-size: 16px; text-align: center; flex-shrink: 0; }
+
+        .sidebar-footer {
+            padding: 14px 10px 0;
+            border-top: 1px solid rgba(255,255,255,0.08);
+            font-size: 11px;
+            color: #64748B;
+        }
+
+        /* ================= HEADER ================= */
+        .top-header {
+            position: fixed;
+            top: 0;
+            left: 240px;
+            right: 0;
+            height: 64px;
+            background: var(--sidebar);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 28px;
+            z-index: 900;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            color: white;
+        }
+
+        .header-left { display: flex; align-items: center; gap: 16px; }
+
+        .admin-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #1E293B;
+            border: 1px solid #334155;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #E5E7EB;
+            font-weight: 600;
+        }
+
+        .header-right { display: flex; align-items: center; gap: 18px; }
+
+        .notification-header-link {
+            position: relative;
+            font-size: 18px;
+            color: #CBD5E1;
+            background: #1E293B;
+            border: 1px solid #334155;
+            width: 38px;
+            height: 38px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            transition: 0.2s ease;
+        }
+
+        .notification-header-link:hover {
+            background: #2563EB;
+            color: white;
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--danger);
+            color: white;
+            font-size: 9px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            border: 2px solid var(--sidebar);
+        }
+
+        /* USER PROFILE DROPDOWN */
+        .user-dropdown-container { position: relative; }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 6px;
+        }
+
+        .user-profile:hover { background: rgba(255,255,255,0.05); }
+
+        .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .user-info strong { display: block; font-size: 12px; }
+        .user-info span { display: block; color: #94A3B8; font-size: 10px; }
+
+        .dropdown-menu {
+            position: absolute;
+            right: 0;
+            top: 48px;
+            width: 180px;
+            background: white;
+            border: 1px solid #E5E7EB;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 1000;
+        }
+
+        .dropdown-menu.show { display: flex; }
+
+        .dropdown-item {
+            padding: 10px 14px;
+            color: #374151;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            transition: 0.15s;
+            cursor: pointer;
+        }
+
+        .dropdown-item:hover { background: #F3F4F6; color: #111827; }
+        .dropdown-item.danger { color: var(--danger); }
+        .dropdown-item.danger:hover { background: #FFF1F2; }
+
+        /* ================= MAIN CONTENT ================= */
+        .main-content {
+            margin-left: 240px;
+            padding: 88px 28px 40px;
+            max-width: 1600px;
+        }
+
+        .page-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 22px;
+        }
+
+        .eyebrow {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--muted);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .page-header h1 { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
+        .page-header p { color: var(--muted); font-size: 13px; }
+
+        .primary-btn {
+            border: none;
+            background: var(--primary);
+            color: white;
+            padding: 9px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: 0.2s ease;
+        }
+
+        .primary-btn:hover { background: #1D4ED8; }
+
+        .secondary-btn {
+            height: 38px;
+            border: 1px solid var(--border);
+            background: white;
+            border-radius: 6px;
+            padding: 0 13px;
+            font-size: 12px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            color: var(--text);
+        }
+
+        .secondary-btn:hover { background: #F9FAFB; }
+
+        /* ================= KPI CARDS ================= */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 22px;
+        }
+
+        .kpi-card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 18px;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+        }
+
+        .kpi-label { color: var(--muted); font-size: 12px; margin-bottom: 8px; }
+        .kpi-value { font-size: 24px; font-weight: 600; }
+        
+        .kpi-value.warning { color: var(--warning); }
+        .kpi-value.blue { color: var(--primary); }
+        .kpi-value.success { color: var(--success); }
+        .kpi-value.danger { color: var(--danger); }
+
+        /* ================= FILTER BAR ================= */
+        .filter-bar {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .search-box { position: relative; flex: 1; min-width: 220px; }
+        .search-box i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); }
+        .search-box input {
+            width: 100%;
+            height: 38px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0 12px 0 36px;
+            font-size: 12px;
+            outline: none;
+        }
+        .search-box input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+
+        .filter-select {
+            height: 38px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0 12px;
+            font-size: 12px;
+            color: var(--text);
+            background: white;
+            outline: none;
+        }
+
+        /* ================= TABLE ================= */
+        .table-card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+        }
+
+        .table-wrapper { overflow-x: auto; }
+
+        table { width: 100%; border-collapse: collapse; min-width: 1050px; }
+
+        th {
+            background: #F9FAFB;
+            color: var(--muted);
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            text-align: left;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 14px 16px;
+            font-size: 12px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text);
+        }
+
+        tr:hover { background: #F9FAFB; }
+
+        .request-id { font-weight: 600; color: var(--text); }
+        .issue-title { font-weight: 600; color: var(--text); }
+        .tenant-name { font-weight: 600; color: var(--text); }
+        .property-info { color: #1E40AF; font-size: 11px; font-weight: 600; margin-top: 2px; }
+
+        /* STATUS BADGES */
+        .status {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 8px;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .status.open { color: #B45309; background: #FEF3C7; }
+        .status.assigned { color: #1D4ED8; background: #DBEAFE; }
+        .status.progress { color: #6D28D9; background: #EDE9FE; }
+        .status.completed { color: #047857; background: #D1FAE5; }
+
+        .priority { font-size: 11px; font-weight: 600; }
+        .priority.urgent { color: var(--danger); }
+        .priority.high { color: var(--warning); }
+        .priority.medium { color: var(--primary); }
+        .priority.low { color: var(--success); }
+
+        /* ACTIONS */
+        .action-btn {
+            border: none;
+            background: transparent;
+            color: var(--muted);
+            font-size: 16px;
+            cursor: pointer;
+            padding: 4px 6px;
+            border-radius: 4px;
+            transition: 0.15s;
+        }
+        .action-btn:hover { color: var(--primary); background: #EFF6FF; }
+        .dispatch-btn { color: #2563EB; }
+        .dispatch-btn:hover { color: #1D4ED8; background: #EFF6FF; }
+
+        /* PAGINATION */
+        .table-footer {
+            padding: 14px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            color: var(--muted);
+            font-size: 12px;
+            border-top: 1px solid var(--border);
+        }
+
+        /* ================= MODAL ================= */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.55);
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            padding: 20px;
+        }
+
+        .modal-overlay.show { display: flex; }
+
+        .modal {
+            width: 100%;
+            max-width: 580px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            max-height: 90vh;
+        }
+
+        .modal-header {
+            padding: 18px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 { font-size: 16px; font-weight: 600; }
+
+        .close-btn {
+            border: none;
+            background: none;
+            font-size: 18px;
+            cursor: pointer;
+            color: var(--muted);
+        }
+
+        .modal-body { padding: 20px; overflow-y: auto; flex: 1; }
+        .form-group { margin-bottom: 14px; }
+
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 8px 10px;
+            font-size: 13px;
+            outline: none;
+        }
+
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+        }
+        
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+        .location-highlight-card {
+            background: #EFF6FF;
+            border: 1px solid #BFDBFE;
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 12px;
+            color: #1E3A8A;
+            margin-bottom: 14px;
+        }
+
+        .modal-footer {
+            padding: 14px 20px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            background: #F9FAFB;
+        }
+
+        /* RESPONSIVE */
+        @media (max-width: 1000px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 768px) {
+            .sidebar { width: 70px; padding: 20px 8px; }
+            .sidebar-brand h2, .sidebar-brand span, .nav-section-title, .nav-item span { display: none; }
+            .nav-item { justify-content: center; padding: 12px; }
+            .top-header { left: 70px; padding: 0 15px; }
+            .main-content { margin-left: 70px; padding: 85px 15px 30px; }
+            .page-header { flex-direction: column; gap: 14px; }
+            .filter-bar { flex-direction: column; align-items: stretch; }
+            .form-row { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ================= SIDEBAR ================= -->
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-logo">A</div>
+            <div>
+                <h2>ARGO</h2>
+                <span>Property Management</span>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav" id="sidebarNav">
+            <!-- POPULATED DYNAMICALLY BY JAVASCRIPT -->
+        </nav>
+
+        <div class="sidebar-footer">
+            <span>ARGO v0.5</span>
+        </div>
+    </aside>
+
+    <!-- ================= TOP HEADER ================= -->
+    <header class="top-header">
+        <div class="header-left">
+            <div class="admin-badge">
+                <i class="bi bi-shield-lock-fill" style="color: #60A5FA;"></i>
+                <span>Admin Command Center</span>
+            </div>
+        </div>
+
+        <div class="header-right">
+            <a href="notification.html" class="notification-header-link" title="Notifications Center">
+                <i class="bi bi-bell"></i>
+                <div class="notification-badge" id="headerNotifBadge">0</div>
+            </a>
+
+            <div class="user-dropdown-container">
+                <div class="user-profile" id="userProfileBtn">
+                    <div class="avatar" id="userAvatar">JD</div>
+                    <div class="user-info">
+                        <strong id="userName">Property Admin</strong>
+                        <span id="userRoleBadge">Property Manager</span>
+                    </div>
+                    <i class="bi bi-chevron-down" style="font-size: 10px; color: #94A3B8;"></i>
+                </div>
+
+                <div class="dropdown-menu" id="userDropdown">
+                    <a href="account.html" class="dropdown-item">
+                        <i class="bi bi-person-gear"></i>
+                        <span>Account Settings</span>
+                    </a>
+                    <div class="dropdown-item danger" onclick="logoutUser()">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Log Out</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ================= MAIN CONTENT ================= -->
+    <main class="main-content">
+
+        <!-- PAGE HEADER -->
+        <div class="page-header">
+            <div>
+                <div class="eyebrow">PROPERTY OPERATIONS DESK</div>
+                <h1>Maintenance Dispatch & Contractor Desk</h1>
+                <p>Manage tenant service tickets, dispatch specialized repair contractors, and route billable costs to owner statements.</p>
+            </div>
+
+            <button class="primary-btn" onclick="openCreateTicketModal()">
+                <i class="bi bi-plus-lg"></i>
+                <span>Create Operations Ticket</span>
+            </button>
+        </div>
+
+        <!-- KPI CARDS -->
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-label">Open / Unassigned Requests</div>
+                <div class="kpi-value warning" id="kpiOpenRequests">0</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">In Progress / Dispatched</div>
+                <div class="kpi-value blue" id="kpiInProgress">0</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Completed Work Orders</div>
+                <div class="kpi-value success" id="kpiCompleted">0</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Urgent / High Priority</div>
+                <div class="kpi-value danger" id="kpiUrgent">0</div>
+            </div>
+        </div>
+
+        <!-- FILTER BAR -->
+        <div class="filter-bar">
+            <div class="search-box">
+                <i class="bi bi-search"></i>
+                <input type="text" id="searchInput" placeholder="Search request ID, tenant, or location..." onkeyup="filterTable()">
+            </div>
+
+            <select class="filter-select" id="statusFilter" onchange="filterTable()">
+                <option value="">All Statuses</option>
+                <option value="Open">Open</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Resolved">Resolved</option>
+            </select>
+
+            <select class="filter-select" id="priorityFilter" onchange="filterTable()">
+                <option value="">All Priorities</option>
+                <option value="High">High Priority</option>
+                <option value="Normal">Normal Priority</option>
+            </select>
+
+            <button class="secondary-btn" onclick="resetFilters()">
+                <i class="bi bi-arrow-counterclockwise"></i>
+                Reset
+            </button>
+        </div>
+
+        <!-- MAINTENANCE DISPATCH TABLE -->
+        <div class="table-card">
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>TICKET ID</th>
+                            <th>ISSUE CATEGORY & DESCRIPTION</th>
+                            <th>TENANT & PROPERTY LOCATION</th>
+                            <th>PRIORITY</th>
+                            <th>ASSIGNED CONTRACTOR</th>
+                            <th>SCHEDULED ARRIVAL</th>
+                            <th>STATUS</th>
+                            <th>ACTIONS</th>
+                        </tr>
+                    </thead>
+                    <tbody id="maintenanceTable">
+                        <!-- RENDERED DYNAMICALLY FROM LOCALSTORAGE / POSTGRESQL -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- TABLE FOOTER -->
+            <div class="table-footer">
+                <span id="showingCountText">Showing 0 work order tickets</span>
+            </div>
+        </div>
+    </main>
+
+    <!-- ================= MODAL 1: CREATE OPERATIONS TICKET (FORM) ================= -->
+    <div class="modal-overlay" id="createTicketModal">
+        <div class="modal">
+            <div class="modal-header">
+                <div>
+                    <span class="eyebrow">OPERATIONS DESK</span>
+                    <h2>Create Operations Ticket</h2>
+                </div>
+                <button class="close-btn" onclick="closeModal('createTicketModal')"><i class="bi bi-x-lg"></i></button>
+            </div>
+
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Issue Title / Short Summary</label>
+                    <input type="text" id="modalTicketTitle" placeholder="e.g. Water pump failure / Aircon leak" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Property & Unit Location</label>
+                    <select id="modalTicketLocation" onchange="autoFillTenantFromLocation()">
+                        <option value="">Select Property / Unit...</option>
+                        <!-- DYNAMICALLY POPULATED -->
+                    </select>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Tenant Name (Optional)</label>
+                        <input type="text" id="modalTicketTenant" placeholder="e.g. Maria Santos or N/A">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Issue Category</label>
+                        <select id="modalTicketCategory">
+                            <option value="General Maintenance">General Maintenance</option>
+                            <option value="Plumbing">Plumbing & Leaks</option>
+                            <option value="Electrical">Electrical & Lighting</option>
+                            <option value="HVAC">HVAC / Air Conditioning</option>
+                            <option value="Appliance">Home Appliance</option>
+                            <option value="Structural">Structural / Carpentry</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Priority Level</label>
+                        <select id="modalTicketPriority">
+                            <option value="Normal" selected>Normal Priority</option>
+                            <option value="High">High Priority / Urgent</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Initial Estimated Cost (₱)</label>
+                        <input type="number" id="modalTicketCost" placeholder="e.g. 1500" min="0" step="0.01">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Assign Contractor (Optional)</label>
+                    <select id="modalTicketContractor">
+                        <option value="Unassigned" selected>Unassigned (Pending Dispatch)</option>
+                        <option value="HVAC Services (Aircon)">HVAC Services (Aircon)</option>
+                        <option value="Plumbing Services">Plumbing Services</option>
+                        <option value="Certified Electricians">Certified Electricians</option>
+                        <option value="In-House Maintenance Team">In-House Maintenance Team</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Detailed Issue Description</label>
+                    <textarea id="modalTicketDesc" rows="3" placeholder="Provide full details, specific root cause, and instructions for the technician..."></textarea>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="secondary-btn" onclick="closeModal('createTicketModal')">Cancel</button>
+                <button class="primary-btn" onclick="saveNewTicket()"><i class="bi bi-check-lg"></i> Save & Create Operations Ticket</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= MODAL 2: DISPATCH / WORK ORDER MODAL ================= -->
+    <div class="modal-overlay" id="dispatchModal">
+        <div class="modal">
+            <div class="modal-header">
+                <div>
+                    <span class="eyebrow">ADMIN WORK ORDER DISPATCH</span>
+                    <h2 id="modalTicketHeading">Assign Contractor & Schedule Visit</h2>
+                </div>
+                <button class="close-btn" onclick="closeModal('dispatchModal')"><i class="bi bi-x-lg"></i></button>
+            </div>
+
+            <div class="modal-body">
+
+                <!-- TICKET SUMMARY CARD -->
+                <div class="location-highlight-card">
+                    <div style="font-weight:700; font-size:13px;" id="dModalTitle">Work Order Details</div>
+                    <div style="font-size:11px; margin-top:2px;" id="dModalLocation"><i class="bi bi-geo-alt"></i> Location Info</div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Assign Specialized Contractor</label>
+                        <select id="dModalContractor">
+                            <option value="HVAC Services (Aircon)">HVAC Services (Aircon)</option>
+                            <option value="Plumbing Services">Plumbing Services</option>
+                            <option value="Certified Electricians">Certified Electricians</option>
+                            <option value="In-House Maintenance Team">In-House Maintenance Team</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Scheduled Visit Time</label>
+                        <input type="text" id="dModalSchedule" placeholder="e.g. Today at 02:00 PM">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Work Order Status</label>
+                        <select id="dModalStatus">
+                            <option value="In Progress">In Progress (Contractor Dispatched)</option>
+                            <option value="Resolved">Resolved & Completed</option>
+                            <option value="Open">Open / Pending Review</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Repair Cost (₱) — Log to Owner Expense</label>
+                        <input type="number" id="dModalCost" placeholder="e.g. 3500" min="0" step="0.01">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Admin Dispatch Remarks & Work Notes</label>
+                    <textarea id="dModalNotes" rows="2" placeholder="Notes for tenant and contractor dispatch log..."></textarea>
+                </div>
+
+            </div>
+
+            <div class="modal-footer">
+                <button class="secondary-btn" onclick="closeModal('dispatchModal')">Cancel</button>
+                <button class="primary-btn" onclick="saveDispatch()"><i class="bi bi-send-check"></i> Save & Dispatch Work Order</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= JAVASCRIPT ================= -->
+    <script>
+        // Secure Logout Handler (Clears session and replaces history to prevent back-button access)
+        function logoutUser() {
+            localStorage.removeItem('argo_pov');
+            localStorage.removeItem('user_role');
+            localStorage.removeItem('role');
+            localStorage.removeItem('token');
+            localStorage.removeItem('argo_user');
+            window.location.replace('index.html');
+        }
+
+        let currentEditingTicketId = null;
+
+        function renderSidebar() {
+            const nav = document.getElementById('sidebarNav');
+            if (!nav) return;
+
+            const rawRole = (
+                localStorage.getItem('argo_pov') || 
+                localStorage.getItem('user_role') || 
+                localStorage.getItem('role') || 
+                'admin'
+            ).toLowerCase().trim();
+
+            if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
+                nav.innerHTML = `
+                    <div class="nav-section-title">SELF-SERVICE HOME</div>
+                    <a href="client-dashboard.html" class="nav-item">
+                        <i class="bi bi-house-door"></i>
+                        <span>My Tenancy Home</span>
+                    </a>
+                    <a href="client-billing.html" class="nav-item">
+                        <i class="bi bi-receipt"></i>
+                        <span>Pay Rent & Dues</span>
+                    </a>
+                    <a href="transaction.html" class="nav-item">
+                        <i class="bi bi-receipt-cutoff"></i>
+                        <span>Transactions & Ledger</span>
+                    </a>
+                    <a href="client-utilities.html" class="nav-item">
+                        <i class="bi bi-lightning-charge"></i>
+                        <span>My Utilities & Meters</span>
+                    </a>
+                    <a href="client-maintenance.html" class="nav-item active">
+                        <i class="bi bi-tools"></i>
+                        <span>Submit Maintenance</span>
+                    </a>
+                    <a href="inspections.html" class="nav-item">
+                        <i class="bi bi-clipboard-check"></i>
+                        <span>Move-In & Inspections</span>
+                    </a>
+                    <a href="client-documents.html" class="nav-item">
+                        <i class="bi bi-folder2-open"></i>
+                        <span>My Lease & Receipts</span>
+                    </a>
+
+                    <div class="nav-section-title">SYSTEM</div>
+                    <a href="account.html" class="nav-item">
+                        <i class="bi bi-gear"></i>
+                        <span>Account Settings</span>
+                    </a>
+                    <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Log Out</span>
+                    </a>
+                `;
+            } else if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
+                nav.innerHTML = `
+                    <div class="nav-section-title">PORTFOLIO OVERVIEW</div>
+                    <a href="owner-dashboard.html" class="nav-item">
+                        <i class="bi bi-speedometer2"></i>
+                        <span>Executive Summary</span>
+                    </a>
+                    <a href="owner-properties.html" class="nav-item">
+                        <i class="bi bi-buildings"></i>
+                        <span>My Properties</span>
+                    </a>
+                    <a href="owner-statements.html" class="nav-item">
+                        <i class="bi bi-file-earmark-text"></i>
+                        <span>Financial Statements</span>
+                    </a>
+                    <a href="property-ownership.html" class="nav-item">
+                        <i class="bi bi-pie-chart"></i>
+                        <span>Fractional Equity</span>
+                    </a>
+                    <a href="owner-documents.html" class="nav-item">
+                        <i class="bi bi-folder2-open"></i>
+                        <span>Legal Vault</span>
+                    </a>
+                    <a href="transaction.html" class="nav-item">
+                        <i class="bi bi-receipt-cutoff"></i>
+                        <span>Yield Audit Ledger</span>
+                    </a>
+
+                    <div class="nav-section-title">COMMUNICATION & SYSTEM</div>
+                    <a href="notification.html" class="nav-item">
+                        <i class="bi bi-bell"></i>
+                        <span>Notification Center</span>
+                    </a>
+                    <a href="account.html" class="nav-item">
+                        <i class="bi bi-gear"></i>
+                        <span>Account Settings</span>
+                    </a>
+                    <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Log Out</span>
+                    </a>
+                `;
+            } else {
+                // Admin POV
+                nav.innerHTML = `
+                    <div class="nav-section-title">OVERVIEW</div>
+                    <a href="dashboard.html" class="nav-item">
+                        <i class="bi bi-grid-1x2"></i>
+                        <span>Dashboard</span>
+                    </a>
+
+                    <div class="nav-section-title">PROPERTY OPERATIONS</div>
+                    <a href="properties.html" class="nav-item">
+                        <i class="bi bi-buildings"></i>
+                        <span>Properties</span>
+                    </a>
+                    <a href="buildings.html" class="nav-item">
+                        <i class="bi bi-building"></i>
+                        <span>Buildings</span>
+                    </a>
+                    <a href="units.html" class="nav-item">
+                        <i class="bi bi-door-open"></i>
+                        <span>Units</span>
+                    </a>
+                    <a href="tenants.html" class="nav-item">
+                        <i class="bi bi-people"></i>
+                        <span>Tenants</span>
+                    </a>
+                    <a href="owners.html" class="nav-item">
+                        <i class="bi bi-person-badge"></i>
+                        <span>Owners</span>
+                    </a>
+                    <a href="property-ownership.html" class="nav-item">
+                        <i class="bi bi-pie-chart"></i>
+                        <span>Fractional Ownership</span>
+                    </a>
+                    <a href="leases.html" class="nav-item">
+                        <i class="bi bi-file-earmark-text"></i>
+                        <span>Leases</span>
+                    </a>
+
+                    <div class="nav-section-title">FINANCE & SERVICES</div>
+                    <a href="rent-collection.html" class="nav-item">
+                        <i class="bi bi-cash-stack"></i>
+                        <span>Rent Collection</span>
+                    </a>
+                    <a href="transaction.html" class="nav-item">
+                        <i class="bi bi-receipt-cutoff"></i>
+                        <span>Transactions & Ledger</span>
+                    </a>
+                    <a href="utilities.html" class="nav-item">
+                        <i class="bi bi-lightning-charge"></i>
+                        <span>Utilities</span>
+                    </a>
+                    <a href="meter-readings.html" class="nav-item">
+                        <i class="bi bi-speedometer2"></i>
+                        <span>Meter Readings</span>
+                    </a>
+                    <a href="maintenance.html" class="nav-item active">
+                        <i class="bi bi-tools"></i>
+                        <span>Maintenance</span>
+                    </a>
+
+                    <div class="nav-section-title">RECORDS & REPORTS</div>
+                    <a href="inspections.html" class="nav-item">
+                        <i class="bi bi-clipboard-check"></i>
+                        <span>Inspections</span>
+                    </a>
+                    <a href="move-in-checklist.html" class="nav-item">
+                        <i class="bi bi-check2-square"></i>
+                        <span>Move-In Checklist</span>
+                    </a>
+                    <a href="move-out-settlement.html" class="nav-item">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Move-Out Settlement</span>
+                    </a>
+                    <a href="documents.html" class="nav-item">
+                        <i class="bi bi-folder2-open"></i>
+                        <span>Documents</span>
+                    </a>
+                    <a href="reports.html" class="nav-item">
+                        <i class="bi bi-bar-chart"></i>
+                        <span>Reports</span>
+                    </a>
+
+                    <div class="nav-section-title">SYSTEM</div>
+                    <a href="settings.html" class="nav-item">
+                        <i class="bi bi-gear"></i>
+                        <span>Settings</span>
+                    </a>
+                    <a href="account.html" class="nav-item">
+                        <i class="bi bi-person-gear"></i>
+                        <span>Account Settings</span>
+                    </a>
+                    <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Log Out</span>
+                    </a>
+                `;
+            }
+        }
+
+        // Clean Default Tickets Baseline
+        const DEFAULT_TICKETS = [
+            {
+                id: 'MNT-2026-003',
+                title: 'Aircon Water Leakage',
+                category: 'HVAC',
+                description: 'Split-type AC unit in living room dripping water steadily under cabinet.',
+                tenantName: 'Maria Santos',
+                fullLocation: 'Sunrise Property • Unit 101',
+                priority: 'High',
+                technician: 'HVAC Services (Aircon)',
+                scheduledTime: 'Today at 02:00 PM',
+                status: 'In Progress',
+                cost: 1500.00,
+                dateFiled: 'Aug 05, 2026'
+            }
+        ];
+
+        function getTickets() {
+            const data = localStorage.getItem('argo_maintenance_tickets');
+            if (!data) {
+                localStorage.setItem('argo_maintenance_tickets', JSON.stringify(DEFAULT_TICKETS));
+                return DEFAULT_TICKETS;
+            }
+            try {
+                return JSON.parse(data);
+            } catch (e) {
+                return DEFAULT_TICKETS;
+            }
+        }
+
+        function saveTickets(tickets) {
+            localStorage.setItem('argo_maintenance_tickets', JSON.stringify(tickets));
+        }
+
+        function getUnits() {
+            try {
+                return JSON.parse(localStorage.getItem('argo_units') || '[]');
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function getProperties() {
+            try {
+                return JSON.parse(localStorage.getItem('argo_properties') || '[]');
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function getLeases() {
+            try {
+                return JSON.parse(localStorage.getItem('argo_leases') || '[]');
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function getNotifications() {
+            try {
+                return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function saveNotifications(notifications) {
+            localStorage.setItem('argo_notifications', JSON.stringify(notifications));
+        }
+
+        function updateHeaderBadge() {
+            const rawRole = (
+                localStorage.getItem('argo_pov') || 
+                localStorage.getItem('user_role') || 
+                localStorage.getItem('role') || 
+                'admin'
+            ).toLowerCase().trim();
+
+            let role = 'admin';
+            if (['client', 'tenant', 'client_pov'].includes(rawRole)) role = 'client';
+            else if (['owner', 'property_owner', 'investor'].includes(rawRole)) role = 'owner';
+
+            const notifs = getNotifications().filter(n => (n.pov === role || n.pov === 'all') && (n.status === 'unread' || n.is_read === false));
+            const badge = document.getElementById('headerNotifBadge');
+            if (badge) badge.textContent = notifs.length;
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const role = localStorage.getItem('argo_pov') || localStorage.getItem('user_role') || localStorage.getItem('role');
+            if (!role) {
+                window.location.replace('index.html');
+                return;
+            }
+            renderSidebar();
+            loadUserData();
+            populateModalDropdowns();
+            renderMaintenanceTable();
+            updateKPIs();
+            updateHeaderBadge();
+        });
+
+        // Real-Time Cross-Tab Listener
+        window.addEventListener('storage', (e) => {
+            if (['argo_maintenance_tickets', 'argo_notifications', 'argo_units', 'argo_properties', 'argo_leases', 'argo_user', 'argo_pov', 'user_role', 'role'].includes(e.key)) {
+                loadUserData();
+                populateModalDropdowns();
+                renderMaintenanceTable();
+                updateKPIs();
+                updateHeaderBadge();
+            }
+        });
+
+        function loadUserData() {
+            const rawRole = (
+                localStorage.getItem('argo_pov') || 
+                localStorage.getItem('user_role') || 
+                localStorage.getItem('role') || 
+                'admin'
+            ).toLowerCase().trim();
+
+            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+
+            const nameEl = document.getElementById('userName');
+            const roleEl = document.getElementById('userRoleBadge');
+            const avatarEl = document.getElementById('userAvatar');
+
+            if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
+                if (nameEl) nameEl.textContent = 'Don Ramon Santos';
+                if (roleEl) roleEl.textContent = 'Property Owner';
+                if (avatarEl) {
+                    avatarEl.textContent = 'RS';
+                    avatarEl.style.background = '#059669';
+                }
+            } else if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
+                if (nameEl) nameEl.textContent = 'Maria Santos';
+                if (roleEl) roleEl.textContent = 'Sunrise Property • Unit 101';
+                if (avatarEl) {
+                    avatarEl.textContent = 'MS';
+                    avatarEl.style.background = '#D97706';
+                }
+            } else {
+                const name = user.name || 'Property Admin';
+                const role = user.role || 'Property Manager';
+                if (nameEl) nameEl.textContent = name;
+                if (roleEl) roleEl.textContent = role;
+                if (avatarEl) {
+                    avatarEl.textContent = user.avatar || 'JD';
+                    avatarEl.style.background = user.avatarBg || '#2563EB';
+                }
+            }
+        }
+
+        function populateModalDropdowns() {
+            const locationSelect = document.getElementById('modalTicketLocation');
+            if (!locationSelect) return;
+
+            const units = getUnits();
+            const properties = getProperties();
+
+            locationSelect.innerHTML = '<option value="">Select Property / Unit...</option>';
+
+            if (units.length > 0) {
+                const unitGroup = document.createElement('optgroup');
+                unitGroup.label = 'Specific Units';
+                units.forEach(u => {
+                    const uName = u.unit_no || u.unitNo || u.unit_name || u.id;
+                    const pName = u.property_name || u.property || 'Property';
+                    const opt = document.createElement('option');
+                    opt.value = `${pName} • ${uName}`;
+                    opt.textContent = `${pName} • ${uName}`;
+                    unitGroup.appendChild(opt);
+                });
+                locationSelect.appendChild(unitGroup);
+            }
+
+            if (properties.length > 0) {
+                const propGroup = document.createElement('optgroup');
+                propGroup.label = 'Building / Common Area';
+                properties.forEach(p => {
+                    const opt = document.createElement('option');
+                    opt.value = `${p.name} (Common Area)`;
+                    opt.textContent = `${p.name} — Common Area / Facility`;
+                    propGroup.appendChild(opt);
+                });
+                locationSelect.appendChild(propGroup);
+            }
+
+            if (units.length === 0 && properties.length === 0) {
+                locationSelect.innerHTML += '<option value="Sunrise Property • Unit 101">Sunrise Property • Unit 101</option>';
+                locationSelect.innerHTML += '<option value="Sunrise Residences • Unit 204">Sunrise Residences • Unit 204</option>';
+                locationSelect.innerHTML += '<option value="Central Business Center (Common Area)">Central Business Center (Common Area)</option>';
+            }
+        }
+
+        function autoFillTenantFromLocation() {
+            const locationVal = document.getElementById('modalTicketLocation').value;
+            const tenantInput = document.getElementById('modalTicketTenant');
+            if (!locationVal || !tenantInput) return;
+
+            if (locationVal.includes('Common Area')) {
+                tenantInput.value = 'N/A (Building Facility)';
+                return;
+            }
+
+            const leases = getLeases();
+            const parts = locationVal.split('•');
+            const unitName = parts[1] ? parts[1].trim() : '';
+
+            if (unitName) {
+                const matchedLease = leases.find(l => 
+                    (l.unit && l.unit.includes(unitName)) || 
+                    (l.unit_number && l.unit_number.includes(unitName))
+                );
+                if (matchedLease && (matchedLease.tenantName || matchedLease.tenant_name)) {
+                    tenantInput.value = matchedLease.tenantName || matchedLease.tenant_name;
+                    return;
+                }
+            }
+
+            tenantInput.value = '';
+        }
+
+        function renderMaintenanceTable() {
+            const tickets = getTickets();
+            const tbody = document.getElementById('maintenanceTable');
+            if (!tbody) return;
+
+            tbody.innerHTML = '';
+
+            if (tickets.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--muted); padding:30px;">No maintenance work orders found. Click "Create Operations Ticket" to add one.</td></tr>`;
+                const countEl = document.getElementById('showingCountText');
+                if (countEl) countEl.textContent = `Showing 0 work order tickets`;
+                return;
+            }
+
+            tickets.forEach(t => {
+                const tr = document.createElement('tr');
+                tr.dataset.status = t.status || 'Open';
+                tr.dataset.priority = t.priority || 'Normal';
+
+                let statusBadge = '';
+                const s = (t.status || '').toLowerCase();
+                if (s === 'resolved' || s === 'completed') {
+                    statusBadge = `<span class="status completed"><i class="bi bi-check-circle" style="margin-right:4px;"></i> Resolved & Completed</span>`;
+                } else if (s === 'in progress' || s === 'assigned') {
+                    statusBadge = `<span class="status progress"><i class="bi bi-clock-history" style="margin-right:4px;"></i> Dispatched (${t.technician || 'Tech Assigned'})</span>`;
+                } else {
+                    statusBadge = `<span class="status open"><i class="bi bi-exclamation-circle" style="margin-right:4px;"></i> Open / Unassigned</span>`;
+                }
+
+                const isHigh = t.priority === 'High' || t.priority === 'Urgent';
+                const priorityClass = isHigh ? 'priority urgent' : 'priority medium';
+
+                tr.innerHTML = `
+                    <td><div class="request-id">${t.id}</div></td>
+                    <td>
+                        <div class="issue-title">${t.title}</div>
+                        <div style="font-size:11px; color:var(--muted);">${t.category || 'General'} • ${t.description || 'No remarks'}</div>
+                    </td>
+                    <td>
+                        <div class="tenant-name">${t.tenantName || t.tenant_name || 'N/A'}</div>
+                        <div class="property-info"><i class="bi bi-geo-alt"></i> ${t.fullLocation || 'N/A'}</div>
+                    </td>
+                    <td><span class="${priorityClass}">${t.priority || 'Normal'}</span></td>
+                    <td><strong>${t.technician || 'Unassigned'}</strong></td>
+                    <td>${t.scheduledTime || 'Pending Dispatch'}</td>
+                    <td>${statusBadge}</td>
+                    <td>
+                        <div style="display:flex; gap:6px;">
+                            <button class="action-btn dispatch-btn" title="Assign Contractor & Schedule" onclick="openDispatchModal('${t.id}')"><i class="bi bi-person-gear"></i></button>
+                            <button class="action-btn" title="Delete Ticket" onclick="deleteTicket('${t.id}')"><i class="bi bi-trash"></i></button>
+                        </div>
+                    </td>
+                `;
+
+                tbody.appendChild(tr);
+            });
+
+            const countEl = document.getElementById('showingCountText');
+            if (countEl) countEl.textContent = `Showing 1–${tickets.length} of ${tickets.length} work order tickets`;
+        }
+
+        function updateKPIs() {
+            const tickets = getTickets();
+
+            const openReqs = tickets.filter(t => {
+                const s = (t.status || '').toLowerCase();
+                return s === 'open' || s === 'submitted';
+            }).length;
+
+            const inProg = tickets.filter(t => {
+                const s = (t.status || '').toLowerCase();
+                return s === 'in progress' || s === 'assigned';
+            }).length;
+
+            const completed = tickets.filter(t => {
+                const s = (t.status || '').toLowerCase();
+                return s === 'resolved' || s === 'completed';
+            }).length;
+
+            const urgent = tickets.filter(t => t.priority === 'High' || t.priority === 'Urgent').length;
+
+            const openEl = document.getElementById('kpiOpenRequests');
+            const progEl = document.getElementById('kpiInProgress');
+            const compEl = document.getElementById('kpiCompleted');
+            const urgEl = document.getElementById('kpiUrgent');
+
+            if (openEl) openEl.textContent = openReqs;
+            if (progEl) progEl.textContent = inProg;
+            if (compEl) compEl.textContent = completed;
+            if (urgEl) urgEl.textContent = urgent;
+        }
+
+        function openCreateTicketModal() {
+            populateModalDropdowns();
+            const modal = document.getElementById("createTicketModal");
+            if (modal) modal.classList.add("show");
+        }
+
+        function saveNewTicket() {
+            const titleInput = document.getElementById('modalTicketTitle');
+            const locationSelect = document.getElementById('modalTicketLocation');
+            const tenantInput = document.getElementById('modalTicketTenant');
+            const categorySelect = document.getElementById('modalTicketCategory');
+            const prioritySelect = document.getElementById('modalTicketPriority');
+            const costInput = document.getElementById('modalTicketCost');
+            const contractorSelect = document.getElementById('modalTicketContractor');
+            const descInput = document.getElementById('modalTicketDesc');
+
+            const title = titleInput ? titleInput.value.trim() : '';
+            const location = locationSelect ? locationSelect.value : '';
+            const tenant = tenantInput ? tenantInput.value.trim() : 'N/A';
+            const category = categorySelect ? categorySelect.value : 'General Maintenance';
+            const priority = prioritySelect ? prioritySelect.value : 'Normal';
+            const cost = parseFloat(costInput ? costInput.value : 0) || 0;
+            const contractor = contractorSelect ? contractorSelect.value : 'Unassigned';
+            const description = descInput ? descInput.value.trim() : '';
+
+            if (!title) {
+                alert("Please enter the maintenance issue title summary.");
+                return;
+            }
+
+            if (!location) {
+                alert("Please select a target property or unit location.");
+                return;
+            }
+
+            const newTicketId = `MNT-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`;
+            const today = new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+            const isAssigned = contractor !== 'Unassigned';
+
+            const newTicket = {
+                id: newTicketId,
+                title: title,
+                category: category,
+                description: description || 'Issue logged via Property Operations Desk.',
+                tenantName: tenant || 'N/A',
+                fullLocation: location,
+                priority: priority,
+                technician: contractor,
+                scheduledTime: isAssigned ? 'Scheduled by Dispatch Desk' : 'Pending Dispatch',
+                status: isAssigned ? 'In Progress' : 'Open',
+                cost: cost,
+                dateFiled: today
+            };
+
+            let tickets = getTickets();
+            tickets.unshift(newTicket);
+            saveTickets(tickets);
+
+            // Log Admin Notification
+            let notifications = getNotifications();
+            notifications.unshift({
+                id: `NOTIF-${Date.now()}`,
+                pov: 'admin',
+                category: 'maintenance',
+                status: 'unread',
+                title: `New Operations Ticket: ${title}`,
+                time: 'Just now',
+                description: `Maintenance ticket <strong>${newTicketId}</strong> created for <strong>${location}</strong>. Priority: <strong>${priority}</strong>.`,
+                property: location,
+                actionUrl: 'maintenance.html',
+                actionText: 'Inspect Ticket'
+            });
+            saveNotifications(notifications);
+
+            renderMaintenanceTable();
+            updateKPIs();
+            updateHeaderBadge();
+            closeModal('createTicketModal');
+
+            // Reset Form Fields
+            if (titleInput) titleInput.value = '';
+            if (locationSelect) locationSelect.value = '';
+            if (tenantInput) tenantInput.value = '';
+            if (costInput) costInput.value = '';
+            if (descInput) descInput.value = '';
+            if (contractorSelect) contractorSelect.value = 'Unassigned';
+            if (prioritySelect) prioritySelect.value = 'Normal';
+
+            alert(`Operations Ticket (${newTicketId}) successfully created!`);
+        }
+
+        function openDispatchModal(ticketId) {
+            const tickets = getTickets();
+            currentEditingTicketId = ticketId;
+
+            if (!currentEditingTicketId) return;
+
+            const t = tickets.find(item => item.id === currentEditingTicketId);
+            if (!t) return;
+
+            document.getElementById('modalTicketHeading').textContent = `Work Order Dispatch — ${t.id}`;
+            document.getElementById('dModalTitle').textContent = t.title;
+            document.getElementById('dModalLocation').innerHTML = `<i class="bi bi-geo-alt"></i> ${t.tenantName || t.tenant_name || 'N/A'} • ${t.fullLocation || 'N/A'}`;
+
+            if (t.technician && t.technician !== 'Unassigned') {
+                document.getElementById('dModalContractor').value = t.technician;
+            }
+            if (t.scheduledTime && t.scheduledTime !== 'Pending Dispatch') {
+                document.getElementById('dModalSchedule').value = t.scheduledTime;
+            } else {
+                document.getElementById('dModalSchedule').value = 'Today at 02:00 PM';
+            }
+            if (t.status) {
+                document.getElementById('dModalStatus').value = t.status === 'Open' ? 'In Progress' : t.status;
+            }
+            if (t.cost !== undefined) {
+                document.getElementById('dModalCost').value = t.cost;
+            }
+
+            const modal = document.getElementById('dispatchModal');
+            if (modal) modal.classList.add('show');
+        }
+
+        function closeModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) modal.classList.remove('show');
+            if (modalId === 'dispatchModal') currentEditingTicketId = null;
+        }
+
+        function closeDispatchModal() {
+            closeModal('dispatchModal');
+        }
+
+        function saveDispatch() {
+            if (!currentEditingTicketId) return;
+
+            const contractor = document.getElementById('dModalContractor').value;
+            const schedule = document.getElementById('dModalSchedule').value.trim() || 'Scheduled';
+            const status = document.getElementById('dModalStatus').value;
+            const cost = parseFloat(document.getElementById('dModalCost').value) || 0;
+
+            let tickets = getTickets();
+            let targetTicket = null;
+
+            tickets = tickets.map(t => {
+                if (t.id === currentEditingTicketId) {
+                    targetTicket = t;
+                    return {
+                        ...t,
+                        technician: contractor,
+                        scheduledTime: schedule,
+                        status: status,
+                        cost: cost
+                    };
+                }
+                return t;
+            });
+            saveTickets(tickets);
+
+            // Notify Tenant POV
+            if (targetTicket && targetTicket.tenantName && targetTicket.tenantName !== 'N/A') {
+                let notifications = getNotifications();
+                notifications.unshift({
+                    id: `NOTIF-${Date.now()}`,
+                    pov: 'client',
+                    category: 'maintenance',
+                    status: 'unread',
+                    title: 'Technician Scheduled for Your Unit',
+                    time: 'Just now',
+                    description: `Specialized contractor <strong>${contractor}</strong> scheduled for arrival: <strong>${schedule}</strong> for issue "${targetTicket.title}".`,
+                    actionUrl: 'client-maintenance.html',
+                    actionText: 'View Dispatch Schedule'
+                });
+                saveNotifications(notifications);
+            }
+
+            renderMaintenanceTable();
+            updateKPIs();
+            updateHeaderBadge();
+            closeModal('dispatchModal');
+
+            alert(`Work order updated! Contractor "${contractor}" dispatched.`);
+        }
+
+        function deleteTicket(id) {
+            if (!confirm("Are you sure you want to delete this work order ticket?")) return;
+            let tickets = getTickets().filter(t => t.id !== id);
+            saveTickets(tickets);
+            renderMaintenanceTable();
+            updateKPIs();
+        }
+
+        window.onclick = function(event) {
+            if (event.target.classList.contains('modal-overlay')) {
+                event.target.classList.remove('show');
+            }
+        };
+
+        function filterTable() {
+            const searchValue = document.getElementById("searchInput").value.toLowerCase();
+            const statusValue = document.getElementById("statusFilter").value;
+            const priorityValue = document.getElementById("priorityFilter").value;
+
+            const rows = document.querySelectorAll("#maintenanceTable tr");
+            let visibleCount = 0;
+            let totalRows = 0;
+
+            rows.forEach(row => {
+                if (row.dataset.status === undefined) return;
+                totalRows++;
+
+                const text = row.innerText.toLowerCase();
+                const rowStatus = row.dataset.status || "";
+                const rowPriority = row.dataset.priority || "";
+
+                const matchesSearch = text.includes(searchValue);
+                const matchesStatus = statusValue === "" || rowStatus.toLowerCase().includes(statusValue.toLowerCase());
+                const matchesPriority = priorityValue === "" || rowPriority.toLowerCase().includes(priorityValue.toLowerCase());
+
+                if (matchesSearch && matchesStatus && matchesPriority) {
+                    row.style.display = "";
+                    visibleCount++;
+                } else {
+                    row.style.display = "none";
+                }
+            });
+
+            const countEl = document.getElementById('showingCountText');
+            if (countEl) {
+                countEl.textContent = totalRows === 0 ? "Showing 0 work order tickets" : `Showing ${visibleCount} of ${totalRows} work order tickets`;
+            }
+        }
+
+        function resetFilters() {
+            document.getElementById("searchInput").value = "";
+            document.getElementById("statusFilter").value = "";
+            document.getElementById("priorityFilter").value = "";
+            filterTable();
+        }
+
+        const userProfileBtn = document.getElementById('userProfileBtn');
+        const userDropdown = document.getElementById('userDropdown');
+
+        if (userProfileBtn && userDropdown) {
+            userProfileBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                userDropdown.classList.toggle('show');
+            });
+
+            document.addEventListener('click', () => { 
+                userDropdown.classList.remove('show'); 
+            });
+        }
+    </script>
+</body>
+</html>

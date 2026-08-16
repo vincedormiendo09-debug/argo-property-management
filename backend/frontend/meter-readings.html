@@ -1,0 +1,1461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meter Readings & Sub-Meter Audit | ARGO Property Management</title>
+
+    <!-- 🔒 Strict Navigation Guard & Role Isolation -->
+    <script src="js/auth.js"></script>
+
+    <!-- Inter Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+    <style>
+        :root {
+            --primary: #2563EB;
+            --sidebar: #0F172A;
+            --active: #1E293B;
+            --canvas: #F3F4F6;
+            --white: #FFFFFF;
+            --border: #E5E7EB;
+            --text: #111827;
+            --muted: #6B7280;
+            --success: #059669;
+            --danger: #E11D48;
+            --warning: #D97706;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--canvas);
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        button, input, select, textarea {
+            font-family: inherit;
+        }
+
+        /* ================= SIDEBAR ================= */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 240px;
+            height: 100vh;
+            background: #0F172A;
+            color: white;
+            padding: 20px 14px;
+            z-index: 1000;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 5px 12px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .brand-logo {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: #2563EB;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 700;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .sidebar-brand h2 {
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .sidebar-brand span {
+            font-size: 9px;
+            color: #94A3B8;
+            margin-top: 1px;
+            display: block;
+            letter-spacing: 0.8px;
+        }
+
+        .sidebar-nav {
+            margin-top: 16px;
+            flex: 1;
+        }
+
+        .nav-section-title {
+            font-size: 10px;
+            font-weight: 700;
+            color: #64748B;
+            letter-spacing: 0.08em;
+            padding: 14px 10px 6px;
+            text-transform: uppercase;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            color: #CBD5E1;
+            text-decoration: none;
+            border-radius: 6px;
+            margin-bottom: 3px;
+            font-size: 13px;
+            transition: 0.15s ease;
+        }
+
+        .nav-item:hover {
+            background: #172033;
+            color: white;
+        }
+
+        .nav-item.active {
+            background: #1E293B;
+            color: white;
+            font-weight: 500;
+        }
+
+        .nav-item.active i {
+            color: #60A5FA;
+        }
+
+        .nav-item i {
+            width: 20px;
+            font-size: 16px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .sidebar-footer {
+            padding: 14px 10px 0;
+            border-top: 1px solid rgba(255,255,255,0.08);
+            font-size: 11px;
+            color: #64748B;
+        }
+
+        /* ================= TOP HEADER ================= */
+        .top-header {
+            position: fixed;
+            top: 0;
+            left: 240px;
+            right: 0;
+            height: 64px;
+            background: var(--sidebar);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 28px;
+            z-index: 900;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            color: white;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .admin-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #1E293B;
+            border: 1px solid #334155;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #E5E7EB;
+            font-weight: 600;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+        }
+
+        .notification-header-link {
+            position: relative;
+            font-size: 18px;
+            color: #CBD5E1;
+            background: #1E293B;
+            border: 1px solid #334155;
+            width: 38px;
+            height: 38px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            transition: 0.2s ease;
+        }
+
+        .notification-header-link:hover {
+            background: #2563EB;
+            color: white;
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--danger);
+            color: white;
+            font-size: 9px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            border: 2px solid var(--sidebar);
+        }
+
+        /* USER PROFILE DROPDOWN */
+        .user-dropdown-container { position: relative; }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 6px;
+        }
+
+        .user-profile:hover { background: rgba(255,255,255,0.05); }
+
+        .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .user-info strong { display: block; font-size: 12px; }
+        .user-info span { display: block; color: #94A3B8; font-size: 10px; }
+
+        .dropdown-menu {
+            position: absolute;
+            right: 0;
+            top: 48px;
+            width: 180px;
+            background: white;
+            border: 1px solid #E5E7EB;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 1000;
+        }
+
+        .dropdown-menu.show { display: flex; }
+
+        .dropdown-item {
+            padding: 10px 14px;
+            color: #374151;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            transition: 0.15s;
+            cursor: pointer;
+        }
+
+        .dropdown-item:hover { background: #F3F4F6; color: #111827; }
+        .dropdown-item.danger { color: var(--danger); }
+        .dropdown-item.danger:hover { background: #FFF1F2; }
+
+        /* ================= MAIN CONTENT ================= */
+        .main-content {
+            margin-left: 240px;
+            padding: 88px 28px 40px;
+            min-height: 100vh;
+            max-width: 1600px;
+        }
+
+        .page-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 22px;
+        }
+
+        .eyebrow {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--muted);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .page-header h1 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .page-header p {
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .header-btn-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .primary-btn {
+            border: none;
+            background: var(--primary);
+            color: white;
+            border-radius: 6px;
+            padding: 9px 16px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: 0.2s ease;
+        }
+
+        .primary-btn:hover { background: #1D4ED8; }
+
+        .secondary-btn {
+            height: 38px;
+            border: 1px solid var(--border);
+            background: white;
+            border-radius: 6px;
+            padding: 0 13px;
+            font-size: 12px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            color: var(--text);
+        }
+
+        .secondary-btn:hover { background: #F9FAFB; }
+
+        /* ================= KPI CARDS ================= */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 22px;
+        }
+
+        .kpi-card {
+            background: var(--white);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 18px;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+        }
+
+        .kpi-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .kpi-label {
+            color: var(--muted);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .kpi-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: #EFF6FF;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .kpi-value {
+            font-size: 24px;
+            font-weight: 600;
+            color: #111827;
+        }
+
+        .kpi-description {
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 4px;
+        }
+
+        /* ================= FILTER BAR ================= */
+        .filter-bar {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .search-box {
+            position: relative;
+            flex: 1;
+            min-width: 220px;
+        }
+
+        .search-box i {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--muted);
+        }
+
+        .search-box input {
+            width: 100%;
+            height: 38px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0 12px 0 36px;
+            font-size: 12px;
+            outline: none;
+        }
+
+        .search-box input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+        }
+
+        .filter-select {
+            height: 38px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0 12px;
+            font-size: 12px;
+            color: var(--text);
+            background: white;
+            outline: none;
+        }
+
+        /* ================= TABLE ================= */
+        .table-card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+        }
+
+        .table-wrapper { overflow-x: auto; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 950px;
+        }
+
+        th {
+            background: #F9FAFB;
+            color: var(--muted);
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            text-align: left;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 14px 16px;
+            font-size: 12px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text);
+        }
+
+        tr:hover { background: #F9FAFB; }
+
+        .reading-id { font-weight: 600; color: var(--text); }
+        .unit-name { font-weight: 600; color: var(--text); }
+        .property-info { color: #1E40AF; font-size: 11px; font-weight: 600; margin-top: 2px; }
+
+        /* UTILITY BADGES */
+        .utility-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 8px;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .meralco { background: #FEF3C7; color: #92400E; }
+        .maynilad { background: #DBEAFE; color: #1D4ED8; }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 8px;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .status-billed { background: #ECFDF5; color: #047857; }
+        .status-logged { background: #FEF3C7; color: #B45309; }
+
+        .action-button {
+            border: none;
+            background: transparent;
+            color: var(--muted);
+            font-size: 16px;
+            cursor: pointer;
+            padding: 4px 6px;
+            border-radius: 4px;
+            transition: 0.15s;
+        }
+
+        .action-button:hover { color: var(--primary); background: #EFF6FF; }
+        .action-button.delete:hover { color: var(--danger); background: #FFF1F2; }
+
+        .table-footer {
+            padding: 14px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: var(--muted);
+            font-size: 12px;
+            border-top: 1px solid var(--border);
+        }
+
+        .pagination { display: flex; align-items: center; gap: 4px; }
+
+        .page-button {
+            min-width: 30px;
+            height: 30px;
+            border: 1px solid var(--border);
+            background: white;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .page-button.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        /* ================= MODAL ================= */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.55);
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            padding: 20px;
+        }
+
+        .modal-overlay.show { display: flex; }
+
+        .modal {
+            width: 100%;
+            max-width: 540px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            max-height: 90vh;
+        }
+
+        .modal-header {
+            padding: 18px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 { font-size: 16px; font-weight: 600; }
+
+        .close-btn {
+            border: none;
+            background: none;
+            font-size: 18px;
+            cursor: pointer;
+            color: var(--muted);
+        }
+
+        .modal-body { padding: 20px; overflow-y: auto; flex: 1; }
+        .form-group { margin-bottom: 14px; }
+
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 8px 10px;
+            font-size: 13px;
+            outline: none;
+        }
+
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+        }
+
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+        .calc-preview-card {
+            background: #EFF6FF;
+            border: 1px solid #BFDBFE;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-footer {
+            padding: 14px 20px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            background: #F9FAFB;
+        }
+
+        /* RESPONSIVE */
+        @media (max-width: 1000px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 768px) {
+            .sidebar { width: 70px; padding: 20px 8px; }
+            .sidebar-brand h2, .sidebar-brand span, .nav-section-title, .nav-item span { display: none; }
+            .nav-item { justify-content: center; padding: 12px; }
+            .top-header { left: 70px; padding: 0 15px; }
+            .main-content { margin-left: 70px; padding: 85px 15px 30px; }
+            .page-header { flex-direction: column; gap: 14px; }
+            .filter-bar { flex-direction: column; align-items: stretch; }
+            .table-footer { flex-direction: column; gap: 12px; align-items: flex-start; }
+            .form-row { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ================= SIDEBAR ================= -->
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-logo">A</div>
+            <div>
+                <h2>ARGO</h2>
+                <span>Property Management</span>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav" id="sidebarNav">
+            <!-- POPULATED DYNAMICALLY BY JAVASCRIPT -->
+        </nav>
+
+        <div class="sidebar-footer">
+            <span>ARGO v0.5</span>
+        </div>
+    </aside>
+
+    <!-- ================= TOP HEADER ================= -->
+    <header class="top-header">
+        <div class="header-left">
+            <div class="admin-badge">
+                <i class="bi bi-shield-lock-fill" style="color: #60A5FA;"></i>
+                <span>Admin Command Center</span>
+            </div>
+        </div>
+
+        <div class="header-right">
+            <a href="notification.html" class="notification-header-link" title="Notifications Center">
+                <i class="bi bi-bell"></i>
+                <div class="notification-badge" id="headerNotifBadge">0</div>
+            </a>
+
+            <div class="user-dropdown-container">
+                <div class="user-profile" id="userProfileBtn">
+                    <div class="avatar" id="userAvatar">JD</div>
+                    <div class="user-info">
+                        <strong id="userName">Property Admin</strong>
+                        <span id="userRoleBadge">Property Manager</span>
+                    </div>
+                    <i class="bi bi-chevron-down" style="font-size: 10px; color: #94A3B8;"></i>
+                </div>
+
+                <div class="dropdown-menu" id="userDropdown">
+                    <a href="account.html" class="dropdown-item">
+                        <i class="bi bi-person-gear"></i>
+                        <span>Account Settings</span>
+                    </a>
+                    <div class="dropdown-item danger" onclick="logoutUser()">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Log Out</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ================= MAIN CONTENT ================= -->
+    <main class="main-content">
+
+        <!-- PAGE HEADER -->
+        <div class="page-header">
+            <div>
+                <div class="eyebrow">UTILITY SUB-METERS & AUDIT STEP 1</div>
+                <h1>Monthly Sub-Meter Readings</h1>
+                <p>Log Meralco (kWh) and Maynilad (m³) sub-meter numbers to compute consumption before generating tenant utility statements.</p>
+            </div>
+
+            <div class="header-btn-group">
+                <a href="utilities.html" class="secondary-btn" style="text-decoration:none;">
+                    <i class="bi bi-receipt"></i>
+                    <span>Proceed to Utility Billing Desk</span>
+                </a>
+
+                <button class="primary-btn" onclick="openModal()">
+                    <i class="bi bi-plus-lg"></i>
+                    <span>Record Sub-Meter Reading</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- KPI CARDS (RECALCULATED DYNAMICALLY) -->
+        <section class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-top">
+                    <span class="kpi-label">Active Sub-Meters</span>
+                    <div class="kpi-icon"><i class="bi bi-speedometer"></i></div>
+                </div>
+                <div class="kpi-value" style="color:#2563EB;" id="kpiActiveMeters">0</div>
+                <div class="kpi-description">Tracked across all units</div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-top">
+                    <span class="kpi-label">Avg Electricity Use</span>
+                    <div class="kpi-icon" style="background:#FEF3C7; color:#92400E;"><i class="bi bi-lightning-charge"></i></div>
+                </div>
+                <div class="kpi-value" id="kpiAvgPower">0 kWh</div>
+                <div class="kpi-description">Per unit this billing period</div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-top">
+                    <span class="kpi-label">Avg Water Use</span>
+                    <div class="kpi-icon" style="background:#DBEAFE; color:#1D4ED8;"><i class="bi bi-droplet"></i></div>
+                </div>
+                <div class="kpi-value" style="color:#059669;" id="kpiAvgWater">0 cu.m</div>
+                <div class="kpi-description">Per unit this billing period</div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-top">
+                    <span class="kpi-label">Readings Completion</span>
+                    <div class="kpi-icon" style="background:#ECFDF5; color:var(--success, #059669);"><i class="bi bi-shield-check"></i></div>
+                </div>
+                <div class="kpi-value" style="color:#059669;" id="kpiCompletion">0%</div>
+                <div class="kpi-description" id="kpiCompletionDesc">Sub-meter audit log status</div>
+            </div>
+        </section>
+
+        <!-- FILTER BAR -->
+        <div class="filter-bar">
+            <div class="search-box">
+                <i class="bi bi-search"></i>
+                <input type="text" id="searchInput" placeholder="Search reading ID, tenant name, or meter serial..." onkeyup="filterTable()">
+            </div>
+
+            <select class="filter-select" id="utilityFilter" onchange="filterTable()">
+                <option value="">All Utility Providers</option>
+                <option value="Meralco">Meralco (Electricity)</option>
+                <option value="Maynilad">Maynilad (Water)</option>
+            </select>
+
+            <select class="filter-select" id="periodFilter" onchange="filterTable()">
+                <option value="">All Periods</option>
+                <option value="August 2026">August 2026</option>
+                <option value="July 2026">July 2026</option>
+                <option value="June 2026">June 2026</option>
+            </select>
+
+            <button class="secondary-btn" onclick="resetFilters()">
+                <i class="bi bi-arrow-counterclockwise"></i>
+                <span>Reset</span>
+            </button>
+        </div>
+
+        <!-- READINGS TABLE -->
+        <div class="table-card">
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>READING ID</th>
+                            <th>TENANT, UNIT & METER SERIAL</th>
+                            <th>UTILITY TYPE</th>
+                            <th>PREVIOUS DIAL</th>
+                            <th>CURRENT DIAL</th>
+                            <th>NET CONSUMPTION</th>
+                            <th>BILLING PERIOD</th>
+                            <th>STATUS</th>
+                            <th>ACTIONS</th>
+                        </tr>
+                    </thead>
+                    <tbody id="readingTable">
+                        <!-- RENDERED DYNAMICALLY FROM LOCALSTORAGE / POSTGRESQL -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- TABLE FOOTER -->
+            <div class="table-footer">
+                <span id="showingCountText">Showing 0 sub-meter readings</span>
+            </div>
+        </div>
+    </main>
+
+    <!-- ================= MODAL: RECORD SUB-METER READING ================= -->
+    <div class="modal-overlay" id="readingModal">
+        <div class="modal">
+            <div class="modal-header">
+                <div>
+                    <span class="eyebrow">SUB-METER AUDIT DESK</span>
+                    <h2>Record Meter Reading</h2>
+                </div>
+                <button class="close-btn" onclick="closeModal()"><i class="bi bi-x-lg"></i></button>
+            </div>
+
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Select Target Unit & Utility Meter</label>
+                    <select id="modalMeterSelect" onchange="autoFillPreviousDial()">
+                        <option value="">Select Target Meter...</option>
+                        <!-- DYNAMICALLY POPULATED -->
+                    </select>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Previous Baseline Dial Reading</label>
+                        <input type="number" id="modalPrevDial" step="0.01" value="0.00" readonly style="background:#F3F4F6;">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Current Dial Reading (New Input)</label>
+                        <input type="number" id="modalCurrDial" step="0.01" placeholder="e.g. 1550.50" oninput="calculateConsumption()" onkeyup="calculateConsumption()">
+                    </div>
+                </div>
+
+                <!-- REAL-TIME NET CONSUMPTION CALCULATION PREVIEW -->
+                <div class="calc-preview-card">
+                    <div>
+                        <span style="font-size:11px; color:#1E40AF; font-weight:700; display:block;">COMPUTED NET CONSUMPTION</span>
+                        <span style="font-size:11px; color:var(--muted, #64748B);" id="modalUnitLabel">Measured in units</span>
+                    </div>
+                    <strong style="font-size:18px; color:#1E40AF;" id="modalNetConsumptionPreview">0.00</strong>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Billing Period</label>
+                        <input type="text" id="modalPeriod" placeholder="e.g. August 2026">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Reading Audit Date</label>
+                        <input type="date" id="modalDate">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Inspector Notes / Meter Seal Verification</label>
+                    <textarea id="modalNotes" rows="2" placeholder="Note physical meter condition or seal ID..."></textarea>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="secondary-btn" onclick="closeModal()">Cancel</button>
+                <button class="primary-btn" onclick="saveReading()"><i class="bi bi-check-lg"></i> Save Reading & Stage for Billing</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= JAVASCRIPT ================= -->
+    <script>
+        // API Base URL for PostgreSQL/Backend integration
+        const API_BASE_URL = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
+            ? 'http://localhost:5000/api'
+            : '/api';
+
+        // Secure Logout Handler
+        function logoutUser() {
+            localStorage.removeItem('argo_pov');
+            localStorage.removeItem('user_role');
+            localStorage.removeItem('role');
+            localStorage.removeItem('token');
+            localStorage.removeItem('argo_user');
+            window.location.replace('index.html');
+        }
+
+        function renderSidebar() {
+            const nav = document.getElementById('sidebarNav');
+            if (nav) {
+                nav.innerHTML = `
+                    <div class="nav-section-title">OVERVIEW</div>
+                    <a href="dashboard.html" class="nav-item">
+                        <i class="bi bi-grid-1x2"></i>
+                        <span>Dashboard</span>
+                    </a>
+
+                    <div class="nav-section-title">PROPERTY OPERATIONS</div>
+                    <a href="properties.html" class="nav-item">
+                        <i class="bi bi-buildings"></i>
+                        <span>Properties</span>
+                    </a>
+                    <a href="buildings.html" class="nav-item">
+                        <i class="bi bi-building"></i>
+                        <span>Buildings</span>
+                    </a>
+                    <a href="units.html" class="nav-item">
+                        <i class="bi bi-door-open"></i>
+                        <span>Units</span>
+                    </a>
+                    <a href="tenants.html" class="nav-item">
+                        <i class="bi bi-people"></i>
+                        <span>Tenants</span>
+                    </a>
+                    <a href="owners.html" class="nav-item">
+                        <i class="bi bi-person-badge"></i>
+                        <span>Owners</span>
+                    </a>
+                    <a href="property-ownership.html" class="nav-item">
+                        <i class="bi bi-pie-chart"></i>
+                        <span>Fractional Ownership</span>
+                    </a>
+                    <a href="leases.html" class="nav-item">
+                        <i class="bi bi-file-earmark-text"></i>
+                        <span>Leases</span>
+                    </a>
+
+                    <div class="nav-section-title">FINANCE & SERVICES</div>
+                    <a href="rent-collection.html" class="nav-item">
+                        <i class="bi bi-cash-stack"></i>
+                        <span>Rent Collection</span>
+                    </a>
+                    <a href="transaction.html" class="nav-item">
+                        <i class="bi bi-receipt-cutoff"></i>
+                        <span>Transactions & Ledger</span>
+                    </a>
+                    <a href="utilities.html" class="nav-item">
+                        <i class="bi bi-lightning-charge"></i>
+                        <span>Utilities</span>
+                    </a>
+                    <a href="meter-readings.html" class="nav-item active">
+                        <i class="bi bi-speedometer2"></i>
+                        <span>Meter Readings</span>
+                    </a>
+                    <a href="maintenance.html" class="nav-item">
+                        <i class="bi bi-tools"></i>
+                        <span>Maintenance</span>
+                    </a>
+
+                    <div class="nav-section-title">RECORDS & REPORTS</div>
+                    <a href="inspections.html" class="nav-item">
+                        <i class="bi bi-clipboard-check"></i>
+                        <span>Inspections</span>
+                    </a>
+                    <a href="move-in-checklist.html" class="nav-item">
+                        <i class="bi bi-check2-square"></i>
+                        <span>Move-In Checklist</span>
+                    </a>
+                    <a href="move-out-settlement.html" class="nav-item">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Move-Out Settlement</span>
+                    </a>
+                    <a href="documents.html" class="nav-item">
+                        <i class="bi bi-folder2-open"></i>
+                        <span>Documents</span>
+                    </a>
+                    <a href="reports.html" class="nav-item">
+                        <i class="bi bi-bar-chart"></i>
+                        <span>Reports</span>
+                    </a>
+
+                    <div class="nav-section-title">SYSTEM</div>
+                    <a href="settings.html" class="nav-item">
+                        <i class="bi bi-gear"></i>
+                        <span>Settings</span>
+                    </a>
+                    <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Log Out</span>
+                    </a>
+                `;
+            }
+        }
+
+        // Database Sync Handlers with localStorage Fallback
+        async function fetchReadingsFromDB() {
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch(`${API_BASE_URL}/meter-readings`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    if (Array.isArray(data)) {
+                        localStorage.setItem('argo_meter_readings', JSON.stringify(data));
+                        return data;
+                    }
+                }
+            } catch (err) {
+                console.warn('Live API unavailable. Falling back to local storage cache.');
+            }
+            return getReadings();
+        }
+
+        function getReadings() {
+            const data = localStorage.getItem('argo_meter_readings');
+            return data ? JSON.parse(data) : [];
+        }
+
+        async function persistReadingRecord(readingObj) {
+            try {
+                const token = localStorage.getItem('token');
+                await fetch(`${API_BASE_URL}/meter-readings`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(readingObj)
+                });
+            } catch (err) {
+                console.warn('Could not post to live database API. Stored locally.');
+            }
+        }
+
+        async function removeReadingRecordFromDB(id) {
+            try {
+                const token = localStorage.getItem('token');
+                await fetch(`${API_BASE_URL}/meter-readings/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+            } catch (err) {
+                console.warn('Could not delete on live database API. Handled locally.');
+            }
+        }
+
+        function saveReadings(readings) {
+            localStorage.setItem('argo_meter_readings', JSON.stringify(readings));
+        }
+
+        function getLeases() {
+            return JSON.parse(localStorage.getItem('argo_leases') || '[]');
+        }
+
+        function getNotifications() {
+            return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
+        }
+
+        // Initialize Page
+        document.addEventListener('DOMContentLoaded', async () => {
+            const role = localStorage.getItem('argo_pov');
+            if (!role) {
+                window.location.replace('index.html');
+                return;
+            }
+            renderSidebar();
+            loadUserData();
+            await fetchReadingsFromDB();
+            populateModalDropdowns();
+            renderReadingsTable();
+            updateKPIs();
+            updateHeaderBadge();
+        });
+
+        function loadUserData() {
+            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+            if (user.name) {
+                document.getElementById('userName').textContent = user.name;
+                document.getElementById('userAvatar').textContent = user.avatar || 'JD';
+            }
+            if (user.role) {
+                const roleBadge = document.getElementById('userRoleBadge');
+                if (roleBadge) roleBadge.textContent = user.role;
+            }
+        }
+
+        function populateModalDropdowns() {
+            const leases = getLeases();
+            const readings = getReadings();
+            const select = document.getElementById('modalMeterSelect');
+            if (!select) return;
+
+            select.innerHTML = '<option value="">Select Target Meter...</option>';
+
+            leases.forEach(l => {
+                const uName = l.unit || l.unitNumber || 'Unit';
+                const pName = l.property || l.propertyName || 'Property';
+                const tenant = l.tenantName || l.tenant || 'Tenant';
+
+                // Locate the most recent reading baseline for Meralco & Maynilad
+                const latestMeralco = readings.find(r => r.tenantName === tenant && r.utility === 'Meralco');
+                const latestMaynilad = readings.find(r => r.tenantName === tenant && r.utility === 'Maynilad');
+
+                const meralcoPrev = latestMeralco ? parseFloat(latestMeralco.currDial) : 0.00;
+                const mayniladPrev = latestMaynilad ? parseFloat(latestMaynilad.currDial) : 0.00;
+
+                const meralcoSerial = latestMeralco?.serial || `MER-${uName.replace(/[^a-zA-Z0-9]/g, '')}-01`;
+                const mayniladSerial = latestMaynilad?.serial || `MAY-${uName.replace(/[^a-zA-Z0-9]/g, '')}-01`;
+
+                select.innerHTML += `
+                    <option value="${tenant}|${pName} • ${uName}|Meralco|#${meralcoSerial}|${meralcoPrev}|kWh">
+                        ${tenant} — ${pName} (${uName}) [Meralco Electric Sub-Meter]
+                    </option>
+                    <option value="${tenant}|${pName} • ${uName}|Maynilad|#${mayniladSerial}|${mayniladPrev}|cu.m">
+                        ${tenant} — ${pName} (${uName}) [Maynilad Water Sub-Meter]
+                    </option>
+                `;
+            });
+        }
+
+        function renderReadingsTable() {
+            const readings = getReadings();
+            const tbody = document.getElementById('readingTable');
+            tbody.innerHTML = '';
+
+            if (readings.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:var(--muted, #64748B); padding:30px;">No sub-meter readings recorded yet. Click "Record Sub-Meter Reading" to log one.</td></tr>`;
+                document.getElementById('showingCountText').textContent = `Showing 0 sub-meter readings`;
+                return;
+            }
+
+            readings.forEach(r => {
+                const tr = document.createElement('tr');
+                tr.dataset.utility = r.utility;
+                tr.dataset.period = r.period;
+
+                const utilBadge = r.utility === 'Meralco' 
+                    ? `<span class="utility-badge meralco"><i class="bi bi-lightning-charge" style="margin-right:4px;"></i> Meralco</span>`
+                    : `<span class="utility-badge maynilad"><i class="bi bi-droplet" style="margin-right:4px;"></i> Maynilad</span>`;
+
+                const statusBadge = (r.status || '').includes('Billed') 
+                    ? `<span class="status-badge status-billed"><i class="bi bi-check-circle" style="margin-right:4px;"></i> Billed</span>`
+                    : `<span class="status-badge status-logged"><i class="bi bi-clock" style="margin-right:4px;"></i> Ready for Billing</span>`;
+
+                tr.innerHTML = `
+                    <td><div class="reading-id">${r.id}</div></td>
+                    <td>
+                        <div class="unit-name">${r.tenantName} (${r.unitLocation || 'Unit'})</div>
+                        <div class="property-info">Serial ${r.serial || 'N/A'}</div>
+                    </td>
+                    <td>${utilBadge}</td>
+                    <td>${parseFloat(r.prevDial || 0).toFixed(2)} ${r.unitSymbol || ''}</td>
+                    <td>${parseFloat(r.currDial || 0).toFixed(2)} ${r.unitSymbol || ''}</td>
+                    <td><strong style="color:var(--primary, #2563EB);">${parseFloat(r.consumption || 0).toFixed(2)} ${r.unitSymbol || ''}</strong></td>
+                    <td>${r.period}</td>
+                    <td>${statusBadge}</td>
+                    <td>
+                        <div style="display:flex; gap:6px;">
+                            <button class="action-button" title="View Reading Details" onclick="viewReadingDetails('${r.id}')"><i class="bi bi-eye"></i></button>
+                            <a href="utilities.html" class="action-button" title="Consolidate Bill"><i class="bi bi-receipt"></i></a>
+                            <button class="action-button delete" title="Delete Reading" onclick="deleteReading('${r.id}')"><i class="bi bi-trash"></i></button>
+                        </div>
+                    </td>
+                `;
+
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('showingCountText').textContent = `Showing 1–${readings.length} of ${readings.length} sub-meter readings`;
+        }
+
+        function autoFillPreviousDial() {
+            const selectVal = document.getElementById('modalMeterSelect').value;
+            if (!selectVal) {
+                document.getElementById('modalPrevDial').value = "0.00";
+                document.getElementById('modalUnitLabel').textContent = "Measured in units";
+                calculateConsumption();
+                return;
+            }
+
+            const val = selectVal.split('|');
+            const prevDial = parseFloat(val[4]) || 0;
+            const symbol = val[5] || 'kWh';
+
+            document.getElementById('modalPrevDial').value = prevDial.toFixed(2);
+            document.getElementById('modalUnitLabel').textContent = `Measured in ${symbol}`;
+
+            calculateConsumption();
+        }
+
+        function calculateConsumption() {
+            const prev = parseFloat(document.getElementById('modalPrevDial').value) || 0;
+            const curr = parseFloat(document.getElementById('modalCurrDial').value) || 0;
+            const selectVal = document.getElementById('modalMeterSelect').value;
+            const symbol = selectVal ? selectVal.split('|')[5] || 'kWh' : 'kWh';
+
+            const net = curr >= prev ? (curr - prev) : 0;
+            document.getElementById('modalNetConsumptionPreview').textContent = `${net.toFixed(2)} ${symbol}`;
+        }
+
+        async function saveReading() {
+            const selectVal = document.getElementById('modalMeterSelect').value;
+            if (!selectVal) {
+                alert("Please select a target meter.");
+                return;
+            }
+
+            const val = selectVal.split('|');
+            const tenantName = val[0];
+            const unitLocation = val[1];
+            const utility = val[2];
+            const serial = val[3];
+            const prevDial = parseFloat(val[4]) || 0;
+            const symbol = val[5] || 'kWh';
+
+            const currDialInput = document.getElementById('modalCurrDial').value;
+            const currDial = parseFloat(currDialInput);
+            const period = document.getElementById('modalPeriod').value.trim() || 'August 2026';
+            const readingDate = document.getElementById('modalDate').value || new Date().toISOString().split('T')[0];
+            const notes = document.getElementById('modalNotes').value.trim();
+
+            if (currDialInput === '' || isNaN(currDial) || currDial < prevDial) {
+                alert(`Please enter a valid current dial reading greater than or equal to previous baseline (${prevDial.toFixed(2)}).`);
+                return;
+            }
+
+            const netConsumption = currDial - prevDial;
+            const newReadingId = `MET-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+            const newRecord = {
+                id: newReadingId,
+                tenantName: tenantName,
+                unitLocation: unitLocation,
+                utility: utility,
+                serial: serial,
+                prevDial: prevDial,
+                currDial: currDial,
+                consumption: netConsumption,
+                unitSymbol: symbol,
+                period: period,
+                readingDate: readingDate,
+                notes: notes,
+                status: 'Unbilled / Ready for Billing',
+                createdAt: new Date().toISOString()
+            };
+
+            let readings = getReadings();
+            readings.unshift(newRecord);
+            saveReadings(readings);
+
+            // Push to live API if server is up
+            await persistReadingRecord(newRecord);
+
+            renderReadingsTable();
+            updateKPIs();
+            populateModalDropdowns();
+            closeModal();
+
+            // Clear Inputs
+            document.getElementById('modalCurrDial').value = '';
+            document.getElementById('modalNotes').value = '';
+
+            alert(`Sub-meter reading ${newReadingId} recorded successfully for ${tenantName}!`);
+        }
+
+        async function deleteReading(id) {
+            if (!confirm("Are you sure you want to delete this meter reading?")) return;
+            let readings = getReadings();
+            readings = readings.filter(r => r.id !== id);
+            saveReadings(readings);
+            await removeReadingRecordFromDB(id);
+            renderReadingsTable();
+            updateKPIs();
+            populateModalDropdowns();
+        }
+
+        function viewReadingDetails(id) {
+            const readings = getReadings();
+            const r = readings.find(item => item.id === id);
+            if (!r) return;
+
+            alert(
+                `SUB-METER READING AUDIT DETAILS\n` +
+                `------------------------------------\n` +
+                `Reading ID: ${r.id}\n` +
+                `Tenant: ${r.tenantName}\n` +
+                `Unit: ${r.unitLocation}\n` +
+                `Utility Provider: ${r.utility}\n` +
+                `Serial No: ${r.serial}\n` +
+                `Audit Date: ${r.readingDate || 'N/A'}\n` +
+                `Billing Period: ${r.period}\n` +
+                `Baseline Dial: ${parseFloat(r.prevDial).toFixed(2)} ${r.unitSymbol}\n` +
+                `Current Dial: ${parseFloat(r.currDial).toFixed(2)} ${r.unitSymbol}\n` +
+                `Net Consumption: ${parseFloat(r.consumption).toFixed(2)} ${r.unitSymbol}\n` +
+                `Status: ${r.status}\n` +
+                `Notes: ${r.notes || 'None'}`
+            );
+        }
+
+        function updateKPIs() {
+            const readings = getReadings();
+            const leases = getLeases();
+
+            const activeMeters = readings.length;
+            const powerReadings = readings.filter(r => r.utility === 'Meralco');
+            const waterReadings = readings.filter(r => r.utility === 'Maynilad');
+
+            const avgPower = powerReadings.length > 0 
+                ? Math.round(powerReadings.reduce((sum, r) => sum + parseFloat(r.consumption || 0), 0) / powerReadings.length) 
+                : 0;
+
+            const avgWater = waterReadings.length > 0 
+                ? (waterReadings.reduce((sum, r) => sum + parseFloat(r.consumption || 0), 0) / waterReadings.length).toFixed(1)
+                : 0;
+
+            const totalPossibleMeters = leases.length > 0 ? leases.length * 2 : (activeMeters || 1);
+            const completionRate = Math.min(100, Math.round((activeMeters / totalPossibleMeters) * 100));
+
+            document.getElementById('kpiActiveMeters').textContent = activeMeters;
+            document.getElementById('kpiAvgPower').textContent = `${avgPower} kWh`;
+            document.getElementById('kpiAvgWater').textContent = `${avgWater} cu.m`;
+            document.getElementById('kpiCompletion').textContent = `${completionRate}%`;
+        }
+
+        function updateHeaderBadge() {
+            const notifs = getNotifications().filter(n => n.pov === 'admin' && n.status === 'unread');
+            const badge = document.getElementById('headerNotifBadge');
+            if (badge) badge.textContent = notifs.length;
+        }
+
+        function openModal() { 
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('modalDate').value = today;
+            if (!document.getElementById('modalPeriod').value) {
+                document.getElementById('modalPeriod').value = 'August 2026';
+            }
+            document.getElementById("readingModal").classList.add("show"); 
+        }
+
+        function closeModal() { 
+            document.getElementById("readingModal").classList.remove("show"); 
+        }
+
+        window.onclick = function(event) {
+            const modal = document.getElementById("readingModal");
+            if (event.target === modal) closeModal();
+        };
+
+        function filterTable() {
+            const searchValue = document.getElementById("searchInput").value.toLowerCase();
+            const utilityValue = document.getElementById("utilityFilter").value;
+            const periodValue = document.getElementById("periodFilter").value;
+
+            const rows = document.querySelectorAll("#readingTable tr");
+
+            rows.forEach(row => {
+                const text = row.innerText.toLowerCase();
+                const rowUtility = row.dataset.utility || "";
+                const rowPeriod = row.dataset.period || "";
+
+                const matchesSearch = text.includes(searchValue);
+                const matchesUtility = utilityValue === "" || rowUtility === utilityValue;
+                const matchesPeriod = periodValue === "" || rowPeriod === periodValue;
+
+                if (matchesSearch && matchesUtility && matchesPeriod) {
+                    row.style.display = "";
+                } else {
+                    row.style.display = "none";
+                }
+            });
+        }
+
+        function resetFilters() {
+            document.getElementById("searchInput").value = "";
+            document.getElementById("utilityFilter").value = "";
+            document.getElementById("periodFilter").value = "";
+            filterTable();
+        }
+
+        // Profile Dropdown Toggle
+        const userProfileBtn = document.getElementById('userProfileBtn');
+        const userDropdown = document.getElementById('userDropdown');
+
+        if (userProfileBtn && userDropdown) {
+            userProfileBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                userDropdown.classList.toggle('show');
+            });
+
+            document.addEventListener('click', () => { userDropdown.classList.remove('show'); });
+        }
+    </script>
+</body>
+</html>

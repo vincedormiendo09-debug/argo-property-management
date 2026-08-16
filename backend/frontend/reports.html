@@ -1,0 +1,1553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reports & Analytics | ARGO Property Management</title>
+
+    <!-- 🔒 Strict Navigation Guard & Role Isolation -->
+    <script src="js/auth.js"></script>
+
+    <!-- Inter Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+    <style>
+        :root {
+            --primary: #2563EB;
+            --sidebar: #0F172A;
+            --active: #1E293B;
+            --canvas: #F3F4F6;
+            --white: #FFFFFF;
+            --border: #E5E7EB;
+            --text: #111827;
+            --muted: #6B7280;
+            --success: #059669;
+            --danger: #E11D48;
+            --warning: #D97706;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--canvas);
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        button, input, select, textarea {
+            font-family: inherit;
+        }
+
+        /* ================= SIDEBAR ================= */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 240px;
+            height: 100vh;
+            background: #0F172A;
+            color: white;
+            padding: 20px 14px;
+            z-index: 1000;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 5px 12px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .brand-logo {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: #2563EB;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 700;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .sidebar-brand h2 {
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .sidebar-brand span {
+            font-size: 9px;
+            color: #94A3B8;
+            margin-top: 1px;
+            display: block;
+            letter-spacing: 0.8px;
+        }
+
+        .sidebar-nav {
+            margin-top: 16px;
+            flex: 1;
+        }
+
+        .nav-section-title {
+            font-size: 10px;
+            font-weight: 700;
+            color: #64748B;
+            letter-spacing: 0.08em;
+            padding: 14px 10px 6px;
+            text-transform: uppercase;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            color: #CBD5E1;
+            text-decoration: none;
+            border-radius: 6px;
+            margin-bottom: 3px;
+            font-size: 13px;
+            transition: 0.15s ease;
+        }
+
+        .nav-item:hover {
+            background: #172033;
+            color: white;
+        }
+
+        .nav-item.active {
+            background: #1E293B;
+            color: white;
+            font-weight: 500;
+        }
+
+        .nav-item.active i {
+            color: #60A5FA;
+        }
+
+        .nav-item i {
+            width: 20px;
+            font-size: 16px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .sidebar-footer {
+            padding: 14px 10px 0;
+            border-top: 1px solid rgba(255,255,255,0.08);
+            font-size: 11px;
+            color: #64748B;
+        }
+
+        /* ================= TOP HEADER ================= */
+        .top-header {
+            position: fixed;
+            top: 0;
+            left: 240px;
+            right: 0;
+            height: 64px;
+            background: var(--sidebar);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 28px;
+            z-index: 900;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            color: white;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .admin-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #1E293B;
+            border: 1px solid #334155;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #E5E7EB;
+            font-weight: 600;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+        }
+
+        .notification-header-link {
+            position: relative;
+            font-size: 18px;
+            color: #CBD5E1;
+            background: #1E293B;
+            border: 1px solid #334155;
+            width: 38px;
+            height: 38px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            transition: 0.2s ease;
+        }
+
+        .notification-header-link:hover {
+            background: #2563EB;
+            color: white;
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--danger);
+            color: white;
+            font-size: 9px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            border: 2px solid var(--sidebar);
+        }
+
+        /* USER PROFILE DROPDOWN */
+        .user-dropdown-container { position: relative; }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 6px;
+        }
+
+        .user-profile:hover { background: rgba(255,255,255,0.05); }
+
+        .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .user-info strong { display: block; font-size: 12px; }
+        .user-info span { display: block; color: #94A3B8; font-size: 10px; }
+
+        .dropdown-menu {
+            position: absolute;
+            right: 0;
+            top: 48px;
+            width: 180px;
+            background: white;
+            border: 1px solid #E5E7EB;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 1000;
+        }
+
+        .dropdown-menu.show { display: flex; }
+
+        .dropdown-item {
+            padding: 10px 14px;
+            color: #374151;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            transition: 0.15s;
+            cursor: pointer;
+        }
+
+        .dropdown-item:hover { background: #F3F4F6; color: #111827; }
+        .dropdown-item.danger { color: var(--danger); }
+        .dropdown-item.danger:hover { background: #FFF1F2; }
+
+        /* ================= MAIN CONTENT ================= */
+        .main-content {
+            margin-left: 240px;
+            padding: 88px 28px 40px;
+            min-height: 100vh;
+            max-width: 1600px;
+        }
+
+        .page-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 22px;
+        }
+
+        .eyebrow {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--muted);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .page-header h1 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .page-header p {
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .primary-btn {
+            border: none;
+            background: var(--primary);
+            color: white;
+            border-radius: 6px;
+            padding: 9px 16px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: 0.2s ease;
+        }
+
+        .primary-btn:hover { background: #1D4ED8; }
+
+        .secondary-btn {
+            height: 36px;
+            border: 1px solid var(--border);
+            background: white;
+            border-radius: 6px;
+            padding: 0 13px;
+            font-size: 12px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            color: var(--text);
+        }
+
+        .secondary-btn:hover { background: #F9FAFB; }
+
+        /* ================= KPI CARDS ================= */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 22px;
+        }
+
+        .kpi-card {
+            background: var(--white);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 18px;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+        }
+
+        .kpi-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .kpi-title {
+            color: var(--muted);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .kpi-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: #EFF6FF;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .kpi-value {
+            font-size: 24px;
+            font-weight: 600;
+            color: #111827;
+        }
+
+        .kpi-description {
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 4px;
+        }
+
+        /* ================= REPORT CARDS GRID ================= */
+        .reports-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 18px;
+            margin-bottom: 24px;
+        }
+
+        .report-card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .report-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+
+        .report-card h3 { font-size: 15px; font-weight: 600; }
+        .report-card p { color: var(--muted); font-size: 12px; margin-top: 4px; }
+
+        .report-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 8px;
+            background: #F3F4F6;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+
+        .report-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .report-btn {
+            height: 36px;
+            border: none;
+            background: var(--primary);
+            color: white;
+            padding: 0 13px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            font-weight: 500;
+        }
+
+        .report-btn:hover { background: #1D4ED8; }
+
+        /* ================= RECENT REPORTS TABLE ================= */
+        .table-section {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+        }
+
+        .table-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .table-header h2 { font-size: 15px; font-weight: 600; }
+
+        .table-wrapper { overflow-x: auto; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 800px;
+        }
+
+        th {
+            background: #F9FAFB;
+            color: var(--muted);
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            text-align: left;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 14px 16px;
+            font-size: 12px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text);
+        }
+
+        tr:hover { background: #F9FAFB; }
+
+        .report-name { font-weight: 600; color: var(--text); }
+        .report-type { color: var(--muted); font-size: 11px; }
+
+        .status {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 8px;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: 500;
+        }
+
+        .status.completed { color: #047857; background: #ECFDF5; }
+        .status.processing { color: #B45309; background: #FEF3C7; }
+
+        .action-btn {
+            width: 30px;
+            height: 30px;
+            border: 1px solid var(--border);
+            background: white;
+            border-radius: 6px;
+            color: var(--muted);
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .action-btn:hover { background: #F3F4F6; color: var(--primary); }
+
+        /* ================= MODAL ================= */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.55);
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            padding: 20px;
+        }
+
+        .modal-overlay.show { display: flex; }
+
+        .modal {
+            width: 100%;
+            max-width: 500px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+            overflow: hidden;
+        }
+
+        .modal-header {
+            padding: 18px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 { font-size: 16px; font-weight: 600; }
+
+        .close-btn {
+            border: none;
+            background: none;
+            font-size: 18px;
+            cursor: pointer;
+            color: var(--muted);
+        }
+
+        .modal-body { padding: 20px; }
+        .form-group { margin-bottom: 14px; }
+
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 8px 10px;
+            font-size: 13px;
+            outline: none;
+        }
+
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+        }
+
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+        .modal-footer {
+            padding: 14px 20px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            background: #F9FAFB;
+        }
+
+        /* RESPONSIVE */
+        @media (max-width: 1000px) {
+            .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+            .reports-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar { width: 70px; padding: 20px 8px; }
+            .sidebar-brand h2, .sidebar-brand span, .nav-section-title, .nav-item span { display: none; }
+            .nav-item { justify-content: center; padding: 12px; }
+            .top-header { left: 70px; padding: 0 15px; }
+            .main-content { margin-left: 70px; padding: 85px 15px 30px; }
+            .page-header { flex-direction: column; gap: 14px; }
+            .form-row { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ================= SIDEBAR ================= -->
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-logo" id="brandLogo">A</div>
+            <div>
+                <h2>ARGO</h2>
+                <span id="portalBrandSubtitle">Property Management</span>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav" id="sidebarNav">
+            <!-- POPULATED DYNAMICALLY BY JAVASCRIPT -->
+        </nav>
+
+        <div class="sidebar-footer">
+            <span id="portalVersionText">ARGO v0.5</span>
+        </div>
+    </aside>
+
+    <!-- ================= TOP HEADER ================= -->
+    <header class="top-header">
+        <div class="header-left">
+            <div id="headerRoleBadgeContainer" class="admin-badge">
+                <i id="headerRoleIcon" class="bi bi-shield-lock-fill" style="color: #60A5FA;"></i>
+                <span id="headerRoleBadgeText">Admin Command Center</span>
+            </div>
+        </div>
+
+        <div class="header-right">
+            <a href="notification.html" class="notification-header-link" title="Notifications Center">
+                <i class="bi bi-bell"></i>
+                <div class="notification-badge" id="headerNotifBadge">0</div>
+            </a>
+
+            <div class="user-dropdown-container">
+                <div class="user-profile" id="userProfileBtn">
+                    <div class="avatar" id="userAvatar">JD</div>
+                    <div class="user-info">
+                        <strong id="userName">Property Admin</strong>
+                        <span id="userRoleBadge">Property Manager</span>
+                    </div>
+                    <i class="bi bi-chevron-down" style="font-size: 10px; color: #94A3B8;"></i>
+                </div>
+
+                <div class="dropdown-menu" id="userDropdown">
+                    <a href="account.html" class="dropdown-item">
+                        <i class="bi bi-person-gear"></i>
+                        <span>Account Settings</span>
+                    </a>
+                    <div class="dropdown-item danger" onclick="logoutUser()">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Log Out</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ================= MAIN CONTENT ================= -->
+    <main class="main-content">
+
+        <!-- PAGE HEADER -->
+        <div class="page-header">
+            <div>
+                <div class="eyebrow" id="pageEyebrow">RECORDS & REPORTS</div>
+                <h1 id="pageTitle">Management Analytics & Reports</h1>
+                <p id="pageDesc">Generate financial statements, portfolio occupancy summaries, ROI yields, and operational audit logs.</p>
+            </div>
+
+            <button class="primary-btn" onclick="openModal()">
+                <i class="bi bi-file-earmark-plus"></i>
+                <span>Generate Report</span>
+            </button>
+        </div>
+
+        <!-- KPI CARDS -->
+        <section class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-top">
+                    <span class="kpi-title">Total Properties</span>
+                    <div class="kpi-icon"><i class="bi bi-buildings"></i></div>
+                </div>
+                <div class="kpi-value" id="kpiProperties">0</div>
+                <div class="kpi-description">Properties currently managed</div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-top">
+                    <span class="kpi-title">Occupancy Rate</span>
+                    <div class="kpi-icon" style="background:#ECFDF5; color:#059669;"><i class="bi bi-pie-chart"></i></div>
+                </div>
+                <div class="kpi-value" style="color:#059669;" id="kpiOccupancy">0%</div>
+                <div class="kpi-description" id="kpiOccupancyDesc">Portfolio occupancy score</div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-top">
+                    <span class="kpi-title">Total Rent Collected</span>
+                    <div class="kpi-icon" style="background:#EFF6FF; color:#2563EB;"><i class="bi bi-cash-stack"></i></div>
+                </div>
+                <div class="kpi-value" id="kpiCollected">₱0.00</div>
+                <div class="kpi-description">Verified collections YTD</div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-top">
+                    <span class="kpi-title">Open Maintenance</span>
+                    <div class="kpi-icon" style="background:#FFF1F2; color:#E11D48;"><i class="bi bi-tools"></i></div>
+                </div>
+                <div class="kpi-value" style="color:#E11D48;" id="kpiMaintenance">0</div>
+                <div class="kpi-description">Requests requiring attention</div>
+            </div>
+        </section>
+
+        <!-- REPORT CARDS -->
+        <section class="reports-grid">
+            <div class="report-card">
+                <div class="report-card-header">
+                    <div>
+                        <h3>Occupancy & Turnover Report</h3>
+                        <p>Analyze occupied, vacant, and maintenance unit distributions.</p>
+                    </div>
+                    <div class="report-icon"><i class="bi bi-pie-chart"></i></div>
+                </div>
+                <div class="report-actions">
+                    <button class="report-btn" onclick="runInstantReport('Occupancy')"><i class="bi bi-eye"></i> View Report</button>
+                    <button class="secondary-btn" onclick="exportInstantReport('Occupancy')"><i class="bi bi-download"></i> Export</button>
+                </div>
+            </div>
+
+            <div class="report-card">
+                <div class="report-card-header">
+                    <div>
+                        <h3>Rent Collection & Aging Report</h3>
+                        <p>Review collected, pending, and overdue rent aging balances.</p>
+                    </div>
+                    <div class="report-icon" style="color:#059669;"><i class="bi bi-cash-stack"></i></div>
+                </div>
+                <div class="report-actions">
+                    <button class="report-btn" onclick="runInstantReport('Finance')"><i class="bi bi-eye"></i> View Report</button>
+                    <button class="secondary-btn" onclick="exportInstantReport('Finance')"><i class="bi bi-download"></i> Export</button>
+                </div>
+            </div>
+
+            <div class="report-card">
+                <div class="report-card-header">
+                    <div>
+                        <h3>Maintenance & Repair Cost Audit</h3>
+                        <p>Track repair ticket velocity, material costs, and vendor assignments.</p>
+                    </div>
+                    <div class="report-icon" style="color:#D97706;"><i class="bi bi-tools"></i></div>
+                </div>
+                <div class="report-actions">
+                    <button class="report-btn" onclick="runInstantReport('Maintenance')"><i class="bi bi-eye"></i> View Report</button>
+                    <button class="secondary-btn" onclick="exportInstantReport('Maintenance')"><i class="bi bi-download"></i> Export</button>
+                </div>
+            </div>
+
+            <div class="report-card">
+                <div class="report-card-header">
+                    <div>
+                        <h3>Property Performance & ROI Yield</h3>
+                        <p>Evaluate asset capitalization, net operating income, and yield returns.</p>
+                    </div>
+                    <div class="report-icon" style="color:#6D28D9;"><i class="bi bi-bar-chart"></i></div>
+                </div>
+                <div class="report-actions">
+                    <button class="report-btn" onclick="runInstantReport('ROI')"><i class="bi bi-eye"></i> View Report</button>
+                    <button class="secondary-btn" onclick="exportInstantReport('ROI')"><i class="bi bi-download"></i> Export</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- RECENT REPORTS TABLE -->
+        <section class="table-section" style="margin-top:24px;">
+            <div class="table-header">
+                <h2>Recently Generated Reports</h2>
+            </div>
+
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>REPORT NAME</th>
+                            <th>REPORT TYPE</th>
+                            <th>GENERATED BY</th>
+                            <th>DATE GENERATED</th>
+                            <th>STATUS</th>
+                            <th>ACTIONS</th>
+                        </tr>
+                    </thead>
+                    <tbody id="recentReportsTable">
+                        <!-- RENDERED DYNAMICALLY FROM LOCALSTORAGE / POSTGRESQL -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <!-- ================= GENERATE REPORT MODAL ================= -->
+    <div class="modal-overlay" id="reportModal">
+        <div class="modal">
+            <div class="modal-header">
+                <div>
+                    <span class="eyebrow">ANALYTICS ENGINE</span>
+                    <h2>Generate New Report</h2>
+                </div>
+                <button class="close-btn" onclick="closeModal()"><i class="bi bi-x-lg"></i></button>
+            </div>
+
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Report Type <span style="color:var(--danger, #E11D48);">*</span></label>
+                    <select id="modalReportType">
+                        <option value="Financial & Rent Collection Statement">Financial & Rent Collection Statement</option>
+                        <option value="Occupancy & Tenant Turnover Summary">Occupancy & Tenant Turnover Summary</option>
+                        <option value="Maintenance & Repair Cost Audit">Maintenance & Repair Cost Audit</option>
+                        <option value="Property Performance & ROI Yield">Property Performance & ROI Yield</option>
+                    </select>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Start Date</label>
+                        <input type="date" id="modalStartDate">
+                    </div>
+
+                    <div class="form-group">
+                        <label>End Date</label>
+                        <input type="date" id="modalEndDate">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Target Property Scope</label>
+                    <select id="modalScope">
+                        <option value="Entire Portfolio">Entire Portfolio (All Properties)</option>
+                        <!-- DYNAMICALLY POPULATED -->
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Export Format</label>
+                    <select id="modalFormat">
+                        <option value="Spreadsheet (.csv)">Spreadsheet Document (.csv)</option>
+                        <option value="Text Summary (.txt)">Text Audit Summary (.txt)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="secondary-btn" onclick="closeModal()">Cancel</button>
+                <button class="primary-btn" onclick="generateReport()"><i class="bi bi-file-earmark-arrow-down"></i> Generate & Download</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= JAVASCRIPT ================= -->
+    <script>
+        // Currency string / number sanitizer
+        function parseCurrency(val) {
+            if (val === undefined || val === null || val === '') return 0;
+            if (typeof val === 'number') return isNaN(val) ? 0 : val;
+            const clean = val.toString().replace(/[^0-9.-]+/g, "");
+            const parsed = parseFloat(clean);
+            return isNaN(parsed) ? 0 : parsed;
+        }
+
+        // Format currency helper
+        function formatPeso(val) {
+            const num = parseCurrency(val);
+            return '₱' + num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        // Secure Logout Handler
+        function logoutUser() {
+            localStorage.removeItem('argo_pov');
+            localStorage.removeItem('user_role');
+            localStorage.removeItem('role');
+            localStorage.removeItem('token');
+            localStorage.removeItem('argo_user');
+            window.location.replace('index.html');
+        }
+
+        // Dynamic Role-Based Sidebar Navigation Renderer
+        function renderSidebar() {
+            const nav = document.getElementById('sidebarNav');
+            if (!nav) return;
+
+            const rawRole = (
+                localStorage.getItem('argo_pov') || 
+                localStorage.getItem('user_role') || 
+                localStorage.getItem('role') || 
+                'admin'
+            ).toLowerCase().trim();
+
+            if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
+                nav.innerHTML = `
+                    <div class="nav-section-title">SELF-SERVICE HOME</div>
+                    <a href="client-dashboard.html" class="nav-item">
+                        <i class="bi bi-house-door"></i>
+                        <span>My Tenancy Home</span>
+                    </a>
+                    <a href="client-billing.html" class="nav-item">
+                        <i class="bi bi-receipt"></i>
+                        <span>Pay Rent & Dues</span>
+                    </a>
+                    <a href="transaction.html" class="nav-item">
+                        <i class="bi bi-receipt-cutoff"></i>
+                        <span>Transactions & Ledger</span>
+                    </a>
+                    <a href="client-utilities.html" class="nav-item">
+                        <i class="bi bi-lightning-charge"></i>
+                        <span>My Utilities & Meters</span>
+                    </a>
+                    <a href="client-maintenance.html" class="nav-item">
+                        <i class="bi bi-tools"></i>
+                        <span>Submit Maintenance</span>
+                    </a>
+                    <a href="inspections.html" class="nav-item">
+                        <i class="bi bi-clipboard-check"></i>
+                        <span>Move-In & Inspections</span>
+                    </a>
+                    <a href="client-documents.html" class="nav-item">
+                        <i class="bi bi-folder2-open"></i>
+                        <span>My Lease & Receipts</span>
+                    </a>
+
+                    <div class="nav-section-title">SYSTEM</div>
+                    <a href="account.html" class="nav-item">
+                        <i class="bi bi-gear"></i>
+                        <span>Account Settings</span>
+                    </a>
+                    <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Log Out</span>
+                    </a>
+                `;
+            } else if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
+                nav.innerHTML = `
+                    <div class="nav-section-title">PORTFOLIO OVERVIEW</div>
+                    <a href="owner-dashboard.html" class="nav-item">
+                        <i class="bi bi-speedometer2"></i>
+                        <span>Executive Summary</span>
+                    </a>
+                    <a href="owner-properties.html" class="nav-item">
+                        <i class="bi bi-buildings"></i>
+                        <span>My Properties</span>
+                    </a>
+                    <a href="owner-statements.html" class="nav-item">
+                        <i class="bi bi-file-earmark-text"></i>
+                        <span>Financial Statements</span>
+                    </a>
+                    <a href="property-ownership.html" class="nav-item">
+                        <i class="bi bi-pie-chart"></i>
+                        <span>Fractional Equity</span>
+                    </a>
+                    <a href="owner-documents.html" class="nav-item">
+                        <i class="bi bi-folder2-open"></i>
+                        <span>Legal Vault</span>
+                    </a>
+                    <a href="transaction.html" class="nav-item">
+                        <i class="bi bi-receipt-cutoff"></i>
+                        <span>Yield Audit Ledger</span>
+                    </a>
+
+                    <div class="nav-section-title">COMMUNICATION & SYSTEM</div>
+                    <a href="notification.html" class="nav-item">
+                        <i class="bi bi-bell"></i>
+                        <span>Notification Center</span>
+                    </a>
+                    <a href="account.html" class="nav-item">
+                        <i class="bi bi-gear"></i>
+                        <span>Account Settings</span>
+                    </a>
+                    <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Log Out</span>
+                    </a>
+                `;
+            } else {
+                // Admin POV
+                nav.innerHTML = `
+                    <div class="nav-section-title">OVERVIEW</div>
+                    <a href="dashboard.html" class="nav-item">
+                        <i class="bi bi-grid-1x2"></i>
+                        <span>Dashboard</span>
+                    </a>
+
+                    <div class="nav-section-title">PROPERTY OPERATIONS</div>
+                    <a href="properties.html" class="nav-item">
+                        <i class="bi bi-buildings"></i>
+                        <span>Properties</span>
+                    </a>
+                    <a href="buildings.html" class="nav-item">
+                        <i class="bi bi-building"></i>
+                        <span>Buildings</span>
+                    </a>
+                    <a href="units.html" class="nav-item">
+                        <i class="bi bi-door-open"></i>
+                        <span>Units</span>
+                    </a>
+                    <a href="tenants.html" class="nav-item">
+                        <i class="bi bi-people"></i>
+                        <span>Tenants</span>
+                    </a>
+                    <a href="owners.html" class="nav-item">
+                        <i class="bi bi-person-badge"></i>
+                        <span>Owners</span>
+                    </a>
+                    <a href="property-ownership.html" class="nav-item">
+                        <i class="bi bi-pie-chart"></i>
+                        <span>Fractional Ownership</span>
+                    </a>
+                    <a href="leases.html" class="nav-item">
+                        <i class="bi bi-file-earmark-text"></i>
+                        <span>Leases</span>
+                    </a>
+
+                    <div class="nav-section-title">FINANCE & SERVICES</div>
+                    <a href="rent-collection.html" class="nav-item">
+                        <i class="bi bi-cash-stack"></i>
+                        <span>Rent Collection</span>
+                    </a>
+                    <a href="transaction.html" class="nav-item">
+                        <i class="bi bi-receipt-cutoff"></i>
+                        <span>Transactions & Ledger</span>
+                    </a>
+                    <a href="utilities.html" class="nav-item">
+                        <i class="bi bi-lightning-charge"></i>
+                        <span>Utilities</span>
+                    </a>
+                    <a href="meter-readings.html" class="nav-item">
+                        <i class="bi bi-speedometer2"></i>
+                        <span>Meter Readings</span>
+                    </a>
+                    <a href="maintenance.html" class="nav-item">
+                        <i class="bi bi-tools"></i>
+                        <span>Maintenance</span>
+                    </a>
+
+                    <div class="nav-section-title">RECORDS & REPORTS</div>
+                    <a href="inspections.html" class="nav-item">
+                        <i class="bi bi-clipboard-check"></i>
+                        <span>Inspections</span>
+                    </a>
+                    <a href="move-in-checklist.html" class="nav-item">
+                        <i class="bi bi-check2-square"></i>
+                        <span>Move-In Checklist</span>
+                    </a>
+                    <a href="move-out-settlement.html" class="nav-item">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Move-Out Settlement</span>
+                    </a>
+                    <a href="documents.html" class="nav-item">
+                        <i class="bi bi-folder2-open"></i>
+                        <span>Documents</span>
+                    </a>
+                    <a href="reports.html" class="nav-item active">
+                        <i class="bi bi-bar-chart"></i>
+                        <span>Reports</span>
+                    </a>
+
+                    <div class="nav-section-title">SYSTEM</div>
+                    <a href="settings.html" class="nav-item">
+                        <i class="bi bi-gear"></i>
+                        <span>Settings</span>
+                    </a>
+                    <a href="account.html" class="nav-item">
+                        <i class="bi bi-person-gear"></i>
+                        <span>Account Settings</span>
+                    </a>
+                    <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Log Out</span>
+                    </a>
+                `;
+            }
+        }
+
+        // Shared Storage Accessors
+        function getRecentReports() {
+            try {
+                return JSON.parse(localStorage.getItem('argo_recent_reports') || '[]');
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function saveRecentReports(reports) {
+            localStorage.setItem('argo_recent_reports', JSON.stringify(reports));
+        }
+
+        function getProperties() {
+            try {
+                return JSON.parse(localStorage.getItem('argo_properties') || '[]');
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function getInvoices() {
+            try {
+                return JSON.parse(localStorage.getItem('argo_invoices') || '[]');
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function getTickets() {
+            try {
+                return JSON.parse(localStorage.getItem('argo_maintenance_tickets') || '[]');
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function getUnits() {
+            try {
+                return JSON.parse(localStorage.getItem('argo_units') || '[]');
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function getLeases() {
+            try {
+                return JSON.parse(localStorage.getItem('argo_leases') || '[]');
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function getNotifications() {
+            try {
+                return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function getTransactions() {
+            try {
+                return JSON.parse(localStorage.getItem('argo_transactions') || '[]');
+            } catch (e) {
+                return [];
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const rawRole = (
+                localStorage.getItem('argo_pov') || 
+                localStorage.getItem('user_role') || 
+                localStorage.getItem('role') || 
+                ''
+            ).toLowerCase().trim();
+
+            if (!rawRole) {
+                window.location.replace('index.html');
+                return;
+            }
+
+            renderSidebar();
+            loadUserData();
+            populateModalDropdowns();
+            renderRecentReportsTable();
+            updateReportKPIs();
+            updateHeaderBadge();
+
+            // Set default date range to current month
+            const now = new Date();
+            const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+            const today = now.toISOString().split('T')[0];
+            const startInput = document.getElementById('modalStartDate');
+            const endInput = document.getElementById('modalEndDate');
+            if (startInput) startInput.value = firstDay;
+            if (endInput) endInput.value = today;
+        });
+
+        // Real-Time Cross-Tab Synchronization
+        window.addEventListener('storage', (e) => {
+            if (['argo_recent_reports', 'argo_properties', 'argo_invoices', 'argo_maintenance_tickets', 'argo_units', 'argo_leases', 'argo_transactions', 'argo_notifications', 'argo_user', 'argo_pov', 'user_role', 'role'].includes(e.key)) {
+                renderSidebar();
+                loadUserData();
+                populateModalDropdowns();
+                renderRecentReportsTable();
+                updateReportKPIs();
+                updateHeaderBadge();
+            }
+        });
+
+        function loadUserData() {
+            const rawRole = (
+                localStorage.getItem('argo_pov') || 
+                localStorage.getItem('user_role') || 
+                localStorage.getItem('role') || 
+                'admin'
+            ).toLowerCase().trim();
+
+            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+            const nameEl = document.getElementById('userName');
+            const roleEl = document.getElementById('userRoleBadge');
+            const avatarEl = document.getElementById('userAvatar');
+
+            if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
+                if (nameEl) nameEl.textContent = 'Don Ramon Santos';
+                if (roleEl) roleEl.textContent = 'Property Owner';
+                if (avatarEl) {
+                    avatarEl.textContent = 'RS';
+                    avatarEl.style.background = '#059669';
+                }
+            } else if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
+                if (nameEl) nameEl.textContent = 'Maria Santos';
+                if (roleEl) roleEl.textContent = 'Sunrise Property • Unit 101';
+                if (avatarEl) {
+                    avatarEl.textContent = 'MS';
+                    avatarEl.style.background = '#D97706';
+                }
+            } else {
+                const name = user.name || 'Property Admin';
+                const role = user.role || 'Property Manager';
+                if (nameEl) nameEl.textContent = name;
+                if (roleEl) roleEl.textContent = role;
+                if (avatarEl) {
+                    avatarEl.textContent = user.avatar || (name.charAt(0) || 'JD');
+                    avatarEl.style.background = user.avatarBg || '#2563EB';
+                }
+            }
+        }
+
+        function populateModalDropdowns() {
+            const props = getProperties();
+            const modalScope = document.getElementById('modalScope');
+            if (!modalScope) return;
+
+            modalScope.innerHTML = '<option value="Entire Portfolio">Entire Portfolio (All Properties)</option>';
+            props.forEach(p => {
+                const propName = p.name || p.property_name || 'Property';
+                modalScope.innerHTML += `<option value="${propName}">${propName}</option>`;
+            });
+        }
+
+        function updateReportKPIs() {
+            const properties = getProperties();
+            const invoices = getInvoices();
+            const tickets = getTickets();
+            const units = getUnits();
+            const leases = getLeases();
+
+            let totalCollected = 0;
+            invoices.forEach(i => {
+                const s = (i.status || '').toLowerCase();
+                if (s === 'paid') totalCollected += parseCurrency(i.amount);
+            });
+
+            const openMaint = tickets.filter(t => {
+                const s = (t.status || '').toLowerCase();
+                return s !== 'resolved' && s !== 'completed';
+            }).length;
+
+            let occupiedCount = 0;
+            units.forEach(u => {
+                if ((u.status || '').toUpperCase() === 'OCCUPIED') occupiedCount++;
+            });
+
+            if (occupiedCount === 0) {
+                leases.forEach(l => {
+                    if ((l.status || '').toUpperCase() === 'ACTIVE') occupiedCount++;
+                });
+            }
+
+            const totalUnits = units.length || (properties.length > 0 ? properties.length * 4 : 2);
+            const occupancyRate = totalUnits > 0 ? Math.round((occupiedCount / totalUnits) * 100) : 0;
+
+            const propEl = document.getElementById('kpiProperties');
+            const collEl = document.getElementById('kpiCollected');
+            const maintEl = document.getElementById('kpiMaintenance');
+            const occEl = document.getElementById('kpiOccupancy');
+            const occDescEl = document.getElementById('kpiOccupancyDesc');
+
+            if (propEl) propEl.textContent = properties.length;
+            if (collEl) collEl.textContent = formatPeso(totalCollected);
+            if (maintEl) maintEl.textContent = openMaint;
+            if (occEl) occEl.textContent = `${occupancyRate}%`;
+            if (occDescEl) occDescEl.textContent = `${occupiedCount} of ${totalUnits} units occupied`;
+        }
+
+        function renderRecentReportsTable() {
+            const reports = getRecentReports();
+            const tbody = document.getElementById('recentReportsTable');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            if (reports.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--muted); padding:30px;">No recently generated reports found. Click "Generate Report" to build one.</td></tr>`;
+                return;
+            }
+
+            reports.forEach((r, index) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><div class="report-name" style="font-weight:600;">${r.name}</div></td>
+                    <td><div class="report-type" style="font-size:12px; color:var(--muted);">${r.type}</div></td>
+                    <td>${r.author || 'Property Admin'}</td>
+                    <td>${r.date}</td>
+                    <td><span class="status completed" style="background:#ECFDF5; color:#059669; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;">${r.status || 'Completed'}</span></td>
+                    <td>
+                        <button class="action-btn" title="Download Report Archive" onclick="downloadReportArchive(${index})"><i class="bi bi-download"></i></button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function triggerTextDownload(filename, textContent) {
+            const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }
+
+        function triggerCsvDownload(filename, csvContent) {
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }
+
+        function generateReport() {
+            const type = document.getElementById('modalReportType').value;
+            const format = document.getElementById('modalFormat').value;
+            const scope = document.getElementById('modalScope').value;
+            const startDate = document.getElementById('modalStartDate').value || '2026-01-01';
+            const endDate = document.getElementById('modalEndDate').value || new Date().toISOString().split('T')[0];
+
+            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+            const author = user.name || 'Property Admin';
+            const today = new Date().toLocaleDateString('en-US', { month:'short', day:'2-digit', year:'numeric' });
+
+            const newReport = {
+                id: `RPT-${Date.now()}`,
+                name: `${type} (${scope})`,
+                type: type.includes('Financial') ? 'Finance' : (type.includes('Occupancy') ? 'Occupancy' : (type.includes('Maintenance') ? 'Maintenance' : 'ROI')),
+                author: author,
+                date: today,
+                startDate: startDate,
+                endDate: endDate,
+                scope: scope,
+                format: format,
+                status: 'Completed'
+            };
+
+            let reports = getRecentReports();
+            reports.unshift(newReport);
+            saveRecentReports(reports);
+
+            renderRecentReportsTable();
+            closeModal();
+
+            // Compile dynamic report dataset based on selected type
+            if (format.includes('.csv')) {
+                const csvData = compileReportCsv(newReport.type, scope);
+                triggerCsvDownload(`${newReport.type}_Report_${scope.replace(/[^a-zA-Z0-9]/g, '_')}.csv`, csvData);
+            } else {
+                const textData = compileReportSummary(newReport.type, scope, startDate, endDate, author);
+                triggerTextDownload(`${newReport.type}_Audit_${scope.replace(/[^a-zA-Z0-9]/g, '_')}.txt`, textData);
+            }
+
+            alert(`Report generated successfully!\n\n• Type: ${type}\n• Scope: ${scope}\n• File downloaded.`);
+        }
+
+        function compileReportCsv(reportType, scope) {
+            if (reportType === 'Finance') {
+                const invoices = getInvoices();
+                let csv = 'Invoice ID,Tenant Name,Property/Unit,Due Date,Amount,Payment Method,Status\n';
+                invoices.forEach(i => {
+                    csv += `"${i.id}","${i.tenantName || 'N/A'}","${i.sub || scope}","${i.dueDate || 'N/A'}","${parseCurrency(i.amount)}","${i.channel || 'GCash'}","${i.status || 'Unpaid'}"\n`;
+                });
+                return csv;
+            } else if (reportType === 'Occupancy') {
+                const units = getUnits();
+                let csv = 'Unit Number,Property,Type,Occupant,Status\n';
+                units.forEach(u => {
+                    csv += `"${u.unit_no || u.unitNo || u.id}","${u.property_name || u.property || scope}","${u.type || '1BR'}","${u.tenant || 'None'}","${u.status || 'VACANT'}"\n`;
+                });
+                return csv;
+            } else if (reportType === 'Maintenance') {
+                const tickets = getTickets();
+                let csv = 'Ticket ID,Issue Title,Location,Priority,Assigned Contractor,Status,Cost\n';
+                tickets.forEach(t => {
+                    csv += `"${t.id}","${t.title}","${t.fullLocation || scope}","${t.priority || 'Normal'}","${t.technician || 'Unassigned'}","${t.status || 'Open'}","${parseCurrency(t.cost)}"\n`;
+                });
+                return csv;
+            } else {
+                const props = getProperties();
+                let csv = 'Property Name,Code,Type,Location,Total Units,Occupancy,Status\n';
+                props.forEach(p => {
+                    csv += `"${p.name}","${p.code || 'PROP'}","${p.type || 'Residential'}","${p.location || 'Metro Manila'}","${p.units || 0}","${p.occupancy || '100%'}","${p.status || 'Active'}"\n`;
+                });
+                return csv;
+            }
+        }
+
+        function compileReportSummary(reportType, scope, startDate, endDate, author) {
+            return `======================================================================================
+ARGO PROPERTY MANAGEMENT — ${reportType.toUpperCase()} ANALYTICAL REPORT
+======================================================================================
+Generated Date : ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+Target Scope   : ${scope}
+Date Range     : ${startDate} to ${endDate}
+Prepared By    : ${author}
+System Source  : Live Multi-Tenant Database Ledger
+======================================================================================
+
+[SUMMARY OF KEY PERFORMANCE INDICATORS]
+Total Properties Managed : ${getProperties().length}
+Active Leases Tracked    : ${getLeases().length}
+Invoices In Ledger       : ${getInvoices().length}
+Active Maintenance Logs  : ${getTickets().length}
+
+Certified True & Verified by ARGO Real Estate Management Engine.
+======================================================================================`;
+        }
+
+        function downloadReportArchive(index) {
+            const reports = getRecentReports();
+            const r = reports[index];
+            if (!r) return;
+
+            const csvData = compileReportCsv(r.type, r.scope || 'Entire Portfolio');
+            triggerCsvDownload(`${r.type}_Archive_${Date.now()}.csv`, csvData);
+        }
+
+        function runInstantReport(category) {
+            const csvData = compileReportCsv(category, 'Entire Portfolio');
+            triggerCsvDownload(`Instant_${category}_Report_${Date.now()}.csv`, csvData);
+        }
+
+        function exportInstantReport(category) {
+            runInstantReport(category);
+        }
+
+        function updateHeaderBadge() {
+            const rawRole = (
+                localStorage.getItem('argo_pov') || 
+                localStorage.getItem('user_role') || 
+                localStorage.getItem('role') || 
+                'admin'
+            ).toLowerCase().trim();
+
+            let role = 'admin';
+            if (['client', 'tenant', 'client_pov'].includes(rawRole)) role = 'client';
+            else if (['owner', 'property_owner', 'investor'].includes(rawRole)) role = 'owner';
+
+            const notifs = getNotifications().filter(n => (n.pov === role || n.pov === 'all') && (n.status === 'unread' || n.is_read === false));
+            const badge = document.getElementById('headerNotifBadge');
+            if (badge) badge.textContent = notifs.length;
+        }
+
+        function openModal() { document.getElementById("reportModal").classList.add("show"); }
+        function closeModal() { document.getElementById("reportModal").classList.remove("show"); }
+
+        window.onclick = function(event) {
+            const modal = document.getElementById("reportModal");
+            if (event.target === modal) closeModal();
+        };
+
+        // Profile Dropdown Handler
+        const userProfileBtn = document.getElementById('userProfileBtn');
+        const userDropdown = document.getElementById('userDropdown');
+
+        if (userProfileBtn && userDropdown) {
+            userProfileBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                userDropdown.classList.toggle('show');
+            });
+
+            document.addEventListener('click', () => { 
+                userDropdown.classList.remove('show'); 
+            });
+        }
+    </script>
+</body>
