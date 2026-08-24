@@ -970,562 +970,760 @@
         </div>
     </div>
 
-    <!-- ================= JAVASCRIPT ================= -->
     <script>
-        // Secure Logout Handler
-        function logoutUser() {
-            localStorage.removeItem('argo_pov');
-            localStorage.removeItem('user_role');
-            localStorage.removeItem('role');
-            localStorage.removeItem('token');
-            localStorage.removeItem('argo_user');
+    const API_BASE_URL = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
+        ? 'http://127.0.0.1:8000/api'
+        : '/api';
+
+    function getAuthHeaders() {
+        const token = localStorage.getItem('token') || localStorage.getItem('argo_token');
+        return {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        };
+    }
+
+    // Secure Logout Handler
+    function logoutUser() {
+        localStorage.clear();
+        window.location.replace('index.html');
+    }
+
+    // Dynamic Role-Based Sidebar Navigation Renderer
+    function renderSidebar() {
+        const nav = document.getElementById('sidebarNav');
+        if (!nav) return;
+
+        const rawRole = (
+            localStorage.getItem('argo_pov') || 
+            localStorage.getItem('user_role') || 
+            localStorage.getItem('role') || 
+            'admin'
+        ).toLowerCase().trim();
+
+        if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
+            nav.innerHTML = `
+                <div class="nav-section-title">SELF-SERVICE HOME</div>
+                <a href="client-dashboard.html" class="nav-item">
+                    <i class="bi bi-house-door"></i>
+                    <span>My Tenancy Home</span>
+                </a>
+                <a href="client-billing.html" class="nav-item">
+                    <i class="bi bi-receipt"></i>
+                    <span>Pay Rent & Dues</span>
+                </a>
+                <a href="transaction.html" class="nav-item">
+                    <i class="bi bi-receipt-cutoff"></i>
+                    <span>Transactions & Ledger</span>
+                </a>
+                <a href="client-utilities.html" class="nav-item">
+                    <i class="bi bi-lightning-charge"></i>
+                    <span>My Utilities & Meters</span>
+                </a>
+                <a href="client-maintenance.html" class="nav-item">
+                    <i class="bi bi-tools"></i>
+                    <span>Submit Maintenance</span>
+                </a>
+                <a href="inspections.html" class="nav-item">
+                    <i class="bi bi-clipboard-check"></i>
+                    <span>Move-In & Inspections</span>
+                </a>
+                <a href="client-documents.html" class="nav-item">
+                    <i class="bi bi-folder2-open"></i>
+                    <span>My Lease & Receipts</span>
+                </a>
+
+                <div class="nav-section-title">SYSTEM</div>
+                <a href="account.html" class="nav-item">
+                    <i class="bi bi-gear"></i>
+                    <span>Account Settings</span>
+                </a>
+                <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                    <i class="bi bi-box-arrow-right"></i>
+                    <span>Log Out</span>
+                </a>
+            `;
+        } else if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
+            nav.innerHTML = `
+                <div class="nav-section-title">PORTFOLIO OVERVIEW</div>
+                <a href="owner-dashboard.html" class="nav-item">
+                    <i class="bi bi-speedometer2"></i>
+                    <span>Executive Summary</span>
+                </a>
+                <a href="owner-properties.html" class="nav-item">
+                    <i class="bi bi-buildings"></i>
+                    <span>My Properties</span>
+                </a>
+                <a href="owner-statements.html" class="nav-item">
+                    <i class="bi bi-file-earmark-text"></i>
+                    <span>Financial Statements</span>
+                </a>
+                <a href="property-ownership.html" class="nav-item">
+                    <i class="bi bi-pie-chart"></i>
+                    <span>Fractional Equity</span>
+                </a>
+                <a href="owner-documents.html" class="nav-item">
+                    <i class="bi bi-folder2-open"></i>
+                    <span>Legal Vault</span>
+                </a>
+                <a href="transaction.html" class="nav-item">
+                    <i class="bi bi-receipt-cutoff"></i>
+                    <span>Yield Audit Ledger</span>
+                </a>
+
+                <div class="nav-section-title">COMMUNICATION & SYSTEM</div>
+                <a href="notification.html" class="nav-item">
+                    <i class="bi bi-bell"></i>
+                    <span>Notification Center</span>
+                </a>
+                <a href="account.html" class="nav-item">
+                    <i class="bi bi-gear"></i>
+                    <span>Account Settings</span>
+                </a>
+                <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                    <i class="bi bi-box-arrow-right"></i>
+                    <span>Log Out</span>
+                </a>
+            `;
+        } else {
+            // Admin POV
+            nav.innerHTML = `
+                <div class="nav-section-title">OVERVIEW</div>
+                <a href="dashboard.html" class="nav-item">
+                    <i class="bi bi-grid-1x2"></i>
+                    <span>Dashboard</span>
+                </a>
+
+                <div class="nav-section-title">PROPERTY OPERATIONS</div>
+                <a href="properties.html" class="nav-item">
+                    <i class="bi bi-buildings"></i>
+                    <span>Properties</span>
+                </a>
+                <a href="buildings.html" class="nav-item">
+                    <i class="bi bi-building"></i>
+                    <span>Buildings</span>
+                </a>
+                <a href="units.html" class="nav-item">
+                    <i class="bi bi-door-open"></i>
+                    <span>Units</span>
+                </a>
+                <a href="tenants.html" class="nav-item">
+                    <i class="bi bi-people"></i>
+                    <span>Tenants</span>
+                </a>
+                <a href="owners.html" class="nav-item">
+                    <i class="bi bi-person-badge"></i>
+                    <span>Owners</span>
+                </a>
+                <a href="property-ownership.html" class="nav-item">
+                    <i class="bi bi-pie-chart"></i>
+                    <span>Fractional Ownership</span>
+                </a>
+                <a href="leases.html" class="nav-item">
+                    <i class="bi bi-file-earmark-text"></i>
+                    <span>Leases</span>
+                </a>
+
+                <div class="nav-section-title">FINANCE & SERVICES</div>
+                <a href="rent-collection.html" class="nav-item">
+                    <i class="bi bi-cash-stack"></i>
+                    <span>Rent Collection</span>
+                </a>
+                <a href="transaction.html" class="nav-item">
+                    <i class="bi bi-receipt-cutoff"></i>
+                    <span>Transactions & Ledger</span>
+                </a>
+                <a href="utilities.html" class="nav-item">
+                    <i class="bi bi-lightning-charge"></i>
+                    <span>Utilities</span>
+                </a>
+                <a href="meter-readings.html" class="nav-item">
+                    <i class="bi bi-speedometer2"></i>
+                    <span>Meter Readings</span>
+                </a>
+                <a href="maintenance.html" class="nav-item">
+                    <i class="bi bi-tools"></i>
+                    <span>Maintenance</span>
+                </a>
+
+                <div class="nav-section-title">RECORDS & REPORTS</div>
+                <a href="inspections.html" class="nav-item">
+                    <i class="bi bi-clipboard-check"></i>
+                    <span>Inspections</span>
+                </a>
+                <a href="move-in-checklist.html" class="nav-item active">
+                    <i class="bi bi-check2-square"></i>
+                    <span>Move-In Checklist</span>
+                </a>
+                <a href="move-out-settlement.html" class="nav-item">
+                    <i class="bi bi-box-arrow-right"></i>
+                    <span>Move-Out Settlement</span>
+                </a>
+                <a href="documents.html" class="nav-item">
+                    <i class="bi bi-folder2-open"></i>
+                    <span>Documents</span>
+                </a>
+                <a href="reports.html" class="nav-item">
+                    <i class="bi bi-bar-chart"></i>
+                    <span>Reports</span>
+                </a>
+
+                <div class="nav-section-title">SYSTEM</div>
+                <a href="settings.html" class="nav-item">
+                    <i class="bi bi-gear"></i>
+                    <span>Settings</span>
+                </a>
+                <a href="account.html" class="nav-item">
+                    <i class="bi bi-person-gear"></i>
+                    <span>Account Settings</span>
+                </a>
+                <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                    <i class="bi bi-box-arrow-right"></i>
+                    <span>Log Out</span>
+                </a>
+            `;
+        }
+    }
+
+    // Default Seed Move-In Handover Checklist for Maria Santos (Unit 101)
+    const DEFAULT_HANDOVERS = [
+        {
+            id: 'HND-2026-0101',
+            leaseId: 'LSE-2026-0101',
+            tenantName: 'Maria Santos',
+            tenant_email: 'maria.santos@tenant.ph',
+            property: 'Sunrise Residences',
+            unit: 'Sunrise Residences • Unit 101',
+            moveInDate: '2026-01-01',
+            score: 100,
+            mainKeys: 2,
+            mailKeys: 1,
+            rfidCount: 2,
+            remotesCount: 1,
+            keysIssued: '3 Keys, 2 RFIDs, 1 Remote',
+            elecBaseline: 1240.50,
+            waterBaseline: 210.00,
+            status: 'Completed',
+            notes: 'Complete move-in audit & key inventory handover verified and signed by Maria Santos.',
+            createdAt: new Date('2026-01-01T08:00:00Z').toISOString()
+        }
+    ];
+
+    // Data Layer Functions (Postgres / LocalStorage Sync)
+    function getHandovers() {
+        const raw = localStorage.getItem('argo_handovers');
+        if (!raw) {
+            localStorage.setItem('argo_handovers', JSON.stringify(DEFAULT_HANDOVERS));
+            return DEFAULT_HANDOVERS;
+        }
+        try {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+                const hasMaria = parsed.some(h => (h.tenantName || '').toLowerCase().includes('maria santos') || (h.unit || '').includes('101'));
+                if (!hasMaria) {
+                    parsed.unshift(DEFAULT_HANDOVERS[0]);
+                    localStorage.setItem('argo_handovers', JSON.stringify(parsed));
+                }
+                return parsed;
+            }
+            localStorage.setItem('argo_handovers', JSON.stringify(DEFAULT_HANDOVERS));
+            return DEFAULT_HANDOVERS;
+        } catch (e) {
+            return DEFAULT_HANDOVERS;
+        }
+    }
+
+    function saveHandovers(list) {
+        localStorage.setItem('argo_handovers', JSON.stringify(list));
+    }
+
+    function getLeases() {
+        try {
+            const raw = localStorage.getItem('argo_leases');
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+            }
+        } catch (e) {}
+
+        return [
+            {
+                id: 'LSE-2026-0101',
+                tenantName: 'Maria Santos',
+                tenant: 'Maria Santos',
+                property: 'Sunrise Residences',
+                unit: 'Sunrise Residences • Unit 101',
+                unit_number: 'Unit 101',
+                status: 'ACTIVE'
+            }
+        ];
+    }
+
+    function getProperties() {
+        try {
+            const raw = localStorage.getItem('argo_properties');
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+            }
+        } catch (e) {}
+
+        return [{ id: 1, name: 'Sunrise Residences' }];
+    }
+
+    function getNotifications() {
+        return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
+    }
+
+    function saveNotifications(notifications) {
+        localStorage.setItem('argo_notifications', JSON.stringify(notifications));
+    }
+
+    function getInspections() {
+        return JSON.parse(localStorage.getItem('argo_inspections') || '[]');
+    }
+
+    function saveInspections(inspections) {
+        localStorage.setItem('argo_inspections', JSON.stringify(inspections));
+    }
+
+    function getMeterReadings() {
+        return JSON.parse(localStorage.getItem('argo_meter_readings') || '[]');
+    }
+
+    function saveMeterReadings(readings) {
+        localStorage.setItem('argo_meter_readings', JSON.stringify(readings));
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const role = localStorage.getItem('argo_pov') || localStorage.getItem('user_role') || localStorage.getItem('role');
+        if (!role) {
             window.location.replace('index.html');
+            return;
         }
 
-        function renderSidebar() {
-            const nav = document.getElementById('sidebarNav');
-            if (nav) {
-                nav.innerHTML = `
-                    <div class="nav-section-title">OVERVIEW</div>
-                    <a href="dashboard.html" class="nav-item">
-                        <i class="bi bi-grid-1x2"></i>
-                        <span>Dashboard</span>
-                    </a>
+        renderSidebar();
+        loadUserData();
+        populateModalDropdowns();
+        renderHandoverTable();
+        updateKPIs();
+        updateHeaderBadge();
+        initChecklistListeners();
 
-                    <div class="nav-section-title">PROPERTY OPERATIONS</div>
-                    <a href="properties.html" class="nav-item">
-                        <i class="bi bi-buildings"></i>
-                        <span>Properties</span>
-                    </a>
-                    <a href="buildings.html" class="nav-item">
-                        <i class="bi bi-building"></i>
-                        <span>Buildings</span>
-                    </a>
-                    <a href="units.html" class="nav-item">
-                        <i class="bi bi-door-open"></i>
-                        <span>Units</span>
-                    </a>
-                    <a href="tenants.html" class="nav-item">
-                        <i class="bi bi-people"></i>
-                        <span>Tenants</span>
-                    </a>
-                    <a href="owners.html" class="nav-item">
-                        <i class="bi bi-person-badge"></i>
-                        <span>Owners</span>
-                    </a>
-                    <a href="property-ownership.html" class="nav-item">
-                        <i class="bi bi-pie-chart"></i>
-                        <span>Fractional Ownership</span>
-                    </a>
-                    <a href="leases.html" class="nav-item">
-                        <i class="bi bi-file-earmark-text"></i>
-                        <span>Leases</span>
-                    </a>
-
-                    <div class="nav-section-title">FINANCE & SERVICES</div>
-                    <a href="rent-collection.html" class="nav-item">
-                        <i class="bi bi-cash-stack"></i>
-                        <span>Rent Collection</span>
-                    </a>
-                    <a href="transaction.html" class="nav-item">
-                        <i class="bi bi-receipt-cutoff"></i>
-                        <span>Transactions & Ledger</span>
-                    </a>
-                    <a href="utilities.html" class="nav-item">
-                        <i class="bi bi-lightning-charge"></i>
-                        <span>Utilities</span>
-                    </a>
-                    <a href="meter-readings.html" class="nav-item">
-                        <i class="bi bi-speedometer2"></i>
-                        <span>Meter Readings</span>
-                    </a>
-                    <a href="maintenance.html" class="nav-item">
-                        <i class="bi bi-tools"></i>
-                        <span>Maintenance</span>
-                    </a>
-
-                    <div class="nav-section-title">RECORDS & REPORTS</div>
-                    <a href="inspections.html" class="nav-item">
-                        <i class="bi bi-clipboard-check"></i>
-                        <span>Inspections</span>
-                    </a>
-                    <a href="move-in-checklist.html" class="nav-item active">
-                        <i class="bi bi-check2-square"></i>
-                        <span>Move-In Checklist</span>
-                    </a>
-                    <a href="move-out-settlement.html" class="nav-item">
-                        <i class="bi bi-box-arrow-right"></i>
-                        <span>Move-Out Settlement</span>
-                    </a>
-                    <a href="documents.html" class="nav-item">
-                        <i class="bi bi-folder2-open"></i>
-                        <span>Documents</span>
-                    </a>
-                    <a href="reports.html" class="nav-item">
-                        <i class="bi bi-bar-chart"></i>
-                        <span>Reports</span>
-                    </a>
-
-                    <div class="nav-section-title">SYSTEM</div>
-                    <a href="settings.html" class="nav-item">
-                        <i class="bi bi-gear"></i>
-                        <span>Settings</span>
-                    </a>
-                    <a href="#" class="nav-item" onclick="logoutUser(); return false;">
-                        <i class="bi bi-box-arrow-right"></i>
-                        <span>Log Out</span>
-                    </a>
-                `;
-            }
+        // Set default date picker to today
+        const dateInput = document.getElementById('modalHandoverDate');
+        if (dateInput) {
+            dateInput.value = new Date().toISOString().split('T')[0];
         }
+    });
 
-        // Data Layer Functions (Postgres / LocalStorage Sync)
-        function getHandovers() {
-            return JSON.parse(localStorage.getItem('argo_handovers') || '[]');
-        }
-
-        function saveHandovers(list) {
-            localStorage.setItem('argo_handovers', JSON.stringify(list));
-        }
-
-        function getLeases() {
-            return JSON.parse(localStorage.getItem('argo_leases') || '[]');
-        }
-
-        function getProperties() {
-            return JSON.parse(localStorage.getItem('argo_properties') || '[]');
-        }
-
-        function getNotifications() {
-            return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
-        }
-
-        function saveNotifications(notifications) {
-            localStorage.setItem('argo_notifications', JSON.stringify(notifications));
-        }
-
-        function getInspections() {
-            return JSON.parse(localStorage.getItem('argo_inspections') || '[]');
-        }
-
-        function saveInspections(inspections) {
-            localStorage.setItem('argo_inspections', JSON.stringify(inspections));
-        }
-
-        function getMeterReadings() {
-            return JSON.parse(localStorage.getItem('argo_meter_readings') || '[]');
-        }
-
-        function saveMeterReadings(readings) {
-            localStorage.setItem('argo_meter_readings', JSON.stringify(readings));
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            const role = localStorage.getItem('argo_pov');
-            if (!role) {
-                window.location.replace('index.html');
-                return;
-            }
-
+    // Live Cross-Tab Storage Listener
+    window.addEventListener('storage', (e) => {
+        if (['argo_handovers', 'argo_leases', 'argo_properties', 'argo_notifications', 'argo_inspections', 'argo_user', 'argo_pov'].includes(e.key)) {
             renderSidebar();
             loadUserData();
             populateModalDropdowns();
             renderHandoverTable();
             updateKPIs();
             updateHeaderBadge();
-            initChecklistListeners();
-
-            // Set default date picker to today
-            const dateInput = document.getElementById('modalHandoverDate');
-            if (dateInput) {
-                dateInput.value = new Date().toISOString().split('T')[0];
-            }
-        });
-
-        function loadUserData() {
-            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
-            if (user.name) {
-                document.getElementById('userName').textContent = user.name;
-                document.getElementById('userAvatar').textContent = user.avatar || 'JD';
-            }
-            if (user.role) {
-                const roleBadge = document.getElementById('userRoleBadge');
-                if (roleBadge) roleBadge.textContent = user.role;
-            }
         }
+    });
 
-        function initChecklistListeners() {
-            const items = document.querySelectorAll('.checklist-item');
-            items.forEach(item => {
-                const chk = item.querySelector('.chk-item');
-                const statusSpan = item.querySelector('.chk-status');
-                if (chk && statusSpan) {
-                    chk.addEventListener('change', () => {
-                        if (chk.checked) {
-                            statusSpan.textContent = 'PASS';
-                            statusSpan.style.color = 'var(--success, #059669)';
-                        } else {
-                            statusSpan.textContent = 'PENDING';
-                            statusSpan.style.color = 'var(--muted, #64748B)';
-                        }
-                    });
-                }
-            });
+    function loadUserData() {
+        const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+        if (user.name) {
+            const nameEl = document.getElementById('userName');
+            const avatarEl = document.getElementById('userAvatar');
+            if (nameEl) nameEl.textContent = user.name;
+            if (avatarEl) avatarEl.textContent = user.avatar || (user.name.charAt(0) || 'JD');
         }
+        if (user.role) {
+            const roleBadge = document.getElementById('userRoleBadge');
+            if (roleBadge) roleBadge.textContent = user.role;
+        }
+    }
 
-        function populateModalDropdowns() {
-            const leases = getLeases();
-            const props = getProperties();
-
-            const leaseSelect = document.getElementById('modalLeaseSelect');
-            const propFilter = document.getElementById('propertyFilter');
-
-            if (leaseSelect) {
-                leaseSelect.innerHTML = '<option value="">Select Lease...</option>';
-                leases.forEach(l => {
-                    const tenantName = l.tenantName || l.tenant || 'Unknown Tenant';
-                    const unitName = l.unit || l.unitName || 'N/A';
-                    leaseSelect.innerHTML += `<option value="${l.id}">${l.id} — ${tenantName} (${unitName})</option>`;
-                });
-            }
-
-            if (propFilter) {
-                propFilter.innerHTML = '<option value="">All Properties</option>';
-                props.forEach(p => {
-                    const name = p.name || p.propertyName || p.title;
-                    if (name) {
-                        propFilter.innerHTML += `<option value="${name}">${name}</option>`;
+    function initChecklistListeners() {
+        const items = document.querySelectorAll('.checklist-item');
+        items.forEach(item => {
+            const chk = item.querySelector('.chk-item');
+            const statusSpan = item.querySelector('.chk-status');
+            if (chk && statusSpan) {
+                chk.addEventListener('change', () => {
+                    if (chk.checked) {
+                        statusSpan.textContent = 'PASS';
+                        statusSpan.style.color = 'var(--success, #059669)';
+                    } else {
+                        statusSpan.textContent = 'PENDING';
+                        statusSpan.style.color = 'var(--muted, #64748B)';
                     }
                 });
             }
+        });
+    }
+
+    function populateModalDropdowns() {
+        const leases = getLeases();
+        const props = getProperties();
+
+        const leaseSelect = document.getElementById('modalLeaseSelect');
+        const propFilter = document.getElementById('propertyFilter');
+
+        if (leaseSelect) {
+            leaseSelect.innerHTML = '<option value="">Select Lease...</option>';
+            leases.forEach(l => {
+                const tenantName = l.tenantName || l.tenant || 'Maria Santos';
+                const unitName = l.unit || l.unit_number || 'Sunrise Residences • Unit 101';
+                leaseSelect.innerHTML += `<option value="${l.id}">${l.id} — ${tenantName} (${unitName})</option>`;
+            });
         }
 
-        function renderHandoverTable() {
-            const handovers = getHandovers();
-            const tbody = document.getElementById('handoverTable');
-            if (!tbody) return;
-            tbody.innerHTML = '';
+        if (propFilter) {
+            propFilter.innerHTML = '<option value="">All Properties</option>';
+            props.forEach(p => {
+                const name = p.name || p.propertyName || p.title || 'Sunrise Residences';
+                if (name) {
+                    propFilter.innerHTML += `<option value="${name}">${name}</option>`;
+                }
+            });
+        }
+    }
 
-            if (handovers.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--muted); padding:30px;">No move-in handover records found. Click "New Move-In Audit" to record one.</td></tr>`;
-                document.getElementById('showingCountText').textContent = `Showing 0 move-in logs`;
-                return;
+    function renderHandoverTable() {
+        const handovers = getHandovers();
+        const tbody = document.getElementById('handoverTable');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+
+        if (!handovers || handovers.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--muted); padding:30px;">No move-in handover records found. Click "New Move-In Audit" to record one.</td></tr>`;
+            document.getElementById('showingCountText').textContent = `Showing 0 move-in logs`;
+            return;
+        }
+
+        handovers.forEach(h => {
+            const tr = document.createElement('tr');
+            tr.dataset.property = h.property || 'Sunrise Residences';
+            tr.dataset.status = h.status || 'Completed';
+
+            let badgeHtml = '';
+            if (h.status === 'Completed') {
+                badgeHtml = `<span class="status-badge status-completed" style="background:#ECFDF5; color:#059669; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-check-circle" style="margin-right:4px;"></i> Completed</span>`;
+            } else if (h.status === 'In Progress') {
+                badgeHtml = `<span class="status-badge status-in-progress" style="background:#FEF3C7; color:#D97706; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-clock-history" style="margin-right:4px;"></i> In Progress</span>`;
+            } else {
+                badgeHtml = `<span class="status-badge status-pending" style="background:#EFF6FF; color:#2563EB; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-hourglass-split" style="margin-right:4px;"></i> Pending Sign-off</span>`;
             }
 
-            handovers.forEach(h => {
-                const tr = document.createElement('tr');
-                tr.dataset.property = h.property || '';
-                tr.dataset.status = h.status || '';
+            const score = typeof h.score === 'number' ? h.score : 100;
+            const scoreColor = score >= 100 ? 'var(--success, #059669)' : (score >= 70 ? 'var(--warning, #D97706)' : 'var(--danger, #EF4444)');
 
-                let badgeHtml = '';
-                if (h.status === 'Completed') {
-                    badgeHtml = `<span class="status-badge status-completed"><i class="bi bi-check-circle" style="margin-right:4px;"></i> Completed</span>`;
-                } else if (h.status === 'In Progress') {
-                    badgeHtml = `<span class="status-badge status-in-progress"><i class="bi bi-clock-history" style="margin-right:4px;"></i> In Progress</span>`;
-                } else {
-                    badgeHtml = `<span class="status-badge status-pending"><i class="bi bi-hourglass-split" style="margin-right:4px;"></i> Pending Sign-off</span>`;
-                }
-
-                const score = typeof h.score === 'number' ? h.score : 0;
-                const scoreColor = score >= 100 ? 'var(--success, #059669)' : (score >= 70 ? 'var(--warning, #D97706)' : 'var(--danger, #EF4444)');
-
-                tr.innerHTML = `
-                    <td><div class="handover-id"><strong>${h.id}</strong></div></td>
-                    <td>
-                        <div class="tenant-name">${h.tenantName}</div>
-                        <div class="property-info" style="font-size:12px; color:var(--muted);">Lease: ${h.leaseId || 'N/A'}</div>
-                    </td>
-                    <td>
-                        <div><strong>${h.property}</strong></div>
-                        <div class="property-info" style="font-size:12px; color:var(--muted);">${h.unit}</div>
-                    </td>
-                    <td>${h.moveInDate}</td>
-                    <td>
-                        <div class="progress-cell">
-                            <strong>${score}%</strong>
-                            <div class="progress-bar-bg" style="background:#E2E8F0; border-radius:4px; height:6px; overflow:hidden; margin-top:4px;">
-                                <div class="progress-bar-fill" style="width: ${score}%; background:${scoreColor}; height:100%;"></div>
-                            </div>
+            tr.innerHTML = `
+                <td><div class="handover-id"><strong>${h.id}</strong></div></td>
+                <td>
+                    <div class="tenant-name" style="font-weight:600;">${h.tenantName || 'Maria Santos'}</div>
+                    <div class="property-info" style="font-size:12px; color:var(--muted);">Lease: ${h.leaseId || 'LSE-2026-0101'}</div>
+                </td>
+                <td>
+                    <div><strong>${h.property || 'Sunrise Residences'}</strong></div>
+                    <div class="property-info" style="font-size:12px; color:var(--muted);">${h.unit || 'Unit 101'}</div>
+                </td>
+                <td>${h.moveInDate || '2026-01-01'}</td>
+                <td>
+                    <div class="progress-cell">
+                        <strong>${score}%</strong>
+                        <div class="progress-bar-bg" style="background:#E2E8F0; border-radius:4px; height:6px; overflow:hidden; margin-top:4px;">
+                            <div class="progress-bar-fill" style="width: ${score}%; background:${scoreColor}; height:100%;"></div>
                         </div>
-                    </td>
-                    <td>${h.keysIssued}</td>
-                    <td>${badgeHtml}</td>
-                    <td>
-                        <div class="actions" style="display:flex; gap:6px;">
-                            <button class="action-button" title="View Certificate" onclick="viewCertificate('${h.id}')"><i class="bi bi-file-earmark-check"></i></button>
-                            <button class="action-button delete" title="Delete Log" onclick="deleteHandover('${h.id}')"><i class="bi bi-trash"></i></button>
-                        </div>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
+                    </div>
+                </td>
+                <td>${h.keysIssued || '3 Keys, 2 RFIDs, 1 Remote'}</td>
+                <td>${badgeHtml}</td>
+                <td>
+                    <div class="actions" style="display:flex; gap:6px;">
+                        <button class="action-button" title="View Certificate" onclick="viewCertificate('${h.id}')"><i class="bi bi-file-earmark-check"></i></button>
+                        <button class="action-button delete" title="Delete Log" onclick="deleteHandover('${h.id}')"><i class="bi bi-trash"></i></button>
+                    </div>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
 
-            document.getElementById('showingCountText').textContent = `Showing 1–${handovers.length} of ${handovers.length} move-in logs`;
+        document.getElementById('showingCountText').textContent = `Showing 1–${handovers.length} of ${handovers.length} move-in logs`;
+    }
+
+    function saveHandover() {
+        const leaseVal = document.getElementById('modalLeaseSelect').value;
+        const handoverDate = document.getElementById('modalHandoverDate').value || new Date().toISOString().split('T')[0];
+        const elecReading = parseFloat(document.getElementById('modalElecReading').value) || 1240.50;
+        const waterReading = parseFloat(document.getElementById('modalWaterReading').value) || 210.00;
+        
+        const mainKeys = parseInt(document.getElementById('modalKeysMain').value) || 2;
+        const mailKeys = parseInt(document.getElementById('modalKeysMail').value) || 1;
+        const rfid = parseInt(document.getElementById('modalRfid').value) || 2;
+        const remotes = parseInt(document.getElementById('modalRemotes').value) || 1;
+        const notes = document.getElementById('modalNotes').value.trim();
+
+        if (!leaseVal) {
+            alert("Please select a target lease/tenant.");
+            return;
         }
 
-        function saveHandover() {
-            const leaseVal = document.getElementById('modalLeaseSelect').value;
-            const handoverDate = document.getElementById('modalHandoverDate').value || new Date().toISOString().split('T')[0];
-            const elecReading = parseFloat(document.getElementById('modalElecReading').value) || 0;
-            const waterReading = parseFloat(document.getElementById('modalWaterReading').value) || 0;
-            
-            const mainKeys = parseInt(document.getElementById('modalKeysMain').value) || 0;
-            const mailKeys = parseInt(document.getElementById('modalKeysMail').value) || 0;
-            const rfid = parseInt(document.getElementById('modalRfid').value) || 0;
-            const remotes = parseInt(document.getElementById('modalRemotes').value) || 0;
-            const notes = document.getElementById('modalNotes').value.trim();
+        const leases = getLeases();
+        const targetLease = leases.find(l => l.id === leaseVal) || {};
 
-            if (!leaseVal) {
-                alert("Please select a target lease/tenant.");
-                return;
-            }
+        const checkboxes = document.querySelectorAll('.chk-item');
+        let checkedCount = 0;
+        checkboxes.forEach(c => { if (c.checked) checkedCount++; });
+        const score = checkboxes.length > 0 ? Math.round((checkedCount / checkboxes.length) * 100) : 100;
 
-            const leases = getLeases();
-            const targetLease = leases.find(l => l.id === leaseVal) || {};
+        const tenantName = targetLease.tenantName || targetLease.tenant || 'Maria Santos';
+        const unit = targetLease.unit || targetLease.unit_number || 'Sunrise Residences • Unit 101';
+        const property = targetLease.property || 'Sunrise Residences';
 
-            const checkboxes = document.querySelectorAll('.chk-item');
-            let checkedCount = 0;
-            checkboxes.forEach(c => { if (c.checked) checkedCount++; });
-            const score = checkboxes.length > 0 ? Math.round((checkedCount / checkboxes.length) * 100) : 100;
+        const newId = `HND-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+        const isFullyCleared = score >= 100;
 
-            const tenantName = targetLease.tenantName || targetLease.tenant || 'Tenant';
-            const unit = targetLease.unit || targetLease.unitName || 'Unit';
-            const property = targetLease.property || targetLease.propertyName || 'Property';
-
-            const newId = `HND-2026-${Math.floor(1000 + Math.random() * 9000)}`;
-            const isFullyCleared = score >= 100;
-
-            // 1. Save Move-In Handover Record
-            const newHandover = {
-                id: newId,
-                leaseId: leaseVal,
-                tenantName: tenantName,
-                property: property,
-                unit: unit,
-                moveInDate: handoverDate,
-                score: score,
-                mainKeys: mainKeys,
-                mailKeys: mailKeys,
-                rfidCount: rfid,
-                remotesCount: remotes,
-                keysIssued: `${mainKeys + mailKeys} Keys, ${rfid} RFIDs, ${remotes} Remotes`,
-                elecBaseline: elecReading,
-                waterBaseline: waterReading,
-                status: isFullyCleared ? 'Completed' : 'In Progress',
-                notes: notes || 'Standard move-in clearance signed off.',
-                createdAt: new Date().toISOString()
-            };
-
-            let list = getHandovers();
-            list.unshift(newHandover);
-            saveHandovers(list);
-
-            // 2. Sync Baseline Meter Readings for Utilities
-            if (elecReading > 0 || waterReading > 0) {
-                let readings = getMeterReadings();
-                if (elecReading > 0) {
-                    readings.unshift({
-                        id: `MTR-E-${Date.now()}`,
-                        property: property,
-                        unit: unit,
-                        utilityType: 'Electricity',
-                        readingValue: elecReading,
-                        readingDate: handoverDate,
-                        type: 'Move-in Baseline',
-                        recordedBy: 'Property Admin'
-                    });
-                }
-                if (waterReading > 0) {
-                    readings.unshift({
-                        id: `MTR-W-${Date.now()}`,
-                        property: property,
-                        unit: unit,
-                        utilityType: 'Water',
-                        readingValue: waterReading,
-                        readingDate: handoverDate,
-                        type: 'Move-in Baseline',
-                        recordedBy: 'Property Admin'
-                    });
-                }
-                saveMeterReadings(readings);
-            }
-
-            // 3. Sync to Inspection Log
-            let inspections = getInspections();
-            inspections.unshift({
-                id: `INS-${Math.floor(1000 + Math.random() * 9000)}`,
-                unitName: unit,
-                propertyInfo: property,
-                tenant: tenantName,
-                type: 'Move-in',
-                date: handoverDate,
-                score: `${score}%`,
-                inspector: 'Property Admin',
-                status: isFullyCleared ? 'Completed' : 'Pending'
-            });
-            saveInspections(inspections);
-
-            // 4. Dispatch Notifications
-            let notifications = getNotifications();
-            notifications.unshift({
-                id: `NOTIF-${Date.now()}`,
-                pov: 'admin',
-                category: 'asset',
-                status: 'unread',
-                title: 'Move-In Inspection & Key Handover Cleared',
-                time: 'Just now',
-                description: `Move-In Certificate ${newId} logged for ${tenantName} - ${property} (${unit}). Meter Baselines: Elec: ${elecReading} kWh | Water: ${waterReading} cu.m.`,
-                property: `${property} • ${unit}`,
-                tag: `Certificate ${newId}`,
-                tagColor: 'var(--success, #059669)',
-                actionUrl: 'move-in-checklist.html',
-                actionText: 'View Handover'
-            });
-            saveNotifications(notifications);
-
-            // Re-render UI & Close Modal
-            renderHandoverTable();
-            updateKPIs();
-            updateHeaderBadge();
-            closeModal('handoverModal');
-            resetModalForm();
-        }
-
-        function resetModalForm() {
-            document.getElementById('modalLeaseSelect').value = '';
-            document.getElementById('modalNotes').value = '';
-            document.getElementById('modalElecReading').value = '';
-            document.getElementById('modalWaterReading').value = '';
-            document.getElementById('modalKeysMain').value = '2';
-            document.getElementById('modalKeysMail').value = '1';
-            document.getElementById('modalRfid').value = '2';
-            document.getElementById('modalRemotes').value = '1';
-            document.getElementById('modalHandoverDate').value = new Date().toISOString().split('T')[0];
-        }
-
-        function deleteHandover(id) {
-            if (!confirm("Are you sure you want to delete this move-in handover record?")) return;
-            let list = getHandovers().filter(h => h.id !== id);
-            saveHandovers(list);
-            renderHandoverTable();
-            updateKPIs();
-        }
-
-        function viewCertificate(id) {
-            const list = getHandovers();
-            const item = list.find(h => h.id === id);
-            if (item) {
-                alert(
-                    `==========================================\n` +
-                    `       ARGO MOVE-IN CLEARANCE CERTIFICATE\n` +
-                    `==========================================\n\n` +
-                    `Certificate ID : ${item.id}\n` +
-                    `Tenant Name    : ${item.tenantName}\n` +
-                    `Property & Unit: ${item.property} - ${item.unit}\n` +
-                    `Move-In Date   : ${item.moveInDate}\n` +
-                    `Audit Score    : ${item.score}%\n` +
-                    `Status         : ${item.status}\n\n` +
-                    `[Inventory Issued]\n` +
-                    `Keys & Tokens  : ${item.keysIssued}\n\n` +
-                    `[Utility Baselines]\n` +
-                    `Electricity    : ${item.elecBaseline || 0} kWh\n` +
-                    `Water          : ${item.waterBaseline || 0} cu.m\n\n` +
-                    `[Inspector Notes]\n` +
-                    `${item.notes || 'None'}\n` +
-                    `==========================================`
-                );
-            }
-        }
-
-        function updateKPIs() {
-            const handovers = getHandovers();
-            const completed = handovers.filter(h => h.status === 'Completed').length;
-            const pending = handovers.filter(h => h.status === 'In Progress' || h.status === 'Pending').length;
-
-            let totalScoreSum = 0;
-            let totalKeys = 0;
-
-            handovers.forEach(h => {
-                totalScoreSum += (h.score || 0);
-                const keysCount = (h.mainKeys || 0) + (h.mailKeys || 0) + (h.rfidCount || 0);
-                totalKeys += keysCount > 0 ? keysCount : 3;
-            });
-
-            let avgScore = handovers.length > 0 ? (totalScoreSum / handovers.length).toFixed(1) : 0;
-
-            document.getElementById('kpiCompleted').textContent = completed;
-            document.getElementById('kpiPending').textContent = pending;
-            document.getElementById('kpiKeysIssued').textContent = `${totalKeys} Issued`;
-            document.getElementById('kpiAvgScore').textContent = `${avgScore}%`;
-        }
-
-        function updateHeaderBadge() {
-            const notifs = getNotifications().filter(n => n.pov === 'admin' && n.status === 'unread');
-            const badge = document.getElementById('headerNotifBadge');
-            if (badge) badge.textContent = notifs.length;
-        }
-
-        function openHandoverModal() { 
-            populateModalDropdowns();
-            document.getElementById("handoverModal").classList.add("show"); 
-        }
-
-        function closeModal(modalId) { 
-            document.getElementById(modalId).classList.remove("show"); 
-        }
-
-        window.onclick = function(event) {
-            if (event.target.classList.contains('modal-overlay')) {
-                event.target.classList.remove("show");
-            }
+        // 1. Save Move-In Handover Record
+        const newHandover = {
+            id: newId,
+            leaseId: leaseVal,
+            tenantName: tenantName,
+            tenant_email: 'maria.santos@tenant.ph',
+            property: property,
+            unit: unit,
+            moveInDate: handoverDate,
+            score: score,
+            mainKeys: mainKeys,
+            mailKeys: mailKeys,
+            rfidCount: rfid,
+            remotesCount: remotes,
+            keysIssued: `${mainKeys + mailKeys} Keys, ${rfid} RFIDs, ${remotes} Remotes`,
+            elecBaseline: elecReading,
+            waterBaseline: waterReading,
+            status: isFullyCleared ? 'Completed' : 'In Progress',
+            notes: notes || 'Move-in handover checklist signed and verified by Maria Santos.',
+            createdAt: new Date().toISOString()
         };
 
-        function filterTable() {
-            const searchValue = document.getElementById("searchInput").value.toLowerCase();
-            const propertyValue = document.getElementById("propertyFilter").value;
-            const statusValue = document.getElementById("statusFilter").value;
+        let list = getHandovers();
+        list.unshift(newHandover);
+        saveHandovers(list);
 
-            const rows = document.querySelectorAll("#handoverTable tr");
-
-            rows.forEach(row => {
-                if (!row.dataset.property && !row.dataset.status) return;
-
-                const text = row.innerText.toLowerCase();
-                const rowProperty = row.dataset.property || "";
-                const rowStatus = row.dataset.status || "";
-
-                const matchesSearch = text.includes(searchValue);
-                const matchesProperty = propertyValue === "" || rowProperty === propertyValue;
-                const matchesStatus = statusValue === "" || rowStatus === statusValue;
-
-                if (matchesSearch && matchesProperty && matchesStatus) {
-                    row.style.display = "";
-                } else {
-                    row.style.display = "none";
-                }
-            });
+        // 2. Sync Baseline Meter Readings for Utilities
+        if (elecReading > 0 || waterReading > 0) {
+            let readings = getMeterReadings();
+            if (elecReading > 0) {
+                readings.unshift({
+                    id: `MTR-E-${Date.now()}`,
+                    property: property,
+                    unit: unit,
+                    utilityType: 'Electricity',
+                    readingValue: elecReading,
+                    readingDate: handoverDate,
+                    type: 'Move-in Baseline',
+                    recordedBy: 'Property Admin'
+                });
+            }
+            if (waterReading > 0) {
+                readings.unshift({
+                    id: `MTR-W-${Date.now()}`,
+                    property: property,
+                    unit: unit,
+                    utilityType: 'Water',
+                    readingValue: waterReading,
+                    readingDate: handoverDate,
+                    type: 'Move-in Baseline',
+                    recordedBy: 'Property Admin'
+                });
+            }
+            saveMeterReadings(readings);
         }
 
-        function resetFilters() {
-            document.getElementById("searchInput").value = "";
-            document.getElementById("propertyFilter").value = "";
-            document.getElementById("statusFilter").value = "";
-            filterTable();
+        // 3. Sync to Inspection Log
+        let inspections = getInspections();
+        inspections.unshift({
+            id: `INS-${Math.floor(1000 + Math.random() * 9000)}`,
+            unitName: unit.includes('•') ? unit.split('•')[1].trim() : unit,
+            propertyInfo: property,
+            tenant: tenantName,
+            type: 'Move-in',
+            date: handoverDate,
+            score: `${score}%`,
+            inspector: 'Property Admin',
+            status: isFullyCleared ? 'Completed' : 'Pending',
+            notes: 'Handover checklist completed.'
+        });
+        saveInspections(inspections);
+
+        // 4. Dispatch Notifications
+        let notifications = getNotifications();
+        notifications.unshift({
+            id: `NOTIF-${Date.now()}`,
+            pov: 'admin',
+            category: 'asset',
+            status: 'unread',
+            title: 'Move-In Inspection & Key Handover Cleared',
+            time: 'Just now',
+            description: `Move-In Certificate ${newId} logged for ${tenantName} - ${property} (${unit}). Meter Baselines: Elec: ${elecReading} kWh | Water: ${waterReading} cu.m.`,
+            property: `${property} • ${unit}`,
+            tag: `Certificate ${newId}`,
+            tagColor: 'var(--success, #059669)',
+            actionUrl: 'move-in-checklist.html',
+            actionText: 'View Handover'
+        });
+        saveNotifications(notifications);
+
+        // Re-render UI & Close Modal
+        renderHandoverTable();
+        updateKPIs();
+        updateHeaderBadge();
+        closeModal('handoverModal');
+        resetModalForm();
+
+        alert(`Move-in handover certificate (${newId}) recorded successfully for ${tenantName}!`);
+    }
+
+    function resetModalForm() {
+        document.getElementById('modalLeaseSelect').value = '';
+        document.getElementById('modalNotes').value = '';
+        document.getElementById('modalElecReading').value = '';
+        document.getElementById('modalWaterReading').value = '';
+        document.getElementById('modalKeysMain').value = '2';
+        document.getElementById('modalKeysMail').value = '1';
+        document.getElementById('modalRfid').value = '2';
+        document.getElementById('modalRemotes').value = '1';
+        document.getElementById('modalHandoverDate').value = new Date().toISOString().split('T')[0];
+    }
+
+    function deleteHandover(id) {
+        if (!confirm("Are you sure you want to delete this move-in handover record?")) return;
+        let list = getHandovers().filter(h => h.id !== id);
+        saveHandovers(list);
+        renderHandoverTable();
+        updateKPIs();
+    }
+
+    function viewCertificate(id) {
+        const list = getHandovers();
+        const item = list.find(h => h.id === id);
+        if (item) {
+            alert(
+                `==========================================\n` +
+                `       ARGO MOVE-IN CLEARANCE CERTIFICATE\n` +
+                `==========================================\n\n` +
+                `Certificate ID : ${item.id}\n` +
+                `Tenant Name    : ${item.tenantName}\n` +
+                `Property & Unit: ${item.property} - ${item.unit}\n` +
+                `Move-In Date   : ${item.moveInDate}\n` +
+                `Audit Score    : ${item.score}%\n` +
+                `Status         : ${item.status}\n\n` +
+                `[Inventory Issued]\n` +
+                `Keys & Tokens  : ${item.keysIssued}\n\n` +
+                `[Utility Baselines]\n` +
+                `Electricity    : ${item.elecBaseline || 0} kWh\n` +
+                `Water          : ${item.waterBaseline || 0} cu.m\n\n` +
+                `[Inspector Notes]\n` +
+                `${item.notes || 'None'}\n` +
+                `==========================================`
+            );
         }
+    }
 
-        const userProfileBtn = document.getElementById('userProfileBtn');
-        const userDropdown = document.getElementById('userDropdown');
+    function updateKPIs() {
+        const handovers = getHandovers();
+        const completed = handovers.filter(h => h.status === 'Completed').length;
+        const pending = handovers.filter(h => h.status === 'In Progress' || h.status === 'Pending').length;
 
-        if (userProfileBtn && userDropdown) {
-            userProfileBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                userDropdown.classList.toggle('show');
-            });
+        let totalScoreSum = 0;
+        let totalKeys = 0;
 
-            document.addEventListener('click', () => { 
-                userDropdown.classList.remove('show'); 
-            });
+        handovers.forEach(h => {
+            totalScoreSum += (h.score || 0);
+            const keysCount = (h.mainKeys || 0) + (h.mailKeys || 0) + (h.rfidCount || 0);
+            totalKeys += keysCount > 0 ? keysCount : 3;
+        });
+
+        let avgScore = handovers.length > 0 ? (totalScoreSum / handovers.length).toFixed(1) : 0;
+
+        const compEl = document.getElementById('kpiCompleted');
+        const pendEl = document.getElementById('kpiPending');
+        const keysEl = document.getElementById('kpiKeysIssued');
+        const avgEl = document.getElementById('kpiAvgScore');
+
+        if (compEl) compEl.textContent = completed;
+        if (pendEl) pendEl.textContent = pending;
+        if (keysEl) keysEl.textContent = `${totalKeys} Issued`;
+        if (avgEl) avgEl.textContent = `${avgScore}%`;
+    }
+
+    function updateHeaderBadge() {
+        const notifs = getNotifications().filter(n => (n.pov === 'admin' || !n.pov) && (n.status === 'unread' || n.is_read === false));
+        const badge = document.getElementById('headerNotifBadge');
+        if (badge) badge.textContent = notifs.length;
+    }
+
+    function openHandoverModal() { 
+        populateModalDropdowns();
+        document.getElementById("handoverModal").classList.add("show"); 
+    }
+
+    function closeModal(modalId) { 
+        document.getElementById(modalId).classList.remove("show"); 
+    }
+
+    window.onclick = function(event) {
+        if (event.target.classList.contains('modal-overlay')) {
+            event.target.classList.remove("show");
         }
-    </script>
+    };
+
+    function filterTable() {
+        const searchValue = document.getElementById("searchInput").value.toLowerCase();
+        const propertyValue = document.getElementById("propertyFilter").value;
+        const statusValue = document.getElementById("statusFilter").value;
+
+        const rows = document.querySelectorAll("#handoverTable tr");
+
+        rows.forEach(row => {
+            if (!row.dataset.property && !row.dataset.status) return;
+
+            const text = row.innerText.toLowerCase();
+            const rowProperty = row.dataset.property || "";
+            const rowStatus = row.dataset.status || "";
+
+            const matchesSearch = text.includes(searchValue);
+            const matchesProperty = propertyValue === "" || rowProperty === propertyValue;
+            const matchesStatus = statusValue === "" || rowStatus === statusValue;
+
+            if (matchesSearch && matchesProperty && matchesStatus) {
+                row.style.display = "";
+            } else {
+                row.style.display = "none";
+            }
+        });
+    }
+
+    function resetFilters() {
+        document.getElementById("searchInput").value = "";
+        document.getElementById("propertyFilter").value = "";
+        document.getElementById("statusFilter").value = "";
+        filterTable();
+    }
+
+    const userProfileBtn = document.getElementById('userProfileBtn');
+    const userDropdown = document.getElementById('userDropdown');
+
+    if (userProfileBtn && userDropdown) {
+        userProfileBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            userDropdown.classList.toggle('show');
+        });
+
+        document.addEventListener('click', () => { 
+            userDropdown.classList.remove('show'); 
+        });
+    }
+</script>
 </body>
 </html>

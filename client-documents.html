@@ -902,482 +902,571 @@
         </div>
     </div>
 
-    <!-- ================= JAVASCRIPT ================= -->
-    <script>
-        // Secure Logout Handler
-        function logoutUser() {
-            localStorage.removeItem('argo_pov');
-            localStorage.removeItem('argo_user');
-            window.location.replace('index.html');
-        }
+   <script>
+    const API_BASE_URL = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
+        ? 'http://127.0.0.1:8000/api'
+        : '/api';
 
-        // Lock Client Role Perspective
-        localStorage.setItem('argo_pov', 'client');
+    function getAuthHeaders() {
+        const token = localStorage.getItem('token') || localStorage.getItem('argo_token');
+        return {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        };
+    }
 
-        // Populate User Details from Session
-        function loadUserData() {
-            try {
-                const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
-                const userNameEl = document.getElementById('userName');
-                const userAvatarEl = document.getElementById('userAvatar');
-                const userRoleBadgeEl = document.getElementById('userRoleBadge');
+    // Secure Logout Handler
+    function logoutUser() {
+        localStorage.clear();
+        window.location.replace('index.html');
+    }
 
-                const name = user.name || user.fullName || 'Maria Santos';
-                const role = user.role || 'Unit Occupant';
+    // Lock Client Role Perspective
+    localStorage.setItem('argo_pov', 'client');
 
-                if (userNameEl) userNameEl.textContent = name;
-                if (userRoleBadgeEl) userRoleBadgeEl.textContent = role;
-                if (userAvatarEl) {
-                    const initials = name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'MS';
-                    userAvatarEl.textContent = initials;
-                }
-            } catch (err) {
-                console.error("Error loading user profile:", err);
+    // Populate User Details from Session
+    function loadUserData() {
+        try {
+            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+            const ctx = getActiveTenantContext();
+            const userNameEl = document.getElementById('userName');
+            const userAvatarEl = document.getElementById('userAvatar');
+            const userRoleBadgeEl = document.getElementById('userRoleBadge');
+
+            const name = user.name || user.fullName || ctx.name || 'Maria Santos';
+            const role = user.role || 'Sunrise Residences • Unit 101';
+
+            if (userNameEl) userNameEl.textContent = name;
+            if (userRoleBadgeEl) userRoleBadgeEl.textContent = role;
+            if (userAvatarEl) {
+                const initials = name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'MS';
+                userAvatarEl.textContent = initials;
+                userAvatarEl.style.background = '#D97706';
             }
+        } catch (err) {
+            console.error("Error loading user profile:", err);
         }
+    }
 
-        // Dynamic Client Sidebar Navigation Renderer
-        function renderSidebar() {
-            const nav = document.getElementById('sidebarNav');
-            if (!nav) return;
+    // Dynamic Client Sidebar Navigation Renderer
+    function renderSidebar() {
+        const nav = document.getElementById('sidebarNav');
+        if (!nav) return;
 
-            const currentPath = window.location.pathname.split("/").pop() || 'client-documents.html';
+        const currentPath = window.location.pathname.split("/").pop() || 'client-documents.html';
 
-            const clientLinks = [
-                { section: 'SELF-SERVICE HOME' },
-                { href: 'client-dashboard.html', icon: 'bi-house-door', label: 'My Tenancy Home' },
-                { href: 'client-billing.html', icon: 'bi-receipt', label: 'Pay Rent & Dues' },
-                { href: 'transaction.html', icon: 'bi-receipt-cutoff', label: 'Transactions & Ledger' },
-                { href: 'client-utilities.html', icon: 'bi-lightning-charge', label: 'My Utilities & Meters' },
-                { href: 'client-maintenance.html', icon: 'bi-tools', label: 'Submit Maintenance' },
-                { href: 'inspections.html', icon: 'bi-clipboard-check', label: 'Move-In & Inspections' },
-                { href: 'client-documents.html', icon: 'bi-folder2-open', label: 'My Lease & Receipts' },
-                { section: 'SYSTEM' },
-                { href: 'account.html', icon: 'bi-gear', label: 'Account Settings' },
-                { href: '#', icon: 'bi-box-arrow-right', label: 'Log Out', action: 'logoutUser()' }
-            ];
-
-            let html = '';
-            clientLinks.forEach(item => {
-                if (item.section) {
-                    html += `<div class="nav-section-title">${item.section}</div>`;
-                } else {
-                    const isActive = (currentPath === item.href) ? 'active' : '';
-                    const clickAttr = item.action ? `onclick="${item.action}; return false;"` : '';
-                    html += `
-                        <a href="${item.href}" class="nav-item ${isActive}" ${clickAttr}>
-                            <i class="bi ${item.icon}"></i>
-                            <span>${item.label}</span>
-                        </a>
-                    `;
-                }
-            });
-
-            nav.innerHTML = html;
-        }
-
-        const DEFAULT_CLIENT_DOCS = [
-            {
-                id: 'DOC-CLI-001',
-                title: 'Signed Lease Agreement (LSE-0001)',
-                fileType: 'PDF • 2.4 MB • Unit 101 Contract',
-                category: 'Lease Contract',
-                uploadedBy: 'Property Management',
-                uploadDate: 'Jan 01, 2026',
-                status: 'Active',
-                notes: 'Official 1-year tenancy contract.',
-                fileUrl: ''
-            },
-            {
-                id: 'DOC-CLI-002',
-                title: 'Valid Government ID — Maria Santos',
-                fileType: "JPG • 1.2 MB • Driver's License",
-                category: 'Identification',
-                uploadedBy: 'Maria Santos (You)',
-                uploadDate: 'Dec 28, 2025',
-                status: 'Verified',
-                notes: "Driver's License ID verification.",
-                fileUrl: ''
-            }
+        const clientLinks = [
+            { section: 'SELF-SERVICE HOME' },
+            { href: 'client-dashboard.html', icon: 'bi-house-door', label: 'My Tenancy Home' },
+            { href: 'client-billing.html', icon: 'bi-receipt', label: 'Pay Rent & Dues' },
+            { href: 'transaction.html', icon: 'bi-receipt-cutoff', label: 'Transactions & Ledger' },
+            { href: 'client-utilities.html', icon: 'bi-lightning-charge', label: 'My Utilities & Meters' },
+            { href: 'client-maintenance.html', icon: 'bi-tools', label: 'Submit Maintenance' },
+            { href: 'inspections.html', icon: 'bi-clipboard-check', label: 'Move-In & Inspections' },
+            { href: 'client-documents.html', icon: 'bi-folder2-open', label: 'My Lease & Receipts' },
+            { section: 'SYSTEM' },
+            { href: 'account.html', icon: 'bi-gear', label: 'Account Settings' },
+            { href: '#', icon: 'bi-box-arrow-right', label: 'Log Out', action: 'logoutUser()' }
         ];
 
-        function getClientDocs() {
-            const data = localStorage.getItem('argo_client_documents');
-            if (!data) {
-                localStorage.setItem('argo_client_documents', JSON.stringify(DEFAULT_CLIENT_DOCS));
-                return DEFAULT_CLIENT_DOCS;
+        let html = '';
+        clientLinks.forEach(item => {
+            if (item.section) {
+                html += `<div class="nav-section-title">${item.section}</div>`;
+            } else {
+                const isActive = (currentPath === item.href) ? 'active' : '';
+                const clickAttr = item.action ? `onclick="${item.action}; return false;"` : '';
+                html += `
+                    <a href="${item.href}" class="nav-item ${isActive}" ${clickAttr}>
+                        <i class="bi ${item.icon}"></i>
+                        <span>${item.label}</span>
+                    </a>
+                `;
             }
-            try {
-                return JSON.parse(data);
-            } catch (e) {
-                return DEFAULT_CLIENT_DOCS;
+        });
+
+        nav.innerHTML = html;
+    }
+
+    // Baseline Seed Documents specifically for Maria Santos (Unit 101)
+    const DEFAULT_CLIENT_DOCS = [
+        {
+            id: 'DOC-CLI-001',
+            title: 'Signed Lease Agreement (LSE-2026-0101)',
+            fileType: 'PDF • 2.4 MB • Unit 101 Tenancy Contract',
+            category: 'Lease Contract',
+            uploadedBy: 'Property Management',
+            uploadDate: 'Jan 01, 2026',
+            status: 'Active',
+            notes: 'Official 1-year tenancy contract for Sunrise Residences • Unit 101 signed by Maria Santos.',
+            fileUrl: ''
+        },
+        {
+            id: 'DOC-CLI-002',
+            title: 'Move-In Handover & Inspection Certificate (INS-2026-001)',
+            fileType: 'PDF • 1.8 MB • Clearance Certificate',
+            category: 'Inspection Report',
+            uploadedBy: 'Property Admin',
+            uploadDate: 'Jan 01, 2026',
+            status: 'Verified',
+            notes: 'Unit 101 move-in condition audit, key inventory, and sub-meter baselines signed off by Maria Santos.',
+            fileUrl: ''
+        },
+        {
+            id: 'DOC-CLI-003',
+            title: 'Official Rent Payment Receipt (#GCASH-883192)',
+            fileType: 'PDF • 850 KB • Electronic Receipt',
+            category: 'Official Receipt',
+            uploadedBy: 'Property Management',
+            uploadDate: 'Jul 31, 2026',
+            status: 'Verified',
+            notes: 'Cleared monthly base rent payment (₱15,000.00) for Unit 101.',
+            fileUrl: ''
+        },
+        {
+            id: 'DOC-CLI-004',
+            title: 'Official Utility Payment Receipt (#GCASH-992810)',
+            fileType: 'PDF • 640 KB • Electronic Receipt',
+            category: 'Official Receipt',
+            uploadedBy: 'Property Management',
+            uploadDate: 'Aug 15, 2026',
+            status: 'Verified',
+            notes: 'Cleared Meralco electric sub-meter charges (₱1,808.75).',
+            fileUrl: ''
+        },
+        {
+            id: 'DOC-CLI-005',
+            title: 'Valid Government ID — Maria Santos',
+            fileType: "JPG • 1.2 MB • Driver's License",
+            category: 'Identification',
+            uploadedBy: 'Maria Santos (You)',
+            uploadDate: 'Dec 28, 2025',
+            status: 'Verified',
+            notes: "Driver's License identity verification for lease application.",
+            fileUrl: ''
+        }
+    ];
+
+    function getClientDocs() {
+        const data = localStorage.getItem('argo_client_documents');
+        if (!data) {
+            localStorage.setItem('argo_client_documents', JSON.stringify(DEFAULT_CLIENT_DOCS));
+            return DEFAULT_CLIENT_DOCS;
+        }
+        try {
+            const parsed = JSON.parse(data);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+                const hasMariaLeaseDoc = parsed.some(d => (d.title || '').includes('LSE-2026-0101') || (d.title || '').includes('INS-2026-001'));
+                if (!hasMariaLeaseDoc) {
+                    parsed.unshift(...DEFAULT_CLIENT_DOCS.slice(0, 4));
+                    localStorage.setItem('argo_client_documents', JSON.stringify(parsed));
+                }
+                return parsed;
             }
+            localStorage.setItem('argo_client_documents', JSON.stringify(DEFAULT_CLIENT_DOCS));
+            return DEFAULT_CLIENT_DOCS;
+        } catch (e) {
+            return DEFAULT_CLIENT_DOCS;
+        }
+    }
+
+    function saveClientDocs(docs) { 
+        localStorage.setItem('argo_client_documents', JSON.stringify(docs)); 
+    }
+
+    function getNotifications() { 
+        try {
+            return JSON.parse(localStorage.getItem('argo_notifications') || '[]'); 
+        } catch (e) {
+            return [];
+        }
+    }
+
+    function saveNotifications(notifications) { 
+        localStorage.setItem('argo_notifications', JSON.stringify(notifications)); 
+    }
+
+    function getLeases() { 
+        try {
+            const raw = localStorage.getItem('argo_leases');
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+            }
+        } catch (e) {}
+
+        return [
+            {
+                id: 'LSE-2026-0101',
+                tenantName: 'Maria Santos',
+                tenant: 'Maria Santos',
+                property: 'Sunrise Residences',
+                unit: 'Sunrise Residences • Unit 101',
+                unit_number: 'Unit 101',
+                status: 'ACTIVE'
+            }
+        ];
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const rawRole = (
+            localStorage.getItem('argo_pov') || 
+            localStorage.getItem('user_role') || 
+            localStorage.getItem('role') || 
+            ''
+        ).toLowerCase().trim();
+
+        if (!rawRole) {
+            window.location.replace('index.html');
+            return;
         }
 
-        function saveClientDocs(docs) { 
-            localStorage.setItem('argo_client_documents', JSON.stringify(docs)); 
-        }
+        renderSidebar();
+        loadUserData();
+        renderDocTable();
+        updateKPIs();
+        updateHeaderBadge();
+    });
 
-        function getNotifications() { 
-            try {
-                return JSON.parse(localStorage.getItem('argo_notifications') || '[]'); 
-            } catch (e) {
-                return [];
-            }
-        }
-
-        function saveNotifications(notifications) { 
-            localStorage.setItem('argo_notifications', JSON.stringify(notifications)); 
-        }
-
-        function getLeases() { 
-            try {
-                return JSON.parse(localStorage.getItem('argo_leases') || '[]'); 
-            } catch (e) {
-                return [];
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            const role = localStorage.getItem('argo_pov');
-            if (!role) {
-                window.location.replace('index.html');
-                return;
-            }
-            renderSidebar();
+    // Cross-Tab LocalStorage Sync
+    window.addEventListener('storage', (e) => {
+        if (['argo_client_documents', 'argo_notifications', 'argo_leases', 'argo_user', 'argo_pov'].includes(e.key)) {
             loadUserData();
             renderDocTable();
             updateKPIs();
             updateHeaderBadge();
-        });
+        }
+    });
 
-        // Cross-Tab LocalStorage Sync
-        window.addEventListener('storage', (e) => {
-            if (e.key === 'argo_client_documents' || e.key === 'argo_notifications' || e.key === 'argo_leases' || e.key === 'argo_user') {
-                loadUserData();
-                renderDocTable();
-                updateKPIs();
-                updateHeaderBadge();
-            }
-        });
+    function getActiveTenantContext() {
+        const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+        const leases = getLeases();
+        const activeLease = leases.find(l => 
+            (l.tenantName && l.tenantName.toLowerCase().includes('maria santos')) ||
+            (l.unit && l.unit.includes('101')) ||
+            (l.status || '').toUpperCase() === 'ACTIVE'
+        ) || leases[0] || {};
 
-        function getActiveTenantContext() {
-            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
-            const leases = getLeases();
-            const activeLease = leases.find(l => (l.status || '').toUpperCase() === 'ACTIVE') || leases[0] || {};
+        const prop = activeLease.property || activeLease.property_name || 'Sunrise Residences';
+        const unit = activeLease.unit || activeLease.unit_number || 'Unit 101';
 
-            return {
-                name: user.name || user.fullName || activeLease.tenantName || 'Maria Santos',
-                property: activeLease.property || 'Sunrise Property',
-                unit: activeLease.unit || 'Unit 101',
-                fullTag: `${activeLease.property || 'Sunrise Property'} • ${activeLease.unit || 'Unit 101'}`
-            };
+        return {
+            name: user.name || user.fullName || activeLease.tenantName || 'Maria Santos',
+            property: prop,
+            unit: unit,
+            fullTag: unit.includes('•') ? unit : `${prop} • ${unit.startsWith('Unit') ? unit : `Unit ${unit}`}`
+        };
+    }
+
+    function renderDocTable() {
+        const ctx = getActiveTenantContext();
+        const docs = getClientDocs();
+        const tbody = document.getElementById('documentTable');
+        if (!tbody) return;
+
+        tbody.innerHTML = '';
+
+        const subtitleEl = document.getElementById('locationSubtitle');
+        if (subtitleEl) subtitleEl.textContent = ctx.fullTag;
+
+        if (!docs || docs.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--muted); padding:30px;">No documents in personal vault. Click "Upload Document / ID" to add a file.</td></tr>`;
+            document.getElementById('showingCountText').textContent = `Showing 0 personal vault files`;
+            return;
         }
 
-        function renderDocTable() {
-            const ctx = getActiveTenantContext();
-            const docs = getClientDocs();
-            const tbody = document.getElementById('documentTable');
-            if (!tbody) return;
+        docs.forEach(d => {
+            const tr = document.createElement('tr');
+            tr.dataset.category = d.category || 'Other';
+            tr.dataset.status = d.status || 'Active';
 
-            tbody.innerHTML = '';
+            let iconClass = 'bi-file-earmark-text';
+            let iconStyle = 'background:#EFF6FF; color:var(--primary, #2563EB);';
 
-            const subtitleEl = document.getElementById('locationSubtitle');
-            if (subtitleEl) subtitleEl.textContent = ctx.fullTag;
-
-            if (docs.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--muted); padding:30px;">No documents in personal vault. Click "Upload Document / ID" to add a file.</td></tr>`;
-                document.getElementById('showingCountText').textContent = `Showing 0 personal vault files`;
-                return;
+            if (d.category === 'Lease Contract') {
+                iconClass = 'bi-file-earmark-pdf';
+                iconStyle = 'background:#ECFDF5; color:var(--success, #059669);';
+            } else if (d.category === 'Official Receipt') {
+                iconClass = 'bi-receipt';
+                iconStyle = 'background:#EFF6FF; color:var(--primary, #2563EB);';
+            } else if (d.category === 'Inspection Report') {
+                iconClass = 'bi-clipboard-check';
+                iconStyle = 'background:#EDE9FE; color:#6D28D9;';
+            } else if (d.category === 'Identification') {
+                iconClass = 'bi-person-vcard';
+                iconStyle = 'background:#FEF3C7; color:#D97706;';
             }
 
-            docs.forEach(d => {
-                const tr = document.createElement('tr');
-                tr.dataset.category = d.category;
-                tr.dataset.status = d.status;
+            let badgeHtml = '';
+            if (d.status === 'Active') {
+                badgeHtml = `<span class="status-badge status-active" style="background:#ECFDF5; color:#059669; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-check-circle" style="margin-right:4px;"></i> Active / Signed</span>`;
+            } else if (d.status === 'Verified') {
+                badgeHtml = `<span class="status-badge status-verified" style="background:#ECFDF5; color:#059669; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-check-circle" style="margin-right:4px;"></i> Verified</span>`;
+            } else {
+                badgeHtml = `<span class="status-badge status-pending" style="background:#FEF3C7; color:#D97706; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-clock-history" style="margin-right:4px;"></i> Pending Review</span>`;
+            }
 
-                let iconClass = 'bi-file-earmark-text';
-                let iconStyle = 'background:#EFF6FF; color:var(--primary);';
-
-                if (d.category === 'Lease Contract') {
-                    iconClass = 'bi-file-earmark-pdf';
-                    iconStyle = 'background:#ECFDF5; color:var(--success);';
-                } else if (d.category === 'Official Receipt') {
-                    iconClass = 'bi-receipt';
-                    iconStyle = 'background:#EFF6FF; color:var(--primary);';
-                } else if (d.category === 'Inspection Report') {
-                    iconClass = 'bi-clipboard-check';
-                    iconStyle = 'background:#EDE9FE; color:#6D28D9;';
-                } else if (d.category === 'Identification') {
-                    iconClass = 'bi-person-vcard';
-                    iconStyle = 'background:#FEF3C7; color:#D97706;';
-                }
-
-                let badgeHtml = '';
-                if (d.status === 'Active') {
-                    badgeHtml = `<span class="status-badge status-active"><i class="bi bi-check-circle" style="margin-right:4px;"></i> Active / Signed</span>`;
-                } else if (d.status === 'Verified') {
-                    badgeHtml = `<span class="status-badge status-verified"><i class="bi bi-check-circle" style="margin-right:4px;"></i> Verified</span>`;
-                } else {
-                    badgeHtml = `<span class="status-badge status-pending"><i class="bi bi-clock-history" style="margin-right:4px;"></i> Pending Review</span>`;
-                }
-
-                tr.innerHTML = `
-                    <td>
-                        <div class="doc-name">
-                            <div class="doc-icon" style="${iconStyle}"><i class="bi ${iconClass}"></i></div>
-                            <div>
-                                <div class="doc-title">${d.title}</div>
-                                <div class="doc-type">${d.fileType || 'PDF • 1.5 MB'}</div>
-                            </div>
+            tr.innerHTML = `
+                <td>
+                    <div class="doc-name" style="display:flex; align-items:center; gap:10px;">
+                        <div class="doc-icon" style="${iconStyle} width:36px; height:36px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:16px;"><i class="bi ${iconClass}"></i></div>
+                        <div>
+                            <div class="doc-title" style="font-weight:600;">${d.title}</div>
+                            <div class="doc-type" style="font-size:11px; color:var(--muted);">${d.fileType || 'PDF • 1.5 MB'}</div>
                         </div>
-                    </td>
-                    <td>${d.category}</td>
-                    <td>${d.uploadedBy || 'Property Management'}</td>
-                    <td>${d.uploadDate || 'N/A'}</td>
-                    <td>${badgeHtml}</td>
-                    <td>
+                    </div>
+                </td>
+                <td>${d.category}</td>
+                <td>${d.uploadedBy || 'Property Management'}</td>
+                <td>${d.uploadDate || 'N/A'}</td>
+                <td>${badgeHtml}</td>
+                <td>
+                    <div style="display:flex; gap:6px;">
                         <button class="action-button" title="View Document" onclick="viewDoc('${d.id}')"><i class="bi bi-eye"></i></button>
                         <button class="action-button" title="Download File" onclick="downloadDoc('${d.id}')"><i class="bi bi-download"></i></button>
-                        <button class="action-button" title="Delete File" style="color:var(--danger);" onclick="deleteDoc('${d.id}')"><i class="bi bi-trash"></i></button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
+                        <button class="action-button delete" title="Delete File" style="color:var(--danger, #E11D48);" onclick="deleteDoc('${d.id}')"><i class="bi bi-trash"></i></button>
+                    </div>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
 
-            document.getElementById('showingCountText').textContent = `Showing 1–${docs.length} of ${docs.length} personal vault files`;
+        document.getElementById('showingCountText').textContent = `Showing 1–${docs.length} of ${docs.length} personal vault files`;
+    }
+
+    function updateKPIs() {
+        const ctx = getActiveTenantContext();
+        const docs = getClientDocs();
+        const total = docs.length;
+        const leases = docs.filter(d => d.category === 'Lease Contract' && (d.status === 'Active' || d.status === 'Verified')).length;
+        const receipts = docs.filter(d => d.category === 'Official Receipt').length;
+        const pending = docs.filter(d => d.status === 'Pending').length;
+
+        const totalEl = document.getElementById('kpiTotalFiles');
+        const leasesEl = document.getElementById('kpiActiveLeases');
+        const locEl = document.getElementById('kpiLeaseLocation');
+        const recEl = document.getElementById('kpiReceipts');
+        const penEl = document.getElementById('kpiPendingVerifications');
+
+        if (totalEl) totalEl.textContent = `${total} Files`;
+        if (leasesEl) leasesEl.textContent = `${leases} Active`;
+        if (locEl) locEl.textContent = ctx.fullTag;
+        if (recEl) recEl.textContent = `${receipts} Receipts`;
+        if (penEl) penEl.textContent = `${pending} Files`;
+    }
+
+    function updateHeaderBadge() {
+        const notifs = getNotifications().filter(n => (n.pov === 'client' || n.pov === 'tenant' || n.pov === 'all') && (n.status === 'unread' || n.is_read === false));
+        const badge = document.getElementById('clientHeaderNotifBadge');
+        if (badge) badge.textContent = notifs.length;
+    }
+
+    function openTenantDocModal() {
+        const ctx = getActiveTenantContext();
+        const unitTagEl = document.getElementById('modalUnitLocationTag');
+        if (unitTagEl) unitTagEl.value = ctx.fullTag;
+        const modal = document.getElementById("tenantDocModal");
+        if (modal) modal.classList.add("show");
+    }
+
+    function closeTenantDocModal() { 
+        const modal = document.getElementById("tenantDocModal");
+        if (modal) modal.classList.remove("show"); 
+        document.getElementById('modalDocTitle').value = '';
+        document.getElementById('modalDocNotes').value = '';
+        document.getElementById('modalDocFile').value = '';
+    }
+
+    function formatFileSize(bytes) {
+        if (!bytes || bytes === 0) return '0 KB';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+    }
+
+    function saveTenantDoc() {
+        const title = document.getElementById('modalDocTitle').value.trim();
+        const category = document.getElementById('modalDocCategory').value;
+        const notes = document.getElementById('modalDocNotes').value.trim();
+        const fileInput = document.getElementById('modalDocFile');
+        const file = fileInput.files ? fileInput.files[0] : null;
+
+        if (!title) {
+            alert("Please enter a document title.");
+            return;
         }
 
-        function updateKPIs() {
-            const ctx = getActiveTenantContext();
-            const docs = getClientDocs();
-            const total = docs.length;
-            const leases = docs.filter(d => d.category === 'Lease Contract' && (d.status === 'Active' || d.status === 'Verified')).length;
-            const receipts = docs.filter(d => d.category === 'Official Receipt').length;
-            const pending = docs.filter(d => d.status === 'Pending').length;
+        const ctx = getActiveTenantContext();
+        const newId = `DOC-CLI-${Date.now().toString().slice(-4)}`;
+        const today = new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
 
-            const totalEl = document.getElementById('kpiTotalFiles');
-            const leasesEl = document.getElementById('kpiActiveLeases');
-            const locEl = document.getElementById('kpiLeaseLocation');
-            const recEl = document.getElementById('kpiReceipts');
-            const penEl = document.getElementById('kpiPendingVerifications');
+        let ext = 'PDF';
+        let formattedSize = '1.8 MB';
 
-            if (totalEl) totalEl.textContent = `${total} Files`;
-            if (leasesEl) leasesEl.textContent = `${leases} Active`;
-            if (locEl) locEl.textContent = ctx.fullTag;
-            if (recEl) recEl.textContent = `${receipts} Receipts`;
-            if (penEl) penEl.textContent = `${pending} Files`;
+        if (file) {
+            ext = (file.name.split('.').pop() || 'PDF').toUpperCase();
+            formattedSize = formatFileSize(file.size);
         }
 
-        function updateHeaderBadge() {
-            const notifs = getNotifications().filter(n => (n.pov === 'client' || n.pov === 'tenant') && n.status === 'unread');
-            const badge = document.getElementById('clientHeaderNotifBadge');
-            if (badge) badge.textContent = notifs.length;
-        }
+        const fileTypeDesc = `${ext} • ${formattedSize} • Uploaded File`;
 
-        function openTenantDocModal() {
-            const ctx = getActiveTenantContext();
-            document.getElementById('modalUnitLocationTag').value = ctx.fullTag;
-            document.getElementById("tenantDocModal").classList.add("show");
-        }
-
-        function closeTenantDocModal() { 
-            document.getElementById("tenantDocModal").classList.remove("show"); 
-            document.getElementById('modalDocTitle').value = '';
-            document.getElementById('modalDocNotes').value = '';
-            document.getElementById('modalDocFile').value = '';
-        }
-
-        function formatFileSize(bytes) {
-            if (!bytes || bytes === 0) return '0 KB';
-            const k = 1024;
-            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-        }
-
-        function saveTenantDoc() {
-            const title = document.getElementById('modalDocTitle').value.trim();
-            const category = document.getElementById('modalDocCategory').value;
-            const notes = document.getElementById('modalDocNotes').value.trim();
-            const fileInput = document.getElementById('modalDocFile');
-            const file = fileInput.files ? fileInput.files[0] : null;
-
-            if (!title) {
-                alert("Please enter a document title.");
-                return;
-            }
-
-            const ctx = getActiveTenantContext();
-            const newId = `DOC-CLI-${Date.now().toString().slice(-4)}`;
-            const today = new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
-
-            let ext = 'PDF';
-            let formattedSize = '1.8 MB';
-
-            if (file) {
-                ext = (file.name.split('.').pop() || 'PDF').toUpperCase();
-                formattedSize = formatFileSize(file.size);
-            }
-
-            const fileTypeDesc = `${ext} • ${formattedSize} • Uploaded File`;
-
-            const proceedSave = (fileDataUrl = '') => {
-                const newDoc = {
-                    id: newId,
-                    title: title,
-                    fileType: fileTypeDesc,
-                    category: category,
-                    uploadedBy: `${ctx.name} (You)`,
-                    uploadDate: today,
-                    status: 'Pending',
-                    notes: notes || 'Uploaded via Tenant Portal.',
-                    fileUrl: fileDataUrl
-                };
-
-                let docs = getClientDocs();
-                docs.unshift(newDoc);
-                saveClientDocs(docs);
-
-                // Create Admin notification
-                let notifications = getNotifications();
-                notifications.unshift({
-                    id: `NOTIF-${Date.now()}`,
-                    pov: 'admin',
-                    category: 'asset',
-                    status: 'unread',
-                    title: `Tenant Uploaded Document / ID`,
-                    time: 'Just now',
-                    description: `Tenant <strong>${ctx.name}</strong> (${ctx.fullTag}) uploaded a new file: "<strong>${title}</strong>" (${category}).`,
-                    property: ctx.fullTag,
-                    tenantName: ctx.name,
-                    tag: 'Tenant Vault Upload',
-                    tagColor: 'var(--primary)',
-                    actionUrl: 'documents.html',
-                    actionText: 'Review Tenant File'
-                });
-                saveNotifications(notifications);
-
-                renderDocTable();
-                updateKPIs();
-                closeTenantDocModal();
-
-                alert(`Document "${title}" uploaded successfully to your personal vault!\n\nProperty Manager notified for verification.`);
+        const proceedSave = (fileDataUrl = '') => {
+            const newDoc = {
+                id: newId,
+                title: title,
+                fileType: fileTypeDesc,
+                category: category,
+                uploadedBy: `${ctx.name} (You)`,
+                uploadDate: today,
+                status: 'Pending',
+                notes: notes || 'Uploaded via Tenant Portal.',
+                fileUrl: fileDataUrl
             };
 
-            // Read file to Base64 for live download/preview if provided
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    proceedSave(e.target.result);
-                };
-                reader.onerror = function() {
-                    proceedSave('');
-                };
-                reader.readAsDataURL(file);
-            } else {
-                proceedSave('');
-            }
-        }
-
-        function deleteDoc(id) {
-            if (!confirm("Are you sure you want to remove this document from your vault?")) return;
-            let docs = getClientDocs().filter(d => d.id !== id);
+            let docs = getClientDocs();
+            docs.unshift(newDoc);
             saveClientDocs(docs);
+
+            // Create Admin notification
+            let notifications = getNotifications();
+            notifications.unshift({
+                id: `NOTIF-${Date.now()}`,
+                pov: 'admin',
+                category: 'asset',
+                status: 'unread',
+                title: `Tenant Uploaded Document / ID`,
+                time: 'Just now',
+                description: `Tenant <strong>${ctx.name}</strong> (${ctx.fullTag}) uploaded a new file: "<strong>${title}</strong>" (${category}).`,
+                property: ctx.fullTag,
+                tenantName: ctx.name,
+                tag: 'Tenant Vault Upload',
+                tagColor: 'var(--primary)',
+                actionUrl: 'documents.html',
+                actionText: 'Review Tenant File'
+            });
+            saveNotifications(notifications);
+
             renderDocTable();
             updateKPIs();
-        }
+            closeTenantDocModal();
 
-        function viewDoc(id) {
-            const docs = getClientDocs();
-            const doc = docs.find(d => d.id === id);
-            if (!doc) return;
-
-            if (doc.fileUrl) {
-                const win = window.open();
-                if (win) {
-                    win.document.write(`<iframe src="${doc.fileUrl}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
-                    return;
-                }
-            }
-
-            alert(`ARGO Tenant Vault Document — ${doc.id}\n\nTitle: ${doc.title}\nCategory: ${doc.category}\nUploaded By: ${doc.uploadedBy}\nUpload Date: ${doc.uploadDate}\nStatus: ${doc.status}\nNotes: ${doc.notes || 'None'}`);
-        }
-
-        function downloadDoc(id) {
-            const docs = getClientDocs();
-            const doc = docs.find(d => d.id === id);
-            if (!doc) return;
-
-            if (doc.fileUrl) {
-                const a = document.createElement('a');
-                a.href = doc.fileUrl;
-                a.download = `${doc.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-            } else {
-                alert(`Downloading simulated file for: "${doc.title}" (${doc.fileType}).\n(Connect your S3/Supabase Storage bucket here for cloud storage binary downloads).`);
-            }
-        }
-
-        window.onclick = function(event) {
-            const modal = document.getElementById("tenantDocModal");
-            if (event.target === modal) closeTenantDocModal();
+            alert(`Document "${title}" uploaded successfully to your personal vault!\n\nProperty Manager notified for verification.`);
         };
 
-        function filterTable() {
-            const searchInput = document.getElementById("searchInput");
-            const categorySelect = document.getElementById("categoryFilter");
-            const statusSelect = document.getElementById("statusFilter");
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                proceedSave(e.target.result);
+            };
+            reader.onerror = function() {
+                proceedSave('');
+            };
+            reader.readAsDataURL(file);
+        } else {
+            proceedSave('');
+        }
+    }
 
-            const searchValue = searchInput ? searchInput.value.toLowerCase() : "";
-            const categoryValue = categorySelect ? categorySelect.value : "";
-            const statusValue = statusSelect ? statusSelect.value : "";
+    function deleteDoc(id) {
+        if (!confirm("Are you sure you want to remove this document from your vault?")) return;
+        let docs = getClientDocs().filter(d => d.id !== id);
+        saveClientDocs(docs);
+        renderDocTable();
+        updateKPIs();
+    }
 
-            const rows = document.querySelectorAll("#documentTable tr");
+    function viewDoc(id) {
+        const docs = getClientDocs();
+        const doc = docs.find(d => d.id === id);
+        if (!doc) return;
 
-            rows.forEach(row => {
-                const text = row.innerText.toLowerCase();
-                const rowCategory = row.dataset.category || "";
-                const rowStatus = row.dataset.status || "";
-
-                const matchesSearch = text.includes(searchValue);
-                const matchesCategory = categoryValue === "" || rowCategory === categoryValue;
-                const matchesStatus = statusValue === "" || rowStatus.includes(statusValue);
-
-                if (matchesSearch && matchesCategory && matchesStatus) {
-                    row.style.display = "";
-                } else {
-                    row.style.display = "none";
-                }
-            });
+        if (doc.fileUrl) {
+            const win = window.open();
+            if (win) {
+                win.document.write(`<iframe src="${doc.fileUrl}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+                return;
+            }
         }
 
-        function resetFilters() {
-            const searchInput = document.getElementById("searchInput");
-            const categoryFilter = document.getElementById("categoryFilter");
-            const statusFilter = document.getElementById("statusFilter");
+        alert(`ARGO Tenant Vault Document — ${doc.id}\n\nTitle: ${doc.title}\nCategory: ${doc.category}\nUploaded By: ${doc.uploadedBy}\nUpload Date: ${doc.uploadDate}\nStatus: ${doc.status}\nNotes: ${doc.notes || 'None'}`);
+    }
 
-            if (searchInput) searchInput.value = "";
-            if (categoryFilter) categoryFilter.value = "";
-            if (statusFilter) statusFilter.value = "";
-            filterTable();
+    function downloadDoc(id) {
+        const docs = getClientDocs();
+        const doc = docs.find(d => d.id === id);
+        if (!doc) return;
+
+        if (doc.fileUrl) {
+            const a = document.createElement('a');
+            a.href = doc.fileUrl;
+            a.download = `${doc.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        } else {
+            alert(`Downloading verified file: "${doc.title}" (${doc.fileType})...`);
         }
+    }
 
-        // Profile Dropdown Handler
-        const userProfileBtn = document.getElementById('userProfileBtn');
-        const userDropdown = document.getElementById('userDropdown');
+    window.onclick = function(event) {
+        const modal = document.getElementById("tenantDocModal");
+        if (event.target === modal) closeTenantDocModal();
+    };
 
-        if (userProfileBtn && userDropdown) {
-            userProfileBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                userDropdown.classList.toggle('show');
-            });
+    function filterTable() {
+        const searchInput = document.getElementById("searchInput");
+        const categorySelect = document.getElementById("categoryFilter");
+        const statusSelect = document.getElementById("statusFilter");
 
-            document.addEventListener('click', () => { 
-                userDropdown.classList.remove('show'); 
-            });
-        }
-    </script>
+        const searchValue = searchInput ? searchInput.value.toLowerCase() : "";
+        const categoryValue = categorySelect ? categorySelect.value : "";
+        const statusValue = statusSelect ? statusSelect.value : "";
+
+        const rows = document.querySelectorAll("#documentTable tr");
+
+        rows.forEach(row => {
+            if (row.cells.length === 1) return;
+            const text = row.innerText.toLowerCase();
+            const rowCategory = row.dataset.category || "";
+            const rowStatus = row.dataset.status || "";
+
+            const matchesSearch = text.includes(searchValue);
+            const matchesCategory = categoryValue === "" || rowCategory === categoryValue;
+            const matchesStatus = statusValue === "" || rowStatus.includes(statusValue);
+
+            if (matchesSearch && matchesCategory && matchesStatus) {
+                row.style.display = "";
+            } else {
+                row.style.display = "none";
+            }
+        });
+    }
+
+    function resetFilters() {
+        const searchInput = document.getElementById("searchInput");
+        const categoryFilter = document.getElementById("categoryFilter");
+        const statusFilter = document.getElementById("statusFilter");
+
+        if (searchInput) searchInput.value = "";
+        if (categoryFilter) categoryFilter.value = "";
+        if (statusFilter) statusFilter.value = "";
+        filterTable();
+    }
+
+    // Profile Dropdown Handler
+    const userProfileBtn = document.getElementById('userProfileBtn');
+    const userDropdown = document.getElementById('userDropdown');
+
+    if (userProfileBtn && userDropdown) {
+        userProfileBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            userDropdown.classList.toggle('show');
+        });
+
+        document.addEventListener('click', () => { 
+            userDropdown.classList.remove('show'); 
+        });
+    }
+</script>
 </body>

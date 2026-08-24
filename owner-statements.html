@@ -879,614 +879,639 @@
         </div>
     </div>
 
-    <!-- ================= JAVASCRIPT ================= -->
     <script>
-        let currentModalStatementData = null;
+    let currentModalStatementData = null;
 
-        // Type-Safe Currency Parser
-        function parseCurrency(val) {
-            if (val === undefined || val === null || val === '') return 0;
-            if (typeof val === 'number') return isNaN(val) ? 0 : val;
-            const clean = val.toString().replace(/[^0-9.-]+/g, "");
-            const parsed = parseFloat(clean);
-            return isNaN(parsed) ? 0 : parsed;
+    // Type-Safe Currency Parser
+    function parseCurrency(val) {
+        if (val === undefined || val === null || val === '') return 0;
+        if (typeof val === 'number') return isNaN(val) ? 0 : val;
+        const clean = val.toString().replace(/[^0-9.-]+/g, "");
+        const parsed = parseFloat(clean);
+        return isNaN(parsed) ? 0 : parsed;
+    }
+
+    // Format Currency Helper
+    function formatPeso(val) {
+        const num = parseCurrency(val);
+        return '₱' + num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    // Secure Logout Handler (Clears session and replaces history to prevent back-button access)
+    function logoutUser() {
+        localStorage.clear();
+        window.location.replace('index.html');
+    }
+
+    // Dynamic Role-Based Sidebar Renderer
+    function renderSidebar() {
+        const nav = document.getElementById('sidebarNav');
+        if (!nav) return;
+
+        const role = localStorage.getItem('argo_pov') || 'owner';
+
+        if (role === 'client') {
+            nav.innerHTML = `
+                <div class="nav-section-title">SELF-SERVICE HOME</div>
+                <a href="client-dashboard.html" class="nav-item">
+                    <i class="bi bi-house-door"></i>
+                    <span>My Tenancy Home</span>
+                </a>
+                <a href="client-billing.html" class="nav-item">
+                    <i class="bi bi-receipt"></i>
+                    <span>Pay Rent & Dues</span>
+                </a>
+                <a href="transaction.html" class="nav-item">
+                    <i class="bi bi-receipt-cutoff"></i>
+                    <span>Transactions & Ledger</span>
+                </a>
+                <a href="client-utilities.html" class="nav-item">
+                    <i class="bi bi-lightning-charge"></i>
+                    <span>My Utilities & Meters</span>
+                </a>
+                <a href="client-maintenance.html" class="nav-item">
+                    <i class="bi bi-tools"></i>
+                    <span>Submit Maintenance</span>
+                </a>
+                <a href="inspections.html" class="nav-item">
+                    <i class="bi bi-clipboard-check"></i>
+                    <span>Move-In & Inspections</span>
+                </a>
+                <a href="client-documents.html" class="nav-item">
+                    <i class="bi bi-folder2-open"></i>
+                    <span>My Lease & Receipts</span>
+                </a>
+
+                <div class="nav-section-title">SYSTEM</div>
+                <a href="account.html" class="nav-item">
+                    <i class="bi bi-gear"></i>
+                    <span>Account Settings</span>
+                </a>
+                <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                    <i class="bi bi-box-arrow-right"></i>
+                    <span>Log Out</span>
+                </a>
+            `;
+        } else if (role === 'owner') {
+            nav.innerHTML = `
+                <div class="nav-section-title">PORTFOLIO OVERVIEW</div>
+                <a href="owner-dashboard.html" class="nav-item">
+                    <i class="bi bi-speedometer2"></i>
+                    <span>Executive Summary</span>
+                </a>
+                <a href="owner-properties.html" class="nav-item">
+                    <i class="bi bi-buildings"></i>
+                    <span>My Properties</span>
+                </a>
+                <a href="owner-statements.html" class="nav-item active">
+                    <i class="bi bi-file-earmark-text"></i>
+                    <span>Financial Statements</span>
+                </a>
+                <a href="property-ownership.html" class="nav-item">
+                    <i class="bi bi-pie-chart"></i>
+                    <span>Fractional Equity</span>
+                </a>
+                <a href="owner-documents.html" class="nav-item">
+                    <i class="bi bi-folder2-open"></i>
+                    <span>Legal Vault</span>
+                </a>
+                <a href="transaction.html" class="nav-item">
+                    <i class="bi bi-receipt-cutoff"></i>
+                    <span>Yield Audit Ledger</span>
+                </a>
+
+                <div class="nav-section-title">COMMUNICATION & SYSTEM</div>
+                <a href="notification.html" class="nav-item">
+                    <i class="bi bi-bell"></i>
+                    <span>Notification Center</span>
+                </a>
+                <a href="account.html" class="nav-item">
+                    <i class="bi bi-gear"></i>
+                    <span>Account Settings</span>
+                </a>
+                <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                    <i class="bi bi-box-arrow-right"></i>
+                    <span>Log Out</span>
+                </a>
+            `;
+        } else {
+            // Admin POV
+            nav.innerHTML = `
+                <div class="nav-section-title">OVERVIEW</div>
+                <a href="dashboard.html" class="nav-item">
+                    <i class="bi bi-grid-1x2"></i>
+                    <span>Dashboard</span>
+                </a>
+
+                <div class="nav-section-title">PROPERTY OPERATIONS</div>
+                <a href="properties.html" class="nav-item">
+                    <i class="bi bi-buildings"></i>
+                    <span>Properties</span>
+                </a>
+                <a href="buildings.html" class="nav-item">
+                    <i class="bi bi-building"></i>
+                    <span>Buildings</span>
+                </a>
+                <a href="units.html" class="nav-item">
+                    <i class="bi bi-door-open"></i>
+                    <span>Units</span>
+                </a>
+                <a href="tenants.html" class="nav-item">
+                    <i class="bi bi-people"></i>
+                    <span>Tenants</span>
+                </a>
+                <a href="owners.html" class="nav-item">
+                    <i class="bi bi-person-badge"></i>
+                    <span>Owners</span>
+                </a>
+                <a href="property-ownership.html" class="nav-item">
+                    <i class="bi bi-pie-chart"></i>
+                    <span>Fractional Ownership</span>
+                </a>
+                <a href="leases.html" class="nav-item">
+                    <i class="bi bi-file-earmark-text"></i>
+                    <span>Leases</span>
+                </a>
+
+                <div class="nav-section-title">FINANCE & SERVICES</div>
+                <a href="rent-collection.html" class="nav-item">
+                    <i class="bi bi-cash-stack"></i>
+                    <span>Rent Collection</span>
+                </a>
+                <a href="transaction.html" class="nav-item">
+                    <i class="bi bi-receipt-cutoff"></i>
+                    <span>Transactions & Ledger</span>
+                </a>
+                <a href="utilities.html" class="nav-item">
+                    <i class="bi bi-lightning-charge"></i>
+                    <span>Utilities</span>
+                </a>
+                <a href="meter-readings.html" class="nav-item">
+                    <i class="bi bi-speedometer2"></i>
+                    <span>Meter Readings</span>
+                </a>
+                <a href="maintenance.html" class="nav-item">
+                    <i class="bi bi-tools"></i>
+                    <span>Maintenance</span>
+                </a>
+
+                <div class="nav-section-title">RECORDS & REPORTS</div>
+                <a href="inspections.html" class="nav-item">
+                    <i class="bi bi-clipboard-check"></i>
+                    <span>Inspections</span>
+                </a>
+                <a href="move-in-checklist.html" class="nav-item">
+                    <i class="bi bi-check2-square"></i>
+                    <span>Move-In Checklist</span>
+                </a>
+                <a href="move-out-settlement.html" class="nav-item">
+                    <i class="bi bi-box-arrow-right"></i>
+                    <span>Move-Out Settlement</span>
+                </a>
+                <a href="documents.html" class="nav-item">
+                    <i class="bi bi-folder2-open"></i>
+                    <span>Documents</span>
+                </a>
+                <a href="reports.html" class="nav-item">
+                    <i class="bi bi-bar-chart"></i>
+                    <span>Reports</span>
+                </a>
+
+                <div class="nav-section-title">SYSTEM</div>
+                <a href="settings.html" class="nav-item">
+                    <i class="bi bi-gear"></i>
+                    <span>Settings</span>
+                </a>
+                <a href="account.html" class="nav-item">
+                    <i class="bi bi-person-gear"></i>
+                    <span>Account Settings</span>
+                </a>
+                <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                    <i class="bi bi-box-arrow-right"></i>
+                    <span>Log Out</span>
+                </a>
+            `;
         }
+    }
 
-        // Format Currency Helper
-        function formatPeso(val) {
-            const num = parseCurrency(val);
-            return '₱' + num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    // Default Base Statements reflecting Sunrise Residences & Maria Santos in Unit 101
+    const DEFAULT_STATEMENTS = [
+        {
+            id: 'STM-2026-08',
+            property: 'Sunrise Residences',
+            sub: '100.00% Share • Unit 101 (Maria Santos) & Portfolio',
+            period: 'August 2026 (Current)',
+            status: 'Processing',
+            baseGross: 120000,
+            baseRepairs: 0
+        },
+        {
+            id: 'STM-2026-07',
+            property: 'Sunrise Residences',
+            sub: '100.00% Share • PROP-001 (Unit 101 Settled)',
+            period: 'July 2026',
+            status: 'Disbursed',
+            baseGross: 120000,
+            baseRepairs: 1500
+        },
+        {
+            id: 'STM-2026-06',
+            property: 'Central Business Center',
+            sub: '50.00% Share • PROP-003',
+            period: 'June 2026',
+            status: 'Disbursed',
+            baseGross: 47500,
+            baseRepairs: 2500
         }
+    ];
 
-        // Secure Logout Handler (Clears session and replaces history to prevent back-button access)
-        function logoutUser() {
-            localStorage.removeItem('argo_pov');
-            localStorage.removeItem('user_role');
-            localStorage.removeItem('role');
-            localStorage.removeItem('token');
-            localStorage.removeItem('argo_user');
+    // Shared LocalStorage Accessors
+    function getInvoices() {
+        try {
+            return JSON.parse(localStorage.getItem('argo_invoices') || '[]');
+        } catch (e) {
+            return [];
+        }
+    }
+
+    function getTickets() {
+        try {
+            return JSON.parse(localStorage.getItem('argo_maintenance_tickets') || '[]');
+        } catch (e) {
+            return [];
+        }
+    }
+
+    function getNotifications() {
+        try {
+            return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
+        } catch (e) {
+            return [];
+        }
+    }
+
+    function getProperties() {
+        try {
+            return JSON.parse(localStorage.getItem('argo_properties') || '[]');
+        } catch (e) {
+            return [];
+        }
+    }
+
+    function getOrgSettings() {
+        try {
+            return JSON.parse(localStorage.getItem('argo_org_settings') || '{}');
+        } catch (e) {
+            return {};
+        }
+    }
+
+    function getStatements() {
+        const data = localStorage.getItem('argo_statements');
+        if (!data) {
+            localStorage.setItem('argo_statements', JSON.stringify(DEFAULT_STATEMENTS));
+            return DEFAULT_STATEMENTS;
+        }
+        try {
+            const parsed = JSON.parse(data);
+            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+            return DEFAULT_STATEMENTS;
+        } catch (e) {
+            return DEFAULT_STATEMENTS;
+        }
+    }
+
+    function saveStatements(statements) {
+        localStorage.setItem('argo_statements', JSON.stringify(statements));
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const rawRole = (
+            localStorage.getItem('argo_pov') || 
+            localStorage.getItem('user_role') || 
+            localStorage.getItem('role') || 
+            ''
+        ).toLowerCase().trim();
+
+        if (!rawRole) {
             window.location.replace('index.html');
+            return;
         }
 
-        // Dynamic Role-Based Sidebar Renderer
-        function renderSidebar() {
-            const nav = document.getElementById('sidebarNav');
-            if (!nav) return;
+        renderSidebar();
+        loadUserData();
+        populatePropertyFilter();
+        renderStatementsTable();
+        updateOwnerKPIs();
+        updateHeaderBadge();
+    });
 
-            const role = localStorage.getItem('argo_pov') || 'owner';
-
-            if (role === 'client') {
-                nav.innerHTML = `
-                    <div class="nav-section-title">SELF-SERVICE HOME</div>
-                    <a href="client-dashboard.html" class="nav-item">
-                        <i class="bi bi-house-door"></i>
-                        <span>My Tenancy Home</span>
-                    </a>
-                    <a href="client-billing.html" class="nav-item">
-                        <i class="bi bi-receipt"></i>
-                        <span>Pay Rent & Dues</span>
-                    </a>
-                    <a href="transaction.html" class="nav-item">
-                        <i class="bi bi-receipt-cutoff"></i>
-                        <span>Transactions & Ledger</span>
-                    </a>
-                    <a href="client-utilities.html" class="nav-item">
-                        <i class="bi bi-lightning-charge"></i>
-                        <span>My Utilities & Meters</span>
-                    </a>
-                    <a href="client-maintenance.html" class="nav-item">
-                        <i class="bi bi-tools"></i>
-                        <span>Submit Maintenance</span>
-                    </a>
-                    <a href="inspections.html" class="nav-item">
-                        <i class="bi bi-clipboard-check"></i>
-                        <span>Move-In & Inspections</span>
-                    </a>
-                    <a href="client-documents.html" class="nav-item">
-                        <i class="bi bi-folder2-open"></i>
-                        <span>My Lease & Receipts</span>
-                    </a>
-
-                    <div class="nav-section-title">SYSTEM</div>
-                    <a href="account.html" class="nav-item">
-                        <i class="bi bi-gear"></i>
-                        <span>Account Settings</span>
-                    </a>
-                    <a href="#" class="nav-item" onclick="logoutUser(); return false;">
-                        <i class="bi bi-box-arrow-right"></i>
-                        <span>Log Out</span>
-                    </a>
-                `;
-            } else if (role === 'owner') {
-                nav.innerHTML = `
-                    <div class="nav-section-title">PORTFOLIO OVERVIEW</div>
-                    <a href="owner-dashboard.html" class="nav-item">
-                        <i class="bi bi-speedometer2"></i>
-                        <span>Executive Summary</span>
-                    </a>
-                    <a href="owner-properties.html" class="nav-item">
-                        <i class="bi bi-buildings"></i>
-                        <span>My Properties</span>
-                    </a>
-                    <a href="owner-statements.html" class="nav-item active">
-                        <i class="bi bi-file-earmark-text"></i>
-                        <span>Financial Statements</span>
-                    </a>
-                    <a href="property-ownership.html" class="nav-item">
-                        <i class="bi bi-pie-chart"></i>
-                        <span>Fractional Equity</span>
-                    </a>
-                    <a href="owner-documents.html" class="nav-item">
-                        <i class="bi bi-folder2-open"></i>
-                        <span>Legal Vault</span>
-                    </a>
-                    <a href="transaction.html" class="nav-item">
-                        <i class="bi bi-receipt-cutoff"></i>
-                        <span>Yield Audit Ledger</span>
-                    </a>
-
-                    <div class="nav-section-title">COMMUNICATION & SYSTEM</div>
-                    <a href="notification.html" class="nav-item">
-                        <i class="bi bi-bell"></i>
-                        <span>Notification Center</span>
-                    </a>
-                    <a href="account.html" class="nav-item">
-                        <i class="bi bi-gear"></i>
-                        <span>Account Settings</span>
-                    </a>
-                    <a href="#" class="nav-item" onclick="logoutUser(); return false;">
-                        <i class="bi bi-box-arrow-right"></i>
-                        <span>Log Out</span>
-                    </a>
-                `;
-            } else {
-                // Admin POV
-                nav.innerHTML = `
-                    <div class="nav-section-title">OVERVIEW</div>
-                    <a href="dashboard.html" class="nav-item">
-                        <i class="bi bi-grid-1x2"></i>
-                        <span>Dashboard</span>
-                    </a>
-
-                    <div class="nav-section-title">PROPERTY OPERATIONS</div>
-                    <a href="properties.html" class="nav-item">
-                        <i class="bi bi-buildings"></i>
-                        <span>Properties</span>
-                    </a>
-                    <a href="buildings.html" class="nav-item">
-                        <i class="bi bi-building"></i>
-                        <span>Buildings</span>
-                    </a>
-                    <a href="units.html" class="nav-item">
-                        <i class="bi bi-door-open"></i>
-                        <span>Units</span>
-                    </a>
-                    <a href="tenants.html" class="nav-item">
-                        <i class="bi bi-people"></i>
-                        <span>Tenants</span>
-                    </a>
-                    <a href="owners.html" class="nav-item">
-                        <i class="bi bi-person-badge"></i>
-                        <span>Owners</span>
-                    </a>
-                    <a href="property-ownership.html" class="nav-item">
-                        <i class="bi bi-pie-chart"></i>
-                        <span>Fractional Ownership</span>
-                    </a>
-                    <a href="leases.html" class="nav-item">
-                        <i class="bi bi-file-earmark-text"></i>
-                        <span>Leases</span>
-                    </a>
-
-                    <div class="nav-section-title">FINANCE & SERVICES</div>
-                    <a href="rent-collection.html" class="nav-item">
-                        <i class="bi bi-cash-stack"></i>
-                        <span>Rent Collection</span>
-                    </a>
-                    <a href="transaction.html" class="nav-item">
-                        <i class="bi bi-receipt-cutoff"></i>
-                        <span>Transactions & Ledger</span>
-                    </a>
-                    <a href="utilities.html" class="nav-item">
-                        <i class="bi bi-lightning-charge"></i>
-                        <span>Utilities</span>
-                    </a>
-                    <a href="meter-readings.html" class="nav-item">
-                        <i class="bi bi-speedometer2"></i>
-                        <span>Meter Readings</span>
-                    </a>
-                    <a href="maintenance.html" class="nav-item">
-                        <i class="bi bi-tools"></i>
-                        <span>Maintenance</span>
-                    </a>
-
-                    <div class="nav-section-title">RECORDS & REPORTS</div>
-                    <a href="inspections.html" class="nav-item">
-                        <i class="bi bi-clipboard-check"></i>
-                        <span>Inspections</span>
-                    </a>
-                    <a href="move-in-checklist.html" class="nav-item">
-                        <i class="bi bi-check2-square"></i>
-                        <span>Move-In Checklist</span>
-                    </a>
-                    <a href="move-out-settlement.html" class="nav-item">
-                        <i class="bi bi-box-arrow-right"></i>
-                        <span>Move-Out Settlement</span>
-                    </a>
-                    <a href="documents.html" class="nav-item">
-                        <i class="bi bi-folder2-open"></i>
-                        <span>Documents</span>
-                    </a>
-                    <a href="reports.html" class="nav-item">
-                        <i class="bi bi-bar-chart"></i>
-                        <span>Reports</span>
-                    </a>
-
-                    <div class="nav-section-title">SYSTEM</div>
-                    <a href="settings.html" class="nav-item">
-                        <i class="bi bi-gear"></i>
-                        <span>Settings</span>
-                    </a>
-                    <a href="account.html" class="nav-item">
-                        <i class="bi bi-person-gear"></i>
-                        <span>Account Settings</span>
-                    </a>
-                    <a href="#" class="nav-item" onclick="logoutUser(); return false;">
-                        <i class="bi bi-box-arrow-right"></i>
-                        <span>Log Out</span>
-                    </a>
-                `;
-            }
-        }
-
-        // Default Base Statements
-        const DEFAULT_STATEMENTS = [
-            {
-                id: 'STM-2026-08',
-                property: 'Sunrise Property',
-                sub: '100.00% Share • Building 2 (Unit 101, 102, 103)',
-                period: 'August 2026 (Current)',
-                status: 'Processing',
-                baseGross: 120000,
-                baseRepairs: 0
-            },
-            {
-                id: 'STM-2026-07',
-                property: 'Sunrise Residences',
-                sub: '100.00% Share • PROP-001',
-                period: 'July 2026',
-                status: 'Disbursed',
-                baseGross: 120000,
-                baseRepairs: 5500
-            },
-            {
-                id: 'STM-2026-06',
-                property: 'Central Business Center',
-                sub: '50.00% Share • PROP-003',
-                period: 'June 2026',
-                status: 'Disbursed',
-                baseGross: 47500,
-                baseRepairs: 2500
-            }
-        ];
-
-        // Shared LocalStorage Accessors
-        function getInvoices() {
-            try {
-                return JSON.parse(localStorage.getItem('argo_invoices') || '[]');
-            } catch (e) {
-                return [];
-            }
-        }
-
-        function getTickets() {
-            try {
-                return JSON.parse(localStorage.getItem('argo_maintenance_tickets') || '[]');
-            } catch (e) {
-                return [];
-            }
-        }
-
-        function getNotifications() {
-            try {
-                return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
-            } catch (e) {
-                return [];
-            }
-        }
-
-        function getProperties() {
-            try {
-                return JSON.parse(localStorage.getItem('argo_properties') || '[]');
-            } catch (e) {
-                return [];
-            }
-        }
-
-        function getOrgSettings() {
-            try {
-                return JSON.parse(localStorage.getItem('argo_org_settings') || '{}');
-            } catch (e) {
-                return {};
-            }
-        }
-
-        function getStatements() {
-            const data = localStorage.getItem('argo_statements');
-            if (!data) {
-                localStorage.setItem('argo_statements', JSON.stringify(DEFAULT_STATEMENTS));
-                return DEFAULT_STATEMENTS;
-            }
-            try {
-                return JSON.parse(data);
-            } catch (e) {
-                return DEFAULT_STATEMENTS;
-            }
-        }
-
-        function saveStatements(statements) {
-            localStorage.setItem('argo_statements', JSON.stringify(statements));
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            const role = localStorage.getItem('argo_pov');
-            if (!role) {
-                window.location.replace('index.html');
-                return;
-            }
+    // Live Cross-Tab Listener (Syncs when rent is verified or repairs are logged)
+    window.addEventListener('storage', (e) => {
+        if (['argo_maintenance_tickets', 'argo_invoices', 'argo_statements', 'argo_notifications', 'argo_properties', 'argo_org_settings', 'argo_user', 'argo_pov', 'user_role', 'role'].includes(e.key)) {
             renderSidebar();
             loadUserData();
             populatePropertyFilter();
             renderStatementsTable();
             updateOwnerKPIs();
             updateHeaderBadge();
+        }
+    });
+
+    function loadUserData() {
+        const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+        const name = user.name || 'Don Ramon Santos';
+        const nameEl = document.getElementById('userName');
+        const roleEl = document.getElementById('userRoleBadge');
+        const avatarEl = document.getElementById('userAvatar');
+
+        if (nameEl) nameEl.textContent = name;
+        if (roleEl) roleEl.textContent = 'Property Owner';
+        if (avatarEl) {
+            avatarEl.textContent = user.avatar || (name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'RS');
+            avatarEl.style.background = '#059669';
+        }
+        
+        const subTitleEl = document.getElementById('ownerAuditSubtitle');
+        if (subTitleEl) subTitleEl.textContent = `Audit trail for ${name}`;
+    }
+
+    function populatePropertyFilter() {
+        const props = getProperties();
+        const statements = getStatements();
+        const filter = document.getElementById('propertyFilter');
+        if (!filter) return;
+
+        const existingVal = filter.value;
+        const propertyNames = new Set();
+
+        props.forEach(p => {
+            const pName = p.name || p.property_name;
+            if (pName) propertyNames.add(pName);
+        });
+        statements.forEach(s => {
+            if (s.property) propertyNames.add(s.property);
         });
 
-        // Live Cross-Tab Listener (Syncs when rent is verified or repairs are logged)
-        window.addEventListener('storage', (e) => {
-            if (['argo_maintenance_tickets', 'argo_invoices', 'argo_statements', 'argo_notifications', 'argo_properties', 'argo_org_settings', 'argo_user', 'argo_pov', 'user_role', 'role'].includes(e.key)) {
-                renderSidebar();
-                loadUserData();
-                populatePropertyFilter();
-                renderStatementsTable();
-                updateOwnerKPIs();
-                updateHeaderBadge();
+        filter.innerHTML = '<option value="">All Properties</option>';
+        propertyNames.forEach(pName => {
+            filter.innerHTML += `<option value="${pName}">${pName}</option>`;
+        });
+
+        if (existingVal) filter.value = existingVal;
+    }
+
+    // Calculate verified rent additions dynamically from localStorage invoices (Includes Maria Santos Unit 101)
+    function calculateVerifiedRentAdditions() {
+        const invoices = getInvoices();
+        let verifiedSum = 0;
+        const verifiedList = [];
+
+        invoices.forEach(inv => {
+            const status = (inv.status || '').toLowerCase();
+            if (status === 'paid') {
+                const amt = parseCurrency(inv.amount);
+                verifiedSum += amt;
+                verifiedList.push(inv);
             }
         });
 
-        function loadUserData() {
-            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
-            const name = user.name || 'Don Ramon Santos';
-            document.getElementById('userName').textContent = name;
-            document.getElementById('userRoleBadge').textContent = 'Property Owner';
-            document.getElementById('userAvatar').textContent = user.avatar || (name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'RS');
-            
-            const subTitleEl = document.getElementById('ownerAuditSubtitle');
-            if (subTitleEl) subTitleEl.textContent = `Audit trail for ${name}`;
+        // If no paid invoices have been logged yet, include Maria Santos's Unit 101 active lease rent
+        if (verifiedList.length === 0) {
+            verifiedList.push({
+                id: 'INV-2026-0801',
+                tenantName: 'Maria Santos',
+                sub: 'Sunrise Residences • Unit 101',
+                type: 'Monthly Base Rent (Unit 101)',
+                amount: 15000.00
+            });
+            verifiedSum += 15000.00;
         }
 
-        function populatePropertyFilter() {
-            const props = getProperties();
-            const statements = getStatements();
-            const filter = document.getElementById('propertyFilter');
-            if (!filter) return;
+        return { verifiedSum, verifiedList };
+    }
 
-            const existingVal = filter.value;
-            const propertyNames = new Set();
+    // Calculate dynamic maintenance & repair deductions from localStorage tickets
+    function calculateMaintenanceDeductions() {
+        const tickets = getTickets();
+        let repairSum = 0;
+        const repairList = [];
 
-            props.forEach(p => {
-                if (p.name) propertyNames.add(p.name);
-            });
-            statements.forEach(s => {
-                if (s.property) propertyNames.add(s.property);
-            });
-
-            filter.innerHTML = '<option value="">All Properties</option>';
-            propertyNames.forEach(pName => {
-                filter.innerHTML += `<option value="${pName}">${pName}</option>`;
-            });
-
-            if (existingVal) filter.value = existingVal;
-        }
-
-        // Calculate verified rent additions dynamically from localStorage invoices
-        function calculateVerifiedRentAdditions() {
-            const invoices = getInvoices();
-            let verifiedSum = 0;
-            const verifiedList = [];
-
-            invoices.forEach(inv => {
-                const status = (inv.status || '').toLowerCase();
-                if (status === 'paid') {
-                    const amt = parseCurrency(inv.amount);
-                    verifiedSum += amt;
-                    verifiedList.push(inv);
-                }
-            });
-
-            return { verifiedSum, verifiedList };
-        }
-
-        // Calculate dynamic maintenance & repair deductions from localStorage tickets
-        function calculateMaintenanceDeductions() {
-            const tickets = getTickets();
-            let repairSum = 0;
-            const repairList = [];
-
-            tickets.forEach(t => {
-                const status = (t.status || '').toLowerCase();
-                if (status === 'resolved' || status === 'completed' || status === 'in progress' || status === 'assigned') {
-                    const costVal = parseCurrency(t.cost || 1500.00);
-                    repairSum += costVal;
-                    repairList.push({ ...t, cost: costVal });
-                }
-            });
-
-            return { repairSum, repairList };
-        }
-
-        // Render Statements Table
-        function renderStatementsTable() {
-            const statements = getStatements();
-            const { verifiedSum } = calculateVerifiedRentAdditions();
-            const { repairSum } = calculateMaintenanceDeductions();
-            const orgSettings = getOrgSettings();
-            const pmFeeRate = (parseFloat(orgSettings.pmFee) || 10) / 100;
-
-            const tbody = document.getElementById('statementTable');
-            if (!tbody) return;
-            tbody.innerHTML = '';
-
-            statements.forEach((stmt, index) => {
-                let gross = parseCurrency(stmt.baseGross);
-                let repairs = parseCurrency(stmt.baseRepairs);
-
-                // Current period dynamically merges verified rent & maintenance repair costs
-                if (index === 0) {
-                    if (verifiedSum > 0) gross += verifiedSum;
-                    if (repairSum > 0) repairs += repairSum;
-                }
-
-                // Core Financial Formula: Net Payout = Gross Rent - (PM Fee) - Repairs
-                const pmFee = gross * pmFeeRate;
-                const totalDeductions = pmFee + repairs;
-                const netPayout = Math.max(0, gross - totalDeductions);
-
-                const tr = document.createElement('tr');
-                tr.dataset.property = stmt.property || '';
-                tr.dataset.status = stmt.status || '';
-
-                let badgeHtml = stmt.status === 'Disbursed' 
-                    ? `<span class="status-badge status-disbursed" style="background:#ECFDF5; color:#059669; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-check-circle" style="margin-right:4px;"></i> Disbursed</span>`
-                    : `<span class="status-badge status-processing" style="background:#FEF3C7; color:#D97706; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-clock-history" style="margin-right:4px;"></i> Processing</span>`;
-
-                tr.innerHTML = `
-                    <td><div class="statement-id" style="font-weight:600;">${stmt.id}</div></td>
-                    <td>
-                        <div class="property-title" style="font-weight:600;">${stmt.property}</div>
-                        <div class="property-sub" style="font-size:11px; color:var(--muted);">${stmt.sub}</div>
-                    </td>
-                    <td>${stmt.period}</td>
-                    <td>${formatPeso(gross)}</td>
-                    <td><span style="color:var(--danger, #E11D48); font-weight:600;">-${formatPeso(totalDeductions)}</span></td>
-                    <td><strong style="color:${stmt.status === 'Disbursed' ? 'var(--success, #059669)' : 'var(--primary-blue, #2563EB)'};">${formatPeso(netPayout)}</strong></td>
-                    <td>${badgeHtml}</td>
-                    <td>
-                        <div style="display:flex; gap:6px;">
-                            <button class="action-button" title="View Itemized Statement" onclick="openStatementModal('${stmt.id}', ${gross}, ${repairs}, ${index === 0})"><i class="bi bi-eye"></i></button>
-                            <button class="action-button" title="Download Statement Summary" onclick="downloadStatementById('${stmt.id}', '${stmt.property}', '${stmt.period}', ${gross}, ${pmFee}, ${repairs}, ${netPayout}, '${stmt.status}')"><i class="bi bi-download"></i></button>
-                        </div>
-                    </td>
-                `;
-
-                tbody.appendChild(tr);
-            });
-
-            const countEl = document.getElementById('showingCountText');
-            if (countEl) {
-                countEl.textContent = `Showing 1–${statements.length} of ${statements.length} payout statements`;
+        tickets.forEach(t => {
+            const status = (t.status || '').toLowerCase();
+            if (status === 'resolved' || status === 'completed' || status === 'in progress' || status === 'assigned') {
+                const costVal = parseCurrency(t.cost || 1500.00);
+                repairSum += costVal;
+                repairList.push({ ...t, cost: costVal });
             }
-        }
+        });
 
-        // Calculate and Update Top KPI Cards
-        function updateOwnerKPIs() {
-            const statements = getStatements();
-            const { verifiedSum } = calculateVerifiedRentAdditions();
-            const { repairSum } = calculateMaintenanceDeductions();
-            const orgSettings = getOrgSettings();
-            const pmFeeRate = (parseFloat(orgSettings.pmFee) || 10) / 100;
-            const pmFeePct = Math.round(pmFeeRate * 100);
+        return { repairSum, repairList };
+    }
 
-            let ytdGross = 0;
-            let ytdDeductions = 0;
-            let ytdNet = 0;
+    // Render Statements Table
+    function renderStatementsTable() {
+        const statements = getStatements();
+        const { verifiedSum } = calculateVerifiedRentAdditions();
+        const { repairSum } = calculateMaintenanceDeductions();
+        const orgSettings = getOrgSettings();
+        const pmFeeRate = (parseFloat(orgSettings.pmFee) || 10) / 100;
 
-            statements.forEach((stmt, index) => {
-                let gross = parseCurrency(stmt.baseGross);
-                let repairs = parseCurrency(stmt.baseRepairs);
+        const tbody = document.getElementById('statementTable');
+        if (!tbody) return;
+        tbody.innerHTML = '';
 
-                if (index === 0) {
-                    if (verifiedSum > 0) gross += verifiedSum;
-                    if (repairSum > 0) repairs += repairSum;
-                }
+        statements.forEach((stmt, index) => {
+            let gross = parseCurrency(stmt.baseGross);
+            let repairs = parseCurrency(stmt.baseRepairs);
 
-                const pmFee = gross * pmFeeRate;
-                const deductions = pmFee + repairs;
-                const net = Math.max(0, gross - deductions);
+            // Current period dynamically merges verified rent (Maria Santos) & repair costs
+            if (index === 0) {
+                if (verifiedSum > 0) gross += verifiedSum;
+                if (repairSum > 0) repairs += repairSum;
+            }
 
-                ytdGross += gross;
-                ytdDeductions += deductions;
-                ytdNet += net;
-            });
-
-            const grossEl = document.getElementById('kpiGrossRent');
-            const deductEl = document.getElementById('kpiDeductions');
-            const netEl = document.getElementById('kpiNetPayout');
-            const subEl = document.getElementById('kpiDeductionsSub');
-
-            if (grossEl) grossEl.textContent = formatPeso(ytdGross);
-            if (deductEl) deductEl.textContent = formatPeso(ytdDeductions);
-            if (netEl) netEl.textContent = formatPeso(ytdNet);
-            if (subEl) subEl.textContent = `Repairs & ${pmFeePct}% PM fee split`;
-        }
-
-        function updateHeaderBadge() {
-            const notifs = getNotifications().filter(n => (n.pov === 'owner' || n.pov === 'all') && (n.status === 'unread' || n.is_read === false));
-            const badge = document.getElementById('ownerNotifBadge');
-            if (badge) badge.textContent = notifs.length;
-        }
-
-        // Open Modal with Itemized Financial Ledger Breakdown
-        function openStatementModal(stmtId, grossAmount, repairs, isCurrentPeriod) {
-            const orgSettings = getOrgSettings();
-            const pmFeeRate = (parseFloat(orgSettings.pmFee) || 10) / 100;
-            const pmFeePct = Math.round(pmFeeRate * 100);
-
-            document.getElementById('modalStatementTitle').textContent = `Itemized Statement — ${stmtId}`;
-
-            const pmFee = grossAmount * pmFeeRate;
+            // Core Financial Formula: Net Payout = Gross Rent - (PM Fee) - Repairs
+            const pmFee = gross * pmFeeRate;
             const totalDeductions = pmFee + repairs;
-            const netPayout = Math.max(0, grossAmount - totalDeductions);
+            const netPayout = Math.max(0, gross - totalDeductions);
 
-            const { verifiedList } = calculateVerifiedRentAdditions();
-            const { repairList } = calculateMaintenanceDeductions();
-            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
-            const ownerName = user.name || 'Don Ramon Santos';
+            const tr = document.createElement('tr');
+            tr.dataset.property = stmt.property || '';
+            tr.dataset.status = stmt.status || '';
 
-            currentModalStatementData = {
-                id: stmtId,
-                owner: ownerName,
-                gross: grossAmount,
-                pmFee: pmFee,
-                repairs: repairs,
-                netPayout: netPayout
-            };
+            let badgeHtml = stmt.status === 'Disbursed' 
+                ? `<span class="status-badge status-disbursed" style="background:#ECFDF5; color:#059669; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-check-circle" style="margin-right:4px;"></i> Disbursed</span>`
+                : `<span class="status-badge status-processing" style="background:#FEF3C7; color:#D97706; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-clock-history" style="margin-right:4px;"></i> Processing</span>`;
 
-            const metaEl = document.getElementById('modalStatementMeta');
-            if (metaEl) {
-                metaEl.innerHTML = `<strong>Owner:</strong> ${ownerName} &nbsp;|&nbsp; <strong>Period:</strong> August 2026 &nbsp;|&nbsp; <strong>Share:</strong> 100% Primary`;
-            }
-
-            // 1. Populate Income Revenues
-            const incomeContainer = document.getElementById('incomeRowsContainer');
-            incomeContainer.innerHTML = `
-                <div class="ledger-row" style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--border);"><span>Unit 102 Rent Collection (Base Portfolio)</span><span>₱22,000.00</span></div>
-                <div class="ledger-row" style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--border);"><span>Unit 103 Rent Collection (Base Portfolio)</span><span>₱98,000.00</span></div>
+            tr.innerHTML = `
+                <td><div class="statement-id" style="font-weight:600;">${stmt.id}</div></td>
+                <td>
+                    <div class="property-title" style="font-weight:600;">${stmt.property}</div>
+                    <div class="property-sub" style="font-size:11px; color:var(--muted);">${stmt.sub}</div>
+                </td>
+                <td>${stmt.period}</td>
+                <td>${formatPeso(gross)}</td>
+                <td><span style="color:var(--danger, #E11D48); font-weight:600;">-${formatPeso(totalDeductions)}</span></td>
+                <td><strong style="color:${stmt.status === 'Disbursed' ? 'var(--success, #059669)' : 'var(--primary, #2563EB)'};">${formatPeso(netPayout)}</strong></td>
+                <td>${badgeHtml}</td>
+                <td>
+                    <div style="display:flex; gap:6px;">
+                        <button class="action-button" title="View Itemized Statement" onclick="openStatementModal('${stmt.id}', ${gross}, ${repairs}, ${index === 0})"><i class="bi bi-eye"></i></button>
+                        <button class="action-button" title="Download Statement Summary" onclick="downloadStatementById('${stmt.id}', '${stmt.property}', '${stmt.period}', ${gross}, ${pmFee}, ${repairs}, ${netPayout}, '${stmt.status}')"><i class="bi bi-download"></i></button>
+                    </div>
+                </td>
             `;
 
-            if (isCurrentPeriod && verifiedList.length > 0) {
-                verifiedList.forEach(v => {
-                    const row = document.createElement('div');
-                    row.className = 'ledger-row';
-                    row.style.cssText = 'display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--border);';
-                    row.innerHTML = `<span style="color:var(--success, #059669); font-weight:600;"><i class="bi bi-check2"></i> Verified Rent: ${v.tenantName || 'Maria Santos'} (${v.sub || 'Bldg 2 • Unit 101'})</span><span style="color:var(--success, #059669); font-weight:600;">+${formatPeso(v.amount)}</span>`;
-                    incomeContainer.appendChild(row);
-                });
+            tbody.appendChild(tr);
+        });
+
+        const countEl = document.getElementById('showingCountText');
+        if (countEl) {
+            countEl.textContent = `Showing 1–${statements.length} of ${statements.length} payout statements`;
+        }
+    }
+
+    // Calculate and Update Top KPI Cards
+    function updateOwnerKPIs() {
+        const statements = getStatements();
+        const { verifiedSum } = calculateVerifiedRentAdditions();
+        const { repairSum } = calculateMaintenanceDeductions();
+        const orgSettings = getOrgSettings();
+        const pmFeeRate = (parseFloat(orgSettings.pmFee) || 10) / 100;
+        const pmFeePct = Math.round(pmFeeRate * 100);
+
+        let ytdGross = 0;
+        let ytdDeductions = 0;
+        let ytdNet = 0;
+
+        statements.forEach((stmt, index) => {
+            let gross = parseCurrency(stmt.baseGross);
+            let repairs = parseCurrency(stmt.baseRepairs);
+
+            if (index === 0) {
+                if (verifiedSum > 0) gross += verifiedSum;
+                if (repairSum > 0) repairs += repairSum;
             }
 
-            // 2. Populate Operating Expenses / Repair Deductions
-            const expenseContainer = document.getElementById('expenseRowsContainer');
-            expenseContainer.innerHTML = '';
+            const pmFee = gross * pmFeeRate;
+            const deductions = pmFee + repairs;
+            const net = Math.max(0, gross - deductions);
 
-            const pmFeeLabelEl = document.getElementById('modalPmFeeLabel');
-            if (pmFeeLabelEl) pmFeeLabelEl.textContent = `Property Management Commission (${pmFeePct}% Split)`;
+            ytdGross += gross;
+            ytdDeductions += deductions;
+            ytdNet += net;
+        });
 
-            if (isCurrentPeriod && repairList.length > 0) {
-                repairList.forEach(r => {
-                    const row = document.createElement('div');
-                    row.className = 'ledger-row';
-                    row.style.cssText = 'display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--border);';
-                    row.innerHTML = `<span style="color:var(--danger, #E11D48);"><i class="bi bi-tools"></i> Repair Deduction: ${r.title} (${r.fullLocation || 'Unit 101'}) — ${r.technician || 'Contractor'}</span><span style="color:var(--danger, #E11D48);">-${formatPeso(r.cost)}</span>`;
-                    expenseContainer.appendChild(row);
-                });
-            } else {
-                expenseContainer.innerHTML = `<div class="ledger-row" style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--border);"><span>Common Area & Plumbing Maintenance (Routine)</span><span>-${formatPeso(repairs)}</span></div>`;
-            }
+        const grossEl = document.getElementById('kpiGrossRent');
+        const deductEl = document.getElementById('kpiDeductions');
+        const netEl = document.getElementById('kpiNetPayout');
+        const subEl = document.getElementById('kpiDeductionsSub');
 
-            document.getElementById('modalGrossTotal').textContent = formatPeso(grossAmount);
-            document.getElementById('modalPmFee').textContent = `-${formatPeso(pmFee)}`;
-            document.getElementById('modalDeductionsTotal').textContent = `-${formatPeso(totalDeductions)}`;
-            document.getElementById('modalNetPayout').textContent = formatPeso(netPayout);
+        if (grossEl) grossEl.textContent = formatPeso(ytdGross);
+        if (deductEl) deductEl.textContent = formatPeso(ytdDeductions);
+        if (netEl) netEl.textContent = formatPeso(ytdNet);
+        if (subEl) subEl.textContent = `Repairs & ${pmFeePct}% PM fee split`;
+    }
 
-            document.getElementById('statementModal').classList.add('show');
-        }
+    function updateHeaderBadge() {
+        const notifs = getNotifications().filter(n => (n.pov === 'owner' || n.pov === 'all') && (n.status === 'unread' || n.is_read === false));
+        const badge = document.getElementById('ownerNotifBadge');
+        if (badge) badge.textContent = notifs.length;
+    }
 
-        function closeModal() {
-            document.getElementById('statementModal').classList.remove('show');
-            currentModalStatementData = null;
-        }
+    // Open Modal with Itemized Financial Ledger Breakdown
+    function openStatementModal(stmtId, grossAmount, repairs, isCurrentPeriod) {
+        const orgSettings = getOrgSettings();
+        const pmFeeRate = (parseFloat(orgSettings.pmFee) || 10) / 100;
+        const pmFeePct = Math.round(pmFeeRate * 100);
 
-        window.onclick = function(event) {
-            const modal = document.getElementById("statementModal");
-            if (event.target === modal) closeModal();
+        document.getElementById('modalStatementTitle').textContent = `Itemized Statement — ${stmtId}`;
+
+        const pmFee = grossAmount * pmFeeRate;
+        const totalDeductions = pmFee + repairs;
+        const netPayout = Math.max(0, grossAmount - totalDeductions);
+
+        const { verifiedList } = calculateVerifiedRentAdditions();
+        const { repairList } = calculateMaintenanceDeductions();
+        const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+        const ownerName = user.name || 'Don Ramon Santos';
+
+        currentModalStatementData = {
+            id: stmtId,
+            owner: ownerName,
+            gross: grossAmount,
+            pmFee: pmFee,
+            repairs: repairs,
+            netPayout: netPayout
         };
 
-        function downloadStatementById(id, prop, period, gross, pmFee, repairs, net, status) {
-            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
-            const ownerName = user.name || 'Don Ramon Santos';
-            const totalDeductions = pmFee + repairs;
+        const metaEl = document.getElementById('modalStatementMeta');
+        if (metaEl) {
+            metaEl.innerHTML = `<strong>Owner:</strong> ${ownerName} &nbsp;|&nbsp; <strong>Period:</strong> August 2026 &nbsp;|&nbsp; <strong>Share:</strong> 100% Primary`;
+        }
 
-            const textContent = 
+        // 1. Populate Income Revenues including Maria Santos (Unit 101)
+        const incomeContainer = document.getElementById('incomeRowsContainer');
+        incomeContainer.innerHTML = `
+            <div class="ledger-row" style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--border);"><span>Unit 102 Rent Collection (Base Portfolio)</span><span>₱22,000.00</span></div>
+            <div class="ledger-row" style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--border);"><span>Unit 103 Rent Collection (Base Portfolio)</span><span>₱98,000.00</span></div>
+        `;
+
+        if (isCurrentPeriod && verifiedList.length > 0) {
+            verifiedList.forEach(v => {
+                const row = document.createElement('div');
+                row.className = 'ledger-row';
+                row.style.cssText = 'display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--border);';
+                row.innerHTML = `<span style="color:var(--success, #059669); font-weight:600;"><i class="bi bi-check2"></i> Verified Rent: ${v.tenantName || 'Maria Santos'} (${v.sub || 'Sunrise Residences • Unit 101'})</span><span style="color:var(--success, #059669); font-weight:600;">+${formatPeso(v.amount)}</span>`;
+                incomeContainer.appendChild(row);
+            });
+        }
+
+        // 2. Populate Operating Expenses / Repair Deductions
+        const expenseContainer = document.getElementById('expenseRowsContainer');
+        expenseContainer.innerHTML = '';
+
+        const pmFeeLabelEl = document.getElementById('modalPmFeeLabel');
+        if (pmFeeLabelEl) pmFeeLabelEl.textContent = `Property Management Commission (${pmFeePct}% Split)`;
+
+        if (isCurrentPeriod && repairList.length > 0) {
+            repairList.forEach(r => {
+                const row = document.createElement('div');
+                row.className = 'ledger-row';
+                row.style.cssText = 'display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--border);';
+                row.innerHTML = `<span style="color:var(--danger, #E11D48);"><i class="bi bi-tools"></i> Repair Deduction: ${r.title} (${r.fullLocation || 'Sunrise Residences • Unit 101'}) — ${r.technician || 'Contractor'}</span><span style="color:var(--danger, #E11D48);">-${formatPeso(r.cost)}</span>`;
+                expenseContainer.appendChild(row);
+            });
+        } else {
+            expenseContainer.innerHTML = `<div class="ledger-row" style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--border);"><span>Common Area & Plumbing Maintenance (Routine)</span><span>-${formatPeso(repairs)}</span></div>`;
+        }
+
+        document.getElementById('modalGrossTotal').textContent = formatPeso(grossAmount);
+        document.getElementById('modalPmFee').textContent = `-${formatPeso(pmFee)}`;
+        document.getElementById('modalDeductionsTotal').textContent = `-${formatPeso(totalDeductions)}`;
+        document.getElementById('modalNetPayout').textContent = formatPeso(netPayout);
+
+        document.getElementById('statementModal').classList.add('show');
+    }
+
+    function closeModal() {
+        const modal = document.getElementById('statementModal');
+        if (modal) modal.classList.remove('show');
+        currentModalStatementData = null;
+    }
+
+    window.onclick = function(event) {
+        const modal = document.getElementById("statementModal");
+        if (event.target === modal) closeModal();
+    };
+
+    function downloadStatementById(id, prop, period, gross, pmFee, repairs, net, status) {
+        const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+        const ownerName = user.name || 'Don Ramon Santos';
+        const totalDeductions = pmFee + repairs;
+
+        const textContent = 
 `======================================================================
 ARGO PROPERTY MANAGEMENT — OFFICIAL OWNER YIELD STATEMENT
 ======================================================================
@@ -1500,13 +1525,13 @@ Generated Date  : ${new Date().toLocaleDateString('en-US', { year: 'numeric', mo
 ----------------------------------------------------------------------
 FINANCIAL REVENUE & EXPENSE SUMMARY
 ----------------------------------------------------------------------
-Gross Rental Income Recorded        : ${formatPeso(gross)}
-Less: Property Management Commission: -${formatPeso(pmFee)}
-Less: Maintenance & Unit Repairs   : -${formatPeso(repairs)}
+Gross Rental Income (Includes Unit 101)  : ${formatPeso(gross)}
+Less: Property Management Commission    : -${formatPeso(pmFee)}
+Less: Maintenance & Unit Repairs        : -${formatPeso(repairs)}
 ----------------------------------------------------------------------
-Total Operating Deductions          : -${formatPeso(totalDeductions)}
+Total Operating Deductions              : -${formatPeso(totalDeductions)}
 ======================================================================
-NET OPERATING YIELD (NOI) DISBURSED : ${formatPeso(net)}
+NET OPERATING YIELD (NOI) DISBURSED     : ${formatPeso(net)}
 ======================================================================
 
 Target Disbursement Account:
@@ -1517,72 +1542,72 @@ TIN: 231-998-102-000
 This official statement is system-generated and verified by ARGO Platform.
 ======================================================================`;
 
-            const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `Statement_${id}_${period.replace(/[^a-zA-Z0-9]/g, '_')}.txt`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-        }
+        const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `Statement_${id}_${period.replace(/[^a-zA-Z0-9]/g, '_')}.txt`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    }
 
-        function downloadCurrentModalStatement() {
-            if (!currentModalStatementData) {
-                alert('No active statement loaded.');
-                return;
+    function downloadCurrentModalStatement() {
+        if (!currentModalStatementData) {
+            alert('No active statement loaded.');
+            return;
+        }
+        downloadStatementById(
+            currentModalStatementData.id,
+            'Sunrise Residences Portfolio',
+            'August 2026',
+            currentModalStatementData.gross,
+            currentModalStatementData.pmFee,
+            currentModalStatementData.repairs,
+            currentModalStatementData.netPayout,
+            'Verified'
+        );
+    }
+
+    function downloadAnnualStatement() {
+        const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+        const ownerName = user.name || 'Don Ramon Santos';
+        const statements = getStatements();
+        const { verifiedSum } = calculateVerifiedRentAdditions();
+        const { repairSum } = calculateMaintenanceDeductions();
+        const orgSettings = getOrgSettings();
+        const pmFeeRate = (parseFloat(orgSettings.pmFee) || 10) / 100;
+
+        let totalGross = 0;
+        let totalDeduct = 0;
+        let totalNet = 0;
+
+        let details = '';
+        statements.forEach((stmt, index) => {
+            let gross = parseCurrency(stmt.baseGross);
+            let repairs = parseCurrency(stmt.baseRepairs);
+            if (index === 0) {
+                gross += verifiedSum;
+                repairs += repairSum;
             }
-            downloadStatementById(
-                currentModalStatementData.id,
-                'Sunrise Property Portfolio',
-                'August 2026',
-                currentModalStatementData.gross,
-                currentModalStatementData.pmFee,
-                currentModalStatementData.repairs,
-                currentModalStatementData.netPayout,
-                'Verified'
-            );
-        }
+            const pmFee = gross * pmFeeRate;
+            const deductions = pmFee + repairs;
+            const net = Math.max(0, gross - deductions);
 
-        function downloadAnnualStatement() {
-            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
-            const ownerName = user.name || 'Don Ramon Santos';
-            const statements = getStatements();
-            const { verifiedSum } = calculateVerifiedRentAdditions();
-            const { repairSum } = calculateMaintenanceDeductions();
-            const orgSettings = getOrgSettings();
-            const pmFeeRate = (parseFloat(orgSettings.pmFee) || 10) / 100;
+            totalGross += gross;
+            totalDeduct += deductions;
+            totalNet += net;
 
-            let totalGross = 0;
-            let totalDeduct = 0;
-            let totalNet = 0;
+            details += `${stmt.id.padEnd(14)} | ${stmt.period.padEnd(20)} | Gross: ${formatPeso(gross).padStart(12)} | Deductions: ${formatPeso(deductions).padStart(12)} | Net: ${formatPeso(net).padStart(12)}\n`;
+        });
 
-            let details = '';
-            statements.forEach((stmt, index) => {
-                let gross = parseCurrency(stmt.baseGross);
-                let repairs = parseCurrency(stmt.baseRepairs);
-                if (index === 0) {
-                    gross += verifiedSum;
-                    repairs += repairSum;
-                }
-                const pmFee = gross * pmFeeRate;
-                const deductions = pmFee + repairs;
-                const net = Math.max(0, gross - deductions);
-
-                totalGross += gross;
-                totalDeduct += deductions;
-                totalNet += net;
-
-                details += `${stmt.id.padEnd(14)} | ${stmt.period.padEnd(20)} | Gross: ${formatPeso(gross).padStart(12)} | Deductions: ${formatPeso(deductions).padStart(12)} | Net: ${formatPeso(net).padStart(12)}\n`;
-            });
-
-            const content = 
+        const content = 
 `======================================================================================
 ARGO PROPERTY MANAGEMENT — CONSOLIDATED ANNUAL OWNER YIELD REPORT (2026)
 ======================================================================================
 Owner Profile   : ${ownerName}
-Portfolio Assets: Sunrise Property Group Portfolio
+Portfolio Assets: Sunrise Residences Portfolio (Includes Unit 101 • Maria Santos)
 Report Date     : ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
 
 --------------------------------------------------------------------------------------
@@ -1599,72 +1624,63 @@ NET ANNUAL PORTFOLIO OPERATING YIELD: ${formatPeso(totalNet)}
 ======================================================================================
 Certified True & Correct Copy from ARGO Master Multi-Tenant PostgreSQL Ledger.`;
 
-            const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `Annual_Owner_Statement_2026_${ownerName.replace(/[^a-zA-Z0-9]/g, '_')}.txt`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-        }
+        const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `Annual_Owner_Statement_2026_${ownerName.replace(/[^a-zA-Z0-9]/g, '_')}.txt`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    }
 
-        function filterTable() {
-            const searchValue = document.getElementById("searchInput").value.toLowerCase();
-            const propertyValue = document.getElementById("propertyFilter").value;
-            const statusValue = document.getElementById("statusFilter").value;
+    function filterTable() {
+        const searchValue = document.getElementById("searchInput").value.toLowerCase();
+        const propertyValue = document.getElementById("propertyFilter").value;
+        const statusValue = document.getElementById("statusFilter").value;
 
-            const rows = document.querySelectorAll("#statementTable tr");
-            let visibleCount = 0;
-            let totalRows = 0;
+        const rows = document.querySelectorAll("#statementTable tr");
 
-            rows.forEach(row => {
-                if (!row.dataset.property && !row.dataset.status) return;
-                totalRows++;
+        rows.forEach(row => {
+            if (!row.dataset.property && !row.dataset.status) return;
 
-                const text = row.innerText.toLowerCase();
-                const rowProperty = row.dataset.property || "";
-                const rowStatus = row.dataset.status || "";
+            const text = row.innerText.toLowerCase();
+            const rowProperty = row.dataset.property || "";
+            const rowStatus = row.dataset.status || "";
 
-                const matchesSearch = text.includes(searchValue);
-                const matchesProperty = propertyValue === "" || rowProperty.includes(propertyValue) || propertyValue.includes(rowProperty);
-                const matchesStatus = statusValue === "" || rowStatus.toLowerCase() === statusValue.toLowerCase();
+            const matchesSearch = text.includes(searchValue);
+            const matchesProperty = propertyValue === "" || rowProperty.includes(propertyValue) || propertyValue.includes(rowProperty);
+            const matchesStatus = statusValue === "" || rowStatus.toLowerCase() === statusValue.toLowerCase();
 
-                if (matchesSearch && matchesProperty && matchesStatus) {
-                    row.style.display = "";
-                    visibleCount++;
-                } else {
-                    row.style.display = "none";
-                }
-            });
-
-            const countEl = document.getElementById('showingCountText');
-            if (countEl) {
-                countEl.textContent = `Showing ${visibleCount} of ${totalRows} payout statements`;
+            if (matchesSearch && matchesProperty && matchesStatus) {
+                row.style.display = "";
+            } else {
+                row.style.display = "none";
             }
-        }
+        });
+    }
 
-        function resetFilters() {
-            document.getElementById("searchInput").value = "";
-            document.getElementById("propertyFilter").value = "";
-            document.getElementById("statusFilter").value = "";
-            filterTable();
-        }
+    function resetFilters() {
+        document.getElementById("searchInput").value = "";
+        document.getElementById("propertyFilter").value = "";
+        document.getElementById("statusFilter").value = "";
+        filterTable();
+    }
 
-        // Profile Dropdown Handler
-        const userProfileBtn = document.getElementById('userProfileBtn');
-        const userDropdown = document.getElementById('userDropdown');
+    // Profile Dropdown Handler
+    const userProfileBtn = document.getElementById('userProfileBtn');
+    const userDropdown = document.getElementById('userDropdown');
 
-        if (userProfileBtn && userDropdown) {
-            userProfileBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                userDropdown.classList.toggle('show');
-            });
+    if (userProfileBtn && userDropdown) {
+        userProfileBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            userDropdown.classList.toggle('show');
+        });
 
-            document.addEventListener('click', () => { 
-                userDropdown.classList.remove('show'); 
-            });
-        }
-    </script>
+        document.addEventListener('click', () => { 
+            userDropdown.classList.remove('show'); 
+        });
+    }
+</script>
 </body>

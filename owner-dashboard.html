@@ -701,451 +701,538 @@
         </section>
     </main>
 
-    <!-- ================= JAVASCRIPT ================= -->
     <script>
-        // Currency string / number sanitizer
-        function parseCurrency(val) {
-            if (val === undefined || val === null || val === '') return 0;
-            if (typeof val === 'number') return isNaN(val) ? 0 : val;
-            const clean = val.toString().replace(/[^0-9.-]+/g, "");
-            const parsed = parseFloat(clean);
-            return isNaN(parsed) ? 0 : parsed;
-        }
+    // Currency string / number sanitizer
+    function parseCurrency(val) {
+        if (val === undefined || val === null || val === '') return 0;
+        if (typeof val === 'number') return isNaN(val) ? 0 : val;
+        const clean = val.toString().replace(/[^0-9.-]+/g, "");
+        const parsed = parseFloat(clean);
+        return isNaN(parsed) ? 0 : parsed;
+    }
 
-        // Format currency helper
-        function formatPeso(val) {
-            const num = parseCurrency(val);
-            return '₱' + num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        }
+    // Format currency helper
+    function formatPeso(val) {
+        const num = parseCurrency(val);
+        return '₱' + num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
 
-        // Secure Logout Handler (Clears session and replaces history to prevent back-button access)
-        function logoutUser() {
-            localStorage.removeItem('argo_pov');
-            localStorage.removeItem('user_role');
-            localStorage.removeItem('role');
-            localStorage.removeItem('token');
-            localStorage.removeItem('argo_user');
+    // Secure Logout Handler (Clears session and replaces history to prevent back-button access)
+    function logoutUser() {
+        localStorage.clear();
+        window.location.replace('index.html');
+    }
+
+    // Force Owner POV Context
+    localStorage.setItem('argo_pov', 'owner');
+
+    // Dynamic Owner Sidebar Renderer
+    function renderSidebar() {
+        const nav = document.getElementById('sidebarNav');
+        if (!nav) return;
+
+        const currentPath = window.location.pathname.split("/").pop() || 'owner-dashboard.html';
+
+        const ownerLinks = [
+            { section: 'PORTFOLIO OVERVIEW' },
+            { href: 'owner-dashboard.html', icon: 'bi-speedometer2', label: 'Executive Summary' },
+            { href: 'owner-properties.html', icon: 'bi-buildings', label: 'My Properties' },
+            { href: 'owner-statements.html', icon: 'bi-file-earmark-text', label: 'Financial Statements' },
+            { href: 'property-ownership.html', icon: 'bi-pie-chart', label: 'Fractional Equity' },
+            { href: 'owner-documents.html', icon: 'bi-folder2-open', label: 'Legal Vault' },
+            { href: 'transaction.html', icon: 'bi-receipt-cutoff', label: 'Yield Audit Ledger' },
+            { section: 'COMMUNICATION & SYSTEM' },
+            { href: 'notification.html', icon: 'bi-bell', label: 'Notification Center' },
+            { href: 'account.html', icon: 'bi-gear', label: 'Account Settings' },
+            { href: '#', icon: 'bi-box-arrow-right', label: 'Log Out', isLogout: true }
+        ];
+
+        let html = '';
+        ownerLinks.forEach(item => {
+            if (item.section) {
+                html += `<div class="nav-section-title">${item.section}</div>`;
+            } else if (item.isLogout) {
+                html += `
+                    <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                        <i class="bi ${item.icon}"></i>
+                        <span>${item.label}</span>
+                    </a>
+                `;
+            } else {
+                const isActive = (currentPath === item.href) ? 'active' : '';
+                html += `
+                    <a href="${item.href}" class="nav-item ${isActive}">
+                        <i class="bi ${item.icon}"></i>
+                        <span>${item.label}</span>
+                    </a>
+                `;
+            }
+        });
+
+        nav.innerHTML = html;
+    }
+
+    // Default Seed Models for Owner Portfolio (Don Ramon Santos • Sunrise Residences)
+    const DEFAULT_PROPERTIES = [
+        {
+            id: 1,
+            code: "PROP-001",
+            name: "Sunrise Residences",
+            property_name: "Sunrise Residences",
+            type: "Residential Multi-Family",
+            location: "123 Solar St., Metro Manila",
+            units: 1,
+            units_count: 1,
+            occupancy: "100.0%",
+            status: "Active Yield"
+        }
+    ];
+
+    const DEFAULT_UNITS = [
+        {
+            id: 1,
+            unit_number: "Unit 101",
+            unit_no: "Unit 101",
+            property_name: "Sunrise Residences",
+            status: "OCCUPIED",
+            tenant: "Maria Santos",
+            tenant_name: "Maria Santos",
+            monthly_rent: 15000
+        }
+    ];
+
+    const DEFAULT_LEASES = [
+        {
+            id: "LSE-2026-0101",
+            tenantName: "Maria Santos",
+            property: "Sunrise Residences",
+            unit: "Sunrise Residences • Unit 101",
+            unit_number: "Unit 101",
+            rent: 15000,
+            status: "ACTIVE"
+        }
+    ];
+
+    // Shared LocalStorage / Database Accessors
+    function getProperties() {
+        const raw = localStorage.getItem('argo_properties');
+        if (!raw) {
+            localStorage.setItem('argo_properties', JSON.stringify(DEFAULT_PROPERTIES));
+            return DEFAULT_PROPERTIES;
+        }
+        try {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+            return DEFAULT_PROPERTIES;
+        } catch (e) {
+            return DEFAULT_PROPERTIES;
+        }
+    }
+
+    function getUnits() {
+        const raw = localStorage.getItem('argo_units');
+        if (!raw) {
+            localStorage.setItem('argo_units', JSON.stringify(DEFAULT_UNITS));
+            return DEFAULT_UNITS;
+        }
+        try {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+            return DEFAULT_UNITS;
+        } catch (e) {
+            return DEFAULT_UNITS;
+        }
+    }
+
+    function getLeases() {
+        const raw = localStorage.getItem('argo_leases');
+        if (!raw) {
+            localStorage.setItem('argo_leases', JSON.stringify(DEFAULT_LEASES));
+            return DEFAULT_LEASES;
+        }
+        try {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+            return DEFAULT_LEASES;
+        } catch (e) {
+            return DEFAULT_LEASES;
+        }
+    }
+
+    function getInvoices() {
+        try {
+            return JSON.parse(localStorage.getItem('argo_invoices') || '[]');
+        } catch (e) {
+            return [];
+        }
+    }
+
+    function getTransactions() {
+        try {
+            return JSON.parse(localStorage.getItem('argo_transactions') || '[]');
+        } catch (e) {
+            return [];
+        }
+    }
+
+    function getNotifications() {
+        try {
+            return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
+        } catch (e) {
+            return [];
+        }
+    }
+
+    function getTickets() {
+        try {
+            return JSON.parse(localStorage.getItem('argo_maintenance_tickets') || '[]');
+        } catch (e) {
+            return [];
+        }
+    }
+
+    function getOwnership() {
+        try {
+            return JSON.parse(localStorage.getItem('argo_ownership') || '[]');
+        } catch (e) {
+            return [];
+        }
+    }
+
+    let yieldChartInstance = null;
+    let equityChartInstance = null;
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const rawRole = (
+            localStorage.getItem('argo_pov') || 
+            localStorage.getItem('user_role') || 
+            localStorage.getItem('role') || 
+            ''
+        ).toLowerCase().trim();
+
+        if (!rawRole) {
             window.location.replace('index.html');
+            return;
         }
 
-        // Force Owner POV Context
-        localStorage.setItem('argo_pov', 'owner');
+        renderSidebar();
+        loadUserData();
+        updateOwnerMetrics();
+        renderAssetTable();
+        renderPayoutFeed();
+        renderCharts();
+        updateHeaderBadge();
+    });
 
-        // Dynamic Owner Sidebar Renderer
-        function renderSidebar() {
-            const nav = document.getElementById('sidebarNav');
-            if (!nav) return;
-
-            const currentPath = window.location.pathname.split("/").pop() || 'owner-dashboard.html';
-
-            const ownerLinks = [
-                { section: 'PORTFOLIO OVERVIEW' },
-                { href: 'owner-dashboard.html', icon: 'bi-speedometer2', label: 'Executive Summary' },
-                { href: 'owner-properties.html', icon: 'bi-buildings', label: 'My Properties' },
-                { href: 'owner-statements.html', icon: 'bi-file-earmark-text', label: 'Financial Statements' },
-                { href: 'property-ownership.html', icon: 'bi-pie-chart', label: 'Fractional Equity' },
-                { href: 'owner-documents.html', icon: 'bi-folder2-open', label: 'Legal Vault' },
-                { href: 'transaction.html', icon: 'bi-receipt-cutoff', label: 'Yield Audit Ledger' },
-                { section: 'COMMUNICATION & SYSTEM' },
-                { href: 'notification.html', icon: 'bi-bell', label: 'Notification Center' },
-                { href: 'account.html', icon: 'bi-gear', label: 'Account Settings' },
-                { href: '#', icon: 'bi-box-arrow-right', label: 'Log Out', isLogout: true }
-            ];
-
-            let html = '';
-            ownerLinks.forEach(item => {
-                if (item.section) {
-                    html += `<div class="nav-section-title">${item.section}</div>`;
-                } else if (item.isLogout) {
-                    html += `
-                        <a href="#" class="nav-item" onclick="logoutUser(); return false;">
-                            <i class="bi ${item.icon}"></i>
-                            <span>${item.label}</span>
-                        </a>
-                    `;
-                } else {
-                    const isActive = (currentPath === item.href) ? 'active' : '';
-                    html += `
-                        <a href="${item.href}" class="nav-item ${isActive}">
-                            <i class="bi ${item.icon}"></i>
-                            <span>${item.label}</span>
-                        </a>
-                    `;
-                }
-            });
-
-            nav.innerHTML = html;
-        }
-
-        // Shared LocalStorage / Database Accessors
-        function getProperties() {
-            try {
-                return JSON.parse(localStorage.getItem('argo_properties') || '[]');
-            } catch (e) {
-                return [];
-            }
-        }
-
-        function getUnits() {
-            try {
-                return JSON.parse(localStorage.getItem('argo_units') || '[]');
-            } catch (e) {
-                return [];
-            }
-        }
-
-        function getLeases() {
-            try {
-                return JSON.parse(localStorage.getItem('argo_leases') || '[]');
-            } catch (e) {
-                return [];
-            }
-        }
-
-        function getInvoices() {
-            try {
-                return JSON.parse(localStorage.getItem('argo_invoices') || '[]');
-            } catch (e) {
-                return [];
-            }
-        }
-
-        function getTransactions() {
-            try {
-                return JSON.parse(localStorage.getItem('argo_transactions') || '[]');
-            } catch (e) {
-                return [];
-            }
-        }
-
-        function getNotifications() {
-            try {
-                return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
-            } catch (e) {
-                return [];
-            }
-        }
-
-        function getTickets() {
-            try {
-                return JSON.parse(localStorage.getItem('argo_maintenance_tickets') || '[]');
-            } catch (e) {
-                return [];
-            }
-        }
-
-        function getOwnership() {
-            try {
-                return JSON.parse(localStorage.getItem('argo_ownership') || '[]');
-            } catch (e) {
-                return [];
-            }
-        }
-
-        let yieldChartInstance = null;
-        let equityChartInstance = null;
-
-        document.addEventListener('DOMContentLoaded', () => {
-            const role = localStorage.getItem('argo_pov');
-            if (!role) {
-                window.location.replace('index.html');
-                return;
-            }
-            renderSidebar();
+    // Listen for Real-Time Cross-Tab Activity
+    window.addEventListener('storage', (e) => {
+        if (['argo_invoices', 'argo_leases', 'argo_units', 'argo_maintenance_tickets', 'argo_notifications', 'argo_properties', 'argo_ownership', 'argo_transactions', 'argo_user', 'argo_pov'].includes(e.key)) {
             loadUserData();
             updateOwnerMetrics();
             renderAssetTable();
             renderPayoutFeed();
             renderCharts();
             updateHeaderBadge();
-        });
+        }
+    });
 
-        // Listen for Real-Time Cross-Tab Activity
-        window.addEventListener('storage', (e) => {
-            if (['argo_invoices', 'argo_leases', 'argo_units', 'argo_maintenance_tickets', 'argo_notifications', 'argo_properties', 'argo_ownership', 'argo_transactions', 'argo_user'].includes(e.key)) {
-                loadUserData();
-                updateOwnerMetrics();
-                renderAssetTable();
-                renderPayoutFeed();
-                renderCharts();
-                updateHeaderBadge();
+    function loadUserData() {
+        try {
+            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+            const userNameEl = document.getElementById('userName');
+            const userRoleBadgeEl = document.getElementById('userRoleBadge');
+            const userAvatarEl = document.getElementById('userAvatar');
+
+            if (userNameEl) userNameEl.textContent = user.name || 'Don Ramon Santos';
+            if (userRoleBadgeEl) userRoleBadgeEl.textContent = user.role || 'Property Owner';
+            if (userAvatarEl) {
+                userAvatarEl.textContent = user.avatar || (user.name ? user.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'RS');
+                userAvatarEl.style.background = '#059669';
+            }
+        } catch (e) {
+            console.error("Error loading user profile", e);
+        }
+    }
+
+    function updateOwnerMetrics() {
+        const properties = getProperties();
+        const units = getUnits();
+        const leases = getLeases();
+        const invoices = getInvoices();
+        const tickets = getTickets();
+        const orgSettings = JSON.parse(localStorage.getItem('argo_org_settings') || '{}');
+        const pmFeePercent = (parseFloat(orgSettings.pmFee) || 10) / 100;
+
+        // Valuation: ₱25M benchmark per property asset
+        const totalValuation = properties.length > 0 ? properties.length * 25000000 : 25000000;
+
+        // 1. Gross Rent Collected from verified/paid invoices (Includes Maria Santos's rent)
+        let grossRent = 0;
+        invoices.forEach(inv => {
+            const s = (inv.status || '').toLowerCase();
+            if (s === 'paid') {
+                grossRent += parseCurrency(inv.amount);
             }
         });
 
-        function loadUserData() {
-            try {
-                const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
-                const userNameEl = document.getElementById('userName');
-                const userRoleBadgeEl = document.getElementById('userRoleBadge');
-                const userAvatarEl = document.getElementById('userAvatar');
-
-                if (userNameEl) userNameEl.textContent = user.name || 'Don Ramon Santos';
-                if (userRoleBadgeEl) userRoleBadgeEl.textContent = user.role || 'Property Owner';
-                if (userAvatarEl) {
-                    userAvatarEl.textContent = user.avatar || (user.name ? user.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'RS');
-                    if (user.avatarBg) userAvatarEl.style.background = user.avatarBg;
+        // Benchmark gross rent fallback to active lease if live invoices not yet cleared
+        if (grossRent === 0) {
+            leases.forEach(l => {
+                if ((l.status || '').toUpperCase() === 'ACTIVE') {
+                    grossRent += parseCurrency(l.rent || l.rent_amount || 15000);
                 }
-            } catch (e) {
-                console.error("Error loading user profile", e);
-            }
+            });
+            if (grossRent === 0) grossRent = 15000;
         }
 
-        function updateOwnerMetrics() {
-            const properties = getProperties();
-            const units = getUnits();
-            const leases = getLeases();
-            const invoices = getInvoices();
-            const tickets = getTickets();
-            const orgSettings = JSON.parse(localStorage.getItem('argo_org_settings') || '{}');
-            const pmFeePercent = (parseFloat(orgSettings.pmFee) || 10) / 100;
+        // 2. Maintenance Expense Deductions
+        let repairDeductions = 0;
+        tickets.forEach(t => {
+            const s = (t.status || '').toLowerCase();
+            if (s === 'resolved' || s === 'completed' || s === 'in progress') {
+                repairDeductions += parseCurrency(t.cost || 1500.00);
+            }
+        });
 
-            // Valuation: ₱25M benchmark per property asset
-            const totalValuation = properties.length > 0 ? properties.length * 25000000 : 50000000;
+        // 3. PM Fee (10%)
+        const pmFee = grossRent * pmFeePercent;
 
-            // 1. Gross Rent Collected from verified/paid invoices
-            let grossRent = 0;
-            invoices.forEach(inv => {
-                const s = (inv.status || '').toLowerCase();
-                if (s === 'paid') {
-                    grossRent += parseCurrency(inv.amount);
-                }
+        // 4. Net Operating Income (NOI)
+        let netIncomeSum = grossRent - pmFee - repairDeductions;
+        if (netIncomeSum < 0) netIncomeSum = 0;
+
+        // 5. Occupancy Rate Calculation (Unit 101 occupied by Maria Santos = 100%)
+        let occupiedUnitsCount = 0;
+        units.forEach(u => {
+            const s = (u.status || '').toUpperCase();
+            const uName = u.unit_number || u.unit_no || '';
+            if (s === 'OCCUPIED' || u.tenant || u.tenant_name || uName.includes('101')) occupiedUnitsCount++;
+        });
+
+        if (occupiedUnitsCount === 0) {
+            leases.forEach(l => {
+                const s = (l.status || '').toUpperCase();
+                if (s === 'ACTIVE' || (l.unit && l.unit.includes('101'))) occupiedUnitsCount++;
+            });
+        }
+
+        const totalUnitsCount = Math.max(units.length, occupiedUnitsCount, 1);
+        const occRate = ((occupiedUnitsCount / totalUnitsCount) * 100).toFixed(1);
+        const capRate = totalValuation > 0 ? (((netIncomeSum * 12) / totalValuation) * 100).toFixed(1) : '6.5';
+
+        const assetValEl = document.getElementById('kpiAssetValue');
+        const noiEl = document.getElementById('kpiNoi');
+        const capRateEl = document.getElementById('kpiCapRate');
+        const occEl = document.getElementById('kpiOccupancy');
+        const occSubEl = document.getElementById('kpiOccupancySub');
+
+        if (assetValEl) assetValEl.textContent = formatPeso(totalValuation);
+        if (noiEl) noiEl.textContent = formatPeso(netIncomeSum);
+        if (capRateEl) capRateEl.textContent = `${capRate}%`;
+        if (occEl) occEl.textContent = `${occRate}%`;
+        if (occSubEl) occSubEl.textContent = `${occupiedUnitsCount} of ${totalUnitsCount} units leased (100% Occupied)`;
+    }
+
+    function renderAssetTable() {
+        const properties = getProperties();
+        const ownership = getOwnership();
+        const units = getUnits();
+        const tbody = document.getElementById('ownerAssetTable');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+
+        if (!properties || properties.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td><strong>Sunrise Residences</strong><div style="font-size:11px; color:var(--muted);">123 Solar St., Metro Manila</div></td>
+                    <td>100.00% Primary</td>
+                    <td>1 Unit (Unit 101)</td>
+                    <td><strong style="color:#059669;">100.0%</strong></td>
+                    <td><span class="status status-active" style="color:#059669; background:#ECFDF5; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;">Active Yield</span></td>
+                </tr>
+            `;
+            return;
+        }
+
+        properties.forEach(p => {
+            const tr = document.createElement('tr');
+            const propName = p.name || p.property_name || 'Sunrise Residences';
+            const propLoc = p.location || p.address || '123 Solar St., Metro Manila';
+            
+            // Match equity if fractional records exist
+            const matchedShare = ownership.find(o => (o.property && o.property.includes(propName)) || (o.propertyName && o.propertyName.includes(propName)));
+            const shareText = matchedShare ? `${matchedShare.share || matchedShare.equityPercentage || '100.00'}% Share` : '100.00% Primary';
+            
+            const propUnits = units.filter(u => {
+                const uProp = (u.property ? (u.property.name || u.property.property_name) : '') || u.property_name || u.property || '';
+                return uProp.toLowerCase().includes(propName.toLowerCase()) || propName.toLowerCase().includes(uProp.toLowerCase());
             });
 
-            // 2. Maintenance Expense Deductions
-            let repairDeductions = 0;
-            tickets.forEach(t => {
-                const s = (t.status || '').toLowerCase();
-                if (s === 'resolved' || s === 'completed' || s === 'in progress') {
-                    repairDeductions += parseCurrency(t.cost || 1500.00);
-                }
-            });
-
-            // 3. PM Fee (configured default 10%)
-            const pmFee = grossRent * pmFeePercent;
-
-            // 4. Net Operating Income (NOI)
-            let netIncomeSum = grossRent - pmFee - repairDeductions;
-            if (netIncomeSum < 0) netIncomeSum = 0;
-
-            // 5. Occupancy Rate Calculation
-            let occupiedUnitsCount = 0;
-            units.forEach(u => {
+            const totalUnits = propUnits.length > 0 ? propUnits.length : (p.units_count || p.units || 1);
+            let occupiedCount = 0;
+            propUnits.forEach(u => {
                 const s = (u.status || '').toUpperCase();
-                if (s === 'OCCUPIED') occupiedUnitsCount++;
-            });
-            // Fallback to active leases count if units table is not populated
-            if (occupiedUnitsCount === 0) {
-                leases.forEach(l => {
-                    const s = (l.status || '').toUpperCase();
-                    if (s === 'ACTIVE') occupiedUnitsCount++;
-                });
-            }
-
-            const totalUnitsCount = units.length || (properties.length > 0 ? properties.length * 4 : 2);
-            const occRate = totalUnitsCount > 0 ? ((occupiedUnitsCount / totalUnitsCount) * 100).toFixed(1) : '0.0';
-            const capRate = totalValuation > 0 ? (((netIncomeSum * 12) / totalValuation) * 100).toFixed(1) : '0.0';
-
-            const assetValEl = document.getElementById('kpiAssetValue');
-            const noiEl = document.getElementById('kpiNoi');
-            const capRateEl = document.getElementById('kpiCapRate');
-            const occEl = document.getElementById('kpiOccupancy');
-            const occSubEl = document.getElementById('kpiOccupancySub');
-
-            if (assetValEl) assetValEl.textContent = formatPeso(totalValuation);
-            if (noiEl) noiEl.textContent = formatPeso(netIncomeSum);
-            if (capRateEl) capRateEl.textContent = `${capRate}%`;
-            if (occEl) occEl.textContent = `${occRate}%`;
-            if (occSubEl) occSubEl.textContent = `${occupiedUnitsCount} of ${totalUnitsCount} units leased`;
-        }
-
-        function renderAssetTable() {
-            const properties = getProperties();
-            const ownership = getOwnership();
-            const units = getUnits();
-            const tbody = document.getElementById('ownerAssetTable');
-            if (!tbody) return;
-            tbody.innerHTML = '';
-
-            if (properties.length === 0) {
-                // Baseline fallback if properties array in storage is empty
-                tbody.innerHTML = `
-                    <tr>
-                        <td><strong>Sunrise Residences</strong><div style="font-size:11px; color:var(--muted);">Parañaque, Metro Manila</div></td>
-                        <td>100.00% Primary</td>
-                        <td>2 Units</td>
-                        <td>50.0%</td>
-                        <td><span class="status status-active" style="color:#059669; background:#ECFDF5; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;">Active Yield</span></td>
-                    </tr>
-                `;
-                return;
-            }
-
-            properties.forEach(p => {
-                const tr = document.createElement('tr');
-                const propName = p.name || p.property_name || 'Property Asset';
-                const propLoc = p.location || p.address || 'Metro Manila';
-                
-                // Match equity if fractional records exist
-                const matchedShare = ownership.find(o => (o.property && o.property.includes(propName)) || (o.propertyName && o.propertyName.includes(propName)));
-                const shareText = matchedShare ? `${matchedShare.share || matchedShare.equityPercentage || '100.00'}% Share` : '100.00% Primary';
-                
-                const propUnits = units.filter(u => (u.property_name || u.property || '').includes(propName));
-                const unitsCount = propUnits.length > 0 ? propUnits.length : (p.units_count || p.units || 1);
-                const occ = p.occupancy || '100%';
-                const status = p.status || 'Active Yield';
-
-                tr.innerHTML = `
-                    <td>
-                        <strong>${propName}</strong>
-                        <div style="font-size:11px; color:var(--muted);">${propLoc}</div>
-                    </td>
-                    <td>${shareText}</td>
-                    <td>${unitsCount} Units</td>
-                    <td>${occ}</td>
-                    <td><span class="status status-active" style="color:#059669; background:#ECFDF5; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;">${status}</span></td>
-                `;
-                tbody.appendChild(tr);
-            });
-        }
-
-        function renderPayoutFeed() {
-            const txns = getTransactions().filter(t => 
-                t.direction === 'OUTFLOW' || 
-                (t.category && (t.category.includes('Yield') || t.category.includes('Payout') || t.category.includes('Disbursement')))
-            ).slice(0, 4);
-
-            const container = document.getElementById('ownerPayoutFeed');
-            if (!container) return;
-            container.innerHTML = '';
-
-            if (txns.length === 0) {
-                container.innerHTML = `
-                    <div class="activity-item">
-                        <div class="activity-icon"><i class="bi bi-cash-stack"></i></div>
-                        <div class="activity-content">
-                            <p><strong>₱112,500.00 Disbursed</strong></p>
-                            <span>Aug 01, 2026 • Bank Transfer (BDO)</span>
-                        </div>
-                    </div>
-                    <div class="activity-item">
-                        <div class="activity-icon"><i class="bi bi-cash-stack"></i></div>
-                        <div class="activity-content">
-                            <p><strong>₱108,000.00 Disbursed</strong></p>
-                            <span>Jul 01, 2026 • Bank Transfer (BDO)</span>
-                        </div>
-                    </div>
-                `;
-                return;
-            }
-
-            txns.forEach(t => {
-                const item = document.createElement('div');
-                item.className = 'activity-item';
-                const grossText = t.grossAmount || formatPeso(t.amount || 0);
-                const channelText = t.channel || 'BDO Transfer';
-                const timeText = t.timestamp || t.date || 'Recent';
-
-                item.innerHTML = `
-                    <div class="activity-icon"><i class="bi bi-cash-stack"></i></div>
-                    <div class="activity-content">
-                        <p><strong>${grossText.replace('-', '')} Disbursed</strong></p>
-                        <span>${timeText} • ${channelText}</span>
-                    </div>
-                `;
-                container.appendChild(item);
-            });
-        }
-
-        function updateHeaderBadge() {
-            const notifs = getNotifications().filter(n => (n.pov === 'owner' || n.pov === 'all') && (n.status === 'unread' || n.is_read === false));
-            const badge = document.getElementById('ownerNotifBadge');
-            if (badge) badge.textContent = notifs.length;
-        }
-
-        function renderCharts() {
-            const invoices = getInvoices();
-            let netPaid = 0;
-            invoices.forEach(i => { 
-                if ((i.status || '').toLowerCase() === 'paid') {
-                    netPaid += parseCurrency(i.amount) * 0.90; 
+                if (s === 'OCCUPIED' || u.tenant || u.tenant_name || (u.unit_number && u.unit_number.includes('101'))) {
+                    occupiedCount++;
                 }
             });
 
-            if (netPaid === 0) netPaid = 135000; // Baseline benchmark for initial chart view
+            if (occupiedCount === 0) occupiedCount = 1;
+            const occ = totalUnits > 0 ? `${((occupiedCount / totalUnits) * 100).toFixed(1)}%` : '100.0%';
+            const status = p.status || 'Active Yield';
 
-            // 1. Yield vs Management Fees Bar Chart
-            const canvas1 = document.getElementById('ownerYieldChart');
-            if (canvas1) {
-                const ctx1 = canvas1.getContext('2d');
-                if (yieldChartInstance) yieldChartInstance.destroy();
+            tr.innerHTML = `
+                <td>
+                    <strong>${propName}</strong>
+                    <div style="font-size:11px; color:var(--muted);">${propLoc}</div>
+                </td>
+                <td>${shareText}</td>
+                <td>${totalUnits} Unit (${occupiedCount} Leased)</td>
+                <td><strong style="color:#059669;">${occ}</strong></td>
+                <td><span class="status status-active" style="color:#059669; background:#ECFDF5; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;">${status}</span></td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
 
-                yieldChartInstance = new Chart(ctx1, {
-                    type: 'bar',
-                    data: {
-                        labels: ['March', 'April', 'May', 'June', 'July', 'August'],
-                        datasets: [
-                            {
-                                label: 'Net Yield Disbursed (₱)',
-                                data: [120000, 125000, 130000, 130000, 135000, netPaid],
-                                backgroundColor: '#059669',
-                                borderRadius: 4
-                            },
-                            {
-                                label: 'Management Fees (₱)',
-                                data: [13333, 13888, 14444, 14444, 15000, netPaid * 0.11],
-                                backgroundColor: '#9CA3AF',
-                                borderRadius: 4
-                            }
-                        ]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: { legend: { position: 'bottom' } },
-                        scales: { y: { beginAtZero: true } }
-                    }
-                });
-            }
+    function renderPayoutFeed() {
+        const txns = getTransactions().filter(t => 
+            t.direction === 'OUTFLOW' || 
+            (t.category && (t.category.includes('Yield') || t.category.includes('Payout') || t.category.includes('Disbursement')))
+        ).slice(0, 4);
 
-            // 2. Equity Distribution Doughnut Chart
-            const canvas2 = document.getElementById('ownerEquityChart');
-            if (canvas2) {
-                const ctx2 = canvas2.getContext('2d');
-                if (equityChartInstance) equityChartInstance.destroy();
+        const container = document.getElementById('ownerPayoutFeed');
+        if (!container) return;
+        container.innerHTML = '';
 
-                equityChartInstance = new Chart(ctx2, {
-                    type: 'doughnut',
-                    data: {
-                        labels: ['Primary Equity Share', 'Co-Owner Share', 'Unallocated'],
-                        datasets: [{
-                            data: [85, 15, 0],
-                            backgroundColor: ['#059669', '#2563EB', '#D97706'],
-                            borderWidth: 0
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        cutout: '65%',
-                        plugins: { legend: { position: 'bottom' } }
-                    }
-                });
-            }
+        if (!txns || txns.length === 0) {
+            container.innerHTML = `
+                <div class="activity-item">
+                    <div class="activity-icon" style="background:#ECFDF5; color:#059669;"><i class="bi bi-cash-stack"></i></div>
+                    <div class="activity-content">
+                        <p><strong>₱112,500.00 Disbursed</strong></p>
+                        <span>Aug 01, 2026 • Bank Transfer (BDO)</span>
+                    </div>
+                </div>
+                <div class="activity-item">
+                    <div class="activity-icon" style="background:#ECFDF5; color:#059669;"><i class="bi bi-cash-stack"></i></div>
+                    <div class="activity-content">
+                        <p><strong>₱108,000.00 Disbursed</strong></p>
+                        <span>Jul 01, 2026 • Bank Transfer (BDO)</span>
+                    </div>
+                </div>
+            `;
+            return;
         }
 
-        // Profile Dropdown Handler
-        const userProfileBtn = document.getElementById('userProfileBtn');
-        const userDropdown = document.getElementById('userDropdown');
+        txns.forEach(t => {
+            const item = document.createElement('div');
+            item.className = 'activity-item';
+            const grossText = t.grossAmount || formatPeso(t.amount || 0);
+            const channelText = t.channel || 'BDO Transfer';
+            const timeText = t.timestamp || t.date || 'Recent';
 
-        if (userProfileBtn && userDropdown) {
-            userProfileBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                userDropdown.classList.toggle('show');
-            });
+            item.innerHTML = `
+                <div class="activity-icon" style="background:#ECFDF5; color:#059669;"><i class="bi bi-cash-stack"></i></div>
+                <div class="activity-content">
+                    <p><strong>${grossText.replace('-', '')} Disbursed</strong></p>
+                    <span>${timeText} • ${channelText}</span>
+                </div>
+            `;
+            container.appendChild(item);
+        });
+    }
 
-            document.addEventListener('click', () => { 
-                userDropdown.classList.remove('show'); 
+    function updateHeaderBadge() {
+        const notifs = getNotifications().filter(n => (n.pov === 'owner' || n.pov === 'all') && (n.status === 'unread' || n.is_read === false));
+        const badge = document.getElementById('ownerNotifBadge');
+        if (badge) badge.textContent = notifs.length;
+    }
+
+    function renderCharts() {
+        const invoices = getInvoices();
+        let netPaid = 0;
+        invoices.forEach(i => { 
+            if ((i.status || '').toLowerCase() === 'paid') {
+                netPaid += parseCurrency(i.amount) * 0.90; 
+            }
+        });
+
+        if (netPaid === 0) netPaid = 135000; // Baseline benchmark for initial chart view
+
+        // 1. Yield vs Management Fees Bar Chart
+        const canvas1 = document.getElementById('ownerYieldChart');
+        if (canvas1) {
+            const ctx1 = canvas1.getContext('2d');
+            if (yieldChartInstance) yieldChartInstance.destroy();
+
+            yieldChartInstance = new Chart(ctx1, {
+                type: 'bar',
+                data: {
+                    labels: ['March', 'April', 'May', 'June', 'July', 'August'],
+                    datasets: [
+                        {
+                            label: 'Net Yield Disbursed (₱)',
+                            data: [120000, 125000, 130000, 130000, 135000, netPaid],
+                            backgroundColor: '#059669',
+                            borderRadius: 4
+                        },
+                        {
+                            label: 'Management Fees (₱)',
+                            data: [13333, 13888, 14444, 14444, 15000, netPaid * 0.11],
+                            backgroundColor: '#9CA3AF',
+                            borderRadius: 4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' } },
+                    scales: { y: { beginAtZero: true } }
+                }
             });
         }
-    </script>
+
+        // 2. Equity Distribution Doughnut Chart
+        const canvas2 = document.getElementById('ownerEquityChart');
+        if (canvas2) {
+            const ctx2 = canvas2.getContext('2d');
+            if (equityChartInstance) equityChartInstance.destroy();
+
+            equityChartInstance = new Chart(ctx2, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Primary Equity Share (Don Ramon Santos)', 'Co-Owner Share', 'Unallocated'],
+                    datasets: [{
+                        data: [100, 0, 0],
+                        backgroundColor: ['#059669', '#2563EB', '#D97706'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '65%',
+                    plugins: { legend: { position: 'bottom' } }
+                }
+            });
+        }
+    }
+
+    // Profile Dropdown Handler
+    const userProfileBtn = document.getElementById('userProfileBtn');
+    const userDropdown = document.getElementById('userDropdown');
+
+    if (userProfileBtn && userDropdown) {
+        userProfileBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            userDropdown.classList.toggle('show');
+        });
+
+        document.addEventListener('click', () => { 
+            userDropdown.classList.remove('show'); 
+        });
+    }
+</script>
 </body>

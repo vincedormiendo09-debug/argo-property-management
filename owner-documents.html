@@ -905,705 +905,767 @@
         </div>
     </div>
 
-    <!-- ================= JAVASCRIPT ================= -->
     <script>
-        // API Configuration (Switches seamlessly between Live Database API and LocalStorage fallback)
-        const API_CONFIG = {
-            BASE_URL: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-                ? 'http://localhost:5000/api'
-                : '/api',
-            USE_LIVE_API: false // Set to true when connected to Node/Express/PostgreSQL backend
+    // API Configuration (Switches seamlessly between Live Database API and LocalStorage fallback)
+    const API_CONFIG = {
+        BASE_URL: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+            ? 'http://127.0.0.1:8000/api'
+            : '/api',
+        USE_LIVE_API: false
+    };
+
+    function getAuthHeaders() {
+        const token = localStorage.getItem('token') || localStorage.getItem('argo_token');
+        return {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         };
+    }
 
-        // Secure Logout Handler
-        function logoutUser() {
-            localStorage.removeItem('argo_pov');
-            localStorage.removeItem('user_role');
-            localStorage.removeItem('role');
-            localStorage.removeItem('token');
-            localStorage.removeItem('argo_token');
-            localStorage.removeItem('argo_user');
-            window.location.replace('index.html');
+    // Secure Logout Handler (Clears session and replaces history to prevent back-button access)
+    function logoutUser() {
+        localStorage.clear();
+        window.location.replace('index.html');
+    }
+
+    // Dynamic Role-Based Sidebar Renderer
+    function renderSidebar() {
+        const nav = document.getElementById('sidebarNav');
+        if (!nav) return;
+
+        const rawRole = (
+            localStorage.getItem('argo_pov') || 
+            localStorage.getItem('user_role') || 
+            localStorage.getItem('role') || 
+            'owner'
+        ).toLowerCase().trim();
+
+        if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
+            nav.innerHTML = `
+                <div class="nav-section-title">SELF-SERVICE HOME</div>
+                <a href="client-dashboard.html" class="nav-item">
+                    <i class="bi bi-house-door"></i>
+                    <span>My Tenancy Home</span>
+                </a>
+                <a href="client-billing.html" class="nav-item">
+                    <i class="bi bi-receipt"></i>
+                    <span>Pay Rent & Dues</span>
+                </a>
+                <a href="transaction.html" class="nav-item">
+                    <i class="bi bi-receipt-cutoff"></i>
+                    <span>Transactions & Ledger</span>
+                </a>
+                <a href="client-utilities.html" class="nav-item">
+                    <i class="bi bi-lightning-charge"></i>
+                    <span>My Utilities & Meters</span>
+                </a>
+                <a href="client-maintenance.html" class="nav-item">
+                    <i class="bi bi-tools"></i>
+                    <span>Submit Maintenance</span>
+                </a>
+                <a href="inspections.html" class="nav-item">
+                    <i class="bi bi-clipboard-check"></i>
+                    <span>Move-In & Inspections</span>
+                </a>
+                <a href="client-documents.html" class="nav-item">
+                    <i class="bi bi-folder2-open"></i>
+                    <span>My Lease & Receipts</span>
+                </a>
+
+                <div class="nav-section-title">SYSTEM</div>
+                <a href="account.html" class="nav-item">
+                    <i class="bi bi-gear"></i>
+                    <span>Account Settings</span>
+                </a>
+                <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                    <i class="bi bi-box-arrow-right"></i>
+                    <span>Log Out</span>
+                </a>
+            `;
+        } else if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
+            nav.innerHTML = `
+                <div class="nav-section-title">PORTFOLIO OVERVIEW</div>
+                <a href="owner-dashboard.html" class="nav-item">
+                    <i class="bi bi-speedometer2"></i>
+                    <span>Executive Summary</span>
+                </a>
+                <a href="owner-properties.html" class="nav-item">
+                    <i class="bi bi-buildings"></i>
+                    <span>My Properties</span>
+                </a>
+                <a href="owner-statements.html" class="nav-item">
+                    <i class="bi bi-file-earmark-text"></i>
+                    <span>Financial Statements</span>
+                </a>
+                <a href="property-ownership.html" class="nav-item">
+                    <i class="bi bi-pie-chart"></i>
+                    <span>Fractional Equity</span>
+                </a>
+                <a href="owner-documents.html" class="nav-item active">
+                    <i class="bi bi-folder2-open"></i>
+                    <span>Legal Vault</span>
+                </a>
+                <a href="transaction.html" class="nav-item">
+                    <i class="bi bi-receipt-cutoff"></i>
+                    <span>Yield Audit Ledger</span>
+                </a>
+
+                <div class="nav-section-title">COMMUNICATION & SYSTEM</div>
+                <a href="notification.html" class="nav-item">
+                    <i class="bi bi-bell"></i>
+                    <span>Notification Center</span>
+                </a>
+                <a href="account.html" class="nav-item">
+                    <i class="bi bi-gear"></i>
+                    <span>Account Settings</span>
+                </a>
+                <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                    <i class="bi bi-box-arrow-right"></i>
+                    <span>Log Out</span>
+                </a>
+            `;
+        } else {
+            // Admin POV
+            nav.innerHTML = `
+                <div class="nav-section-title">OVERVIEW</div>
+                <a href="dashboard.html" class="nav-item">
+                    <i class="bi bi-grid-1x2"></i>
+                    <span>Dashboard</span>
+                </a>
+
+                <div class="nav-section-title">PROPERTY OPERATIONS</div>
+                <a href="properties.html" class="nav-item">
+                    <i class="bi bi-buildings"></i>
+                    <span>Properties</span>
+                </a>
+                <a href="buildings.html" class="nav-item">
+                    <i class="bi bi-building"></i>
+                    <span>Buildings</span>
+                </a>
+                <a href="units.html" class="nav-item">
+                    <i class="bi bi-door-open"></i>
+                    <span>Units</span>
+                </a>
+                <a href="tenants.html" class="nav-item">
+                    <i class="bi bi-people"></i>
+                    <span>Tenants</span>
+                </a>
+                <a href="owners.html" class="nav-item">
+                    <i class="bi bi-person-badge"></i>
+                    <span>Owners</span>
+                </a>
+                <a href="property-ownership.html" class="nav-item">
+                    <i class="bi bi-pie-chart"></i>
+                    <span>Fractional Ownership</span>
+                </a>
+                <a href="leases.html" class="nav-item">
+                    <i class="bi bi-file-earmark-text"></i>
+                    <span>Leases</span>
+                </a>
+
+                <div class="nav-section-title">FINANCE & SERVICES</div>
+                <a href="rent-collection.html" class="nav-item">
+                    <i class="bi bi-cash-stack"></i>
+                    <span>Rent Collection</span>
+                </a>
+                <a href="transaction.html" class="nav-item">
+                    <i class="bi bi-receipt-cutoff"></i>
+                    <span>Transactions & Ledger</span>
+                </a>
+                <a href="utilities.html" class="nav-item">
+                    <i class="bi bi-lightning-charge"></i>
+                    <span>Utilities</span>
+                </a>
+                <a href="meter-readings.html" class="nav-item">
+                    <i class="bi bi-speedometer2"></i>
+                    <span>Meter Readings</span>
+                </a>
+                <a href="maintenance.html" class="nav-item">
+                    <i class="bi bi-tools"></i>
+                    <span>Maintenance</span>
+                </a>
+
+                <div class="nav-section-title">RECORDS & REPORTS</div>
+                <a href="inspections.html" class="nav-item">
+                    <i class="bi bi-clipboard-check"></i>
+                    <span>Inspections</span>
+                </a>
+                <a href="move-in-checklist.html" class="nav-item">
+                    <i class="bi bi-check2-square"></i>
+                    <span>Move-In Checklist</span>
+                </a>
+                <a href="move-out-settlement.html" class="nav-item">
+                    <i class="bi bi-box-arrow-right"></i>
+                    <span>Move-Out Settlement</span>
+                </a>
+                <a href="documents.html" class="nav-item">
+                    <i class="bi bi-folder2-open"></i>
+                    <span>Documents</span>
+                </a>
+                <a href="reports.html" class="nav-item">
+                    <i class="bi bi-bar-chart"></i>
+                    <span>Reports</span>
+                </a>
+
+                <div class="nav-section-title">SYSTEM</div>
+                <a href="settings.html" class="nav-item">
+                    <i class="bi bi-gear"></i>
+                    <span>Settings</span>
+                </a>
+                <a href="account.html" class="nav-item">
+                    <i class="bi bi-person-gear"></i>
+                    <span>Account Settings</span>
+                </a>
+                <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                    <i class="bi bi-box-arrow-right"></i>
+                    <span>Log Out</span>
+                </a>
+            `;
         }
+    }
 
-        // Dynamic Role-Based Sidebar Renderer
-        function renderSidebar() {
-            const nav = document.getElementById('sidebarNav');
-            if (!nav) return;
-
-            const role = localStorage.getItem('argo_pov') || 'owner';
-
-            if (role === 'client') {
-                nav.innerHTML = `
-                    <div class="nav-section-title">SELF-SERVICE HOME</div>
-                    <a href="client-dashboard.html" class="nav-item">
-                        <i class="bi bi-house-door"></i>
-                        <span>My Tenancy Home</span>
-                    </a>
-                    <a href="client-billing.html" class="nav-item">
-                        <i class="bi bi-receipt"></i>
-                        <span>Pay Rent & Dues</span>
-                    </a>
-                    <a href="transaction.html" class="nav-item">
-                        <i class="bi bi-receipt-cutoff"></i>
-                        <span>Transactions & Ledger</span>
-                    </a>
-                    <a href="client-utilities.html" class="nav-item">
-                        <i class="bi bi-lightning-charge"></i>
-                        <span>My Utilities & Meters</span>
-                    </a>
-                    <a href="client-maintenance.html" class="nav-item">
-                        <i class="bi bi-tools"></i>
-                        <span>Submit Maintenance</span>
-                    </a>
-                    <a href="inspections.html" class="nav-item">
-                        <i class="bi bi-clipboard-check"></i>
-                        <span>Move-In & Inspections</span>
-                    </a>
-                    <a href="client-documents.html" class="nav-item">
-                        <i class="bi bi-folder2-open"></i>
-                        <span>My Lease & Receipts</span>
-                    </a>
-
-                    <div class="nav-section-title">SYSTEM</div>
-                    <a href="account.html" class="nav-item">
-                        <i class="bi bi-gear"></i>
-                        <span>Account Settings</span>
-                    </a>
-                    <a href="#" class="nav-item" onclick="logoutUser(); return false;">
-                        <i class="bi bi-box-arrow-right"></i>
-                        <span>Log Out</span>
-                    </a>
-                `;
-            } else if (role === 'owner') {
-                nav.innerHTML = `
-                    <div class="nav-section-title">PORTFOLIO OVERVIEW</div>
-                    <a href="owner-dashboard.html" class="nav-item">
-                        <i class="bi bi-speedometer2"></i>
-                        <span>Executive Summary</span>
-                    </a>
-                    <a href="owner-properties.html" class="nav-item">
-                        <i class="bi bi-buildings"></i>
-                        <span>My Properties</span>
-                    </a>
-                    <a href="owner-statements.html" class="nav-item">
-                        <i class="bi bi-file-earmark-text"></i>
-                        <span>Financial Statements</span>
-                    </a>
-                    <a href="property-ownership.html" class="nav-item">
-                        <i class="bi bi-pie-chart"></i>
-                        <span>Fractional Equity</span>
-                    </a>
-                    <a href="owner-documents.html" class="nav-item active">
-                        <i class="bi bi-folder2-open"></i>
-                        <span>Legal Vault</span>
-                    </a>
-                    <a href="transaction.html" class="nav-item">
-                        <i class="bi bi-receipt-cutoff"></i>
-                        <span>Yield Audit Ledger</span>
-                    </a>
-
-                    <div class="nav-section-title">COMMUNICATION & SYSTEM</div>
-                    <a href="notification.html" class="nav-item">
-                        <i class="bi bi-bell"></i>
-                        <span>Notification Center</span>
-                    </a>
-                    <a href="account.html" class="nav-item">
-                        <i class="bi bi-gear"></i>
-                        <span>Account Settings</span>
-                    </a>
-                    <a href="#" class="nav-item" onclick="logoutUser(); return false;">
-                        <i class="bi bi-box-arrow-right"></i>
-                        <span>Log Out</span>
-                    </a>
-                `;
-            } else {
-                nav.innerHTML = `
-                    <div class="nav-section-title">OVERVIEW</div>
-                    <a href="dashboard.html" class="nav-item">
-                        <i class="bi bi-grid-1x2"></i>
-                        <span>Dashboard</span>
-                    </a>
-
-                    <div class="nav-section-title">PROPERTY OPERATIONS</div>
-                    <a href="properties.html" class="nav-item">
-                        <i class="bi bi-buildings"></i>
-                        <span>Properties</span>
-                    </a>
-                    <a href="buildings.html" class="nav-item">
-                        <i class="bi bi-building"></i>
-                        <span>Buildings</span>
-                    </a>
-                    <a href="units.html" class="nav-item">
-                        <i class="bi bi-door-open"></i>
-                        <span>Units</span>
-                    </a>
-                    <a href="tenants.html" class="nav-item">
-                        <i class="bi bi-people"></i>
-                        <span>Tenants</span>
-                    </a>
-                    <a href="owners.html" class="nav-item">
-                        <i class="bi bi-person-badge"></i>
-                        <span>Owners</span>
-                    </a>
-                    <a href="property-ownership.html" class="nav-item">
-                        <i class="bi bi-pie-chart"></i>
-                        <span>Fractional Ownership</span>
-                    </a>
-                    <a href="leases.html" class="nav-item">
-                        <i class="bi bi-file-earmark-text"></i>
-                        <span>Leases</span>
-                    </a>
-
-                    <div class="nav-section-title">FINANCE & SERVICES</div>
-                    <a href="rent-collection.html" class="nav-item">
-                        <i class="bi bi-cash-stack"></i>
-                        <span>Rent Collection</span>
-                    </a>
-                    <a href="transaction.html" class="nav-item">
-                        <i class="bi bi-receipt-cutoff"></i>
-                        <span>Transactions & Ledger</span>
-                    </a>
-                    <a href="utilities.html" class="nav-item">
-                        <i class="bi bi-lightning-charge"></i>
-                        <span>Utilities</span>
-                    </a>
-                    <a href="meter-readings.html" class="nav-item">
-                        <i class="bi bi-speedometer2"></i>
-                        <span>Meter Readings</span>
-                    </a>
-                    <a href="maintenance.html" class="nav-item">
-                        <i class="bi bi-tools"></i>
-                        <span>Maintenance</span>
-                    </a>
-
-                    <div class="nav-section-title">RECORDS & REPORTS</div>
-                    <a href="inspections.html" class="nav-item">
-                        <i class="bi bi-clipboard-check"></i>
-                        <span>Inspections</span>
-                    </a>
-                    <a href="move-in-checklist.html" class="nav-item">
-                        <i class="bi bi-check2-square"></i>
-                        <span>Move-In Checklist</span>
-                    </a>
-                    <a href="move-out-settlement.html" class="nav-item">
-                        <i class="bi bi-box-arrow-right"></i>
-                        <span>Move-Out Settlement</span>
-                    </a>
-                    <a href="documents.html" class="nav-item">
-                        <i class="bi bi-folder2-open"></i>
-                        <span>Documents</span>
-                    </a>
-                    <a href="reports.html" class="nav-item">
-                        <i class="bi bi-bar-chart"></i>
-                        <span>Reports</span>
-                    </a>
-
-                    <div class="nav-section-title">SYSTEM</div>
-                    <a href="settings.html" class="nav-item">
-                        <i class="bi bi-gear"></i>
-                        <span>Settings</span>
-                    </a>
-                    <a href="#" class="nav-item" onclick="logoutUser(); return false;">
-                        <i class="bi bi-box-arrow-right"></i>
-                        <span>Log Out</span>
-                    </a>
-                `;
-            }
+    // Default Seed Documents for Don Ramon Santos's Executive Legal Vault
+    const DEFAULT_OWNER_DOCS = [
+        {
+            id: 'DOC-OWN-001',
+            title: 'Transfer Certificate of Title (TCT #49281)',
+            fileType: 'PDF • 4.2 MB • Registry of Deeds',
+            property: 'Sunrise Residences (PROP-001)',
+            category: 'Property Title',
+            uploadDate: 'Jan 15, 2024',
+            status: 'Verified',
+            notes: 'Original land title registered under Don Ramon Santos (100% Primary Equity).',
+            fileData: null
+        },
+        {
+            id: 'DOC-OWN-002',
+            title: 'Comprehensive General Liability & Fire Policy',
+            fileType: 'PDF • 2.8 MB • Pioneer Insurance',
+            property: 'Sunrise Residences (PROP-001)',
+            category: 'Insurance Policy',
+            uploadDate: 'Jan 05, 2026',
+            status: 'Verified',
+            notes: 'Fire and structural liability active through Dec 31, 2026.',
+            fileData: null
+        },
+        {
+            id: 'DOC-OWN-003',
+            title: 'Property Equity Share & Cap Table Deed (DEED-2026-001)',
+            fileType: 'PDF • 3.1 MB • Notarized Cap Table',
+            property: 'Sunrise Residences (PROP-001)',
+            category: 'Deed of Sale',
+            uploadDate: 'Jan 01, 2026',
+            status: 'Verified',
+            notes: 'Official 100% equity deed and BDO yield disbursement registration for Don Ramon Santos.',
+            fileData: null
+        },
+        {
+            id: 'DOC-OWN-004',
+            title: 'Real Property Tax Clearance / Amilyar 2026',
+            fileType: 'PDF • 1.1 MB • City Treasurer Office',
+            property: 'Sunrise Residences (PROP-001)',
+            category: 'Tax Receipt',
+            uploadDate: 'Mar 01, 2026',
+            status: 'Verified',
+            notes: 'Full 2026 annual amilyar paid with 10% early discount.',
+            fileData: null
+        },
+        {
+            id: 'DOC-OWN-005',
+            title: 'Master Residential Tenancy Summary (Unit 101 • Maria Santos)',
+            fileType: 'PDF • 1.9 MB • Tenancy Summary',
+            property: 'Sunrise Residences (PROP-001)',
+            category: 'Property Title',
+            uploadDate: 'Jan 01, 2026',
+            status: 'Verified',
+            notes: 'Occupancy confirmation for Unit 101 under Lease LSE-2026-0101 contributing to active asset yield.',
+            fileData: null
         }
+    ];
 
-        // Default Seed Documents
-        const DEFAULT_OWNER_DOCS = [
-            {
-                id: 'DOC-OWN-001',
-                title: 'Transfer Certificate of Title (TCT #49281)',
-                fileType: 'PDF • 4.2 MB • Registry of Deeds',
-                property: 'Sunrise Residences (PROP-001)',
-                category: 'Property Title',
-                uploadDate: 'Jan 15, 2024',
-                status: 'Verified',
-                notes: 'Original land title registered under Don Ramon Santos.',
-                fileData: null
-            },
-            {
-                id: 'DOC-OWN-002',
-                title: 'Comprehensive General Liability & Fire Policy',
-                fileType: 'PDF • 2.8 MB • Pioneer Insurance',
-                property: 'Sunrise Residences (PROP-001)',
-                category: 'Insurance Policy',
-                uploadDate: 'Jan 05, 2026',
-                status: 'Verified',
-                notes: 'Fire and structural liability active through Dec 2026.',
-                fileData: null
-            },
-            {
-                id: 'DOC-OWN-003',
-                title: 'Real Property Tax Clearance / Amilyar 2026',
-                fileType: 'PDF • 1.1 MB • City Treasurer Office',
-                property: 'Central Business Center (PROP-003)',
-                category: 'Tax Receipt',
-                uploadDate: 'Mar 01, 2026',
-                status: 'Verified',
-                notes: 'Full 2026 annual amilyar paid with 10% early discount.',
-                fileData: null
-            },
-            {
-                id: 'DOC-OWN-004',
-                title: 'Deed of Absolute Sale & Notarized Assignment',
-                fileType: 'PDF • 5.5 MB • Notary Public',
-                property: 'Central Business Center (PROP-003)',
-                category: 'Deed of Sale',
-                uploadDate: 'Feb 20, 2025',
-                status: 'Verified',
-                notes: 'Certified copy of commercial acquisition deed.',
-                fileData: null
-            }
-        ];
-
-        // Storage & Database Handlers
-        async function fetchOwnerDocsFromSource() {
-            if (API_CONFIG.USE_LIVE_API) {
-                try {
-                    const token = localStorage.getItem('token') || localStorage.getItem('argo_token');
-                    const res = await fetch(`${API_CONFIG.BASE_URL}/owner/documents`, {
-                        headers: { 'Authorization': `Bearer ${token}` }
-                    });
-                    if (res.ok) {
-                        const data = await res.json();
+    // Storage & Database Handlers
+    async function fetchOwnerDocsFromSource() {
+        if (API_CONFIG.USE_LIVE_API) {
+            try {
+                const res = await fetch(`${API_CONFIG.BASE_URL}/owner/documents/`, {
+                    headers: getAuthHeaders()
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (Array.isArray(data) && data.length > 0) {
                         localStorage.setItem('argo_owner_documents', JSON.stringify(data));
                         return data;
                     }
-                } catch (err) {
-                    console.warn('API fetch failed, reading from local fallback:', err);
                 }
-            }
-            return getOwnerDocs();
-        }
-
-        function getOwnerDocs() {
-            const data = localStorage.getItem('argo_owner_documents');
-            if (!data) {
-                localStorage.setItem('argo_owner_documents', JSON.stringify(DEFAULT_OWNER_DOCS));
-                return DEFAULT_OWNER_DOCS;
-            }
-            try {
-                return JSON.parse(data);
-            } catch (e) {
-                return DEFAULT_OWNER_DOCS;
+            } catch (err) {
+                console.warn('API fetch failed, reading from local fallback:', err);
             }
         }
+        return getOwnerDocs();
+    }
 
-        function saveOwnerDocs(docs) {
-            localStorage.setItem('argo_owner_documents', JSON.stringify(docs));
+    function getOwnerDocs() {
+        const data = localStorage.getItem('argo_owner_documents');
+        if (!data) {
+            localStorage.setItem('argo_owner_documents', JSON.stringify(DEFAULT_OWNER_DOCS));
+            return DEFAULT_OWNER_DOCS;
         }
+        try {
+            const parsed = JSON.parse(data);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+                const hasTitle = parsed.some(d => (d.title || '').includes('TCT #49281'));
+                if (!hasTitle) {
+                    parsed.unshift(...DEFAULT_OWNER_DOCS);
+                    const unique = Array.from(new Map(parsed.map(item => [item.id || item.title, item])).values());
+                    localStorage.setItem('argo_owner_documents', JSON.stringify(unique));
+                    return unique;
+                }
+                return parsed;
+            }
+            localStorage.setItem('argo_owner_documents', JSON.stringify(DEFAULT_OWNER_DOCS));
+            return DEFAULT_OWNER_DOCS;
+        } catch (e) {
+            return DEFAULT_OWNER_DOCS;
+        }
+    }
 
-        function getNotifications() {
+    function saveOwnerDocs(docs) {
+        localStorage.setItem('argo_owner_documents', JSON.stringify(docs));
+    }
+
+    function getNotifications() {
+        try {
             return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
+        } catch (e) {
+            return [];
         }
+    }
 
-        function saveNotifications(notifications) {
-            localStorage.setItem('argo_notifications', JSON.stringify(notifications));
-        }
+    function saveNotifications(notifications) {
+        localStorage.setItem('argo_notifications', JSON.stringify(notifications));
+    }
 
-        // Dynamic Property Dropdown Populate
-        function populatePropertyDropdown() {
-            const propSelect = document.getElementById('modalDocProperty');
-            if (!propSelect) return;
-
-            const storedProps = localStorage.getItem('argo_properties');
-            if (storedProps) {
-                try {
-                    const props = JSON.parse(storedProps);
-                    if (Array.isArray(props) && props.length > 0) {
-                        propSelect.innerHTML = '';
-                        props.forEach(p => {
-                            const opt = document.createElement('option');
-                            opt.value = p.name ? `${p.name} (${p.id || p.code || 'PROP'})` : p;
-                            opt.textContent = opt.value;
-                            propSelect.appendChild(opt);
-                        });
-                    }
-                } catch (e) {
-                    console.warn('Error parsing properties for dropdown', e);
-                }
+    function getProperties() {
+        try {
+            const raw = localStorage.getItem('argo_properties');
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed) && parsed.length > 0) return parsed;
             }
+        } catch (e) {}
+
+        return [{ id: 1, code: 'PROP-001', name: 'Sunrise Residences' }];
+    }
+
+    // Dynamic Property Dropdown Populate
+    function populatePropertyDropdown() {
+        const propSelect = document.getElementById('modalDocProperty');
+        if (!propSelect) return;
+
+        const props = getProperties();
+        propSelect.innerHTML = '';
+        props.forEach(p => {
+            const pName = p.name || p.property_name || 'Sunrise Residences';
+            const pCode = p.code || p.id || 'PROP-001';
+            const opt = document.createElement('option');
+            opt.value = `${pName} (${pCode})`;
+            opt.textContent = `${pName} (${pCode})`;
+            propSelect.appendChild(opt);
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        const rawRole = (
+            localStorage.getItem('argo_pov') || 
+            localStorage.getItem('user_role') || 
+            localStorage.getItem('role') || 
+            ''
+        ).toLowerCase().trim();
+
+        if (!rawRole) {
+            window.location.replace('index.html');
+            return;
         }
 
-        document.addEventListener('DOMContentLoaded', async () => {
-            const role = localStorage.getItem('argo_pov');
-            if (!role) {
-                window.location.replace('index.html');
-                return;
-            }
+        renderSidebar();
+        loadUserData();
+        populatePropertyDropdown();
+        await renderDocTable();
+        updateKPIs();
+        updateHeaderBadge();
+    });
+
+    // Cross-tab LocalStorage Sync
+    window.addEventListener('storage', (e) => {
+        if (['argo_owner_documents', 'argo_documents', 'argo_notifications', 'argo_pov', 'argo_properties', 'argo_user', 'user_role', 'role'].includes(e.key)) {
             renderSidebar();
             loadUserData();
             populatePropertyDropdown();
+            renderDocTable();
+            updateKPIs();
+            updateHeaderBadge();
+        }
+    });
+
+    function loadUserData() {
+        const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+        const name = user.name || 'Don Ramon Santos';
+        const nameEl = document.getElementById('userName');
+        const roleEl = document.getElementById('userRoleBadge');
+        const avatarEl = document.getElementById('userAvatar');
+
+        if (nameEl) nameEl.textContent = name;
+        if (roleEl) roleEl.textContent = 'Property Owner';
+        if (avatarEl) {
+            avatarEl.textContent = user.avatar || (name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'RS');
+            avatarEl.style.background = '#059669';
+        }
+        
+        const subtext = document.getElementById('confidentialSubtext');
+        if (subtext) {
+            subtext.textContent = `Confidential legal files for ${name}`;
+        }
+    }
+
+    async function renderDocTable() {
+        const docs = await fetchOwnerDocsFromSource();
+        const tbody = document.getElementById('documentTable');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+
+        if (!docs || docs.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--muted); padding:30px;">No documents in vault. Click "Upload Asset Document" to store a file.</td></tr>`;
+            document.getElementById('showingCountText').textContent = `Showing 0 vault documents`;
+            return;
+        }
+
+        docs.forEach(d => {
+            const tr = document.createElement('tr');
+            tr.dataset.id = d.id;
+            tr.dataset.category = d.category || 'Other';
+            tr.dataset.status = d.status || 'Verified';
+
+            let iconClass = 'bi-file-earmark-text';
+            let iconStyle = 'background:#EFF6FF; color:var(--primary-blue, #2563EB);';
+
+            if (d.category === 'Property Title') {
+                iconClass = 'bi-journal-check';
+                iconStyle = 'background:#EFF6FF; color:var(--primary-blue, #2563EB);';
+            } else if (d.category === 'Insurance Policy') {
+                iconClass = 'bi-shield-shaded';
+                iconStyle = 'background:#ECFDF5; color:#059669;';
+            } else if (d.category === 'Tax Receipt') {
+                iconClass = 'bi-receipt';
+                iconStyle = 'background:#FEF3C7; color:#D97706;';
+            } else if (d.category === 'Deed of Sale') {
+                iconClass = 'bi-file-earmark-ruled';
+                iconStyle = 'background:#EDE9FE; color:#6D28D9;';
+            }
+
+            const isVerified = (d.status || '').toLowerCase() === 'verified';
+            let badgeHtml = isVerified
+                ? `<span class="status-badge status-verified" style="background:#ECFDF5; color:#059669; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-check-circle" style="margin-right:4px;"></i> Verified</span>`
+                : `<span class="status-badge status-pending" style="background:#FEF3C7; color:#D97706; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-clock-history" style="margin-right:4px;"></i> Pending Audit</span>`;
+
+            tr.innerHTML = `
+                <td>
+                    <div class="doc-name" style="display:flex; align-items:center; gap:10px;">
+                        <div class="doc-icon" style="${iconStyle} width:36px; height:36px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:16px;"><i class="bi ${iconClass}"></i></div>
+                        <div>
+                            <div class="doc-title" style="font-weight:600;">${escapeHtml(d.title)}</div>
+                            <div class="doc-type" style="font-size:11px; color:var(--muted);">${escapeHtml(d.fileType || 'PDF • Uploaded Document')}</div>
+                        </div>
+                    </div>
+                </td>
+                <td><strong>${escapeHtml(d.property || 'Sunrise Residences (PROP-001)')}</strong></td>
+                <td>${escapeHtml(d.category || 'Other')}</td>
+                <td>${escapeHtml(d.uploadDate || 'N/A')}</td>
+                <td>${badgeHtml}</td>
+                <td>
+                    <div style="display:flex; gap:6px;">
+                        <button class="action-button" title="View Document Details" onclick="viewDoc('${d.id}')"><i class="bi bi-eye"></i></button>
+                        <button class="action-button" title="Download Document" onclick="downloadDoc('${d.id}')"><i class="bi bi-download"></i></button>
+                        <button class="action-button delete" title="Delete File" style="color:var(--danger, #E11D48);" onclick="deleteDoc('${d.id}')"><i class="bi bi-trash"></i></button>
+                    </div>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        document.getElementById('showingCountText').textContent = `Showing 1–${docs.length} of ${docs.length} vault documents`;
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function updateKPIs() {
+        const docs = getOwnerDocs();
+        const total = docs.length;
+        const titles = docs.filter(d => d.category === 'Property Title').length;
+        const policies = docs.filter(d => d.category === 'Insurance Policy').length;
+        const taxPaid = docs.some(d => d.category === 'Tax Receipt');
+
+        const totEl = document.getElementById('kpiTotalDocs');
+        const titEl = document.getElementById('kpiTitles');
+        const polEl = document.getElementById('kpiPolicies');
+        const taxEl = document.getElementById('kpiTaxStatus');
+
+        if (totEl) totEl.textContent = `${total} ${total === 1 ? 'File' : 'Files'}`;
+        if (titEl) titEl.textContent = `${titles} ${titles === 1 ? 'Title' : 'Titles'}`;
+        if (polEl) polEl.textContent = `${policies} Active`;
+        if (taxEl) taxEl.textContent = taxPaid ? 'Fully Paid' : 'Pending';
+    }
+
+    function updateHeaderBadge() {
+        const notifs = getNotifications().filter(n => (n.pov === 'owner' || n.pov === 'all') && (n.status === 'unread' || n.is_read === false));
+        const badge = document.getElementById('ownerNotifBadge');
+        if (badge) badge.textContent = notifs.length;
+    }
+
+    function openOwnerDocModal() { 
+        populatePropertyDropdown();
+        const modal = document.getElementById("ownerDocModal");
+        if (modal) modal.classList.add("show"); 
+    }
+
+    function closeModal() { 
+        const modal = document.getElementById("ownerDocModal");
+        if (modal) modal.classList.remove("show"); 
+        document.getElementById('modalDocTitle').value = '';
+        document.getElementById('modalDocNotes').value = '';
+        document.getElementById('modalDocFile').value = '';
+    }
+
+    function readFileAsBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = error => reject(error);
+            reader.readAsDataURL(file);
+        });
+    }
+
+    async function saveOwnerDoc() {
+        const titleInput = document.getElementById('modalDocTitle');
+        const title = titleInput.value.trim();
+        const category = document.getElementById('modalDocCategory').value;
+        const property = document.getElementById('modalDocProperty').value;
+        const notes = document.getElementById('modalDocNotes').value.trim();
+        const fileInput = document.getElementById('modalDocFile');
+        const file = fileInput.files[0];
+
+        if (!title) {
+            alert("Please enter a document title.");
+            titleInput.focus();
+            return;
+        }
+
+        const submitBtn = document.getElementById('uploadSubmitBtn');
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = `<i class="bi bi-hourglass-split"></i> Uploading...`;
+        }
+
+        try {
+            let fileMetadata = 'PDF • 2.5 MB • Vault Storage';
+            let fileData = null;
+
+            if (file) {
+                const ext = file.name.split('.').pop().toUpperCase();
+                const sizeInMb = (file.size / (1024 * 1024)).toFixed(1);
+                fileMetadata = `${ext} • ${sizeInMb} MB • ${file.name}`;
+                try {
+                    fileData = await readFileAsBase64(file);
+                } catch (e) {
+                    console.warn('Could not encode file into base64', e);
+                }
+            }
+
+            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+            const newId = `DOC-OWN-${Date.now().toString().slice(-4)}`;
+            const today = new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+
+            const newDoc = {
+                id: newId,
+                title: title,
+                fileType: fileMetadata,
+                fileName: file ? file.name : `${title.replace(/\s+/g, '_')}.pdf`,
+                fileData: fileData,
+                property: property,
+                category: category,
+                uploadDate: today,
+                status: 'Verified',
+                notes: notes || `Uploaded by ${user.name || 'Don Ramon Santos'} to owner secure vault.`
+            };
+
+            let docs = getOwnerDocs();
+            docs.unshift(newDoc);
+            saveOwnerDocs(docs);
+
+            // Also mirror document to master repository (documents.html)
+            try {
+                let masterDocs = JSON.parse(localStorage.getItem('argo_documents') || '[]');
+                masterDocs.unshift({
+                    id: `DOC-${Math.floor(1000 + Math.random() * 9000)}`,
+                    title: title,
+                    fileType: fileMetadata,
+                    entityName: property.split('(')[0].trim() || 'Sunrise Residences',
+                    entitySub: property,
+                    type: category === 'Property Title' ? 'Title' : (category === 'Insurance Policy' ? 'Insurance' : 'Other'),
+                    uploader: user.name || 'Don Ramon Santos (Owner)',
+                    date: today,
+                    status: 'Active',
+                    notes: notes || 'Uploaded via Property Owner Legal Vault.'
+                });
+                localStorage.setItem('argo_documents', JSON.stringify(masterDocs));
+            } catch (e) {}
+
+            // Dispatch Notification Alert to Admin POV
+            let notifications = getNotifications();
+            notifications.unshift({
+                id: `NOTIF-${Date.now()}`,
+                pov: 'admin',
+                category: 'asset',
+                status: 'unread',
+                title: 'New Legal Document Uploaded by Owner',
+                time: 'Just now',
+                description: `Owner <strong>${user.name || 'Don Ramon Santos'}</strong> uploaded a new document to the vault: "<strong>${escapeHtml(title)}</strong>" (${category}) for ${escapeHtml(property)}.`,
+                property: property,
+                tag: 'Vault File Upload',
+                tagColor: 'var(--primary, #2563EB)',
+                actionUrl: 'documents.html',
+                actionText: 'Inspect Vault File'
+            });
+            saveNotifications(notifications);
+
             await renderDocTable();
             updateKPIs();
             updateHeaderBadge();
-        });
+            closeModal();
 
-        // Cross-tab LocalStorage Sync
-        window.addEventListener('storage', (e) => {
-            if (['argo_owner_documents', 'argo_notifications', 'argo_documents', 'argo_pov', 'argo_properties', 'argo_user'].includes(e.key)) {
-                renderSidebar();
-                loadUserData();
-                populatePropertyDropdown();
-                renderDocTable();
-                updateKPIs();
-                updateHeaderBadge();
-            }
-        });
-
-        function loadUserData() {
-            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
-            const name = user.name || 'Don Ramon Santos';
-            document.getElementById('userName').textContent = name;
-            document.getElementById('userRoleBadge').textContent = 'Property Owner';
-            document.getElementById('userAvatar').textContent = user.avatar || (name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'RS');
-            
-            const subtext = document.getElementById('confidentialSubtext');
-            if (subtext) {
-                subtext.textContent = `Confidential files for ${name}`;
-            }
-        }
-
-        async function renderDocTable() {
-            const docs = await fetchOwnerDocsFromSource();
-            const tbody = document.getElementById('documentTable');
-            if (!tbody) return;
-            tbody.innerHTML = '';
-
-            if (!docs || docs.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--muted); padding:30px;">No documents in vault. Click "Upload Asset Document" to store a file.</td></tr>`;
-                document.getElementById('showingCountText').textContent = `Showing 0 vault documents`;
-                return;
-            }
-
-            docs.forEach(d => {
-                const tr = document.createElement('tr');
-                tr.dataset.id = d.id;
-                tr.dataset.category = d.category;
-                tr.dataset.status = d.status;
-
-                let iconClass = 'bi-file-earmark-text';
-                let iconStyle = 'background:#EFF6FF; color:var(--primary-blue);';
-
-                if (d.category === 'Property Title') {
-                    iconClass = 'bi-journal-check';
-                    iconStyle = 'background:#EFF6FF; color:var(--primary-blue);';
-                } else if (d.category === 'Insurance Policy') {
-                    iconClass = 'bi-shield-shaded';
-                    iconStyle = 'background:#ECFDF5; color:#059669;';
-                } else if (d.category === 'Tax Receipt') {
-                    iconClass = 'bi-receipt';
-                    iconStyle = 'background:#FEF3C7; color:#D97706;';
-                } else if (d.category === 'Deed of Sale') {
-                    iconClass = 'bi-file-earmark-ruled';
-                    iconStyle = 'background:#EDE9FE; color:#6D28D9;';
-                }
-
-                const isVerified = (d.status || '').toLowerCase() === 'verified';
-                let badgeHtml = isVerified
-                    ? `<span class="status-badge status-verified"><i class="bi bi-check-circle" style="margin-right:4px;"></i> Verified</span>`
-                    : `<span class="status-badge status-pending"><i class="bi bi-clock-history" style="margin-right:4px;"></i> Pending Audit</span>`;
-
-                tr.innerHTML = `
-                    <td>
-                        <div class="doc-name">
-                            <div class="doc-icon" style="${iconStyle}"><i class="bi ${iconClass}"></i></div>
-                            <div>
-                                <div class="doc-title">${escapeHtml(d.title)}</div>
-                                <div class="doc-type">${escapeHtml(d.fileType || 'PDF • Uploaded Document')}</div>
-                            </div>
-                        </div>
-                    </td>
-                    <td>${escapeHtml(d.property || 'General')}</td>
-                    <td>${escapeHtml(d.category || 'Other')}</td>
-                    <td>${escapeHtml(d.uploadDate || 'N/A')}</td>
-                    <td>${badgeHtml}</td>
-                    <td>
-                        <button class="action-button" title="View Document Details" onclick="viewDoc('${d.id}')"><i class="bi bi-eye"></i></button>
-                        <button class="action-button" title="Download Document" onclick="downloadDoc('${d.id}')"><i class="bi bi-download"></i></button>
-                        <button class="action-button" title="Delete File" style="color:var(--danger);" onclick="deleteDoc('${d.id}')"><i class="bi bi-trash"></i></button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
-
-            document.getElementById('showingCountText').textContent = `Showing 1–${docs.length} of ${docs.length} vault documents`;
-        }
-
-        function escapeHtml(str) {
-            if (!str) return '';
-            return String(str)
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#039;');
-        }
-
-        function updateKPIs() {
-            const docs = getOwnerDocs();
-            const total = docs.length;
-            const titles = docs.filter(d => d.category === 'Property Title').length;
-            const policies = docs.filter(d => d.category === 'Insurance Policy').length;
-            const taxPaid = docs.some(d => d.category === 'Tax Receipt');
-
-            document.getElementById('kpiTotalDocs').textContent = `${total} ${total === 1 ? 'File' : 'Files'}`;
-            document.getElementById('kpiTitles').textContent = `${titles} ${titles === 1 ? 'Title' : 'Titles'}`;
-            document.getElementById('kpiPolicies').textContent = `${policies} Active`;
-            document.getElementById('kpiTaxStatus').textContent = taxPaid ? 'Fully Paid' : 'Pending';
-        }
-
-        function updateHeaderBadge() {
-            const notifs = getNotifications().filter(n => (n.pov === 'owner' || n.pov === 'all') && n.status === 'unread');
-            const badge = document.getElementById('ownerNotifBadge');
-            if (badge) badge.textContent = notifs.length;
-        }
-
-        function openOwnerDocModal() { 
-            document.getElementById("ownerDocModal").classList.add("show"); 
-        }
-
-        function closeModal() { 
-            document.getElementById("ownerDocModal").classList.remove("show"); 
-            document.getElementById('modalDocTitle').value = '';
-            document.getElementById('modalDocNotes').value = '';
-            document.getElementById('modalDocFile').value = '';
-        }
-
-        // Helper to read file to Base64 (Enables real local downloads)
-        function readFileAsBase64(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = () => resolve(reader.result);
-                reader.onerror = error => reject(error);
-                reader.readAsDataURL(file);
-            });
-        }
-
-        async function saveOwnerDoc() {
-            const titleInput = document.getElementById('modalDocTitle');
-            const title = titleInput.value.trim();
-            const category = document.getElementById('modalDocCategory').value;
-            const property = document.getElementById('modalDocProperty').value;
-            const notes = document.getElementById('modalDocNotes').value.trim();
-            const fileInput = document.getElementById('modalDocFile');
-            const file = fileInput.files[0];
-
-            if (!title) {
-                alert("Please enter a document title.");
-                titleInput.focus();
-                return;
-            }
-
-            const submitBtn = document.getElementById('uploadSubmitBtn');
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = `<i class="bi bi-hourglass-split"></i> Uploading...`;
-
-            try {
-                let fileMetadata = 'PDF • 2.5 MB • Vault Storage';
-                let fileData = null;
-
-                if (file) {
-                    const ext = file.name.split('.').pop().toUpperCase();
-                    const sizeInMb = (file.size / (1024 * 1024)).toFixed(1);
-                    fileMetadata = `${ext} • ${sizeInMb} MB • ${file.name}`;
-                    try {
-                        fileData = await readFileAsBase64(file);
-                    } catch (e) {
-                        console.warn('Could not encode file into base64', e);
-                    }
-                }
-
-                const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
-                const newId = `DOC-OWN-${Date.now().toString().slice(-4)}`;
-                const today = new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
-
-                const newDoc = {
-                    id: newId,
-                    title: title,
-                    fileType: fileMetadata,
-                    fileName: file ? file.name : `${title.replace(/\s+/g, '_')}.pdf`,
-                    fileData: fileData,
-                    property: property,
-                    category: category,
-                    uploadDate: today,
-                    status: 'Verified',
-                    notes: notes || `Uploaded by ${user.name || 'Don Ramon Santos'} to owner secure vault.`
-                };
-
-                // Save to API if live
-                if (API_CONFIG.USE_LIVE_API) {
-                    try {
-                        const token = localStorage.getItem('token') || localStorage.getItem('argo_token');
-                        await fetch(`${API_CONFIG.BASE_URL}/owner/documents`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${token}`
-                            },
-                            body: JSON.stringify(newDoc)
-                        });
-                    } catch (apiErr) {
-                        console.warn('Live API upload failed, falling back to local:', apiErr);
-                    }
-                }
-
-                // Save to LocalStorage
-                let docs = getOwnerDocs();
-                docs.unshift(newDoc);
-                saveOwnerDocs(docs);
-
-                // Dispatch Notification Alert to Admin POV (documents.html)
-                let notifications = getNotifications();
-                notifications.unshift({
-                    id: `NOTIF-${Date.now()}`,
-                    pov: 'admin',
-                    category: 'asset',
-                    status: 'unread',
-                    title: 'New Legal Document Uploaded by Owner',
-                    time: 'Just now',
-                    description: `Owner <strong>${user.name || 'Don Ramon Santos'}</strong> uploaded a new document to the vault: "<strong>${escapeHtml(title)}</strong>" (${category}) for ${escapeHtml(property)}.`,
-                    property: property,
-                    tag: 'Vault File Upload',
-                    tagColor: 'var(--primary)',
-                    actionUrl: 'documents.html',
-                    actionText: 'Inspect Vault File'
-                });
-                saveNotifications(notifications);
-
-                renderDocTable();
-                updateKPIs();
-                updateHeaderBadge();
-                closeModal();
-
-                alert(`Document "${title}" uploaded successfully to the owner secure vault!\n\nProperty Manager notified.`);
-            } catch (err) {
-                console.error(err);
-                alert("An error occurred during upload. Please try again.");
-            } finally {
+            alert(`Document "${title}" uploaded successfully to the owner secure vault!\n\nProperty Manager notified.`);
+        } catch (err) {
+            console.error(err);
+            alert("An error occurred during upload. Please try again.");
+        } finally {
+            if (submitBtn) {
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = `<i class="bi bi-upload"></i> Upload to Owner Vault`;
             }
         }
+    }
 
-        function deleteDoc(id) {
-            if (!confirm("Are you sure you want to remove this document from the vault?")) return;
-            
-            if (API_CONFIG.USE_LIVE_API) {
-                const token = localStorage.getItem('token') || localStorage.getItem('argo_token');
-                fetch(`${API_CONFIG.BASE_URL}/owner/documents/${id}`, {
-                    method: 'DELETE',
-                    headers: { 'Authorization': `Bearer ${token}` }
-                }).catch(e => console.warn('Live delete sync failed', e));
-            }
+    function deleteDoc(id) {
+        if (!confirm("Are you sure you want to remove this document from the vault?")) return;
+        
+        let docs = getOwnerDocs().filter(d => String(d.id) !== String(id));
+        saveOwnerDocs(docs);
+        renderDocTable();
+        updateKPIs();
+    }
 
-            let docs = getOwnerDocs().filter(d => d.id !== id);
-            saveOwnerDocs(docs);
-            renderDocTable();
-            updateKPIs();
+    function viewDoc(id) {
+        const docs = getOwnerDocs();
+        const doc = docs.find(d => String(d.id) === String(id));
+        if (doc) {
+            alert(`ARGO Vault Document Inspection — ${doc.id}\n\nTitle: ${doc.title}\nCategory: ${doc.category}\nProperty: ${doc.property}\nUpload Date: ${doc.uploadDate}\nStatus: ${doc.status}\nNotes: ${doc.notes || 'None'}`);
+        }
+    }
+
+    function downloadDoc(id) {
+        const docs = getOwnerDocs();
+        const doc = docs.find(d => String(d.id) === String(id));
+        if (!doc) {
+            alert("Document not found.");
+            return;
         }
 
-        function viewDoc(id) {
-            const docs = getOwnerDocs();
-            const doc = docs.find(d => d.id === id);
-            if (doc) {
-                alert(`ARGO Vault Document Inspection — ${doc.id}\n\nTitle: ${doc.title}\nCategory: ${doc.category}\nProperty: ${doc.property}\nUpload Date: ${doc.uploadDate}\nStatus: ${doc.status}\nNotes: ${doc.notes || 'None'}`);
-            }
+        if (doc.fileData) {
+            const a = document.createElement('a');
+            a.href = doc.fileData;
+            a.download = doc.fileName || `${doc.title}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        } else {
+            const content = `========================================================\nARGO PROPERTY EXECUTIVE VAULT - OFFICIAL RECORD\n========================================================\n\nDocument ID: ${doc.id}\nTitle: ${doc.title}\nCategory: ${doc.category}\nProperty: ${doc.property}\nUpload Date: ${doc.uploadDate}\nStatus: ${doc.status}\nNotes: ${doc.notes || 'None'}\n\n[CONFIDENTIAL OWNER DOCUMENT ENCRYPTION HASH: ${btoa(doc.id + doc.title)}]\n========================================================`;
+            const blob = new Blob([content], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${doc.title.replace(/[^a-z0-9]/gi, '_')}_VaultCopy.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
         }
+    }
 
-        function downloadDoc(id) {
-            const docs = getOwnerDocs();
-            const doc = docs.find(d => d.id === id);
-            if (!doc) {
-                alert("Document not found.");
-                return;
-            }
+    window.onclick = function(event) {
+        const modal = document.getElementById("ownerDocModal");
+        if (event.target === modal) closeModal();
+    };
 
-            if (doc.fileData) {
-                // If a real uploaded base64 data exists, download it
-                const a = document.createElement('a');
-                a.href = doc.fileData;
-                a.download = doc.fileName || `${doc.title}.pdf`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
+    function filterTable() {
+        const searchValue = document.getElementById("searchInput").value.toLowerCase();
+        const categoryValue = document.getElementById("categoryFilter").value;
+        const statusValue = document.getElementById("statusFilter").value;
+
+        const rows = document.querySelectorAll("#documentTable tr");
+        let visibleCount = 0;
+
+        rows.forEach(row => {
+            if (row.cells.length === 1) return;
+
+            const text = row.innerText.toLowerCase();
+            const rowCategory = row.dataset.category || "";
+            const rowStatus = row.dataset.status || "";
+
+            const matchesSearch = text.includes(searchValue);
+            const matchesCategory = categoryValue === "" || rowCategory === categoryValue;
+            const matchesStatus = statusValue === "" || rowStatus.toLowerCase().includes(statusValue.toLowerCase());
+
+            if (matchesSearch && matchesCategory && matchesStatus) {
+                row.style.display = "";
+                visibleCount++;
             } else {
-                // Generate a lightweight document summary text file as an instant downloadable receipt
-                const content = `========================================================\nARGO PROPERTY EXECUTIVE VAULT - OFFICIAL RECORD\n========================================================\n\nDocument ID: ${doc.id}\nTitle: ${doc.title}\nCategory: ${doc.category}\nProperty: ${doc.property}\nUpload Date: ${doc.uploadDate}\nStatus: ${doc.status}\nNotes: ${doc.notes || 'None'}\n\n[CONFIDENTIAL DOCUMENT ENCRYPTION HASH: ${btoa(doc.id + doc.title)}]\n========================================================`;
-                const blob = new Blob([content], { type: 'text/plain' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `${doc.title.replace(/[^a-z0-9]/gi, '_')}_VaultCopy.txt`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
+                row.style.display = "none";
             }
+        });
+
+        const countText = document.getElementById('showingCountText');
+        if (countText) {
+            countText.textContent = `Showing ${visibleCount} vault ${visibleCount === 1 ? 'document' : 'documents'}`;
         }
+    }
 
-        window.onclick = function(event) {
-            const modal = document.getElementById("ownerDocModal");
-            if (event.target === modal) closeModal();
-        };
+    function resetFilters() {
+        document.getElementById("searchInput").value = "";
+        document.getElementById("categoryFilter").value = "";
+        document.getElementById("statusFilter").value = "";
+        filterTable();
+    }
 
-        function filterTable() {
-            const searchValue = document.getElementById("searchInput").value.toLowerCase();
-            const categoryValue = document.getElementById("categoryFilter").value;
-            const statusValue = document.getElementById("statusFilter").value;
+    // Profile Dropdown Handler
+    const userProfileBtn = document.getElementById('userProfileBtn');
+    const userDropdown = document.getElementById('userDropdown');
 
-            const rows = document.querySelectorAll("#documentTable tr");
-            let visibleCount = 0;
+    if (userProfileBtn && userDropdown) {
+        userProfileBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            userDropdown.classList.toggle('show');
+        });
 
-            rows.forEach(row => {
-                if (row.dataset.category === undefined) return; // Skip empty placeholder row
-
-                const text = row.innerText.toLowerCase();
-                const rowCategory = row.dataset.category || "";
-                const rowStatus = row.dataset.status || "";
-
-                const matchesSearch = text.includes(searchValue);
-                const matchesCategory = categoryValue === "" || rowCategory === categoryValue;
-                const matchesStatus = statusValue === "" || rowStatus.toLowerCase().includes(statusValue.toLowerCase());
-
-                if (matchesSearch && matchesCategory && matchesStatus) {
-                    row.style.display = "";
-                    visibleCount++;
-                } else {
-                    row.style.display = "none";
-                }
-            });
-
-            const countText = document.getElementById('showingCountText');
-            if (countText) {
-                countText.textContent = `Showing ${visibleCount} vault ${visibleCount === 1 ? 'document' : 'documents'}`;
-            }
-        }
-
-        function resetFilters() {
-            document.getElementById("searchInput").value = "";
-            document.getElementById("categoryFilter").value = "";
-            document.getElementById("statusFilter").value = "";
-            filterTable();
-        }
-
-        // Profile Dropdown Handler
-        const userProfileBtn = document.getElementById('userProfileBtn');
-        const userDropdown = document.getElementById('userDropdown');
-
-        if (userProfileBtn && userDropdown) {
-            userProfileBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                userDropdown.classList.toggle('show');
-            });
-
-            document.addEventListener('click', () => { 
-                userDropdown.classList.remove('show'); 
-            });
-        }
-    </script>
+        document.addEventListener('click', () => { 
+            userDropdown.classList.remove('show'); 
+        });
+    }
+</script>
 </body>

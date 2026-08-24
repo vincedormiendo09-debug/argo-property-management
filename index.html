@@ -311,7 +311,7 @@
 
                 <div class="auth-options">
                     <label><input type="checkbox" id="rememberMe" checked> Remember this device</label>
-                    <a href="#" onclick="alert('Password reset link sent to registered email.'); return false;">Forgot password?</a>
+                    <a href="#" onclick="alert('Password reset instructions have been dispatched.'); return false;">Forgot password?</a>
                 </div>
 
                 <button type="submit" class="btn-submit" id="btnSubmit">
@@ -347,14 +347,12 @@
 
     <!-- ROUTING LOGIC & SYSTEM INITIALIZER -->
     <script>
-        // Standard Sandbox Organization UUID matching seed.py and schema.sql
         const DEFAULT_ORG_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
         const API_BASE_URL = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
             ? 'http://127.0.0.1:8000'
             : '';
 
-        // Prevent back-button access to authenticated sessions when on login page
-        window.addEventListener('pageshow', (event) => {
+        window.addEventListener('pageshow', () => {
             clearActiveSession();
         });
 
@@ -365,20 +363,19 @@
             updateDefaultEmail();
         });
 
-        // Clear existing session keys to lock portal entry until explicit sign-in
+        // 1. Wipe old/stale session data
         function clearActiveSession() {
-            localStorage.removeItem('argo_pov');
-            localStorage.removeItem('user_role');
-            localStorage.removeItem('role');
-            localStorage.removeItem('token');
-            localStorage.removeItem('argo_token');
-            localStorage.removeItem('argo_user');
+            const keysToRemove = [
+                'argo_session', 'argo_token', 'token', 'access_token',
+                'argo_pov', 'user_role', 'role', 'argo_user',
+                'tenant_id', 'unit_id', 'property_id', 'owner_id', 'user_email'
+            ];
+            keysToRemove.forEach(k => localStorage.removeItem(k));
         }
 
-        // 1. Initialize Local Storage Session Scope
+        // 2. Initialize Core Organization Context
         function initSystemStorage() {
             localStorage.setItem('organization_id', DEFAULT_ORG_ID);
-
             if (!localStorage.getItem('argo_org_settings')) {
                 localStorage.setItem('argo_org_settings', JSON.stringify({
                     orgId: DEFAULT_ORG_ID,
@@ -390,41 +387,30 @@
             }
         }
 
-        // 2. Health Check Handshake with FastAPI & PostgreSQL
+        // 3. Health Check Handshake with Backend
         async function checkBackendHealth() {
             const statusDot = document.getElementById('dbStatusDot');
             const statusText = document.getElementById('dbStatusText');
 
             try {
                 const response = await fetch(`${API_BASE_URL}/api/health`, { method: 'GET' });
-                
                 if (response.ok) {
                     const health = await response.json();
                     statusDot.className = 'status-dot online';
-                    statusText.textContent = health.database === 'connected' 
-                        ? 'PostgreSQL & FastAPI Online' 
-                        : 'FastAPI Online (Database Connected)';
-                } else {
-                    statusDot.className = 'status-dot online';
-                    statusText.textContent = 'FastAPI Gateway Active';
+                    statusText.textContent = health.database === 'connected'
+                        ? 'Neon PostgreSQL & FastAPI Online'
+                        : 'FastAPI Gateway Online';
+                    return;
                 }
             } catch (err) {
-                // Fallback check against properties endpoint
-                try {
-                    const propRes = await fetch(`${API_BASE_URL}/api/properties/?organization_id=${DEFAULT_ORG_ID}`);
-                    if (propRes.ok) {
-                        statusDot.className = 'status-dot online';
-                        statusText.textContent = 'PostgreSQL & FastAPI Online';
-                        return;
-                    }
-                } catch (e) {}
-
-                statusDot.className = 'status-dot online';
-                statusText.textContent = 'Database Engine Active';
+                console.warn("Health check fallback:", err);
             }
+
+            statusDot.className = 'status-dot online';
+            statusText.textContent = 'FastAPI Gateway Active';
         }
 
-        // 3. Update Email Suggestion & Theme Color based on Selected Role
+        // 4. Role Form Styling & Default Emails
         function updateDefaultEmail() {
             const role = document.getElementById('roleSelect').value;
             const emailInput = document.getElementById('emailInput');
@@ -446,7 +432,45 @@
             }
         }
 
-        // 4. Live API Authentication & Fallback Handler
+        // 5. Unified Session Storer (Syncs all standard and legacy keys)
+        function storeUnifiedSession(token, userObj, role) {
+            const normalizedRole = (role || userObj.role || 'admin').toLowerCase().trim();
+            
+            const sessionPayload = {
+                token: token,
+                role: normalizedRole,
+                user: {
+                    id: userObj.id || 1,
+                    email: userObj.email || '',
+                    name: userObj.name || userObj.full_name || 'User',
+                    role: normalizedRole,
+                    tenant_id: userObj.tenant_id || 1,
+                    unit_id: userObj.unit_id || 1,
+                    property_id: userObj.property_id || 1,
+                    owner_id: userObj.owner_id || 1,
+                    unit_number: userObj.unit_number || 'Unit 101',
+                    property_name: userObj.property_name || 'Sunrise Residences'
+                }
+            };
+
+            // Master Session Object
+            localStorage.setItem('argo_session', JSON.stringify(sessionPayload));
+
+            // Legacy & Direct Key Interoperability
+            localStorage.setItem('token', token);
+            localStorage.setItem('argo_token', token);
+            localStorage.setItem('argo_pov', normalizedRole);
+            localStorage.setItem('user_role', normalizedRole.toUpperCase());
+            localStorage.setItem('role', normalizedRole);
+            localStorage.setItem('argo_user', JSON.stringify(sessionPayload.user));
+            localStorage.setItem('user_email', sessionPayload.user.email);
+            localStorage.setItem('tenant_id', String(sessionPayload.user.tenant_id));
+            localStorage.setItem('unit_id', String(sessionPayload.user.unit_id));
+            localStorage.setItem('property_id', String(sessionPayload.user.property_id));
+            localStorage.setItem('owner_id', String(sessionPayload.user.owner_id));
+        }
+
+        // 6. Primary Login Dispatcher
         async function handleLogin(event) {
             event.preventDefault();
             const email = document.getElementById('emailInput').value.trim();
@@ -458,7 +482,6 @@
             btnSubmit.innerHTML = '<span>Verifying credentials...</span>';
 
             try {
-                // Try live authentication with backend router
                 const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -467,80 +490,77 @@
 
                 if (response.ok) {
                     const data = await response.json();
+                    const token = data.access_token || data.token || `token_${Date.now()}`;
+                    const user = data.user || { email: email, role: selectedRole };
                     
-                    // Store authentic session context
-                    localStorage.setItem('organization_id', data.organization_id || DEFAULT_ORG_ID);
-                    localStorage.setItem('token', data.access_token);
-                    localStorage.setItem('argo_token', data.access_token);
-                    localStorage.setItem('argo_pov', data.user.role);
-                    localStorage.setItem('user_role', data.user.role.toUpperCase());
-                    localStorage.setItem('role', data.user.role);
-                    localStorage.setItem('argo_user', JSON.stringify(data.user));
-
-                    redirectByRole(data.user.role);
+                    storeUnifiedSession(token, user, user.role || selectedRole);
+                    redirectByRole(user.role || selectedRole);
                     return;
                 }
             } catch (error) {
-                console.warn("Backend auth unavailable, utilizing local fallback authentication.", error);
+                console.warn("Backend auth unavailable, falling back to linked sandbox session:", error);
             } finally {
                 btnSubmit.disabled = false;
                 btnSubmit.innerHTML = '<span>Sign In & Route</span><i class="bi bi-arrow-right"></i>';
             }
 
-            // Client-Side Fallback for offline / demo testing
+            // Fallback Sandbox Session with Complete Relational Linking
             routeToPortal(selectedRole);
         }
 
-        // 5. Centralized Portal Router & Atomic Session Key Generator
+        // 7. Deterministic Demo & Sandbox Portal Router
         function routeToPortal(role) {
             const emailInput = document.getElementById('emailInput').value.trim();
+            const token = `argo_live_token_${role}_${Date.now()}`;
 
-            localStorage.setItem('organization_id', DEFAULT_ORG_ID);
-            localStorage.setItem('argo_pov', role);
-            localStorage.setItem('user_role', role.toUpperCase());
-            localStorage.setItem('role', role);
-            localStorage.setItem('token', `argo_token_${role}_${Date.now()}`);
-            localStorage.setItem('argo_token', `argo_token_${role}_${Date.now()}`);
+            let mockUser = {};
 
             if (role === 'admin') {
-                localStorage.setItem('argo_user', JSON.stringify({
-                    id: '00000000-0000-0000-0000-000000000002',
+                mockUser = {
+                    id: 1,
                     name: 'Juan Dela Cruz',
                     email: emailInput || 'admin@argo.ph',
                     phone: '+63 917 882 9102',
-                    role: 'Property Manager',
+                    role: 'admin',
                     avatar: 'JD',
                     avatarBg: '#2563EB',
+                    property_id: 1,
                     organization_id: DEFAULT_ORG_ID
-                }));
-                window.location.replace('dashboard.html');
-
+                };
             } else if (role === 'owner') {
-                localStorage.setItem('argo_user', JSON.stringify({
-                    id: '00000000-0000-0000-0000-000000000003',
+                mockUser = {
+                    id: 2,
+                    owner_id: 1,
                     name: 'Don Ramon Santos',
                     email: emailInput || 'ramon.santos@owner.ph',
                     phone: '+63 918 554 9011',
-                    role: 'Property Owner',
+                    role: 'owner',
                     avatar: 'RS',
                     avatarBg: '#059669',
+                    property_id: 1,
+                    property_name: 'Sunrise Residences',
                     organization_id: DEFAULT_ORG_ID
-                }));
-                window.location.replace('owner-dashboard.html');
-
+                };
             } else if (role === 'client') {
-                localStorage.setItem('argo_user', JSON.stringify({
-                    id: '00000000-0000-0000-0000-000000000004',
+                mockUser = {
+                    id: 3,
+                    tenant_id: 1,
+                    unit_id: 1,
+                    property_id: 1,
                     name: 'Maria Santos',
                     email: emailInput || 'maria.santos@tenant.ph',
                     phone: '+63 917 123 4567',
-                    role: 'Sunrise Property • Unit 101',
+                    role: 'client',
+                    unit_number: 'Unit 101',
+                    property_name: 'Sunrise Residences',
                     avatar: 'MS',
                     avatarBg: '#D97706',
                     organization_id: DEFAULT_ORG_ID
-                }));
-                window.location.replace('client-dashboard.html');
+                };
             }
+
+            storeUnifiedSession(token, mockUser, role);
+            redirectByRole(role);
         }
 
         function redirectByRole(role) {

@@ -950,774 +950,815 @@
         </div>
     </div>
 
-    <!-- ================= JAVASCRIPT ================= -->
     <script>
-        let currentInspectedTxn = null;
+    const API_BASE_URL = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
+        ? 'http://127.0.0.1:8000/api'
+        : '/api';
 
-        // Type-Safe Currency Parser
-        function parseCurrency(val) {
-            if (val === undefined || val === null || val === '') return 0;
-            if (typeof val === 'number') return isNaN(val) ? 0 : val;
-            const clean = val.toString().replace(/[^0-9.-]+/g, "");
-            const parsed = parseFloat(clean);
-            return isNaN(parsed) ? 0 : parsed;
+    let currentInspectedTxn = null;
+
+    // Type-Safe Currency Parser
+    function parseCurrency(val) {
+        if (val === undefined || val === null || val === '') return 0;
+        if (typeof val === 'number') return isNaN(val) ? 0 : val;
+        const clean = val.toString().replace(/[^0-9.-]+/g, "");
+        const parsed = parseFloat(clean);
+        return isNaN(parsed) ? 0 : parsed;
+    }
+
+    // Format Currency Helper
+    function formatPeso(val) {
+        const num = parseCurrency(val);
+        return '₱' + num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function getAuthHeaders() {
+        const token = localStorage.getItem('token') || localStorage.getItem('argo_token');
+        return {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        };
+    }
+
+    // Secure Logout Handler
+    function logoutUser() {
+        localStorage.clear();
+        window.location.replace('index.html');
+    }
+
+    // Seed Initial Baseline Transactions for Maria Santos & Sunrise Residences
+    const DEFAULT_TRANSACTIONS = [
+        {
+            refCode: '#GCASH-883192',
+            txnId: 'TXN-2026-08-101',
+            payer: 'Maria Santos',
+            tenant_email: 'maria.santos@tenant.ph',
+            property_location: 'Sunrise Residences • Unit 101',
+            fullLocation: 'Sunrise Residences • Unit 101',
+            category: 'Monthly Base Rent',
+            direction: 'INFLOW',
+            grossAmount: '₱15,000.00',
+            amount: 15000.00,
+            channel: 'GCash',
+            status: 'Verified',
+            timestamp: 'Aug 15, 2026'
+        },
+        {
+            refCode: '#GCASH-992810',
+            txnId: 'TXN-2026-08-102',
+            payer: 'Maria Santos',
+            tenant_email: 'maria.santos@tenant.ph',
+            property_location: 'Sunrise Residences • Unit 101',
+            fullLocation: 'Sunrise Residences • Unit 101',
+            category: 'Electricity Charges',
+            direction: 'INFLOW',
+            grossAmount: '₱1,808.75',
+            amount: 1808.75,
+            channel: 'GCash',
+            status: 'Verified',
+            timestamp: 'Aug 15, 2026'
+        },
+        {
+            refCode: '#BDO-TRF8812',
+            txnId: 'TXN-2026-08-881',
+            payer: 'ARGO Disburse Engine',
+            property_location: 'Sunrise Residences Portfolio',
+            fullLocation: 'Sunrise Residences Portfolio',
+            category: 'Owner Net Operating Yield',
+            direction: 'OUTFLOW',
+            grossAmount: '₱112,500.00',
+            amount: 112500.00,
+            channel: 'Bank Transfer (BDO)',
+            status: 'Disbursed',
+            timestamp: 'Aug 01, 2026'
         }
+    ];
 
-        // Format Currency Helper
-        function formatPeso(val) {
-            const num = parseCurrency(val);
-            return '₱' + num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        }
-
-        // Secure Logout Handler
-        function logoutUser() {
-            localStorage.removeItem('argo_pov');
-            localStorage.removeItem('user_role');
-            localStorage.removeItem('role');
-            localStorage.removeItem('token');
-            localStorage.removeItem('argo_user');
-            window.location.replace('index.html');
-        }
-
-        // Seed Initial Baseline Transactions if LocalStorage is Empty
-        const DEFAULT_TRANSACTIONS = [
-            {
-                refCode: '#GCASH-992810',
-                txnId: 'TXN-2026-08-101',
-                payer: 'Maria Santos',
-                property_location: 'Sunrise Property • Building 2 • Unit 101',
-                fullLocation: 'Sunrise Property • Building 2 • Unit 101',
-                category: 'Electricity Charges',
-                direction: 'INFLOW',
-                grossAmount: '₱2,368.75',
-                amount: 2368.75,
-                channel: 'GCash',
-                status: 'Verified',
-                timestamp: 'Aug 06, 2026'
-            },
-            {
-                refCode: '#GCASH-881920',
-                txnId: 'TXN-2026-08-102',
-                payer: 'Maria Santos',
-                property_location: 'Sunrise Property • Building 2 • Unit 101',
-                fullLocation: 'Sunrise Property • Building 2 • Unit 101',
-                category: 'Monthly Base Rent',
-                direction: 'INFLOW',
-                grossAmount: '₱15,000.00',
-                amount: 15000.00,
-                channel: 'GCash',
-                status: 'Verified',
-                timestamp: 'Aug 01, 2026'
-            },
-            {
-                refCode: '#BDO-TRF8812',
-                txnId: 'TXN-2026-08-881',
-                payer: 'ARGO Disburse Engine',
-                property_location: 'Sunrise Property Portfolio',
-                fullLocation: 'Sunrise Property Portfolio',
-                category: 'Owner Net Operating Yield',
-                direction: 'OUTFLOW',
-                grossAmount: '₱112,500.00',
-                amount: 112500.00,
-                channel: 'Bank Transfer (BDO)',
-                status: 'Disbursed',
-                timestamp: 'Aug 01, 2026'
-            }
-        ];
-
-        function getTransactions() {
-            try {
-                const data = localStorage.getItem('argo_transactions');
-                if (!data) {
-                    localStorage.setItem('argo_transactions', JSON.stringify(DEFAULT_TRANSACTIONS));
-                    return DEFAULT_TRANSACTIONS;
+    async function getTransactions() {
+        try {
+            const res = await fetch(`${API_BASE_URL}/transactions/`, { headers: getAuthHeaders() });
+            if (res.ok) {
+                const data = await res.json();
+                if (Array.isArray(data) && data.length > 0) {
+                    localStorage.setItem('argo_transactions', JSON.stringify(data));
+                    return data;
                 }
-                return JSON.parse(data);
-            } catch (e) {
-                return DEFAULT_TRANSACTIONS;
             }
+        } catch (e) {
+            console.warn("Live Transactions API unavailable, loading from local ledger cache.");
         }
 
-        function saveTransactions(transactions) {
-            localStorage.setItem('argo_transactions', JSON.stringify(transactions));
+        const data = localStorage.getItem('argo_transactions');
+        if (!data) {
+            localStorage.setItem('argo_transactions', JSON.stringify(DEFAULT_TRANSACTIONS));
+            return DEFAULT_TRANSACTIONS;
         }
-
-        function getInvoices() {
-            try {
-                return JSON.parse(localStorage.getItem('argo_invoices') || '[]');
-            } catch (e) {
-                return [];
+        try {
+            const parsed = JSON.parse(data);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+                const hasMariaTxn = parsed.some(t => (t.payer || '').toLowerCase().includes('maria santos'));
+                if (!hasMariaTxn) {
+                    parsed.unshift(...DEFAULT_TRANSACTIONS.slice(0, 2));
+                    localStorage.setItem('argo_transactions', JSON.stringify(parsed));
+                }
+                return parsed;
             }
+            localStorage.setItem('argo_transactions', JSON.stringify(DEFAULT_TRANSACTIONS));
+            return DEFAULT_TRANSACTIONS;
+        } catch (e) {
+            return DEFAULT_TRANSACTIONS;
+        }
+    }
+
+    function saveTransactions(transactions) {
+        localStorage.setItem('argo_transactions', JSON.stringify(transactions));
+    }
+
+    function getInvoices() {
+        try {
+            return JSON.parse(localStorage.getItem('argo_invoices') || '[]');
+        } catch (e) {
+            return [];
+        }
+    }
+
+    function saveInvoices(invoices) {
+        localStorage.setItem('argo_invoices', JSON.stringify(invoices));
+    }
+
+    function getNotifications() {
+        try {
+            return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
+        } catch (e) {
+            return [];
+        }
+    }
+
+    function saveNotifications(notifications) {
+        localStorage.setItem('argo_notifications', JSON.stringify(notifications));
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        const rawRole = (
+            localStorage.getItem('argo_pov') || 
+            localStorage.getItem('user_role') || 
+            localStorage.getItem('role') || 
+            ''
+        ).toLowerCase().trim();
+
+        if (!rawRole) {
+            window.location.replace('index.html');
+            return;
         }
 
-        function saveInvoices(invoices) {
-            localStorage.setItem('argo_invoices', JSON.stringify(invoices));
-        }
+        applyRoleLayout();
+        loadUserData();
+        await renderTransactionTable();
+        await updateKPIs();
+        updateHeaderBadge();
+    });
 
-        function getNotifications() {
-            try {
-                return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
-            } catch (e) {
-                return [];
-            }
-        }
-
-        function saveNotifications(notifications) {
-            localStorage.setItem('argo_notifications', JSON.stringify(notifications));
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            const rawRole = (
-                localStorage.getItem('argo_pov') || 
-                localStorage.getItem('user_role') || 
-                localStorage.getItem('role') || 
-                ''
-            ).toLowerCase().trim();
-
-            if (!rawRole) {
-                window.location.replace('index.html');
-                return;
-            }
-
+    // Real-Time Cross-Tab Listener
+    window.addEventListener('storage', async (e) => {
+        if (['argo_transactions', 'argo_notifications', 'argo_invoices', 'argo_pov', 'user_role', 'role', 'argo_user'].includes(e.key)) {
             applyRoleLayout();
             loadUserData();
-            renderTransactionTable();
-            updateKPIs();
+            await renderTransactionTable();
+            await updateKPIs();
             updateHeaderBadge();
-        });
+        }
+    });
 
-        // Real-Time Cross-Tab Listener
-        window.addEventListener('storage', (e) => {
-            if (['argo_transactions', 'argo_notifications', 'argo_invoices', 'argo_pov', 'user_role', 'role', 'argo_user'].includes(e.key)) {
-                applyRoleLayout();
-                loadUserData();
-                renderTransactionTable();
-                updateKPIs();
-                updateHeaderBadge();
-            }
-        });
+    // Dynamic Role Perspective Layout Adapter
+    function applyRoleLayout() {
+        const rawRole = (
+            localStorage.getItem('argo_pov') || 
+            localStorage.getItem('user_role') || 
+            localStorage.getItem('role') || 
+            'admin'
+        ).toLowerCase().trim();
 
-        // Dynamic Role Perspective Layout Adapter
-        function applyRoleLayout() {
-            const rawRole = (
-                localStorage.getItem('argo_pov') || 
-                localStorage.getItem('user_role') || 
-                localStorage.getItem('role') || 
-                'admin'
-            ).toLowerCase().trim();
-
-            let role = 'admin';
-            if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
-                role = 'client';
-            } else if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
-                role = 'owner';
-            }
-
-            const nav = document.getElementById('sidebarNav');
-            const brandSub = document.getElementById('portalBrandSubtitle');
-            const brandLogo = document.getElementById('brandLogo');
-            const versionText = document.getElementById('portalVersionText');
-            const headerRoleContainer = document.getElementById('headerRoleBadgeContainer');
-            const headerRoleIcon = document.getElementById('headerRoleIcon');
-            const headerRoleText = document.getElementById('headerRoleBadgeText');
-            const pageEyebrow = document.getElementById('pageEyebrow');
-            const pageTitle = document.getElementById('pageTitle');
-            const pageDesc = document.getElementById('pageDesc');
-            const tableHeaderTitle = document.getElementById('tableHeaderTitle');
-            const tableSubtitle = document.getElementById('tableSubtitle');
-
-            if (role === 'client') {
-                document.documentElement.style.setProperty('--primary', '#2563EB');
-                if (brandSub) brandSub.textContent = 'Tenant Portal';
-                if (brandLogo) brandLogo.style.background = '#2563EB';
-                if (versionText) versionText.textContent = 'ARGO v0.5 (Tenant POV)';
-
-                if (headerRoleContainer) {
-                    headerRoleContainer.className = 'tenant-badge';
-                    headerRoleContainer.innerHTML = '<i class="bi bi-house-door-fill" style="color: #60A5FA;"></i><span>Tenant Self-Service Portal</span>';
-                }
-
-                if (pageEyebrow) pageEyebrow.textContent = 'SELF-SERVICE PAYMENT HISTORY';
-                if (pageTitle) pageTitle.textContent = 'My Payment Transactions & Proofs';
-                if (pageDesc) pageDesc.textContent = 'View your submitted rent and utility payment receipts, reference hash codes, and clearance statuses.';
-                if (tableHeaderTitle) tableHeaderTitle.textContent = 'Personal Payment History';
-                if (tableSubtitle) tableSubtitle.textContent = 'Verified payments for Unit 101';
-
-                if (nav) {
-                    nav.innerHTML = `
-                        <div class="nav-section-title">SELF-SERVICE HOME</div>
-                        <a href="client-dashboard.html" class="nav-item">
-                            <i class="bi bi-house-door"></i>
-                            <span>My Tenancy Home</span>
-                        </a>
-                        <a href="client-billing.html" class="nav-item">
-                            <i class="bi bi-receipt"></i>
-                            <span>Pay Rent & Dues</span>
-                        </a>
-                        <a href="transaction.html" class="nav-item active">
-                            <i class="bi bi-receipt-cutoff"></i>
-                            <span>Transactions & Ledger</span>
-                        </a>
-                        <a href="client-utilities.html" class="nav-item">
-                            <i class="bi bi-lightning-charge"></i>
-                            <span>My Utilities & Meters</span>
-                        </a>
-                        <a href="client-maintenance.html" class="nav-item">
-                            <i class="bi bi-tools"></i>
-                            <span>Submit Maintenance</span>
-                        </a>
-                        <a href="inspections.html" class="nav-item">
-                            <i class="bi bi-clipboard-check"></i>
-                            <span>Move-In & Inspections</span>
-                        </a>
-                        <a href="client-documents.html" class="nav-item">
-                            <i class="bi bi-folder2-open"></i>
-                            <span>My Lease & Receipts</span>
-                        </a>
-
-                        <div class="nav-section-title">SYSTEM</div>
-                        <a href="account.html" class="nav-item">
-                            <i class="bi bi-gear"></i>
-                            <span>Account Settings</span>
-                        </a>
-                        <a href="#" class="nav-item" onclick="logoutUser(); return false;">
-                            <i class="bi bi-box-arrow-right"></i>
-                            <span>Log Out</span>
-                        </a>
-                    `;
-                }
-
-            } else if (role === 'owner') {
-                document.documentElement.style.setProperty('--primary', '#059669');
-                if (brandSub) brandSub.textContent = 'Owner Portal';
-                if (brandLogo) brandLogo.style.background = '#059669';
-                if (versionText) versionText.textContent = 'ARGO v0.5 (Owner POV)';
-
-                if (headerRoleContainer) {
-                    headerRoleContainer.className = 'owner-badge';
-                    headerRoleContainer.innerHTML = '<i class="bi bi-person-badge-fill" style="color: #34D399;"></i><span>Property Owner Executive Portal</span>';
-                }
-
-                if (pageEyebrow) pageEyebrow.textContent = 'FINANCIAL AUDIT & YIELD DISBURSEMENTS';
-                if (pageTitle) pageTitle.textContent = 'Yield Audit Ledger & Disbursements';
-                if (pageDesc) pageDesc.textContent = 'Inspect incoming gross tenant rent payments, maintenance repair outflows, and net owner payouts.';
-                if (tableHeaderTitle) tableHeaderTitle.textContent = 'Portfolio Disbursement Ledger';
-                if (tableSubtitle) tableSubtitle.textContent = 'Audited inflows and yield distributions for Don Ramon Santos';
-
-                if (nav) {
-                    nav.innerHTML = `
-                        <div class="nav-section-title">PORTFOLIO OVERVIEW</div>
-                        <a href="owner-dashboard.html" class="nav-item">
-                            <i class="bi bi-speedometer2"></i>
-                            <span>Executive Summary</span>
-                        </a>
-                        <a href="owner-properties.html" class="nav-item">
-                            <i class="bi bi-buildings"></i>
-                            <span>My Properties</span>
-                        </a>
-                        <a href="owner-statements.html" class="nav-item">
-                            <i class="bi bi-file-earmark-text"></i>
-                            <span>Financial Statements</span>
-                        </a>
-                        <a href="property-ownership.html" class="nav-item">
-                            <i class="bi bi-pie-chart"></i>
-                            <span>Fractional Equity</span>
-                        </a>
-                        <a href="owner-documents.html" class="nav-item">
-                            <i class="bi bi-folder2-open"></i>
-                            <span>Legal Vault</span>
-                        </a>
-                        <a href="transaction.html" class="nav-item active">
-                            <i class="bi bi-receipt-cutoff"></i>
-                            <span>Yield Audit Ledger</span>
-                        </a>
-
-                        <div class="nav-section-title">COMMUNICATION & SYSTEM</div>
-                        <a href="notification.html" class="nav-item">
-                            <i class="bi bi-bell"></i>
-                            <span>Notification Center</span>
-                        </a>
-                        <a href="account.html" class="nav-item">
-                            <i class="bi bi-gear"></i>
-                            <span>Account Settings</span>
-                        </a>
-                        <a href="#" class="nav-item" onclick="logoutUser(); return false;">
-                            <i class="bi bi-box-arrow-right"></i>
-                            <span>Log Out</span>
-                        </a>
-                    `;
-                }
-
-            } else {
-                // Admin POV
-                document.documentElement.style.setProperty('--primary', '#2563EB');
-                if (brandSub) brandSub.textContent = 'Property Management';
-                if (brandLogo) brandLogo.style.background = '#2563EB';
-                if (versionText) versionText.textContent = 'ARGO v0.5';
-
-                if (headerRoleContainer) {
-                    headerRoleContainer.className = 'admin-badge';
-                    headerRoleContainer.innerHTML = '<i class="bi bi-shield-lock-fill" style="color: #60A5FA;"></i><span>Admin Command Center</span>';
-                }
-
-                if (pageEyebrow) pageEyebrow.textContent = 'FINANCIAL AUDIT ENGINE';
-                if (pageTitle) pageTitle.textContent = 'Master Transaction Ledger & Reference Search';
-                if (pageDesc) pageDesc.textContent = 'Track multi-party payments, verify unique gateway reference codes, and inspect 3-POV lifecycle trails.';
-                if (tableHeaderTitle) tableHeaderTitle.textContent = 'Master Audit Ledger';
-                if (tableSubtitle) tableSubtitle.textContent = 'Synced with Tenant Portal & Owner Statements';
-
-                if (nav) {
-                    nav.innerHTML = `
-                        <div class="nav-section-title">OVERVIEW</div>
-                        <a href="dashboard.html" class="nav-item">
-                            <i class="bi bi-grid-1x2"></i>
-                            <span>Dashboard</span>
-                        </a>
-
-                        <div class="nav-section-title">PROPERTY OPERATIONS</div>
-                        <a href="properties.html" class="nav-item">
-                            <i class="bi bi-buildings"></i>
-                            <span>Properties</span>
-                        </a>
-                        <a href="buildings.html" class="nav-item">
-                            <i class="bi bi-building"></i>
-                            <span>Buildings</span>
-                        </a>
-                        <a href="units.html" class="nav-item">
-                            <i class="bi bi-door-open"></i>
-                            <span>Units</span>
-                        </a>
-                        <a href="tenants.html" class="nav-item">
-                            <i class="bi bi-people"></i>
-                            <span>Tenants</span>
-                        </a>
-                        <a href="owners.html" class="nav-item">
-                            <i class="bi bi-person-badge"></i>
-                            <span>Owners</span>
-                        </a>
-                        <a href="property-ownership.html" class="nav-item">
-                            <i class="bi bi-pie-chart"></i>
-                            <span>Fractional Ownership</span>
-                        </a>
-                        <a href="leases.html" class="nav-item">
-                            <i class="bi bi-file-earmark-text"></i>
-                            <span>Leases</span>
-                        </a>
-
-                        <div class="nav-section-title">FINANCE & SERVICES</div>
-                        <a href="rent-collection.html" class="nav-item">
-                            <i class="bi bi-cash-stack"></i>
-                            <span>Rent Collection</span>
-                        </a>
-                        <a href="transaction.html" class="nav-item active">
-                            <i class="bi bi-receipt-cutoff"></i>
-                            <span>Transactions & Ledger</span>
-                        </a>
-                        <a href="utilities.html" class="nav-item">
-                            <i class="bi bi-lightning-charge"></i>
-                            <span>Utilities</span>
-                        </a>
-                        <a href="meter-readings.html" class="nav-item">
-                            <i class="bi bi-speedometer2"></i>
-                            <span>Meter Readings</span>
-                        </a>
-                        <a href="maintenance.html" class="nav-item">
-                            <i class="bi bi-tools"></i>
-                            <span>Maintenance</span>
-                        </a>
-
-                        <div class="nav-section-title">RECORDS & REPORTS</div>
-                        <a href="inspections.html" class="nav-item">
-                            <i class="bi bi-clipboard-check"></i>
-                            <span>Inspections</span>
-                        </a>
-                        <a href="move-in-checklist.html" class="nav-item">
-                            <i class="bi bi-check2-square"></i>
-                            <span>Move-In Checklist</span>
-                        </a>
-                        <a href="move-out-settlement.html" class="nav-item">
-                            <i class="bi bi-box-arrow-right"></i>
-                            <span>Move-Out Settlement</span>
-                        </a>
-                        <a href="documents.html" class="nav-item">
-                            <i class="bi bi-folder2-open"></i>
-                            <span>Documents</span>
-                        </a>
-                        <a href="reports.html" class="nav-item">
-                            <i class="bi bi-bar-chart"></i>
-                            <span>Reports</span>
-                        </a>
-
-                        <div class="nav-section-title">SYSTEM</div>
-                        <a href="settings.html" class="nav-item">
-                            <i class="bi bi-gear"></i>
-                            <span>Settings</span>
-                        </a>
-                        <a href="account.html" class="nav-item">
-                            <i class="bi bi-person-gear"></i>
-                            <span>Account Settings</span>
-                        </a>
-                        <a href="#" class="nav-item" onclick="logoutUser(); return false;">
-                            <i class="bi bi-box-arrow-right"></i>
-                            <span>Log Out</span>
-                        </a>
-                    `;
-                }
-            }
+        let role = 'admin';
+        if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
+            role = 'client';
+        } else if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
+            role = 'owner';
         }
 
-        function loadUserData() {
-            const rawRole = (
-                localStorage.getItem('argo_pov') || 
-                localStorage.getItem('user_role') || 
-                localStorage.getItem('role') || 
-                'admin'
-            ).toLowerCase().trim();
+        const nav = document.getElementById('sidebarNav');
+        const brandSub = document.getElementById('portalBrandSubtitle');
+        const brandLogo = document.getElementById('brandLogo');
+        const versionText = document.getElementById('portalVersionText');
+        const headerRoleContainer = document.getElementById('headerRoleBadgeContainer');
+        const pageEyebrow = document.getElementById('pageEyebrow');
+        const pageTitle = document.getElementById('pageTitle');
+        const pageDesc = document.getElementById('pageDesc');
+        const tableHeaderTitle = document.getElementById('tableHeaderTitle');
+        const tableSubtitle = document.getElementById('tableSubtitle');
 
-            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+        if (role === 'client') {
+            document.documentElement.style.setProperty('--primary', '#2563EB');
+            if (brandSub) brandSub.textContent = 'Tenant Portal';
+            if (brandLogo) brandLogo.style.background = '#2563EB';
+            if (versionText) versionText.textContent = 'ARGO v0.5 (Tenant POV)';
 
-            if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
-                document.getElementById('userName').textContent = 'Don Ramon Santos';
-                document.getElementById('userRoleBadge').textContent = 'Property Owner';
-                document.getElementById('userAvatar').textContent = 'RS';
-                document.getElementById('userAvatar').style.background = '#059669';
-            } else if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
-                document.getElementById('userName').textContent = 'Maria Santos';
-                document.getElementById('userRoleBadge').textContent = 'Sunrise Property • Unit 101';
-                document.getElementById('userAvatar').textContent = 'MS';
-                document.getElementById('userAvatar').style.background = '#D97706';
-            } else {
-                document.getElementById('userName').textContent = user.name || 'Property Admin';
-                document.getElementById('userRoleBadge').textContent = 'Property Manager';
-                document.getElementById('userAvatar').textContent = user.avatar || 'JD';
-                document.getElementById('userAvatar').style.background = '#2563EB';
+            if (headerRoleContainer) {
+                headerRoleContainer.className = 'tenant-badge';
+                headerRoleContainer.innerHTML = '<i class="bi bi-house-door-fill" style="color: #60A5FA;"></i><span>Tenant Self-Service Portal</span>';
+            }
+
+            if (pageEyebrow) pageEyebrow.textContent = 'SELF-SERVICE PAYMENT HISTORY';
+            if (pageTitle) pageTitle.textContent = 'My Payment Transactions & Proofs';
+            if (pageDesc) pageDesc.textContent = 'View your submitted rent and utility payment receipts, reference hash codes, and clearance statuses.';
+            if (tableHeaderTitle) tableHeaderTitle.textContent = 'Personal Payment History';
+            if (tableSubtitle) tableSubtitle.textContent = 'Verified payments for Unit 101';
+
+            if (nav) {
+                nav.innerHTML = `
+                    <div class="nav-section-title">SELF-SERVICE HOME</div>
+                    <a href="client-dashboard.html" class="nav-item">
+                        <i class="bi bi-house-door"></i>
+                        <span>My Tenancy Home</span>
+                    </a>
+                    <a href="client-billing.html" class="nav-item">
+                        <i class="bi bi-receipt"></i>
+                        <span>Pay Rent & Dues</span>
+                    </a>
+                    <a href="transaction.html" class="nav-item active">
+                        <i class="bi bi-receipt-cutoff"></i>
+                        <span>Transactions & Ledger</span>
+                    </a>
+                    <a href="client-utilities.html" class="nav-item">
+                        <i class="bi bi-lightning-charge"></i>
+                        <span>My Utilities & Meters</span>
+                    </a>
+                    <a href="client-maintenance.html" class="nav-item">
+                        <i class="bi bi-tools"></i>
+                        <span>Submit Maintenance</span>
+                    </a>
+                    <a href="inspections.html" class="nav-item">
+                        <i class="bi bi-clipboard-check"></i>
+                        <span>Move-In & Inspections</span>
+                    </a>
+                    <a href="client-documents.html" class="nav-item">
+                        <i class="bi bi-folder2-open"></i>
+                        <span>My Lease & Receipts</span>
+                    </a>
+
+                    <div class="nav-section-title">SYSTEM</div>
+                    <a href="account.html" class="nav-item">
+                        <i class="bi bi-gear"></i>
+                        <span>Account Settings</span>
+                    </a>
+                    <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Log Out</span>
+                    </a>
+                `;
+            }
+
+        } else if (role === 'owner') {
+            document.documentElement.style.setProperty('--primary', '#059669');
+            if (brandSub) brandSub.textContent = 'Owner Portal';
+            if (brandLogo) brandLogo.style.background = '#059669';
+            if (versionText) versionText.textContent = 'ARGO v0.5 (Owner POV)';
+
+            if (headerRoleContainer) {
+                headerRoleContainer.className = 'owner-badge';
+                headerRoleContainer.innerHTML = '<i class="bi bi-person-badge-fill" style="color: #34D399;"></i><span>Property Owner Executive Portal</span>';
+            }
+
+            if (pageEyebrow) pageEyebrow.textContent = 'FINANCIAL AUDIT & YIELD DISBURSEMENTS';
+            if (pageTitle) pageTitle.textContent = 'Yield Audit Ledger & Disbursements';
+            if (pageDesc) pageDesc.textContent = 'Inspect incoming gross tenant rent payments, maintenance repair outflows, and net owner payouts.';
+            if (tableHeaderTitle) tableHeaderTitle.textContent = 'Portfolio Disbursement Ledger';
+            if (tableSubtitle) tableSubtitle.textContent = 'Audited inflows and yield distributions for Don Ramon Santos';
+
+            if (nav) {
+                nav.innerHTML = `
+                    <div class="nav-section-title">PORTFOLIO OVERVIEW</div>
+                    <a href="owner-dashboard.html" class="nav-item">
+                        <i class="bi bi-speedometer2"></i>
+                        <span>Executive Summary</span>
+                    </a>
+                    <a href="owner-properties.html" class="nav-item">
+                        <i class="bi bi-buildings"></i>
+                        <span>My Properties</span>
+                    </a>
+                    <a href="owner-statements.html" class="nav-item">
+                        <i class="bi bi-file-earmark-text"></i>
+                        <span>Financial Statements</span>
+                    </a>
+                    <a href="property-ownership.html" class="nav-item">
+                        <i class="bi bi-pie-chart"></i>
+                        <span>Fractional Equity</span>
+                    </a>
+                    <a href="owner-documents.html" class="nav-item">
+                        <i class="bi bi-folder2-open"></i>
+                        <span>Legal Vault</span>
+                    </a>
+                    <a href="transaction.html" class="nav-item active">
+                        <i class="bi bi-receipt-cutoff"></i>
+                        <span>Yield Audit Ledger</span>
+                    </a>
+
+                    <div class="nav-section-title">COMMUNICATION & SYSTEM</div>
+                    <a href="notification.html" class="nav-item">
+                        <i class="bi bi-bell"></i>
+                        <span>Notification Center</span>
+                    </a>
+                    <a href="account.html" class="nav-item">
+                        <i class="bi bi-gear"></i>
+                        <span>Account Settings</span>
+                    </a>
+                    <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Log Out</span>
+                    </a>
+                `;
+            }
+
+        } else {
+            // Admin POV
+            document.documentElement.style.setProperty('--primary', '#2563EB');
+            if (brandSub) brandSub.textContent = 'Property Management';
+            if (brandLogo) brandLogo.style.background = '#2563EB';
+            if (versionText) versionText.textContent = 'ARGO v0.5';
+
+            if (headerRoleContainer) {
+                headerRoleContainer.className = 'admin-badge';
+                headerRoleContainer.innerHTML = '<i class="bi bi-shield-lock-fill" style="color: #60A5FA;"></i><span>Admin Command Center</span>';
+            }
+
+            if (pageEyebrow) pageEyebrow.textContent = 'FINANCIAL AUDIT ENGINE';
+            if (pageTitle) pageTitle.textContent = 'Master Transaction Ledger & Reference Search';
+            if (pageDesc) pageDesc.textContent = 'Track multi-party payments, verify unique gateway reference codes, and inspect 3-POV lifecycle trails.';
+            if (tableHeaderTitle) tableHeaderTitle.textContent = 'Master Audit Ledger';
+            if (tableSubtitle) tableSubtitle.textContent = 'Synced with Tenant Portal & Owner Statements';
+
+            if (nav) {
+                nav.innerHTML = `
+                    <div class="nav-section-title">OVERVIEW</div>
+                    <a href="dashboard.html" class="nav-item">
+                        <i class="bi bi-grid-1x2"></i>
+                        <span>Dashboard</span>
+                    </a>
+
+                    <div class="nav-section-title">PROPERTY OPERATIONS</div>
+                    <a href="properties.html" class="nav-item">
+                        <i class="bi bi-buildings"></i>
+                        <span>Properties</span>
+                    </a>
+                    <a href="buildings.html" class="nav-item">
+                        <i class="bi bi-building"></i>
+                        <span>Buildings</span>
+                    </a>
+                    <a href="units.html" class="nav-item">
+                        <i class="bi bi-door-open"></i>
+                        <span>Units</span>
+                    </a>
+                    <a href="tenants.html" class="nav-item">
+                        <i class="bi bi-people"></i>
+                        <span>Tenants</span>
+                    </a>
+                    <a href="owners.html" class="nav-item">
+                        <i class="bi bi-person-badge"></i>
+                        <span>Owners</span>
+                    </a>
+                    <a href="property-ownership.html" class="nav-item">
+                        <i class="bi bi-pie-chart"></i>
+                        <span>Fractional Ownership</span>
+                    </a>
+                    <a href="leases.html" class="nav-item">
+                        <i class="bi bi-file-earmark-text"></i>
+                        <span>Leases</span>
+                    </a>
+
+                    <div class="nav-section-title">FINANCE & SERVICES</div>
+                    <a href="rent-collection.html" class="nav-item">
+                        <i class="bi bi-cash-stack"></i>
+                        <span>Rent Collection</span>
+                    </a>
+                    <a href="transaction.html" class="nav-item active">
+                        <i class="bi bi-receipt-cutoff"></i>
+                        <span>Transactions & Ledger</span>
+                    </a>
+                    <a href="utilities.html" class="nav-item">
+                        <i class="bi bi-lightning-charge"></i>
+                        <span>Utilities</span>
+                    </a>
+                    <a href="meter-readings.html" class="nav-item">
+                        <i class="bi bi-speedometer2"></i>
+                        <span>Meter Readings</span>
+                    </a>
+                    <a href="maintenance.html" class="nav-item">
+                        <i class="bi bi-tools"></i>
+                        <span>Maintenance</span>
+                    </a>
+
+                    <div class="nav-section-title">RECORDS & REPORTS</div>
+                    <a href="inspections.html" class="nav-item">
+                        <i class="bi bi-clipboard-check"></i>
+                        <span>Inspections</span>
+                    </a>
+                    <a href="move-in-checklist.html" class="nav-item">
+                        <i class="bi bi-check2-square"></i>
+                        <span>Move-In Checklist</span>
+                    </a>
+                    <a href="move-out-settlement.html" class="nav-item">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Move-Out Settlement</span>
+                    </a>
+                    <a href="documents.html" class="nav-item">
+                        <i class="bi bi-folder2-open"></i>
+                        <span>Documents</span>
+                    </a>
+                    <a href="reports.html" class="nav-item">
+                        <i class="bi bi-bar-chart"></i>
+                        <span>Reports</span>
+                    </a>
+
+                    <div class="nav-section-title">SYSTEM</div>
+                    <a href="settings.html" class="nav-item">
+                        <i class="bi bi-gear"></i>
+                        <span>Settings</span>
+                    </a>
+                    <a href="account.html" class="nav-item">
+                        <i class="bi bi-person-gear"></i>
+                        <span>Account Settings</span>
+                    </a>
+                    <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Log Out</span>
+                    </a>
+                `;
             }
         }
+    }
 
-        function renderTransactionTable() {
-            const rawRole = (
-                localStorage.getItem('argo_pov') || 
-                localStorage.getItem('user_role') || 
-                localStorage.getItem('role') || 
-                'admin'
-            ).toLowerCase().trim();
+    function loadUserData() {
+        const rawRole = (
+            localStorage.getItem('argo_pov') || 
+            localStorage.getItem('user_role') || 
+            localStorage.getItem('role') || 
+            'admin'
+        ).toLowerCase().trim();
 
-            let transactions = getTransactions();
-            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
-            const tenantName = user.name || 'Maria Santos';
+        const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+        const nameEl = document.getElementById('userName');
+        const roleEl = document.getElementById('userRoleBadge');
+        const avatarEl = document.getElementById('userAvatar');
 
-            // Strict Role-Based Table Filtering
-            if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
-                transactions = transactions.filter(t => 
-                    (t.payer && t.payer.toLowerCase().includes(tenantName.toLowerCase())) || 
-                    (t.fullLocation && t.fullLocation.includes('101')) ||
-                    (t.property_location && t.property_location.includes('101'))
-                );
-            } else if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
-                transactions = transactions.filter(t => 
-                    (t.direction || '').toUpperCase() === 'OUTFLOW' || 
-                    (t.payer || '').includes('Disburse') || 
-                    (t.category && (t.category.includes('Yield') || t.category.includes('Rent') || t.category.includes('Repair')))
-                );
+        if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
+            if (nameEl) nameEl.textContent = 'Don Ramon Santos';
+            if (roleEl) roleEl.textContent = 'Property Owner';
+            if (avatarEl) {
+                avatarEl.textContent = 'RS';
+                avatarEl.style.background = '#059669';
+            }
+        } else if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
+            if (nameEl) nameEl.textContent = 'Maria Santos';
+            if (roleEl) roleEl.textContent = 'Sunrise Property • Unit 101';
+            if (avatarEl) {
+                avatarEl.textContent = 'MS';
+                avatarEl.style.background = '#D97706';
+            }
+        } else {
+            const name = user.name || 'Property Admin';
+            const role = user.role || 'Property Manager';
+            if (nameEl) nameEl.textContent = name;
+            if (roleEl) roleEl.textContent = role;
+            if (avatarEl) {
+                avatarEl.textContent = user.avatar || (name.charAt(0) || 'JD');
+                avatarEl.style.background = user.avatarBg || '#2563EB';
+            }
+        }
+    }
+
+    async function renderTransactionTable() {
+        const rawRole = (
+            localStorage.getItem('argo_pov') || 
+            localStorage.getItem('user_role') || 
+            localStorage.getItem('role') || 
+            'admin'
+        ).toLowerCase().trim();
+
+        let transactions = await getTransactions();
+        const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+        const tenantName = user.name || 'Maria Santos';
+
+        // Strict Role-Based Table Filtering
+        if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
+            transactions = transactions.filter(t => 
+                (t.payer && t.payer.toLowerCase().includes(tenantName.toLowerCase())) || 
+                (t.fullLocation && t.fullLocation.includes('101')) ||
+                (t.property_location && t.property_location.includes('101'))
+            );
+        } else if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
+            transactions = transactions.filter(t => 
+                (t.direction || '').toUpperCase() === 'OUTFLOW' || 
+                (t.payer || '').includes('Disburse') || 
+                (t.category && (t.category.includes('Yield') || t.category.includes('Rent') || t.category.includes('Repair')))
+            );
+        }
+
+        const tbody = document.getElementById('transactionTable');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+
+        if (!transactions || transactions.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:var(--muted); padding:30px;">No transaction records found in ledger.</td></tr>`;
+            document.getElementById('showingCountText').textContent = `Showing 0 ledger records`;
+            return;
+        }
+
+        transactions.forEach(t => {
+            const tr = document.createElement('tr');
+            const channel = t.channel || 'GCash';
+            const status = t.status || 'Verified';
+            const isOutflow = (t.direction || '').toUpperCase() === 'OUTFLOW';
+            const grossFormatted = t.grossAmount ? t.grossAmount : (isOutflow ? `-${formatPeso(t.amount)}` : formatPeso(t.amount));
+
+            tr.dataset.channel = channel;
+            tr.dataset.status = status;
+
+            const directionBadge = isOutflow 
+                ? `<span class="direction-badge outflow" style="background:#FFF1F2; color:#E11D48; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:700;"><i class="bi bi-arrow-up-right"></i> OUTFLOW</span>`
+                : `<span class="direction-badge inflow" style="background:#ECFDF5; color:#059669; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:700;"><i class="bi bi-arrow-down-left"></i> INFLOW</span>`;
+
+            let statusBadge = '';
+            const s = status.toLowerCase();
+            if (s === 'verified' || s === 'paid') {
+                statusBadge = `<span class="status-badge status-verified" style="background:#ECFDF5; color:#059669; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-check-circle" style="margin-right:4px;"></i> Verified</span>`;
+            } else if (s.includes('pending')) {
+                statusBadge = `<span class="status-badge status-pending" style="background:#FEF3C7; color:#B45309; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-clock-history" style="margin-right:4px;"></i> Pending Audit</span>`;
+            } else {
+                statusBadge = `<span class="status-badge status-disbursed" style="background:#EFF6FF; color:#2563EB; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-box-arrow-up-right" style="margin-right:4px;"></i> ${status}</span>`;
             }
 
-            const tbody = document.getElementById('transactionTable');
-            if (!tbody) return;
-            tbody.innerHTML = '';
+            const refColor = isOutflow ? '#6D28D9' : (s.includes('pending') ? 'var(--warning, #D97706)' : 'var(--primary, #2563EB)');
+            const amountColor = isOutflow ? 'var(--danger, #E11D48)' : (s.includes('pending') ? 'var(--warning, #D97706)' : 'var(--success, #059669)');
 
-            if (transactions.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:var(--muted); padding:30px;">No transaction records found in ledger.</td></tr>`;
-                document.getElementById('showingCountText').textContent = `Showing 0 ledger records`;
-                return;
+            let actionsHtml = `
+                <button class="action-button" title="Inspect Audit Trail" onclick="inspectTxnAudit('${escapeQuotes(t.refCode)}', '${escapeQuotes(t.txnId)}', '${escapeQuotes(t.payer)}', '${escapeQuotes(t.fullLocation || t.property_location || 'Sunrise Residences • Unit 101')}', '${escapeQuotes(t.category || 'Rent Payment')}', '${t.direction || 'INFLOW'}', '${escapeQuotes(grossFormatted)}', '${escapeQuotes(channel)}', '${escapeQuotes(status)}', '${escapeQuotes(t.timestamp)}')"><i class="bi bi-eye"></i></button>
+            `;
+
+            if (!['client', 'tenant', 'owner', 'property_owner'].includes(rawRole) && s.includes('pending')) {
+                actionsHtml += `
+                    <button class="action-button" title="Approve Transaction" style="color:#059669;" onclick="approveTransaction('${t.refCode}')"><i class="bi bi-check2-square" style="font-size:16px;"></i></button>
+                `;
             }
 
+            tr.innerHTML = `
+                <td><div class="ref-code" style="color:${refColor}; font-weight:700;">${t.refCode}</div></td>
+                <td style="font-family:monospace; color:var(--muted); font-size:12px;">${t.txnId}</td>
+                <td>
+                    <strong>${t.payer || 'Maria Santos'}</strong>
+                    <div style="font-size:11px; color:var(--muted);">${t.fullLocation || t.property_location || 'Sunrise Residences • Unit 101'}</div>
+                </td>
+                <td>
+                    <div>${t.category || 'Monthly Base Rent'}</div>
+                    <div style="margin-top:2px;">${directionBadge}</div>
+                </td>
+                <td><strong style="color:${amountColor}; font-size:13px;">${grossFormatted}</strong></td>
+                <td>${channel}</td>
+                <td>${t.timestamp || 'Recently'}</td>
+                <td>${statusBadge}</td>
+                <td><div style="display:flex; gap:6px;">${actionsHtml}</div></td>
+            `;
+
+            tbody.appendChild(tr);
+        });
+
+        document.getElementById('showingCountText').textContent = `Showing 1–${transactions.length} of ${transactions.length} historical ledger records`;
+    }
+
+    function escapeQuotes(str) {
+        return (str || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    }
+
+    async function approveTransaction(refCode) {
+        if (!confirm(`Verify transaction ${refCode} and clear outstanding tenant ledger?`)) return;
+
+        let transactions = await getTransactions();
+        let matchedTxn = null;
+
+        transactions = transactions.map(t => {
+            if (t.refCode === refCode) {
+                matchedTxn = t;
+                return { ...t, status: 'Verified' };
+            }
+            return t;
+        });
+        saveTransactions(transactions);
+
+        // Update matching invoice
+        let invoices = getInvoices();
+        invoices = invoices.map(i => {
+            if (i.refNo === refCode || (matchedTxn && matchedTxn.txnId && i.id && matchedTxn.txnId.includes(i.id))) {
+                return { ...i, status: 'Paid' };
+            }
+            return i;
+        });
+        saveInvoices(invoices);
+
+        // Push notification to tenant Maria Santos
+        let notifications = getNotifications();
+        notifications.unshift({
+            id: `NOTIF-${Date.now()}`,
+            pov: 'client',
+            category: 'payment',
+            status: 'unread',
+            title: 'Transaction Verified in Master Ledger',
+            time: 'Just now',
+            description: `Payment ${refCode} has been verified and permanently recorded into the multi-tenant ledger.`,
+            property: matchedTxn ? (matchedTxn.fullLocation || matchedTxn.property_location) : 'Sunrise Residences • Unit 101',
+            actionUrl: 'transaction.html',
+            actionText: 'View Ledger Entry'
+        });
+        saveNotifications(notifications);
+
+        await renderTransactionTable();
+        await updateKPIs();
+        updateHeaderBadge();
+
+        alert(`Transaction ${refCode} successfully verified!`);
+    }
+
+    async function updateKPIs() {
+        const rawRole = (
+            localStorage.getItem('argo_pov') || 
+            localStorage.getItem('user_role') || 
+            localStorage.getItem('role') || 
+            'admin'
+        ).toLowerCase().trim();
+
+        let transactions = await getTransactions();
+        const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+        const tenantName = user.name || 'Maria Santos';
+
+        if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
+            transactions = transactions.filter(t => 
+                (t.payer && t.payer.toLowerCase().includes(tenantName.toLowerCase())) || 
+                (t.fullLocation && t.fullLocation.includes('101')) ||
+                (t.property_location && t.property_location.includes('101'))
+            );
+
+            document.getElementById('kpiLabel1').textContent = 'My Total Payments';
+            document.getElementById('kpiLabel2').textContent = 'Verified Receipts';
+            document.getElementById('kpiLabel3').textContent = 'Pending Audits';
+            document.getElementById('kpiLabel4').textContent = 'Active Billing Unit';
+
+            let verifiedCount = transactions.filter(t => (t.status || '').toLowerCase() === 'verified' || (t.status || '').toLowerCase() === 'paid').length;
+            let pendingCount = transactions.filter(t => (t.status || '').toLowerCase().includes('pending')).length;
+            
+            let sumPaid = 0;
             transactions.forEach(t => {
-                const tr = document.createElement('tr');
-                const channel = t.channel || 'GCash';
-                const status = t.status || 'Verified';
-                const isOutflow = (t.direction || '').toUpperCase() === 'OUTFLOW';
-                const grossFormatted = t.grossAmount ? t.grossAmount : (isOutflow ? `-${formatPeso(t.amount)}` : formatPeso(t.amount));
-
-                tr.dataset.channel = channel;
-                tr.dataset.status = status;
-
-                const directionBadge = isOutflow 
-                    ? `<span class="direction-badge outflow" style="background:#FFF1F2; color:#E11D48; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:700;"><i class="bi bi-arrow-up-right"></i> OUTFLOW</span>`
-                    : `<span class="direction-badge inflow" style="background:#ECFDF5; color:#059669; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:700;"><i class="bi bi-arrow-down-left"></i> INFLOW</span>`;
-
-                let statusBadge = '';
-                const s = status.toLowerCase();
-                if (s === 'verified' || s === 'paid') {
-                    statusBadge = `<span class="status-badge status-verified" style="background:#ECFDF5; color:#059669; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-check-circle" style="margin-right:4px;"></i> Verified</span>`;
-                } else if (s.includes('pending')) {
-                    statusBadge = `<span class="status-badge status-pending" style="background:#FEF3C7; color:#B45309; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-clock-history" style="margin-right:4px;"></i> Pending Audit</span>`;
-                } else {
-                    statusBadge = `<span class="status-badge status-disbursed" style="background:#EFF6FF; color:#2563EB; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-box-arrow-up-right" style="margin-right:4px;"></i> ${status}</span>`;
+                if ((t.status || '').toLowerCase() === 'verified' || (t.status || '').toLowerCase() === 'paid') {
+                    sumPaid += parseCurrency(t.grossAmount || t.amount);
                 }
-
-                const refColor = isOutflow ? '#6D28D9' : (s.includes('pending') ? 'var(--warning)' : 'var(--primary)');
-                const amountColor = isOutflow ? 'var(--danger)' : (s.includes('pending') ? 'var(--warning)' : 'var(--success)');
-
-                let actionsHtml = `
-                    <button class="action-button" title="Inspect Audit Trail" onclick="inspectTxnAudit('${escapeQuotes(t.refCode)}', '${escapeQuotes(t.txnId)}', '${escapeQuotes(t.payer)}', '${escapeQuotes(t.fullLocation || t.property_location || 'Property Unit')}', '${escapeQuotes(t.category || 'Rent Payment')}', '${t.direction || 'INFLOW'}', '${escapeQuotes(grossFormatted)}', '${escapeQuotes(channel)}', '${escapeQuotes(status)}', '${escapeQuotes(t.timestamp)}')"><i class="bi bi-eye"></i></button>
-                `;
-
-                if (!['client', 'tenant', 'owner', 'property_owner'].includes(rawRole) && s.includes('pending')) {
-                    actionsHtml += `
-                        <button class="action-button" title="Approve Transaction" style="color:#059669;" onclick="approveTransaction('${t.refCode}')"><i class="bi bi-check2-square" style="font-size:16px;"></i></button>
-                    `;
-                }
-
-                tr.innerHTML = `
-                    <td><div class="ref-code" style="color:${refColor}; font-weight:700;">${t.refCode}</div></td>
-                    <td style="font-family:monospace; color:var(--muted); font-size:12px;">${t.txnId}</td>
-                    <td>
-                        <strong>${t.payer || 'Payer'}</strong>
-                        <div style="font-size:11px; color:var(--muted);">${t.fullLocation || t.property_location || 'Property Unit'}</div>
-                    </td>
-                    <td>
-                        <div>${t.category || 'Rent Payment'}</div>
-                        <div style="margin-top:2px;">${directionBadge}</div>
-                    </td>
-                    <td><strong style="color:${amountColor}; font-size:13px;">${grossFormatted}</strong></td>
-                    <td>${channel}</td>
-                    <td>${t.timestamp || 'Recently'}</td>
-                    <td>${statusBadge}</td>
-                    <td><div style="display:flex; gap:6px;">${actionsHtml}</div></td>
-                `;
-
-                tbody.appendChild(tr);
             });
 
-            document.getElementById('showingCountText').textContent = `Showing 1–${transactions.length} of ${transactions.length} historical ledger records`;
-        }
+            document.getElementById('kpiValue1').textContent = formatPeso(sumPaid);
+            document.getElementById('kpiDesc1').textContent = 'Cleared rent & utility payments';
 
-        function escapeQuotes(str) {
-            return (str || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-        }
+            document.getElementById('kpiValue2').textContent = `${verifiedCount} Receipts`;
+            document.getElementById('kpiDesc2').textContent = 'Official cleared payments';
 
-        function approveTransaction(refCode) {
-            if (!confirm(`Verify transaction ${refCode} and clear outstanding tenant ledger?`)) return;
+            document.getElementById('kpiValue3').textContent = `${pendingCount} Pending`;
+            document.getElementById('kpiDesc3').textContent = 'Verification in progress';
 
-            let transactions = getTransactions();
-            let matchedTxn = null;
+            document.getElementById('kpiValue4').textContent = 'Unit 101';
+            document.getElementById('kpiDesc4').textContent = 'Sunrise Residences';
+            return;
 
-            transactions = transactions.map(t => {
-                if (t.refCode === refCode) {
-                    matchedTxn = t;
-                    return { ...t, status: 'Verified' };
-                }
-                return t;
-            });
-            saveTransactions(transactions);
+        } else if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
+            transactions = transactions.filter(t => 
+                (t.direction || '').toUpperCase() === 'OUTFLOW' || 
+                (t.payer || '').includes('Disburse') || 
+                (t.category && (t.category.includes('Yield') || t.category.includes('Rent') || t.category.includes('Repair')))
+            );
 
-            // Update matching invoice
-            let invoices = getInvoices();
-            invoices = invoices.map(i => {
-                if (i.refNo === refCode || (matchedTxn && matchedTxn.txnId && i.id && matchedTxn.txnId.includes(i.id))) {
-                    return { ...i, status: 'Paid' };
-                }
-                return i;
-            });
-            saveInvoices(invoices);
+            document.getElementById('kpiLabel1').textContent = 'YTD Gross Income';
+            document.getElementById('kpiLabel2').textContent = 'Verified Inflow Records';
+            document.getElementById('kpiLabel3').textContent = 'Maintenance Expense Outflows';
+            document.getElementById('kpiLabel4').textContent = 'Disbursed Yield NOI';
 
-            // Push notification to tenant
-            let notifications = getNotifications();
-            notifications.unshift({
-                id: `NOTIF-${Date.now()}`,
-                pov: 'client',
-                category: 'payment',
-                status: 'unread',
-                title: 'Transaction Verified in Master Ledger',
-                time: 'Just now',
-                description: `Payment ${refCode} has been verified and permanently recorded into the multi-tenant ledger.`,
-                property: matchedTxn ? (matchedTxn.fullLocation || matchedTxn.property_location) : 'Property Unit',
-                actionUrl: 'transaction.html',
-                actionText: 'View Ledger Entry'
-            });
-            saveNotifications(notifications);
-
-            renderTransactionTable();
-            updateKPIs();
-            updateHeaderBadge();
-
-            alert(`Transaction ${refCode} successfully verified!`);
-        }
-
-        function updateKPIs() {
-            const rawRole = (
-                localStorage.getItem('argo_pov') || 
-                localStorage.getItem('user_role') || 
-                localStorage.getItem('role') || 
-                'admin'
-            ).toLowerCase().trim();
-
-            let transactions = getTransactions();
-            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
-            const tenantName = user.name || 'Maria Santos';
-
-            if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
-                transactions = transactions.filter(t => 
-                    (t.payer && t.payer.toLowerCase().includes(tenantName.toLowerCase())) || 
-                    (t.fullLocation && t.fullLocation.includes('101')) ||
-                    (t.property_location && t.property_location.includes('101'))
-                );
-
-                document.getElementById('kpiLabel1').textContent = 'My Total Payments';
-                document.getElementById('kpiLabel2').textContent = 'Verified Receipts';
-                document.getElementById('kpiLabel3').textContent = 'Pending Audits';
-                document.getElementById('kpiLabel4').textContent = 'Active Billing Unit';
-
-                let verifiedCount = transactions.filter(t => (t.status || '').toLowerCase() === 'verified' || (t.status || '').toLowerCase() === 'paid').length;
-                let pendingCount = transactions.filter(t => (t.status || '').toLowerCase().includes('pending')).length;
-                
-                let sumPaid = 0;
-                transactions.forEach(t => {
-                    if ((t.status || '').toLowerCase() === 'verified' || (t.status || '').toLowerCase() === 'paid') {
-                        sumPaid += parseCurrency(t.grossAmount || t.amount);
-                    }
-                });
-
-                document.getElementById('kpiValue1').textContent = formatPeso(sumPaid);
-                document.getElementById('kpiDesc1').textContent = 'Cleared rent & utility payments';
-
-                document.getElementById('kpiValue2').textContent = `${verifiedCount} Receipts`;
-                document.getElementById('kpiDesc2').textContent = 'Official cleared payments';
-
-                document.getElementById('kpiValue3').textContent = `${pendingCount} Pending`;
-                document.getElementById('kpiDesc3').textContent = 'Verification in progress';
-
-                document.getElementById('kpiValue4').textContent = 'Unit 101';
-                document.getElementById('kpiDesc4').textContent = 'Sunrise Property';
-                return;
-
-            } else if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
-                transactions = transactions.filter(t => 
-                    (t.direction || '').toUpperCase() === 'OUTFLOW' || 
-                    (t.payer || '').includes('Disburse') || 
-                    (t.category && (t.category.includes('Yield') || t.category.includes('Rent') || t.category.includes('Repair')))
-                );
-
-                document.getElementById('kpiLabel1').textContent = 'YTD Gross Income';
-                document.getElementById('kpiLabel2').textContent = 'Verified Inflow Records';
-                document.getElementById('kpiLabel3').textContent = 'Maintenance Expense Outflows';
-                document.getElementById('kpiLabel4').textContent = 'Disbursed Yield NOI';
-
-                let grossInflows = 0;
-                let repairOutflows = 0;
-                let verifiedRecords = 0;
-
-                transactions.forEach(t => {
-                    const amt = parseCurrency(t.grossAmount || t.amount);
-                    if ((t.direction || '').toUpperCase() === 'INFLOW') {
-                        grossInflows += amt;
-                        verifiedRecords++;
-                    } else {
-                        repairOutflows += amt;
-                    }
-                });
-
-                document.getElementById('kpiValue1').textContent = formatPeso(grossInflows);
-                document.getElementById('kpiDesc1').textContent = 'Verified gross tenant rent';
-
-                document.getElementById('kpiValue2').textContent = `${verifiedRecords} Inflows`;
-                document.getElementById('kpiDesc2').textContent = 'Audited rent payments';
-
-                document.getElementById('kpiValue3').textContent = `-${formatPeso(repairOutflows)}`;
-                document.getElementById('kpiDesc3').textContent = '10% PM fee + repairs';
-
-                const netNoi = Math.max(0, grossInflows * 0.90 - repairOutflows);
-                document.getElementById('kpiValue4').textContent = formatPeso(netNoi);
-                document.getElementById('kpiDesc4').textContent = 'Net funds transferred to BDO';
-                return;
-            }
-
-            // Admin KPI Calculation
-            let verifiedCount = 0;
-            let pendingCount = 0;
-            let totalInflows = 0;
-            let totalDisbursed = 0;
+            let grossInflows = 0;
+            let repairOutflows = 0;
+            let verifiedRecords = 0;
 
             transactions.forEach(t => {
                 const amt = parseCurrency(t.grossAmount || t.amount);
-                const s = (t.status || '').toLowerCase();
-                const isOut = (t.direction || '').toUpperCase() === 'OUTFLOW';
-
-                if (!isOut && (s === 'verified' || s === 'paid')) {
-                    totalInflows += amt;
-                }
-                if (isOut || s === 'disbursed') {
-                    totalDisbursed += amt;
-                }
-
-                if (s === 'verified' || s === 'paid') {
-                    verifiedCount++;
-                } else if (s.includes('pending')) {
-                    pendingCount++;
+                if ((t.direction || '').toUpperCase() === 'INFLOW') {
+                    grossInflows += amt;
+                    verifiedRecords++;
+                } else {
+                    repairOutflows += amt;
                 }
             });
 
-            document.getElementById('kpiLabel1').textContent = 'YTD Inflows Collected';
-            document.getElementById('kpiLabel2').textContent = 'Verified Transactions';
-            document.getElementById('kpiLabel3').textContent = 'Pending Reference Audits';
-            document.getElementById('kpiLabel4').textContent = 'Owner Payouts Disbursed';
+            document.getElementById('kpiValue1').textContent = formatPeso(grossInflows);
+            document.getElementById('kpiDesc1').textContent = 'Verified gross tenant rent';
 
-            document.getElementById('kpiValue1').textContent = formatPeso(totalInflows);
-            document.getElementById('kpiDesc1').textContent = 'Across managed portfolio';
+            document.getElementById('kpiValue2').textContent = `${verifiedRecords} Inflows`;
+            document.getElementById('kpiDesc2').textContent = 'Audited rent payments';
 
-            document.getElementById('kpiValue2').textContent = `${verifiedCount} Records`;
-            document.getElementById('kpiDesc2').textContent = 'Audit matched reference codes';
+            document.getElementById('kpiValue3').textContent = `-${formatPeso(repairOutflows)}`;
+            document.getElementById('kpiDesc3').textContent = '10% PM fee + repairs';
 
-            document.getElementById('kpiValue3').textContent = `${pendingCount} Records`;
-            document.getElementById('kpiDesc3').textContent = 'Awaiting Admin reference match';
-
-            document.getElementById('kpiValue4').textContent = formatPeso(totalDisbursed);
-            document.getElementById('kpiDesc4').textContent = 'Net yield paid to owners';
+            const netNoi = Math.max(0, grossInflows * 0.90 - repairOutflows);
+            document.getElementById('kpiValue4').textContent = formatPeso(netNoi);
+            document.getElementById('kpiDesc4').textContent = 'Net funds transferred to BDO';
+            return;
         }
 
-        function updateHeaderBadge() {
-            const rawRole = (
-                localStorage.getItem('argo_pov') || 
-                localStorage.getItem('user_role') || 
-                localStorage.getItem('role') || 
-                'admin'
-            ).toLowerCase().trim();
+        // Admin KPI Calculation
+        let verifiedCount = 0;
+        let pendingCount = 0;
+        let totalInflows = 0;
+        let totalDisbursed = 0;
 
-            let role = 'admin';
-            if (['client', 'tenant', 'client_pov'].includes(rawRole)) role = 'client';
-            else if (['owner', 'property_owner', 'investor'].includes(rawRole)) role = 'owner';
+        transactions.forEach(t => {
+            const amt = parseCurrency(t.grossAmount || t.amount);
+            const s = (t.status || '').toLowerCase();
+            const isOut = (t.direction || '').toUpperCase() === 'OUTFLOW';
 
-            const notifs = getNotifications().filter(n => (n.pov === role || n.pov === 'all') && (n.status === 'unread' || n.is_read === false));
-            const badge = document.getElementById('headerNotifBadge');
-            if (badge) badge.textContent = notifs.length;
-        }
-
-        function inspectTxnAudit(ref, txnId, payer, unit, cat, dir, amt, chan, status, time) {
-            currentInspectedTxn = { ref, txnId, payer, unit, cat, dir, amt, chan, status, time };
-
-            document.getElementById("mRef").textContent = ref;
-            document.getElementById("mTxnId").textContent = txnId;
-            document.getElementById("mPayer").textContent = payer;
-            document.getElementById("mUnit").textContent = unit;
-            document.getElementById("mCat").textContent = cat;
-            document.getElementById("mDir").textContent = dir;
-            document.getElementById("mAmt").textContent = amt;
-            document.getElementById("mChan").textContent = chan;
-
-            document.getElementById("sStage1").textContent = `${payer} submitted payment proof via ${chan}`;
-            document.getElementById("sStage3").textContent = `Property Manager matched gateway reference code (${ref})`;
-
-            const modal = document.getElementById("auditModal");
-            if (modal) modal.classList.add("show");
-        }
-
-        function downloadInspectedReceipt() {
-            if (!currentInspectedTxn) {
-                alert("No active transaction loaded.");
-                return;
+            if (!isOut && (s === 'verified' || s === 'paid')) {
+                totalInflows += amt;
             }
-            const t = currentInspectedTxn;
-            const textContent = 
+            if (isOut || s === 'disbursed') {
+                totalDisbursed += amt;
+            }
+
+            if (s === 'verified' || s === 'paid') {
+                verifiedCount++;
+            } else if (s.includes('pending')) {
+                pendingCount++;
+            }
+        });
+
+        document.getElementById('kpiLabel1').textContent = 'YTD Inflows Collected';
+        document.getElementById('kpiLabel2').textContent = 'Verified Transactions';
+        document.getElementById('kpiLabel3').textContent = 'Pending Reference Audits';
+        document.getElementById('kpiLabel4').textContent = 'Owner Payouts Disbursed';
+
+        document.getElementById('kpiValue1').textContent = formatPeso(totalInflows);
+        document.getElementById('kpiDesc1').textContent = 'Across managed portfolio';
+
+        document.getElementById('kpiValue2').textContent = `${verifiedCount} Records`;
+        document.getElementById('kpiDesc2').textContent = 'Audit matched reference codes';
+
+        document.getElementById('kpiValue3').textContent = `${pendingCount} Records`;
+        document.getElementById('kpiDesc3').textContent = 'Awaiting Admin reference match';
+
+        document.getElementById('kpiValue4').textContent = formatPeso(totalDisbursed);
+        document.getElementById('kpiDesc4').textContent = 'Net yield paid to owners';
+    }
+
+    function updateHeaderBadge() {
+        const rawRole = (
+            localStorage.getItem('argo_pov') || 
+            localStorage.getItem('user_role') || 
+            localStorage.getItem('role') || 
+            'admin'
+        ).toLowerCase().trim();
+
+        let role = 'admin';
+        if (['client', 'tenant', 'client_pov'].includes(rawRole)) role = 'client';
+        else if (['owner', 'property_owner', 'investor'].includes(rawRole)) role = 'owner';
+
+        const notifs = getNotifications().filter(n => (n.pov === role || n.pov === 'all') && (n.status === 'unread' || n.is_read === false));
+        const badge = document.getElementById('headerNotifBadge');
+        if (badge) badge.textContent = notifs.length;
+    }
+
+    function inspectTxnAudit(ref, txnId, payer, unit, cat, dir, amt, chan, status, time) {
+        currentInspectedTxn = { ref, txnId, payer, unit, cat, dir, amt, chan, status, time };
+
+        document.getElementById("mRef").textContent = ref;
+        document.getElementById("mTxnId").textContent = txnId;
+        document.getElementById("mPayer").textContent = payer;
+        document.getElementById("mUnit").textContent = unit;
+        document.getElementById("mCat").textContent = cat;
+        document.getElementById("mDir").textContent = dir;
+        document.getElementById("mAmt").textContent = amt;
+        document.getElementById("mChan").textContent = chan;
+
+        document.getElementById("sStage1").textContent = `${payer} submitted payment proof via ${chan}`;
+        document.getElementById("sStage3").textContent = `Property Manager matched gateway reference code (${ref})`;
+
+        const modal = document.getElementById("auditModal");
+        if (modal) modal.classList.add("show");
+    }
+
+    function downloadInspectedReceipt() {
+        if (!currentInspectedTxn) {
+            alert("No active transaction loaded.");
+            return;
+        }
+        const t = currentInspectedTxn;
+        const textContent = 
 `======================================================================
 ARGO PROPERTY MANAGEMENT — OFFICIAL VERIFIED TRANSACTION RECEIPT
 ======================================================================
@@ -1734,125 +1775,125 @@ Timestamp       : ${t.time}
 ======================================================================
 This official electronic receipt confirms full settlement in the ARGO Master Multi-Tenant Ledger.`;
 
-            const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `Receipt_${t.txnId}_${t.ref.replace(/[^a-zA-Z0-9]/g, '_')}.txt`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
+        const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `Receipt_${t.txnId}_${t.ref.replace(/[^a-zA-Z0-9]/g, '_')}.txt`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    }
+
+    async function exportLedgerCsv() {
+        const rawRole = (
+            localStorage.getItem('argo_pov') || 
+            localStorage.getItem('user_role') || 
+            localStorage.getItem('role') || 
+            'admin'
+        ).toLowerCase().trim();
+
+        let transactions = await getTransactions();
+        const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+        const tenantName = user.name || 'Maria Santos';
+
+        if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
+            transactions = transactions.filter(t => 
+                (t.payer && t.payer.toLowerCase().includes(tenantName.toLowerCase())) || 
+                (t.fullLocation && t.fullLocation.includes('101')) ||
+                (t.property_location && t.property_location.includes('101'))
+            );
+        } else if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
+            transactions = transactions.filter(t => 
+                (t.direction || '').toUpperCase() === 'OUTFLOW' || 
+                (t.payer || '').includes('Disburse') || 
+                (t.category && (t.category.includes('Yield') || t.category.includes('Rent') || t.category.includes('Repair')))
+            );
         }
 
-        function exportLedgerCsv() {
-            const rawRole = (
-                localStorage.getItem('argo_pov') || 
-                localStorage.getItem('user_role') || 
-                localStorage.getItem('role') || 
-                'admin'
-            ).toLowerCase().trim();
+        let csv = 'Gateway Ref Code,Internal TXN ID,Payer,Location,Category,Direction,Gross Amount,Channel,Timestamp,Status\n';
+        transactions.forEach(t => {
+            csv += `"${t.refCode}","${t.txnId}","${t.payer || 'Maria Santos'}","${t.fullLocation || t.property_location || 'Sunrise Residences • Unit 101'}","${t.category}","${t.direction}","${t.grossAmount || formatPeso(t.amount)}","${t.channel}","${t.timestamp}","${t.status}"\n`;
+        });
 
-            let transactions = getTransactions();
-            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
-            const tenantName = user.name || 'Maria Santos';
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `Transaction_Ledger_Export_${Date.now()}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    }
 
-            if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
-                transactions = transactions.filter(t => 
-                    (t.payer && t.payer.toLowerCase().includes(tenantName.toLowerCase())) || 
-                    (t.fullLocation && t.fullLocation.includes('101')) ||
-                    (t.property_location && t.property_location.includes('101'))
-                );
-            } else if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
-                transactions = transactions.filter(t => 
-                    (t.direction || '').toUpperCase() === 'OUTFLOW' || 
-                    (t.payer || '').includes('Disburse') || 
-                    (t.category && (t.category.includes('Yield') || t.category.includes('Rent') || t.category.includes('Repair')))
-                );
+    function closeModal() { 
+        const modal = document.getElementById("auditModal");
+        if (modal) modal.classList.remove("show"); 
+        currentInspectedTxn = null;
+    }
+
+    window.onclick = function(event) {
+        const modal = document.getElementById("auditModal");
+        if (event.target === modal) closeModal();
+    };
+
+    function filterTable() {
+        const searchValue = document.getElementById("searchInput").value.toLowerCase().trim();
+        const channelValue = document.getElementById("channelFilter").value;
+        const statusValue = document.getElementById("statusFilter").value;
+
+        const rows = document.querySelectorAll("#transactionTable tr");
+        let visibleCount = 0;
+        let totalRows = 0;
+
+        rows.forEach(row => {
+            if (row.cells.length === 1) return;
+            totalRows++;
+
+            const text = row.innerText.toLowerCase();
+            const rowChannel = row.dataset.channel || "";
+            const rowStatus = row.dataset.status || "";
+
+            const matchesSearch = text.includes(searchValue);
+            const matchesChannel = channelValue === "" || rowChannel.toLowerCase().includes(channelValue.toLowerCase());
+            const matchesStatus = statusValue === "" || rowStatus.toLowerCase().includes(statusValue.toLowerCase());
+
+            if (matchesSearch && matchesChannel && matchesStatus) {
+                row.style.display = "";
+                visibleCount++;
+            } else {
+                row.style.display = "none";
             }
+        });
 
-            let csv = 'Gateway Ref Code,Internal TXN ID,Payer,Location,Category,Direction,Gross Amount,Channel,Timestamp,Status\n';
-            transactions.forEach(t => {
-                csv += `"${t.refCode}","${t.txnId}","${t.payer || 'N/A'}","${t.fullLocation || t.property_location || 'Property Unit'}","${t.category}","${t.direction}","${t.grossAmount || formatPeso(t.amount)}","${t.channel}","${t.timestamp}","${t.status}"\n`;
-            });
-
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `Transaction_Ledger_Export_${Date.now()}.csv`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
+        const countEl = document.getElementById('showingCountText');
+        if (countEl) {
+            countEl.textContent = totalRows === 0 ? "Showing 0 ledger records" : `Showing ${visibleCount} of ${totalRows} historical ledger records`;
         }
+    }
 
-        function closeModal() { 
-            const modal = document.getElementById("auditModal");
-            if (modal) modal.classList.remove("show"); 
-            currentInspectedTxn = null;
-        }
+    function resetFilters() {
+        document.getElementById("searchInput").value = "";
+        document.getElementById("channelFilter").value = "";
+        document.getElementById("statusFilter").value = "";
+        filterTable();
+    }
 
-        window.onclick = function(event) {
-            const modal = document.getElementById("auditModal");
-            if (event.target === modal) closeModal();
-        };
+    // Profile Dropdown Handler
+    const userProfileBtn = document.getElementById('userProfileBtn');
+    const userDropdown = document.getElementById('userDropdown');
 
-        function filterTable() {
-            const searchValue = document.getElementById("searchInput").value.toLowerCase().trim();
-            const channelValue = document.getElementById("channelFilter").value;
-            const statusValue = document.getElementById("statusFilter").value;
+    if (userProfileBtn && userDropdown) {
+        userProfileBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            userDropdown.classList.toggle('show');
+        });
 
-            const rows = document.querySelectorAll("#transactionTable tr");
-            let visibleCount = 0;
-            let totalRows = 0;
-
-            rows.forEach(row => {
-                if (row.cells.length === 1) return;
-                totalRows++;
-
-                const text = row.innerText.toLowerCase();
-                const rowChannel = row.dataset.channel || "";
-                const rowStatus = row.dataset.status || "";
-
-                const matchesSearch = text.includes(searchValue);
-                const matchesChannel = channelValue === "" || rowChannel.toLowerCase().includes(channelValue.toLowerCase());
-                const matchesStatus = statusValue === "" || rowStatus.toLowerCase().includes(statusValue.toLowerCase());
-
-                if (matchesSearch && matchesChannel && matchesStatus) {
-                    row.style.display = "";
-                    visibleCount++;
-                } else {
-                    row.style.display = "none";
-                }
-            });
-
-            const countEl = document.getElementById('showingCountText');
-            if (countEl) {
-                countEl.textContent = totalRows === 0 ? "Showing 0 ledger records" : `Showing ${visibleCount} of ${totalRows} historical ledger records`;
-            }
-        }
-
-        function resetFilters() {
-            document.getElementById("searchInput").value = "";
-            document.getElementById("channelFilter").value = "";
-            document.getElementById("statusFilter").value = "";
-            filterTable();
-        }
-
-        // Profile Dropdown Handler
-        const userProfileBtn = document.getElementById('userProfileBtn');
-        const userDropdown = document.getElementById('userDropdown');
-
-        if (userProfileBtn && userDropdown) {
-            userProfileBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                userDropdown.classList.toggle('show');
-            });
-
-            document.addEventListener('click', () => { 
-                userDropdown.classList.remove('show'); 
-            });
-        }
-    </script>
+        document.addEventListener('click', () => { 
+            userDropdown.classList.remove('show'); 
+        });
+    }
+</script>
 </body>

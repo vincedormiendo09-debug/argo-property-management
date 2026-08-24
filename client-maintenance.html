@@ -1039,532 +1039,584 @@
         </div>
     </div>
 
-    <!-- ================= JAVASCRIPT ================= -->
     <script>
-        // Secure Logout Handler (Clears session and replaces history to prevent back-button access)
-        function logoutUser() {
-            localStorage.removeItem('argo_pov');
-            localStorage.removeItem('user_role');
-            localStorage.removeItem('role');
-            localStorage.removeItem('token');
-            localStorage.removeItem('argo_user');
-            window.location.replace('index.html');
-        }
+    const API_BASE_URL = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
+        ? 'http://127.0.0.1:8000/api'
+        : '/api';
 
-        // Lock Client Role Perspective
-        localStorage.setItem('argo_pov', 'client');
+    function getAuthHeaders() {
+        const token = localStorage.getItem('token') || localStorage.getItem('argo_token');
+        return {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        };
+    }
 
-        // Populate User Profile Header and Avatar
-        function loadUserData() {
-            try {
-                const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
-                const ctx = getActiveTenantContext();
-                const fullName = user.name || user.fullName || ctx.name || 'Maria Santos';
-                const roleBadge = user.role || 'Unit Occupant';
+    // Secure Logout Handler (Clears session and replaces history to prevent back-button access)
+    function logoutUser() {
+        localStorage.clear();
+        window.location.replace('index.html');
+    }
 
-                const nameEl = document.getElementById('userName');
-                const roleEl = document.getElementById('userRoleBadge');
-                const avatarEl = document.getElementById('userAvatar');
+    // Lock Client Role Perspective
+    localStorage.setItem('argo_pov', 'client');
 
-                if (nameEl) nameEl.textContent = fullName;
-                if (roleEl) roleEl.textContent = roleBadge;
-                if (avatarEl) {
-                    const initials = fullName
-                        .split(' ')
-                        .filter(Boolean)
-                        .map(n => n[0])
-                        .join('')
-                        .substring(0, 2)
-                        .toUpperCase() || 'MS';
-                    avatarEl.textContent = initials;
-                    if (user.avatarBg) avatarEl.style.background = user.avatarBg;
-                }
-            } catch (err) {
-                console.error("Error loading user profile:", err);
+    // Populate User Profile Header and Avatar
+    function loadUserData() {
+        try {
+            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+            const ctx = getActiveTenantContext();
+            const fullName = user.name || user.fullName || ctx.name || 'Maria Santos';
+            const roleBadge = user.role || 'Sunrise Residences • Unit 101';
+
+            const nameEl = document.getElementById('userName');
+            const roleEl = document.getElementById('userRoleBadge');
+            const avatarEl = document.getElementById('userAvatar');
+
+            if (nameEl) nameEl.textContent = fullName;
+            if (roleEl) roleEl.textContent = roleBadge;
+            if (avatarEl) {
+                const initials = fullName
+                    .split(' ')
+                    .filter(Boolean)
+                    .map(n => n[0])
+                    .join('')
+                    .substring(0, 2)
+                    .toUpperCase() || 'MS';
+                avatarEl.textContent = initials;
+                avatarEl.style.background = '#D97706';
             }
+        } catch (err) {
+            console.error("Error loading user profile:", err);
         }
+    }
 
-        // Dynamic Client Sidebar Navigation Renderer
-        function renderSidebar() {
-            const nav = document.getElementById('sidebarNav');
-            if (!nav) return;
+    // Dynamic Client Sidebar Navigation Renderer
+    function renderSidebar() {
+        const nav = document.getElementById('sidebarNav');
+        if (!nav) return;
 
-            const currentPath = window.location.pathname.split("/").pop() || 'client-maintenance.html';
+        const currentPath = window.location.pathname.split("/").pop() || 'client-maintenance.html';
 
-            const clientLinks = [
-                { section: 'SELF-SERVICE HOME' },
-                { href: 'client-dashboard.html', icon: 'bi-house-door', label: 'My Tenancy Home' },
-                { href: 'client-billing.html', icon: 'bi-receipt', label: 'Pay Rent & Dues' },
-                { href: 'transaction.html', icon: 'bi-receipt-cutoff', label: 'Transactions & Ledger' },
-                { href: 'client-utilities.html', icon: 'bi-lightning-charge', label: 'My Utilities & Meters' },
-                { href: 'client-maintenance.html', icon: 'bi-tools', label: 'Submit Maintenance' },
-                { href: 'inspections.html', icon: 'bi-clipboard-check', label: 'Move-In & Inspections' },
-                { href: 'client-documents.html', icon: 'bi-folder2-open', label: 'My Lease & Receipts' },
-                { section: 'SYSTEM' },
-                { href: 'account.html', icon: 'bi-gear', label: 'Account Settings' },
-                { href: '#', icon: 'bi-box-arrow-right', label: 'Log Out', action: 'logoutUser()' }
-            ];
-
-            let html = '';
-            clientLinks.forEach(item => {
-                if (item.section) {
-                    html += `<div class="nav-section-title">${item.section}</div>`;
-                } else {
-                    const isActive = (currentPath === item.href) ? 'active' : '';
-                    const clickAttr = item.action ? `onclick="${item.action}; return false;"` : '';
-                    html += `
-                        <a href="${item.href}" class="nav-item ${isActive}" ${clickAttr}>
-                            <i class="bi ${item.icon}"></i>
-                            <span>${item.label}</span>
-                        </a>
-                    `;
-                }
-            });
-
-            nav.innerHTML = html;
-        }
-
-        // Clean Baseline or Initial Demonstration Ticket
-        const DEFAULT_TICKETS = [
-            {
-                id: 'MNT-2026-003',
-                tenantName: 'Maria Santos',
-                property: 'Sunrise Property',
-                building: 'Tower A',
-                unit: 'Unit 101',
-                fullLocation: 'Sunrise Property • Tower A • Unit 101',
-                category: 'HVAC',
-                title: 'Aircon Water Leakage',
-                description: 'Split-type AC unit in living room dripping water steadily under cabinet.',
-                priority: 'High',
-                status: 'In Progress',
-                technician: 'Roldan HVAC Services',
-                scheduledTime: 'Today at 02:00 PM',
-                dateFiled: 'Aug 05, 2026',
-                attachment: null,
-                permissionToEnter: true
-            }
+        const clientLinks = [
+            { section: 'SELF-SERVICE HOME' },
+            { href: 'client-dashboard.html', icon: 'bi-house-door', label: 'My Tenancy Home' },
+            { href: 'client-billing.html', icon: 'bi-receipt', label: 'Pay Rent & Dues' },
+            { href: 'transaction.html', icon: 'bi-receipt-cutoff', label: 'Transactions & Ledger' },
+            { href: 'client-utilities.html', icon: 'bi-lightning-charge', label: 'My Utilities & Meters' },
+            { href: 'client-maintenance.html', icon: 'bi-tools', label: 'Submit Maintenance' },
+            { href: 'inspections.html', icon: 'bi-clipboard-check', label: 'Move-In & Inspections' },
+            { href: 'client-documents.html', icon: 'bi-folder2-open', label: 'My Lease & Receipts' },
+            { section: 'SYSTEM' },
+            { href: 'account.html', icon: 'bi-gear', label: 'Account Settings' },
+            { href: '#', icon: 'bi-box-arrow-right', label: 'Log Out', action: 'logoutUser()' }
         ];
 
-        function getTickets() {
-            const data = localStorage.getItem('argo_maintenance_tickets');
-            if (!data) {
-                localStorage.setItem('argo_maintenance_tickets', JSON.stringify(DEFAULT_TICKETS));
-                return DEFAULT_TICKETS;
+        let html = '';
+        clientLinks.forEach(item => {
+            if (item.section) {
+                html += `<div class="nav-section-title">${item.section}</div>`;
+            } else {
+                const isActive = (currentPath === item.href) ? 'active' : '';
+                const clickAttr = item.action ? `onclick="${item.action}; return false;"` : '';
+                html += `
+                    <a href="${item.href}" class="nav-item ${isActive}" ${clickAttr}>
+                        <i class="bi ${item.icon}"></i>
+                        <span>${item.label}</span>
+                    </a>
+                `;
             }
-            try {
-                return JSON.parse(data);
-            } catch (e) {
-                return DEFAULT_TICKETS;
+        });
+
+        nav.innerHTML = html;
+    }
+
+    // Clean Baseline Ticket for Maria Santos (Unit 101)
+    const DEFAULT_TICKETS = [
+        {
+            id: 'MNT-2026-003',
+            tenantName: 'Maria Santos',
+            tenant_email: 'maria.santos@tenant.ph',
+            property: 'Sunrise Residences',
+            building: 'Tower A',
+            unit: 'Unit 101',
+            fullLocation: 'Sunrise Residences • Unit 101',
+            category: 'HVAC',
+            title: 'Aircon Water Leakage',
+            description: 'Split-type AC unit in living room dripping water steadily under cabinet.',
+            priority: 'High',
+            status: 'In Progress',
+            technician: 'HVAC Services (Aircon)',
+            scheduledTime: 'Today at 02:00 PM',
+            dateFiled: 'Aug 05, 2026',
+            attachment: null,
+            permissionToEnter: true
+        }
+    ];
+
+    function getTickets() {
+        const data = localStorage.getItem('argo_maintenance_tickets');
+        if (!data) {
+            localStorage.setItem('argo_maintenance_tickets', JSON.stringify(DEFAULT_TICKETS));
+            return DEFAULT_TICKETS;
+        }
+        try {
+            const parsed = JSON.parse(data);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+                const hasMariaTicket = parsed.some(t => (t.tenantName || '').toLowerCase().includes('maria santos') || (t.fullLocation || '').includes('101'));
+                if (!hasMariaTicket) {
+                    parsed.unshift(DEFAULT_TICKETS[0]);
+                    localStorage.setItem('argo_maintenance_tickets', JSON.stringify(parsed));
+                }
+                return parsed;
             }
+            return DEFAULT_TICKETS;
+        } catch (e) {
+            return DEFAULT_TICKETS;
+        }
+    }
+
+    function saveTickets(tickets) { 
+        localStorage.setItem('argo_maintenance_tickets', JSON.stringify(tickets)); 
+    }
+
+    function getNotifications() { 
+        try {
+            return JSON.parse(localStorage.getItem('argo_notifications') || '[]'); 
+        } catch (e) {
+            return [];
+        }
+    }
+
+    function saveNotifications(notifications) { 
+        localStorage.setItem('argo_notifications', JSON.stringify(notifications)); 
+    }
+
+    function getLeases() { 
+        try {
+            const raw = localStorage.getItem('argo_leases');
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+            }
+        } catch (e) {}
+
+        return [
+            {
+                id: 'LSE-2026-0101',
+                tenantName: 'Maria Santos',
+                tenant: 'Maria Santos',
+                property: 'Sunrise Residences',
+                unit: 'Sunrise Residences • Unit 101',
+                unit_number: 'Unit 101',
+                status: 'ACTIVE'
+            }
+        ];
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const rawRole = (
+            localStorage.getItem('argo_pov') || 
+            localStorage.getItem('user_role') || 
+            localStorage.getItem('role') || 
+            ''
+        ).toLowerCase().trim();
+
+        if (!rawRole) {
+            window.location.replace('index.html');
+            return;
         }
 
-        function saveTickets(tickets) { 
-            localStorage.setItem('argo_maintenance_tickets', JSON.stringify(tickets)); 
-        }
+        renderSidebar();
+        loadUserData();
+        renderTicketsTable();
+        checkLiveDispatchBanner();
+        updateKPIs();
+        updateHeaderBadge();
+    });
 
-        function getNotifications() { 
-            try {
-                return JSON.parse(localStorage.getItem('argo_notifications') || '[]'); 
-            } catch (e) {
-                return [];
-            }
-        }
-
-        function saveNotifications(notifications) { 
-            localStorage.setItem('argo_notifications', JSON.stringify(notifications)); 
-        }
-
-        function getLeases() { 
-            try {
-                return JSON.parse(localStorage.getItem('argo_leases') || '[]'); 
-            } catch (e) {
-                return [];
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            const role = localStorage.getItem('argo_pov');
-            if (!role) {
-                window.location.replace('index.html');
-                return;
-            }
-            renderSidebar();
+    // Live Cross-Tab Storage Listener
+    window.addEventListener('storage', (e) => {
+        if (['argo_maintenance_tickets', 'argo_notifications', 'argo_leases', 'argo_user', 'argo_pov'].includes(e.key)) {
             loadUserData();
             renderTicketsTable();
             checkLiveDispatchBanner();
             updateKPIs();
             updateHeaderBadge();
+        }
+    });
+
+    function getActiveTenantContext() {
+        const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+        const leases = getLeases();
+        const activeLease = leases.find(l => 
+            (l.tenantId && user.id && l.tenantId === user.id) ||
+            (l.tenantName && user.name && l.tenantName.toLowerCase() === user.name.toLowerCase()) ||
+            (l.tenantName && l.tenantName.toLowerCase().includes('maria santos')) ||
+            (l.unit && l.unit.includes('101')) ||
+            (l.status || '').toUpperCase() === 'ACTIVE'
+        ) || leases[0] || {};
+
+        const prop = activeLease.property || activeLease.property_name || 'Sunrise Residences';
+        const unit = activeLease.unit || activeLease.unit_number || 'Unit 101';
+        const bldg = activeLease.building || activeLease.building_name || 'Tower A';
+
+        return {
+            userId: user.id || null,
+            name: user.name || user.fullName || activeLease.tenantName || 'Maria Santos',
+            property: prop,
+            building: bldg,
+            unit: unit,
+            fullTag: unit.includes('•') ? unit : `${prop} • ${unit.startsWith('Unit') ? unit : `Unit ${unit}`}`
+        };
+    }
+
+    // Get tenant-scoped tickets to ensure live multi-tenant privacy
+    function getTenantTickets() {
+        const ctx = getActiveTenantContext();
+        const allTickets = getTickets();
+
+        return allTickets.filter(t => {
+            if (t.tenantId && ctx.userId && t.tenantId === ctx.userId) return true;
+            if (t.tenantName && (t.tenantName.toLowerCase().includes('maria') || t.tenantName.toLowerCase() === ctx.name.toLowerCase())) return true;
+            if (t.fullLocation && t.fullLocation.includes('101')) return true;
+            if (t.unit && t.unit.includes('101')) return true;
+            return false;
+        });
+    }
+
+    function checkLiveDispatchBanner() {
+        const tickets = getTenantTickets();
+        const activeDispatched = tickets.find(t => 
+            (t.status === 'In Progress' || t.status === 'Assigned') && 
+            t.technician && 
+            t.technician !== 'Awaiting Dispatch'
+        );
+
+        const banner = document.getElementById('liveDispatchBanner');
+        const details = document.getElementById('bannerDetails');
+
+        if (activeDispatched && banner && details) {
+            details.innerHTML = `Property Manager assigned <strong>${activeDispatched.technician}</strong> for <i>"${activeDispatched.title}"</i>. Scheduled Arrival: <strong>${activeDispatched.scheduledTime || 'Today at 02:00 PM'}</strong>.`;
+            banner.style.display = 'flex';
+        } else if (banner) {
+            banner.style.display = 'none';
+        }
+    }
+
+    function openActiveDispatchModal() {
+        const tickets = getTenantTickets();
+        const activeDispatched = tickets.find(t => 
+            (t.status === 'In Progress' || t.status === 'Assigned') && 
+            t.technician && 
+            t.technician !== 'Awaiting Dispatch'
+        );
+        if (activeDispatched) {
+            viewTicketDetails(activeDispatched.id);
+        }
+    }
+
+    function renderTicketsTable() {
+        const ctx = getActiveTenantContext();
+        const tickets = getTenantTickets();
+        const tbody = document.getElementById('ticketTable');
+        if (!tbody) return;
+
+        tbody.innerHTML = '';
+
+        const subtitleEl = document.getElementById('locationSubtitle');
+        if (subtitleEl) subtitleEl.textContent = ctx.fullTag;
+
+        if (!tickets || tickets.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--muted); padding:30px;">No service requests filed yet. Click "Report New Issue" to file a ticket.</td></tr>`;
+            document.getElementById('showingCountText').textContent = `Showing 0 service requests`;
+            return;
+        }
+
+        tickets.forEach(t => {
+            const tr = document.createElement('tr');
+            tr.dataset.status = t.status || 'Open';
+            tr.dataset.category = t.category || 'Other';
+
+            let statusHtml = '';
+            const s = (t.status || '').toLowerCase();
+            if (s === 'resolved' || s === 'completed') {
+                statusHtml = `<span class="status-badge status-resolved" style="background:#ECFDF5; color:#059669; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-check-circle" style="margin-right:4px;"></i> Resolved & Completed</span>`;
+            } else if (s === 'in progress' || s === 'assigned') {
+                statusHtml = `<span class="status-badge status-progress" style="background:#FEF3C7; color:#B45309; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-clock-history" style="margin-right:4px;"></i> Dispatched: <strong>${t.technician || 'Technician'}</strong> (${t.scheduledTime || 'Scheduled'})</span>`;
+            } else {
+                statusHtml = `<span class="status-badge status-submitted" style="background:#EFF6FF; color:#2563EB; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-send" style="margin-right:4px;"></i> Submitted / Open</span>`;
+            }
+
+            const priorityHtml = (t.priority === 'High' || t.priority === 'Urgent')
+                ? `<span class="priority-badge priority-high" style="background:#FFF1F2; color:#E11D48; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;">High Priority</span>`
+                : `<span class="priority-badge priority-normal" style="background:#F1F5F9; color:#475569; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;">Normal Priority</span>`;
+
+            tr.innerHTML = `
+                <td><div class="ticket-id" style="font-weight:600;">${t.id}</div></td>
+                <td>
+                    <div class="ticket-title" style="font-weight:600;">${t.title}</div>
+                    <div class="ticket-sub" style="font-size:11px; color:var(--muted); margin-top:2px;">${t.description}</div>
+                </td>
+                <td>${t.dateFiled || 'N/A'}</td>
+                <td>${priorityHtml}</td>
+                <td>${statusHtml}</td>
+                <td>
+                    <button class="action-button" title="View Inspection Details" onclick="viewTicketDetails('${t.id}')"><i class="bi bi-eye"></i></button>
+                </td>
+            `;
+
+            tbody.appendChild(tr);
         });
 
-        // Live Cross-Tab Storage Listener
-        window.addEventListener('storage', (e) => {
-            if (['argo_maintenance_tickets', 'argo_notifications', 'argo_leases', 'argo_user', 'argo_pov'].includes(e.key)) {
-                loadUserData();
-                renderTicketsTable();
-                checkLiveDispatchBanner();
-                updateKPIs();
-                updateHeaderBadge();
+        document.getElementById('showingCountText').textContent = `Showing 1–${tickets.length} of ${tickets.length} service requests`;
+    }
+
+    function updateKPIs() {
+        const tickets = getTenantTickets();
+
+        const total = tickets.length;
+        const active = tickets.filter(t => {
+            const s = (t.status || '').toLowerCase();
+            return s === 'in progress' || s === 'open' || s === 'submitted' || s === 'assigned';
+        }).length;
+        const resolved = tickets.filter(t => {
+            const s = (t.status || '').toLowerCase();
+            return s === 'resolved' || s === 'completed';
+        }).length;
+
+        const totalEl = document.getElementById('kpiTotalTickets');
+        const activeEl = document.getElementById('kpiActiveTickets');
+        const resolvedEl = document.getElementById('kpiResolvedTickets');
+        const activeDescEl = document.getElementById('kpiActiveDesc');
+
+        if (totalEl) totalEl.textContent = `${total} ${total === 1 ? 'Ticket' : 'Tickets'}`;
+        if (activeEl) activeEl.textContent = `${active} Active`;
+        if (resolvedEl) resolvedEl.textContent = `${resolved} Completed`;
+        if (activeDescEl) activeDescEl.textContent = active > 0 ? 'Technician dispatch active' : 'No open issues';
+    }
+
+    // Strict Client POV Header Notification Count
+    function updateHeaderBadge() {
+        const notifs = getNotifications().filter(n => (n.pov === 'client' || n.pov === 'tenant' || n.pov === 'all') && (n.status === 'unread' || n.is_read === false));
+        const badge = document.getElementById('clientHeaderNotifBadge');
+        if (badge) badge.textContent = notifs.length;
+    }
+
+    function openMaintenanceModal() {
+        const ctx = getActiveTenantContext();
+        const tenantTagEl = document.getElementById('modalTenantTag');
+        if (tenantTagEl) tenantTagEl.textContent = `${ctx.name} — ${ctx.fullTag}`;
+        
+        const modal = document.getElementById("maintenanceModal");
+        if (modal) modal.classList.add("show");
+    }
+
+    function closeMaintenanceModal() { 
+        const modal = document.getElementById("maintenanceModal");
+        if (modal) modal.classList.remove("show"); 
+        const fileInput = document.getElementById('modalFile');
+        if (fileInput) fileInput.value = '';
+    }
+
+    function closeViewModal() { 
+        const modal = document.getElementById("viewTicketModal");
+        if (modal) modal.classList.remove("show"); 
+    }
+
+    function viewTicketDetails(ticketId) {
+        const ctx = getActiveTenantContext();
+        const tickets = getTenantTickets();
+        const selected = tickets.find(t => String(t.id) === String(ticketId));
+        if (!selected) return;
+
+        const vTicketId = document.getElementById('vTicketId');
+        const vTitle = document.getElementById('vTitle');
+        const vLocation = document.getElementById('vLocation');
+        const vDesc = document.getElementById('vDesc');
+        const vStatus = document.getElementById('vStatus');
+        const vPriority = document.getElementById('vPriority');
+        const vTech = document.getElementById('vTech');
+        const vTime = document.getElementById('vTime');
+        const vAttachmentRow = document.getElementById('vAttachmentRow');
+
+        if (vTicketId) vTicketId.textContent = selected.id;
+        if (vTitle) vTitle.textContent = selected.title;
+        if (vLocation) vLocation.innerHTML = `<i class="bi bi-geo-alt"></i> ${selected.fullLocation || ctx.fullTag}`;
+        if (vDesc) vDesc.textContent = selected.description;
+        if (vStatus) vStatus.textContent = selected.status;
+        if (vPriority) {
+            vPriority.textContent = selected.priority || 'Normal';
+            vPriority.style.color = (selected.priority === 'High' || selected.priority === 'Urgent') ? 'var(--danger, #E11D48)' : 'var(--primary, #2563EB)';
+        }
+        if (vTech) vTech.textContent = selected.technician || 'Pending PM Assignment';
+        if (vTime) vTime.textContent = selected.scheduledTime || 'Awaiting Schedule';
+
+        if (vAttachmentRow) {
+            if (selected.attachment) {
+                vAttachmentRow.innerHTML = `<i class="bi bi-paperclip"></i> Attached Proof: <strong>${selected.attachment}</strong>`;
+            } else {
+                vAttachmentRow.innerHTML = '';
             }
-        });
-
-        function getActiveTenantContext() {
-            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
-            const leases = getLeases();
-            const activeLease = leases.find(l => 
-                (l.tenantId && user.id && l.tenantId === user.id) ||
-                (l.tenantName && user.name && l.tenantName.toLowerCase() === user.name.toLowerCase()) ||
-                (l.status || '').toUpperCase() === 'ACTIVE'
-            ) || leases[0] || {};
-
-            const prop = activeLease.property || activeLease.property_name || 'Sunrise Property';
-            const unit = activeLease.unit || activeLease.unit_number || 'Unit 101';
-            const bldg = activeLease.building || activeLease.building_name || 'Tower A';
-
-            return {
-                userId: user.id || null,
-                name: user.name || user.fullName || activeLease.tenantName || 'Maria Santos',
-                property: prop,
-                building: bldg,
-                unit: unit,
-                fullTag: `${prop} • ${unit.startsWith('Unit') ? unit : `Unit ${unit}`}`
-            };
         }
 
-        // Get tenant-scoped tickets to ensure live multi-tenant privacy
-        function getTenantTickets() {
-            const ctx = getActiveTenantContext();
-            const allTickets = getTickets();
+        const modal = document.getElementById('viewTicketModal');
+        if (modal) modal.classList.add('show');
+    }
 
-            return allTickets.filter(t => {
-                if (t.tenantId && ctx.userId && t.tenantId === ctx.userId) return true;
-                if (t.tenantName && t.tenantName.toLowerCase() === ctx.name.toLowerCase()) return true;
-                if (t.fullLocation && t.fullLocation.includes(ctx.unit)) return true;
-                if (t.unit && t.unit === ctx.unit) return true;
-                // Unassigned seed fallback
-                return !t.tenantId && !t.tenantName;
-            });
+    async function submitTicket() {
+        const categoryEl = document.getElementById('modalCategory');
+        const priorityEl = document.getElementById('modalPriority');
+        const titleEl = document.getElementById('modalTitle');
+        const descriptionEl = document.getElementById('modalDescription');
+        const permissionEl = document.getElementById('modalPermission');
+        const fileInput = document.getElementById('modalFile');
+
+        const category = categoryEl ? categoryEl.value : 'HVAC';
+        const priority = priorityEl ? priorityEl.value : 'Normal';
+        const title = titleEl ? titleEl.value.trim() : '';
+        const description = descriptionEl ? descriptionEl.value.trim() : '';
+        const permission = permissionEl ? permissionEl.checked : true;
+        const file = fileInput && fileInput.files ? fileInput.files[0] : null;
+
+        if (!title) {
+            alert("Please enter an issue title summary.");
+            return;
         }
 
-        function checkLiveDispatchBanner() {
-            const tickets = getTenantTickets();
-            const activeDispatched = tickets.find(t => 
-                (t.status === 'In Progress' || t.status === 'Assigned') && 
-                t.technician && 
-                t.technician !== 'Awaiting Dispatch'
-            );
+        const ctx = getActiveTenantContext();
+        const ticketId = `MNT-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`;
+        const today = new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
 
-            const banner = document.getElementById('liveDispatchBanner');
-            const details = document.getElementById('bannerDetails');
-
-            if (activeDispatched && banner && details) {
-                details.innerHTML = `Property Manager assigned <strong>${activeDispatched.technician}</strong> for <i>"${activeDispatched.title}"</i>. Scheduled Arrival: <strong>${activeDispatched.scheduledTime || 'Today at 02:00 PM'}</strong>.`;
-                banner.style.display = 'flex';
-            } else if (banner) {
-                banner.style.display = 'none';
-            }
-        }
-
-        function openActiveDispatchModal() {
-            const tickets = getTenantTickets();
-            const activeDispatched = tickets.find(t => 
-                (t.status === 'In Progress' || t.status === 'Assigned') && 
-                t.technician && 
-                t.technician !== 'Awaiting Dispatch'
-            );
-            if (activeDispatched) {
-                viewTicketDetails(activeDispatched.id);
-            }
-        }
-
-        function renderTicketsTable() {
-            const ctx = getActiveTenantContext();
-            const tickets = getTenantTickets();
-            const tbody = document.getElementById('ticketTable');
-            if (!tbody) return;
-
-            tbody.innerHTML = '';
-
-            const subtitleEl = document.getElementById('locationSubtitle');
-            if (subtitleEl) subtitleEl.textContent = ctx.fullTag;
-
-            if (tickets.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--muted); padding:30px;">No service requests filed yet. Click "Report New Issue" to file a ticket.</td></tr>`;
-                document.getElementById('showingCountText').textContent = `Showing 0 service requests`;
-                return;
-            }
-
-            tickets.forEach(t => {
-                const tr = document.createElement('tr');
-                tr.dataset.status = t.status || 'Open';
-                tr.dataset.category = t.category || 'Other';
-
-                let statusHtml = '';
-                const s = (t.status || '').toLowerCase();
-                if (s === 'resolved' || s === 'completed') {
-                    statusHtml = `<span class="status-badge status-resolved"><i class="bi bi-check-circle" style="margin-right:4px;"></i> Resolved & Completed</span>`;
-                } else if (s === 'in progress' || s === 'assigned') {
-                    statusHtml = `<span class="status-badge status-progress"><i class="bi bi-clock-history" style="margin-right:4px;"></i> Dispatched: <strong>${t.technician || 'Technician'}</strong> (${t.scheduledTime || 'Scheduled'})</span>`;
-                } else {
-                    statusHtml = `<span class="status-badge status-submitted"><i class="bi bi-send" style="margin-right:4px;"></i> Submitted / Open</span>`;
-                }
-
-                const priorityHtml = (t.priority === 'High' || t.priority === 'Urgent')
-                    ? `<span class="priority-badge priority-high">High Priority</span>`
-                    : `<span class="priority-badge priority-normal">Normal Priority</span>`;
-
-                tr.innerHTML = `
-                    <td><div class="ticket-id">${t.id}</div></td>
-                    <td>
-                        <div class="ticket-title">${t.title}</div>
-                        <div class="ticket-sub">${t.description}</div>
-                    </td>
-                    <td>${t.dateFiled || 'N/A'}</td>
-                    <td>${priorityHtml}</td>
-                    <td>${statusHtml}</td>
-                    <td>
-                        <button class="action-button" title="View Inspection Details" onclick="viewTicketDetails('${t.id}')"><i class="bi bi-eye"></i></button>
-                    </td>
-                `;
-
-                tbody.appendChild(tr);
-            });
-
-            document.getElementById('showingCountText').textContent = `Showing 1–${tickets.length} of ${tickets.length} service requests`;
-        }
-
-        function updateKPIs() {
-            const tickets = getTenantTickets();
-
-            const total = tickets.length;
-            const active = tickets.filter(t => {
-                const s = (t.status || '').toLowerCase();
-                return s === 'in progress' || s === 'open' || s === 'submitted' || s === 'assigned';
-            }).length;
-            const resolved = tickets.filter(t => {
-                const s = (t.status || '').toLowerCase();
-                return s === 'resolved' || s === 'completed';
-            }).length;
-
-            const totalEl = document.getElementById('kpiTotalTickets');
-            const activeEl = document.getElementById('kpiActiveTickets');
-            const resolvedEl = document.getElementById('kpiResolvedTickets');
-            const activeDescEl = document.getElementById('kpiActiveDesc');
-
-            if (totalEl) totalEl.textContent = `${total} ${total === 1 ? 'Ticket' : 'Tickets'}`;
-            if (activeEl) activeEl.textContent = `${active} Active`;
-            if (resolvedEl) resolvedEl.textContent = `${resolved} Completed`;
-            if (activeDescEl) activeDescEl.textContent = active > 0 ? 'Technician dispatch active' : 'No open issues';
-        }
-
-        // Strict Client POV Header Notification Count
-        function updateHeaderBadge() {
-            const notifs = getNotifications().filter(n => (n.pov === 'client' || n.pov === 'tenant') && n.status === 'unread');
-            const badge = document.getElementById('clientHeaderNotifBadge');
-            if (badge) badge.textContent = notifs.length;
-        }
-
-        function openMaintenanceModal() {
-            const ctx = getActiveTenantContext();
-            const tenantTagEl = document.getElementById('modalTenantTag');
-            if (tenantTagEl) tenantTagEl.textContent = `${ctx.name} — ${ctx.fullTag}`;
-            
-            const modal = document.getElementById("maintenanceModal");
-            if (modal) modal.classList.add("show");
-        }
-
-        function closeMaintenanceModal() { 
-            const modal = document.getElementById("maintenanceModal");
-            if (modal) modal.classList.remove("show"); 
-            const fileInput = document.getElementById('modalFile');
-            if (fileInput) fileInput.value = '';
-        }
-
-        function closeViewModal() { 
-            const modal = document.getElementById("viewTicketModal");
-            if (modal) modal.classList.remove("show"); 
-        }
-
-        function viewTicketDetails(ticketId) {
-            const ctx = getActiveTenantContext();
-            const tickets = getTenantTickets();
-            const selected = tickets.find(t => t.id === ticketId);
-            if (!selected) return;
-
-            const vTicketId = document.getElementById('vTicketId');
-            const vTitle = document.getElementById('vTitle');
-            const vLocation = document.getElementById('vLocation');
-            const vDesc = document.getElementById('vDesc');
-            const vStatus = document.getElementById('vStatus');
-            const vPriority = document.getElementById('vPriority');
-            const vTech = document.getElementById('vTech');
-            const vTime = document.getElementById('vTime');
-            const vAttachmentRow = document.getElementById('vAttachmentRow');
-
-            if (vTicketId) vTicketId.textContent = selected.id;
-            if (vTitle) vTitle.textContent = selected.title;
-            if (vLocation) vLocation.innerHTML = `<i class="bi bi-geo-alt"></i> ${selected.fullLocation || ctx.fullTag}`;
-            if (vDesc) vDesc.textContent = selected.description;
-            if (vStatus) vStatus.textContent = selected.status;
-            if (vPriority) {
-                vPriority.textContent = selected.priority || 'Normal';
-                vPriority.style.color = (selected.priority === 'High' || selected.priority === 'Urgent') ? 'var(--danger)' : 'var(--primary)';
-            }
-            if (vTech) vTech.textContent = selected.technician || 'Pending PM Assignment';
-            if (vTime) vTime.textContent = selected.scheduledTime || 'Awaiting Schedule';
-
-            if (vAttachmentRow) {
-                if (selected.attachment) {
-                    vAttachmentRow.innerHTML = `<i class="bi bi-paperclip"></i> Attached Proof: <strong>${selected.attachment}</strong>`;
-                } else {
-                    vAttachmentRow.innerHTML = '';
-                }
-            }
-
-            const modal = document.getElementById('viewTicketModal');
-            if (modal) modal.classList.add('show');
-        }
-
-        function submitTicket() {
-            const categoryEl = document.getElementById('modalCategory');
-            const priorityEl = document.getElementById('modalPriority');
-            const titleEl = document.getElementById('modalTitle');
-            const descriptionEl = document.getElementById('modalDescription');
-            const permissionEl = document.getElementById('modalPermission');
-            const fileInput = document.getElementById('modalFile');
-
-            const category = categoryEl ? categoryEl.value : 'HVAC';
-            const priority = priorityEl ? priorityEl.value : 'Normal';
-            const title = titleEl ? titleEl.value.trim() : '';
-            const description = descriptionEl ? descriptionEl.value.trim() : '';
-            const permission = permissionEl ? permissionEl.checked : true;
-            const file = fileInput && fileInput.files ? fileInput.files[0] : null;
-
-            if (!title) {
-                alert("Please enter an issue title summary.");
-                return;
-            }
-
-            const ctx = getActiveTenantContext();
-            const ticketId = `MNT-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`;
-            const today = new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
-
-            // 1. Add Ticket to LocalStorage
-            let tickets = getTickets();
-            const newTicket = {
-                id: ticketId,
-                tenantId: ctx.userId,
-                tenantName: ctx.name,
-                property: ctx.property,
-                building: ctx.building,
-                unit: ctx.unit,
-                fullLocation: ctx.fullTag,
-                category: category,
-                title: title,
-                description: description || 'No detailed notes provided.',
-                priority: priority,
-                status: 'Open',
-                technician: 'Awaiting Dispatch',
-                scheduledTime: 'Pending PM Review',
-                dateFiled: today,
-                attachment: file ? file.name : null,
-                permissionToEnter: permission
-            };
-            tickets.unshift(newTicket);
-            saveTickets(tickets);
-
-            // 2. Push Notification Alert to Admin POV (maintenance.html)
-            let notifications = getNotifications();
-            const newNotif = {
-                id: `NOTIF-${Date.now()}`,
-                pov: 'admin',
-                category: 'maintenance',
-                status: 'unread',
-                title: `New Maintenance Ticket: ${title}`,
-                time: 'Just now',
-                description: `Tenant <strong>${ctx.name}</strong> (${ctx.fullTag}) filed a <strong>${priority}</strong> priority ticket: "${description}".`,
-                property: ctx.fullTag,
-                tenantName: ctx.name,
-                tag: `Ticket ${ticketId}`,
-                tagColor: priority === 'High' ? 'var(--danger)' : 'var(--primary)',
-                urgent: priority === 'High',
-                actionUrl: 'maintenance.html',
-                actionText: 'Dispatch Technician'
-            };
-            notifications.unshift(newNotif);
-            saveNotifications(notifications);
-
-            renderTicketsTable();
-            checkLiveDispatchBanner();
-            updateKPIs();
-            closeMaintenanceModal();
-
-            if (titleEl) titleEl.value = '';
-            if (descriptionEl) descriptionEl.value = '';
-            if (fileInput) fileInput.value = '';
-
-            alert(`Service Ticket (${ticketId}) submitted successfully!\n\nProperty Manager notified for technician dispatch.`);
-        }
-
-        window.onclick = function(event) {
-            const modal1 = document.getElementById("maintenanceModal");
-            const modal2 = document.getElementById("viewTicketModal");
-            if (event.target === modal1) closeMaintenanceModal();
-            if (event.target === modal2) closeViewModal();
+        const newTicket = {
+            id: ticketId,
+            tenantId: ctx.userId,
+            tenantName: ctx.name,
+            tenant_email: 'maria.santos@tenant.ph',
+            property: ctx.property,
+            building: ctx.building,
+            unit: ctx.unit,
+            fullLocation: ctx.fullTag,
+            category: category,
+            title: title,
+            description: description || 'No detailed notes provided.',
+            priority: priority,
+            status: 'Open',
+            technician: 'Awaiting Dispatch',
+            scheduledTime: 'Pending PM Review',
+            dateFiled: today,
+            attachment: file ? file.name : null,
+            permissionToEnter: permission
         };
 
-        function filterTable() {
-            const searchInput = document.getElementById("searchInput");
-            const statusSelect = document.getElementById("statusFilter");
-            const categorySelect = document.getElementById("categoryFilter");
-
-            const searchValue = searchInput ? searchInput.value.toLowerCase() : "";
-            const statusValue = statusSelect ? statusSelect.value : "";
-            const categoryValue = categorySelect ? categorySelect.value : "";
-
-            const rows = document.querySelectorAll("#ticketTable tr");
-
-            rows.forEach(row => {
-                const text = row.innerText.toLowerCase();
-                const rowStatus = row.dataset.status || "";
-                const rowCategory = row.dataset.category || "";
-
-                const matchesSearch = text.includes(searchValue);
-                const matchesStatus = statusValue === "" || rowStatus.toLowerCase().includes(statusValue.toLowerCase());
-                const matchesCategory = categoryValue === "" || rowCategory.toLowerCase().includes(categoryValue.toLowerCase());
-
-                if (matchesSearch && matchesStatus && matchesCategory) {
-                    row.style.display = "";
-                } else {
-                    row.style.display = "none";
-                }
+        // Live Backend Dispatch
+        try {
+            await fetch(`${API_BASE_URL}/maintenance/`, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify(newTicket)
             });
+        } catch (e) {
+            console.warn("Backend maintenance log failed, saving locally.", e);
         }
 
-        function resetFilters() {
-            const searchInput = document.getElementById("searchInput");
-            const statusFilter = document.getElementById("statusFilter");
-            const categoryFilter = document.getElementById("categoryFilter");
+        // 1. Add Ticket to LocalStorage
+        let tickets = getTickets();
+        tickets.unshift(newTicket);
+        saveTickets(tickets);
 
-            if (searchInput) searchInput.value = "";
-            if (statusFilter) statusFilter.value = "";
-            if (categoryFilter) categoryFilter.value = "";
-            filterTable();
-        }
+        // 2. Push Notification Alert to Admin POV (maintenance.html)
+        let notifications = getNotifications();
+        const newNotif = {
+            id: `NOTIF-${Date.now()}`,
+            pov: 'admin',
+            category: 'maintenance',
+            status: 'unread',
+            title: `New Maintenance Ticket: ${title}`,
+            time: 'Just now',
+            description: `Tenant <strong>${ctx.name}</strong> (${ctx.fullTag}) filed a <strong>${priority}</strong> priority ticket: "${description}".`,
+            property: ctx.fullTag,
+            tenantName: ctx.name,
+            tag: `Ticket ${ticketId}`,
+            tagColor: priority === 'High' ? 'var(--danger)' : 'var(--primary)',
+            urgent: priority === 'High',
+            actionUrl: 'maintenance.html',
+            actionText: 'Dispatch Technician'
+        };
+        notifications.unshift(newNotif);
+        saveNotifications(notifications);
 
-        // Profile Dropdown Handler
-        const userProfileBtn = document.getElementById('userProfileBtn');
-        const userDropdown = document.getElementById('userDropdown');
+        renderTicketsTable();
+        checkLiveDispatchBanner();
+        updateKPIs();
+        closeMaintenanceModal();
 
-        if (userProfileBtn && userDropdown) {
-            userProfileBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                userDropdown.classList.toggle('show');
-            });
+        if (titleEl) titleEl.value = '';
+        if (descriptionEl) descriptionEl.value = '';
+        if (fileInput) fileInput.value = '';
 
-            document.addEventListener('click', () => { 
-                userDropdown.classList.remove('show'); 
-            });
-        }
-    </script>
+        alert(`Service Ticket (${ticketId}) submitted successfully!\n\nProperty Manager notified for technician dispatch.`);
+    }
+
+    window.onclick = function(event) {
+        const modal1 = document.getElementById("maintenanceModal");
+        const modal2 = document.getElementById("viewTicketModal");
+        if (event.target === modal1) closeMaintenanceModal();
+        if (event.target === modal2) closeViewModal();
+    };
+
+    function filterTable() {
+        const searchInput = document.getElementById("searchInput");
+        const statusSelect = document.getElementById("statusFilter");
+        const categorySelect = document.getElementById("categoryFilter");
+
+        const searchValue = searchInput ? searchInput.value.toLowerCase() : "";
+        const statusValue = statusSelect ? statusSelect.value : "";
+        const categoryValue = categorySelect ? categorySelect.value : "";
+
+        const rows = document.querySelectorAll("#ticketTable tr");
+
+        rows.forEach(row => {
+            const text = row.innerText.toLowerCase();
+            const rowStatus = row.dataset.status || "";
+            const rowCategory = row.dataset.category || "";
+
+            const matchesSearch = text.includes(searchValue);
+            const matchesStatus = statusValue === "" || rowStatus.toLowerCase().includes(statusValue.toLowerCase());
+            const matchesCategory = categoryValue === "" || rowCategory.toLowerCase().includes(categoryValue.toLowerCase());
+
+            if (matchesSearch && matchesStatus && matchesCategory) {
+                row.style.display = "";
+            } else {
+                row.style.display = "none";
+            }
+        });
+    }
+
+    function resetFilters() {
+        const searchInput = document.getElementById("searchInput");
+        const statusFilter = document.getElementById("statusFilter");
+        const categoryFilter = document.getElementById("categoryFilter");
+
+        if (searchInput) searchInput.value = "";
+        if (statusFilter) statusFilter.value = "";
+        if (categoryFilter) categoryFilter.value = "";
+        filterTable();
+    }
+
+    // Profile Dropdown Handler
+    const userProfileBtn = document.getElementById('userProfileBtn');
+    const userDropdown = document.getElementById('userDropdown');
+
+    if (userProfileBtn && userDropdown) {
+        userProfileBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            userDropdown.classList.toggle('show');
+        });
+
+        document.addEventListener('click', () => { 
+            userDropdown.classList.remove('show'); 
+        });
+    }
+</script>
 </body>

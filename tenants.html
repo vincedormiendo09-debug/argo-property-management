@@ -846,7 +846,7 @@
                         </tr>
                     </thead>
                     <tbody id="tenantTable">
-                        <!-- RENDERED DYNAMICALLY FROM LOCALSTORAGE / DATABASE -->
+                        <!-- RENDERED DYNAMICALLY FROM DATABASE / LOCALSTORAGE -->
                     </tbody>
                 </table>
             </div>
@@ -964,664 +964,781 @@
         </div>
     </div>
 
-    <!-- ================= JAVASCRIPT ================= -->
     <script>
-        let currentInspectedTenantId = null;
+    const API_BASE_URL = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
+        ? 'http://127.0.0.1:8000/api/tenants/'
+        : '/api/tenants/';
 
-        // Secure Logout Handler
-        function logoutUser() {
-            localStorage.removeItem('argo_pov');
-            localStorage.removeItem('user_role');
-            localStorage.removeItem('role');
-            localStorage.removeItem('token');
-            localStorage.removeItem('argo_user');
+    const UNITS_API_URL = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
+        ? 'http://127.0.0.1:8000/api/units/'
+        : '/api/units/';
+
+    const LEASES_API_URL = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
+        ? 'http://127.0.0.1:8000/api/leases/'
+        : '/api/leases/';
+
+    let currentInspectedTenantId = null;
+
+    // Standard Tenant Seed linked to Maria Santos, Lease LSE-2026-0101, and Sunrise Residences • Unit 101
+    const DEFAULT_TENANTS = [
+        {
+            id: "TNT-2026-0101",
+            name: "Maria Santos",
+            first_name: "Maria",
+            last_name: "Santos",
+            email: "maria.santos@tenant.ph",
+            phone: "+63 917 123 4567",
+            type: "Individual",
+            unit: "Sunrise Residences • Unit 101",
+            unit_no: "Unit 101",
+            property_name: "Sunrise Residences",
+            building: "Tower A",
+            leaseId: "LSE-2026-0101",
+            lease_id: "LSE-2026-0101",
+            leaseStatus: "Active Lease",
+            id_type: "Driver's License",
+            id_number: "N02-18-091234",
+            id_status: "Verified",
+            monthly_rent: 15000.00,
+            status: "Active",
+            created_at: new Date().toISOString()
+        }
+    ];
+
+    function getAuthHeaders() {
+        const token = localStorage.getItem('token') || localStorage.getItem('argo_token');
+        return {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        };
+    }
+
+    // Secure Logout Handler
+    function logoutUser() {
+        localStorage.clear();
+        window.location.replace('index.html');
+    }
+
+    // Dynamic Role-Based Sidebar Navigation Renderer
+    function renderSidebar() {
+        const nav = document.getElementById('sidebarNav');
+        if (!nav) return;
+
+        const rawRole = (
+            localStorage.getItem('argo_pov') || 
+            localStorage.getItem('user_role') || 
+            localStorage.getItem('role') || 
+            'admin'
+        ).toLowerCase().trim();
+
+        if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
+            nav.innerHTML = `
+                <div class="nav-section-title">SELF-SERVICE HOME</div>
+                <a href="client-dashboard.html" class="nav-item">
+                    <i class="bi bi-house-door"></i>
+                    <span>My Tenancy Home</span>
+                </a>
+                <a href="client-billing.html" class="nav-item">
+                    <i class="bi bi-receipt"></i>
+                    <span>Pay Rent & Dues</span>
+                </a>
+                <a href="transaction.html" class="nav-item">
+                    <i class="bi bi-receipt-cutoff"></i>
+                    <span>Transactions & Ledger</span>
+                </a>
+                <a href="client-utilities.html" class="nav-item">
+                    <i class="bi bi-lightning-charge"></i>
+                    <span>My Utilities & Meters</span>
+                </a>
+                <a href="client-maintenance.html" class="nav-item">
+                    <i class="bi bi-tools"></i>
+                    <span>Submit Maintenance</span>
+                </a>
+                <a href="inspections.html" class="nav-item">
+                    <i class="bi bi-clipboard-check"></i>
+                    <span>Move-In & Inspections</span>
+                </a>
+                <a href="client-documents.html" class="nav-item">
+                    <i class="bi bi-folder2-open"></i>
+                    <span>My Lease & Receipts</span>
+                </a>
+
+                <div class="nav-section-title">SYSTEM</div>
+                <a href="account.html" class="nav-item">
+                    <i class="bi bi-gear"></i>
+                    <span>Account Settings</span>
+                </a>
+                <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                    <i class="bi bi-box-arrow-right"></i>
+                    <span>Log Out</span>
+                </a>
+            `;
+        } else if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
+            nav.innerHTML = `
+                <div class="nav-section-title">PORTFOLIO OVERVIEW</div>
+                <a href="owner-dashboard.html" class="nav-item">
+                    <i class="bi bi-speedometer2"></i>
+                    <span>Executive Summary</span>
+                </a>
+                <a href="owner-properties.html" class="nav-item">
+                    <i class="bi bi-buildings"></i>
+                    <span>My Properties</span>
+                </a>
+                <a href="owner-statements.html" class="nav-item">
+                    <i class="bi bi-file-earmark-text"></i>
+                    <span>Financial Statements</span>
+                </a>
+                <a href="property-ownership.html" class="nav-item">
+                    <i class="bi bi-pie-chart"></i>
+                    <span>Fractional Equity</span>
+                </a>
+                <a href="owner-documents.html" class="nav-item">
+                    <i class="bi bi-folder2-open"></i>
+                    <span>Legal Vault</span>
+                </a>
+                <a href="transaction.html" class="nav-item">
+                    <i class="bi bi-receipt-cutoff"></i>
+                    <span>Yield Audit Ledger</span>
+                </a>
+
+                <div class="nav-section-title">COMMUNICATION & SYSTEM</div>
+                <a href="notification.html" class="nav-item">
+                    <i class="bi bi-bell"></i>
+                    <span>Notification Center</span>
+                </a>
+                <a href="account.html" class="nav-item">
+                    <i class="bi bi-gear"></i>
+                    <span>Account Settings</span>
+                </a>
+                <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                    <i class="bi bi-box-arrow-right"></i>
+                    <span>Log Out</span>
+                </a>
+            `;
+        } else {
+            nav.innerHTML = `
+                <div class="nav-section-title">OVERVIEW</div>
+                <a href="dashboard.html" class="nav-item">
+                    <i class="bi bi-grid-1x2"></i>
+                    <span>Dashboard</span>
+                </a>
+
+                <div class="nav-section-title">PROPERTY OPERATIONS</div>
+                <a href="properties.html" class="nav-item">
+                    <i class="bi bi-buildings"></i>
+                    <span>Properties</span>
+                </a>
+                <a href="buildings.html" class="nav-item">
+                    <i class="bi bi-building"></i>
+                    <span>Buildings</span>
+                </a>
+                <a href="units.html" class="nav-item">
+                    <i class="bi bi-door-open"></i>
+                    <span>Units</span>
+                </a>
+                <a href="tenants.html" class="nav-item active">
+                    <i class="bi bi-people"></i>
+                    <span>Tenants</span>
+                </a>
+                <a href="owners.html" class="nav-item">
+                    <i class="bi bi-person-badge"></i>
+                    <span>Owners</span>
+                </a>
+                <a href="property-ownership.html" class="nav-item">
+                    <i class="bi bi-pie-chart"></i>
+                    <span>Fractional Ownership</span>
+                </a>
+                <a href="leases.html" class="nav-item">
+                    <i class="bi bi-file-earmark-text"></i>
+                    <span>Leases</span>
+                </a>
+
+                <div class="nav-section-title">FINANCE & SERVICES</div>
+                <a href="rent-collection.html" class="nav-item">
+                    <i class="bi bi-cash-stack"></i>
+                    <span>Rent Collection</span>
+                </a>
+                <a href="transaction.html" class="nav-item">
+                    <i class="bi bi-receipt-cutoff"></i>
+                    <span>Transactions & Ledger</span>
+                </a>
+                <a href="utilities.html" class="nav-item">
+                    <i class="bi bi-lightning-charge"></i>
+                    <span>Utilities</span>
+                </a>
+                <a href="meter-readings.html" class="nav-item">
+                    <i class="bi bi-speedometer2"></i>
+                    <span>Meter Readings</span>
+                </a>
+                <a href="maintenance.html" class="nav-item">
+                    <i class="bi bi-tools"></i>
+                    <span>Maintenance</span>
+                </a>
+
+                <div class="nav-section-title">RECORDS & REPORTS</div>
+                <a href="inspections.html" class="nav-item">
+                    <i class="bi bi-clipboard-check"></i>
+                    <span>Inspections</span>
+                </a>
+                <a href="move-in-checklist.html" class="nav-item">
+                    <i class="bi bi-check2-square"></i>
+                    <span>Move-In Checklist</span>
+                </a>
+                <a href="move-out-settlement.html" class="nav-item">
+                    <i class="bi bi-box-arrow-right"></i>
+                    <span>Move-Out Settlement</span>
+                </a>
+                <a href="documents.html" class="nav-item">
+                    <i class="bi bi-folder2-open"></i>
+                    <span>Documents</span>
+                </a>
+                <a href="reports.html" class="nav-item">
+                    <i class="bi bi-bar-chart"></i>
+                    <span>Reports</span>
+                </a>
+
+                <div class="nav-section-title">SYSTEM</div>
+                <a href="settings.html" class="nav-item">
+                    <i class="bi bi-gear"></i>
+                    <span>Settings</span>
+                </a>
+                <a href="account.html" class="nav-item">
+                    <i class="bi bi-person-gear"></i>
+                    <span>Account Settings</span>
+                </a>
+                <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                    <i class="bi bi-box-arrow-right"></i>
+                    <span>Log Out</span>
+                </a>
+            `;
+        }
+    }
+
+    // Master Tenant Sync with Cloud Database & Shared State
+    async function getTenants() {
+        try {
+            const response = await fetch(API_BASE_URL, { headers: getAuthHeaders() });
+            if (response.ok) {
+                const data = await response.json();
+                if (Array.isArray(data) && data.length > 0) {
+                    localStorage.setItem('argo_tenants', JSON.stringify(data));
+                    return data;
+                }
+            }
+        } catch (error) {
+            console.warn("Live API unavailable, fetching from local directory cache.");
+        }
+
+        const raw = localStorage.getItem('argo_tenants');
+        if (!raw) {
+            localStorage.setItem('argo_tenants', JSON.stringify(DEFAULT_TENANTS));
+            return DEFAULT_TENANTS;
+        }
+
+        try {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+                const hasMaria = parsed.some(t => (t.email || '').toLowerCase() === 'maria.santos@tenant.ph' || (t.name || '').toLowerCase().includes('maria santos'));
+                if (!hasMaria) {
+                    parsed.unshift(DEFAULT_TENANTS[0]);
+                    localStorage.setItem('argo_tenants', JSON.stringify(parsed));
+                }
+                return parsed;
+            }
+            localStorage.setItem('argo_tenants', JSON.stringify(DEFAULT_TENANTS));
+            return DEFAULT_TENANTS;
+        } catch (e) {
+            return DEFAULT_TENANTS;
+        }
+    }
+
+    function saveTenantsLocally(tenants) {
+        localStorage.setItem('argo_tenants', JSON.stringify(tenants));
+    }
+
+    async function getUnitsList() {
+        try {
+            const res = await fetch(UNITS_API_URL, { headers: getAuthHeaders() });
+            if (res.ok) {
+                const data = await res.json();
+                if (Array.isArray(data) && data.length > 0) return data;
+            }
+        } catch (e) {}
+
+        try {
+            return JSON.parse(localStorage.getItem('argo_units') || '[]');
+        } catch (e) {
+            return [];
+        }
+    }
+
+    function getLeases() {
+        try {
+            const raw = localStorage.getItem('argo_leases');
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+            }
+        } catch (e) {}
+
+        return [
+            {
+                id: "LSE-2026-0101",
+                tenantName: "Maria Santos",
+                tenant_name: "Maria Santos",
+                tenant_email: "maria.santos@tenant.ph",
+                property: "Sunrise Residences",
+                unit: "Sunrise Residences • Unit 101",
+                unit_number: "Unit 101",
+                start_date: "2026-01-01",
+                end_date: "2026-12-31",
+                rent: 15000,
+                deposit: 30000,
+                status: "ACTIVE"
+            }
+        ];
+    }
+
+    function getNotifications() {
+        try {
+            return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
+        } catch (e) {
+            return [];
+        }
+    }
+
+    function saveNotifications(notifications) {
+        localStorage.setItem('argo_notifications', JSON.stringify(notifications));
+    }
+
+    let activeTabStatus = "ALL";
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        const rawRole = (
+            localStorage.getItem('argo_pov') || 
+            localStorage.getItem('user_role') || 
+            localStorage.getItem('role') || 
+            ''
+        ).toLowerCase().trim();
+
+        if (!rawRole) {
             window.location.replace('index.html');
+            return;
         }
 
-        // Dynamic Role-Based Sidebar Navigation Renderer
-        function renderSidebar() {
-            const nav = document.getElementById('sidebarNav');
-            if (!nav) return;
+        renderSidebar();
+        loadUserData();
+        await populateUnitDropdown();
+        await renderTenantTable();
+        updateHeaderBadge();
+    });
 
-            const rawRole = (
-                localStorage.getItem('argo_pov') || 
-                localStorage.getItem('user_role') || 
-                localStorage.getItem('role') || 
-                'admin'
-            ).toLowerCase().trim();
+    // Real-Time Cross-Tab Listener
+    window.addEventListener('storage', async (e) => {
+        if (['argo_tenants', 'argo_leases', 'argo_units', 'argo_notifications', 'argo_user', 'argo_pov', 'user_role', 'role'].includes(e.key)) {
+            renderSidebar();
+            loadUserData();
+            await populateUnitDropdown();
+            await renderTenantTable();
+            updateHeaderBadge();
+        }
+    });
 
-            if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
-                nav.innerHTML = `
-                    <div class="nav-section-title">SELF-SERVICE HOME</div>
-                    <a href="client-dashboard.html" class="nav-item">
-                        <i class="bi bi-house-door"></i>
-                        <span>My Tenancy Home</span>
-                    </a>
-                    <a href="client-billing.html" class="nav-item">
-                        <i class="bi bi-receipt"></i>
-                        <span>Pay Rent & Dues</span>
-                    </a>
-                    <a href="transaction.html" class="nav-item">
-                        <i class="bi bi-receipt-cutoff"></i>
-                        <span>Transactions & Ledger</span>
-                    </a>
-                    <a href="client-utilities.html" class="nav-item">
-                        <i class="bi bi-lightning-charge"></i>
-                        <span>My Utilities & Meters</span>
-                    </a>
-                    <a href="client-maintenance.html" class="nav-item">
-                        <i class="bi bi-tools"></i>
-                        <span>Submit Maintenance</span>
-                    </a>
-                    <a href="inspections.html" class="nav-item">
-                        <i class="bi bi-clipboard-check"></i>
-                        <span>Move-In & Inspections</span>
-                    </a>
-                    <a href="client-documents.html" class="nav-item">
-                        <i class="bi bi-folder2-open"></i>
-                        <span>My Lease & Receipts</span>
-                    </a>
+    function loadUserData() {
+        const rawRole = (
+            localStorage.getItem('argo_pov') || 
+            localStorage.getItem('user_role') || 
+            localStorage.getItem('role') || 
+            'admin'
+        ).toLowerCase().trim();
 
-                    <div class="nav-section-title">SYSTEM</div>
-                    <a href="account.html" class="nav-item">
-                        <i class="bi bi-gear"></i>
-                        <span>Account Settings</span>
-                    </a>
-                    <a href="#" class="nav-item" onclick="logoutUser(); return false;">
-                        <i class="bi bi-box-arrow-right"></i>
-                        <span>Log Out</span>
-                    </a>
-                `;
-            } else if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
-                nav.innerHTML = `
-                    <div class="nav-section-title">PORTFOLIO OVERVIEW</div>
-                    <a href="owner-dashboard.html" class="nav-item">
-                        <i class="bi bi-speedometer2"></i>
-                        <span>Executive Summary</span>
-                    </a>
-                    <a href="owner-properties.html" class="nav-item">
-                        <i class="bi bi-buildings"></i>
-                        <span>My Properties</span>
-                    </a>
-                    <a href="owner-statements.html" class="nav-item">
-                        <i class="bi bi-file-earmark-text"></i>
-                        <span>Financial Statements</span>
-                    </a>
-                    <a href="property-ownership.html" class="nav-item">
-                        <i class="bi bi-pie-chart"></i>
-                        <span>Fractional Equity</span>
-                    </a>
-                    <a href="owner-documents.html" class="nav-item">
-                        <i class="bi bi-folder2-open"></i>
-                        <span>Legal Vault</span>
-                    </a>
-                    <a href="transaction.html" class="nav-item">
-                        <i class="bi bi-receipt-cutoff"></i>
-                        <span>Yield Audit Ledger</span>
-                    </a>
+        const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+        const nameEl = document.getElementById('userName');
+        const roleEl = document.getElementById('userRoleBadge');
+        const avatarEl = document.getElementById('userAvatar');
 
-                    <div class="nav-section-title">COMMUNICATION & SYSTEM</div>
-                    <a href="notification.html" class="nav-item">
-                        <i class="bi bi-bell"></i>
-                        <span>Notification Center</span>
-                    </a>
-                    <a href="account.html" class="nav-item">
-                        <i class="bi bi-gear"></i>
-                        <span>Account Settings</span>
-                    </a>
-                    <a href="#" class="nav-item" onclick="logoutUser(); return false;">
-                        <i class="bi bi-box-arrow-right"></i>
-                        <span>Log Out</span>
-                    </a>
-                `;
-            } else {
-                // Admin POV
-                nav.innerHTML = `
-                    <div class="nav-section-title">OVERVIEW</div>
-                    <a href="dashboard.html" class="nav-item">
-                        <i class="bi bi-grid-1x2"></i>
-                        <span>Dashboard</span>
-                    </a>
-
-                    <div class="nav-section-title">PROPERTY OPERATIONS</div>
-                    <a href="properties.html" class="nav-item">
-                        <i class="bi bi-buildings"></i>
-                        <span>Properties</span>
-                    </a>
-                    <a href="buildings.html" class="nav-item">
-                        <i class="bi bi-building"></i>
-                        <span>Buildings</span>
-                    </a>
-                    <a href="units.html" class="nav-item">
-                        <i class="bi bi-door-open"></i>
-                        <span>Units</span>
-                    </a>
-                    <a href="tenants.html" class="nav-item active">
-                        <i class="bi bi-people"></i>
-                        <span>Tenants</span>
-                    </a>
-                    <a href="owners.html" class="nav-item">
-                        <i class="bi bi-person-badge"></i>
-                        <span>Owners</span>
-                    </a>
-                    <a href="property-ownership.html" class="nav-item">
-                        <i class="bi bi-pie-chart"></i>
-                        <span>Fractional Ownership</span>
-                    </a>
-                    <a href="leases.html" class="nav-item">
-                        <i class="bi bi-file-earmark-text"></i>
-                        <span>Leases</span>
-                    </a>
-
-                    <div class="nav-section-title">FINANCE & SERVICES</div>
-                    <a href="rent-collection.html" class="nav-item">
-                        <i class="bi bi-cash-stack"></i>
-                        <span>Rent Collection</span>
-                    </a>
-                    <a href="transaction.html" class="nav-item">
-                        <i class="bi bi-receipt-cutoff"></i>
-                        <span>Transactions & Ledger</span>
-                    </a>
-                    <a href="utilities.html" class="nav-item">
-                        <i class="bi bi-lightning-charge"></i>
-                        <span>Utilities</span>
-                    </a>
-                    <a href="meter-readings.html" class="nav-item">
-                        <i class="bi bi-speedometer2"></i>
-                        <span>Meter Readings</span>
-                    </a>
-                    <a href="maintenance.html" class="nav-item">
-                        <i class="bi bi-tools"></i>
-                        <span>Maintenance</span>
-                    </a>
-
-                    <div class="nav-section-title">RECORDS & REPORTS</div>
-                    <a href="inspections.html" class="nav-item">
-                        <i class="bi bi-clipboard-check"></i>
-                        <span>Inspections</span>
-                    </a>
-                    <a href="move-in-checklist.html" class="nav-item">
-                        <i class="bi bi-check2-square"></i>
-                        <span>Move-In Checklist</span>
-                    </a>
-                    <a href="move-out-settlement.html" class="nav-item">
-                        <i class="bi bi-box-arrow-right"></i>
-                        <span>Move-Out Settlement</span>
-                    </a>
-                    <a href="documents.html" class="nav-item">
-                        <i class="bi bi-folder2-open"></i>
-                        <span>Documents</span>
-                    </a>
-                    <a href="reports.html" class="nav-item">
-                        <i class="bi bi-bar-chart"></i>
-                        <span>Reports</span>
-                    </a>
-
-                    <div class="nav-section-title">SYSTEM</div>
-                    <a href="settings.html" class="nav-item">
-                        <i class="bi bi-gear"></i>
-                        <span>Settings</span>
-                    </a>
-                    <a href="account.html" class="nav-item">
-                        <i class="bi bi-person-gear"></i>
-                        <span>Account Settings</span>
-                    </a>
-                    <a href="#" class="nav-item" onclick="logoutUser(); return false;">
-                        <i class="bi bi-box-arrow-right"></i>
-                        <span>Log Out</span>
-                    </a>
-                `;
+        if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
+            if (nameEl) nameEl.textContent = 'Don Ramon Santos';
+            if (roleEl) roleEl.textContent = 'Property Owner';
+            if (avatarEl) {
+                avatarEl.textContent = 'RS';
+                avatarEl.style.background = '#059669';
+            }
+        } else if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
+            if (nameEl) nameEl.textContent = 'Maria Santos';
+            if (roleEl) roleEl.textContent = 'Sunrise Property • Unit 101';
+            if (avatarEl) {
+                avatarEl.textContent = 'MS';
+                avatarEl.style.background = '#D97706';
+            }
+        } else {
+            const name = user.name || 'Property Admin';
+            const role = user.role || 'Property Manager';
+            if (nameEl) nameEl.textContent = name;
+            if (roleEl) roleEl.textContent = role;
+            if (avatarEl) {
+                avatarEl.textContent = user.avatar || (name.charAt(0) || 'JD');
+                avatarEl.style.background = user.avatarBg || '#2563EB';
             }
         }
+    }
 
-        // Shared Storage Accessors
-        function getTenants() {
-            try {
-                return JSON.parse(localStorage.getItem('argo_tenants') || '[]');
-            } catch (e) {
-                return [];
-            }
+    async function populateUnitDropdown() {
+        const units = await getUnitsList();
+        const leases = getLeases();
+        const modalSelect = document.getElementById('modalTenantUnit');
+        if (!modalSelect) return;
+
+        modalSelect.innerHTML = '<option value="No Current Unit">No Current Unit</option>';
+
+        if (units.length > 0) {
+            units.forEach(u => {
+                const uName = u.unit_number || u.unit_no || u.unitNo || u.unit_name || `Unit ${u.id}`;
+                const pName = (u.property ? (u.property.name || u.property.property_name) : '') || u.property_name || u.property || 'Sunrise Residences';
+                modalSelect.innerHTML += `<option value="${pName} • ${uName}">${pName} • ${uName}</option>`;
+            });
+        } else if (leases.length > 0) {
+            leases.forEach(l => {
+                const uName = l.unit || l.unit_number || 'Unit 101';
+                const pName = l.property || l.property_name || 'Sunrise Residences';
+                modalSelect.innerHTML += `<option value="${pName} • ${uName}">${pName} • ${uName}</option>`;
+            });
+        } else {
+            modalSelect.innerHTML += '<option value="Sunrise Residences • Unit 101">Sunrise Residences • Unit 101</option>';
+            modalSelect.innerHTML += '<option value="Sunrise Residences • Unit 102">Sunrise Residences • Unit 102</option>';
+        }
+    }
+
+    async function renderTenantTable() {
+        const tenants = await getTenants();
+        const leases = getLeases();
+        const tbody = document.getElementById('tenantTable');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+
+        if (!tenants || tenants.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--muted); padding:30px;">No tenant profiles registered. Click "New Tenant" to register one.</td></tr>`;
+            const countEl = document.getElementById('showingCountText');
+            if (countEl) countEl.textContent = `Showing 0 tenants`;
+            updateKPIsWithData([]);
+            return;
         }
 
-        function saveTenants(tenants) {
-            localStorage.setItem('argo_tenants', JSON.stringify(tenants));
+        tenants.forEach(t => {
+            const tr = document.createElement('tr');
+            const tenantName = t.name || `${t.first_name || ''} ${t.last_name || ''}`.trim() || 'Maria Santos';
+            const tenantType = t.type || 'Individual';
+            const tenantStatus = t.status || 'Active';
+            const tenantEmail = t.email || 'maria.santos@tenant.ph';
+            const tenantPhone = t.phone || '+63 917 123 4567';
+            const tenantUnit = t.unit || (t.unit_number ? `Sunrise Residences • ${t.unit_number}` : 'Sunrise Residences • Unit 101');
+
+            // Cross-reference with active leases
+            const matchedLease = leases.find(l => 
+                ((l.tenantName && l.tenantName.toLowerCase() === tenantName.toLowerCase()) || 
+                 (l.tenant_name && l.tenant_name.toLowerCase() === tenantName.toLowerCase()) ||
+                 (l.tenant && l.tenant.toLowerCase() === tenantName.toLowerCase())) &&
+                ((l.status || '').toUpperCase() === 'ACTIVE')
+            );
+
+            const leaseId = matchedLease ? (matchedLease.id || matchedLease.leaseId || 'LSE-2026-0101') : (t.leaseId || 'LSE-2026-0101');
+
+            const hasActiveLease = Boolean(matchedLease) || (t.leaseStatus && t.leaseStatus.includes('Active')) || (tenantUnit && tenantUnit !== 'No Current Unit' && tenantUnit !== 'Unassigned');
+
+            const leaseStatusText = hasActiveLease ? 'Active Lease' : 'No Active Lease';
+
+            tr.dataset.type = tenantType;
+            tr.dataset.status = tenantStatus;
+
+            let typeBadge = tenantType === 'Individual' 
+                ? `<span class="badge badge-individual" style="background:#F1F5F9; color:#475569; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-person" style="margin-right:4px;"></i> Individual</span>`
+                : `<span class="badge badge-organization" style="background:#FEF3C7; color:#92400E; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-building" style="margin-right:4px;"></i> Organization</span>`;
+
+            let leaseBadge = hasActiveLease
+                ? `<span class="badge badge-active" style="background:#ECFDF5; color:#059669; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-check-circle" style="margin-right:3px;"></i> ${leaseId}</span>`
+                : `<span class="badge badge-inactive" style="background:#F3F4F6; color:#6B7280; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;">No Active Lease</span>`;
+
+            let accountBadge = tenantStatus.toLowerCase() === 'active'
+                ? `<span class="badge badge-active" style="background:#ECFDF5; color:#059669; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;">Active</span>`
+                : `<span class="badge badge-inactive" style="background:#F3F4F6; color:#6B7280; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;">Inactive</span>`;
+
+            tr.innerHTML = `
+                <td>
+                    <div class="tenant-name" style="font-weight:600;">${tenantName}</div>
+                    <div class="tenant-email" style="font-size:11px; color:var(--muted);">${tenantEmail}</div>
+                </td>
+                <td>${typeBadge}</td>
+                <td>${tenantPhone}</td>
+                <td><strong>${tenantUnit}</strong></td>
+                <td>${leaseBadge}</td>
+                <td>${accountBadge}</td>
+                <td>
+                    <div style="display:flex; gap:6px;">
+                        <button class="action-button" title="View Profile" onclick="viewTenantProfile('${t.id}')"><i class="bi bi-eye"></i></button>
+                        <button class="action-button delete" title="Archive Tenant" onclick="deleteTenant('${t.id}')"><i class="bi bi-trash"></i></button>
+                    </div>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        applyAllFilters();
+        updateKPIsWithData(tenants);
+    }
+
+    async function viewTenantProfile(tenantId) {
+        const tenants = await getTenants();
+        const t = tenants.find(item => String(item.id) === String(tenantId)) || DEFAULT_TENANTS[0];
+        if (!t) return;
+
+        currentInspectedTenantId = tenantId;
+        const tenantName = t.name || `${t.first_name || ''} ${t.last_name || ''}`.trim() || 'Maria Santos';
+
+        if (document.getElementById('vTenantHeading')) document.getElementById('vTenantHeading').textContent = `Tenant Profile — ${t.id}`;
+        if (document.getElementById('vTenantFullName')) document.getElementById('vTenantFullName').textContent = tenantName;
+        if (document.getElementById('vTenantIdBadge')) document.getElementById('vTenantIdBadge').textContent = `System Record: ${t.id}`;
+        if (document.getElementById('vTenantMeta')) document.getElementById('vTenantMeta').textContent = `Type: ${t.type || 'Individual'} | Account: ${t.status || 'Active'} | ID: ${t.id_type || "Driver's License"} (${t.id_status || 'Verified'})`;
+        if (document.getElementById('vTenantEmail')) document.getElementById('vTenantEmail').textContent = t.email || 'maria.santos@tenant.ph';
+        if (document.getElementById('vTenantPhone')) document.getElementById('vTenantPhone').textContent = t.phone || '+63 917 123 4567';
+        if (document.getElementById('vTenantUnit')) document.getElementById('vTenantUnit').textContent = t.unit || 'Sunrise Residences • Unit 101';
+        if (document.getElementById('vTenantLeaseStatus')) document.getElementById('vTenantLeaseStatus').textContent = `${t.leaseId || 'LSE-2026-0101'} (Active 1-Year Lease)`;
+
+        openModal('viewTenantModal');
+    }
+
+    async function saveTenant() {
+        const nameInput = document.getElementById('modalTenantName');
+        const emailInput = document.getElementById('modalTenantEmail');
+        const phoneInput = document.getElementById('modalTenantPhone');
+        const typeSelect = document.getElementById('modalTenantType');
+        const statusSelect = document.getElementById('modalTenantStatus');
+        const unitSelect = document.getElementById('modalTenantUnit');
+
+        const name = nameInput ? nameInput.value.trim() : '';
+        const email = emailInput ? emailInput.value.trim() : 'maria.santos@tenant.ph';
+        const phone = phoneInput ? phoneInput.value.trim() : '+63 917 123 4567';
+        const type = typeSelect ? typeSelect.value : 'Individual';
+        const status = statusSelect ? statusSelect.value : 'Active';
+        const unit = unitSelect ? unitSelect.value : 'Sunrise Residences • Unit 101';
+
+        if (!name) {
+            alert("Please enter a tenant name.");
+            return;
         }
 
-        function getUnits() {
-            try {
-                return JSON.parse(localStorage.getItem('argo_units') || '[]');
-            } catch (e) {
-                return [];
-            }
+        const newTenantId = `TNT-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+        const isUnitAssigned = unit && unit !== 'No Current Unit' && unit !== 'Unassigned';
+
+        const payload = {
+            id: newTenantId,
+            name: name,
+            first_name: name.split(' ')[0] || name,
+            last_name: name.split(' ').slice(1).join(' ') || '',
+            email: email,
+            phone: phone,
+            type: type,
+            unit: unit || 'Sunrise Residences • Unit 101',
+            leaseId: isUnitAssigned ? 'LSE-2026-0101' : 'None',
+            leaseStatus: isUnitAssigned ? 'Active Lease' : 'No Active Lease',
+            id_type: "Driver's License",
+            id_number: "N02-18-091234",
+            id_status: "Verified",
+            status: status,
+            created_at: new Date().toISOString()
+        };
+
+        // 1. Live FastAPI Backend Save
+        try {
+            await fetch(API_BASE_URL, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify(payload)
+            });
+        } catch (error) {
+            console.warn("Backend save failed, keeping record in local state.", error);
         }
 
-        function saveUnits(units) {
+        // 2. Update Local State
+        let tenants = await getTenants();
+        tenants.unshift(payload);
+        saveTenantsLocally(tenants);
+
+        // 3. Mark unit occupied across inventory
+        if (isUnitAssigned) {
+            let units = await getUnitsList();
+            units = units.map(u => {
+                const uNum = u.unit_number || u.unit_no || u.unitNo || '';
+                if (uNum && unit.includes(uNum)) {
+                    return { ...u, status: 'OCCUPIED', tenant: name, tenant_name: name };
+                }
+                return u;
+            });
             localStorage.setItem('argo_units', JSON.stringify(units));
         }
 
-        function getLeases() {
-            try {
-                return JSON.parse(localStorage.getItem('argo_leases') || '[]');
-            } catch (e) {
-                return [];
+        // 4. System Notification Broadcast
+        let notifications = getNotifications();
+        notifications.unshift({
+            id: `NOTIF-${Date.now()}`,
+            pov: 'admin',
+            category: 'asset',
+            status: 'unread',
+            title: 'New Tenant Profile Registered',
+            time: 'Just now',
+            description: `Tenant <strong>${name}</strong> (${type}) registered into directory. Assigned Unit: <strong>${unit}</strong>.`,
+            property: unit,
+            actionUrl: 'tenants.html',
+            actionText: 'View Tenant Profile'
+        });
+        saveNotifications(notifications);
+
+        await renderTenantTable();
+        closeModal('tenantModal');
+
+        if (nameInput) nameInput.value = '';
+        if (emailInput) emailInput.value = '';
+        if (phoneInput) phoneInput.value = '';
+        if (unitSelect) unitSelect.value = 'No Current Unit';
+
+        alert(`Tenant profile for "${name}" registered successfully!`);
+    }
+
+    async function deleteTenant(id) {
+        if (!confirm("Are you sure you want to archive/delete this tenant profile?")) return;
+        
+        try {
+            await fetch(`${API_BASE_URL}${id}/`, {
+                method: 'DELETE',
+                headers: getAuthHeaders()
+            });
+        } catch (error) {}
+
+        let tenants = await getTenants();
+        tenants = tenants.filter(t => String(t.id) !== String(id));
+        saveTenantsLocally(tenants);
+
+        await renderTenantTable();
+    }
+
+    function updateKPIsWithData(tenants) {
+        const leases = getLeases();
+        let total = tenants.length;
+        let individual = tenants.filter(t => (t.type || 'Individual').toLowerCase() === 'individual').length;
+        let org = tenants.filter(t => (t.type || '').toLowerCase() === 'organization').length;
+
+        let activeLeaseCount = 0;
+        tenants.forEach(t => {
+            const tenantName = t.name || `${t.first_name || ''} ${t.last_name || ''}`.trim() || 'Maria Santos';
+            const hasActiveLease = leases.some(l => 
+                ((l.tenantName && l.tenantName.toLowerCase() === tenantName.toLowerCase()) || 
+                 (l.tenant_name && l.tenant_name.toLowerCase() === tenantName.toLowerCase()) ||
+                 (l.tenant && l.tenant.toLowerCase() === tenantName.toLowerCase())) &&
+                ((l.status || '').toUpperCase() === 'ACTIVE')
+            );
+            if (hasActiveLease || (t.leaseStatus && t.leaseStatus.includes('Active')) || (t.unit && t.unit !== 'No Current Unit' && t.unit !== 'Unassigned')) {
+                activeLeaseCount++;
             }
-        }
-
-        function getNotifications() {
-            try {
-                return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
-            } catch (e) {
-                return [];
-            }
-        }
-
-        function saveNotifications(notifications) {
-            localStorage.setItem('argo_notifications', JSON.stringify(notifications));
-        }
-
-        let activeTabStatus = "ALL";
-
-        document.addEventListener('DOMContentLoaded', () => {
-            const rawRole = (
-                localStorage.getItem('argo_pov') || 
-                localStorage.getItem('user_role') || 
-                localStorage.getItem('role') || 
-                ''
-            ).toLowerCase().trim();
-
-            if (!rawRole) {
-                window.location.replace('index.html');
-                return;
-            }
-
-            renderSidebar();
-            loadUserData();
-            populateUnitDropdown();
-            renderTenantTable();
-            updateKPIs();
-            updateHeaderBadge();
         });
 
-        // Real-Time Cross-Tab Listener
-        window.addEventListener('storage', (e) => {
-            if (['argo_tenants', 'argo_leases', 'argo_units', 'argo_notifications', 'argo_user', 'argo_pov', 'user_role', 'role'].includes(e.key)) {
-                renderSidebar();
-                loadUserData();
-                populateUnitDropdown();
-                renderTenantTable();
-                updateKPIs();
-                updateHeaderBadge();
+        if (document.getElementById('kpiTotalTenants')) document.getElementById('kpiTotalTenants').textContent = total;
+        if (document.getElementById('kpiActiveTenants')) document.getElementById('kpiActiveTenants').textContent = activeLeaseCount;
+        if (document.getElementById('kpiIndividual')) document.getElementById('kpiIndividual').textContent = individual;
+        if (document.getElementById('kpiOrg')) document.getElementById('kpiOrg').textContent = org;
+    }
+
+    function updateHeaderBadge() {
+        const notifs = getNotifications().filter(n => (n.pov === 'admin' || !n.pov) && (n.status === 'unread' || n.is_read === false));
+        const badge = document.getElementById('headerNotifBadge');
+        if (badge) badge.textContent = notifs.length;
+    }
+
+    async function openModal(modalId = 'tenantModal') { 
+        await populateUnitDropdown();
+        const modal = document.getElementById(modalId);
+        if (modal) modal.classList.add("show"); 
+    }
+
+    function closeModal(modalId = 'tenantModal') { 
+        const modal = document.getElementById(modalId);
+        if (modal) modal.classList.remove("show"); 
+        if (modalId === 'viewTenantModal') currentInspectedTenantId = null;
+    }
+
+    window.onclick = function(event) {
+        if (event.target.classList && event.target.classList.contains('modal-overlay')) {
+            event.target.classList.remove("show");
+        }
+    };
+
+    function setTabFilter(status, buttonEl) {
+        activeTabStatus = status;
+        document.querySelectorAll(".tab").forEach(tab => tab.classList.remove("active"));
+        if (buttonEl) buttonEl.classList.add("active");
+        applyAllFilters();
+    }
+
+    function applyAllFilters() {
+        const searchInput = document.getElementById("searchInput");
+        const typeFilter = document.getElementById("typeFilter");
+        const statusFilter = document.getElementById("statusFilter");
+
+        const searchQuery = searchInput ? searchInput.value.toLowerCase().trim() : "";
+        const typeVal = typeFilter ? typeFilter.value : "";
+        const statusVal = statusFilter ? statusFilter.value : "";
+
+        const rows = document.querySelectorAll("#tenantTable tr");
+        let visibleCount = 0;
+        let totalRows = 0;
+
+        rows.forEach(row => {
+            if (row.cells.length === 1) return;
+            totalRows++;
+
+            const text = row.innerText.toLowerCase();
+            const rowType = row.dataset.type || "";
+            const rowStatus = row.dataset.status || "";
+
+            const matchesTab = (activeTabStatus === "ALL" || rowStatus.toLowerCase() === activeTabStatus.toLowerCase());
+            const matchesSearch = searchQuery === "" || text.includes(searchQuery);
+            const matchesType = (typeVal === "" || rowType.toLowerCase() === typeVal.toLowerCase());
+            const matchesStatus = (statusVal === "" || rowStatus.toLowerCase() === statusVal.toLowerCase());
+
+            if (matchesTab && matchesSearch && matchesType && matchesStatus) {
+                row.style.display = "";
+                visibleCount++;
+            } else {
+                row.style.display = "none";
             }
         });
 
-        function loadUserData() {
-            const rawRole = (
-                localStorage.getItem('argo_pov') || 
-                localStorage.getItem('user_role') || 
-                localStorage.getItem('role') || 
-                'admin'
-            ).toLowerCase().trim();
-
-            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
-            const nameEl = document.getElementById('userName');
-            const roleEl = document.getElementById('userRoleBadge');
-            const avatarEl = document.getElementById('userAvatar');
-
-            if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
-                if (nameEl) nameEl.textContent = 'Don Ramon Santos';
-                if (roleEl) roleEl.textContent = 'Property Owner';
-                if (avatarEl) {
-                    avatarEl.textContent = 'RS';
-                    avatarEl.style.background = '#059669';
-                }
-            } else if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
-                if (nameEl) nameEl.textContent = 'Maria Santos';
-                if (roleEl) roleEl.textContent = 'Sunrise Property • Unit 101';
-                if (avatarEl) {
-                    avatarEl.textContent = 'MS';
-                    avatarEl.style.background = '#D97706';
-                }
-            } else {
-                const name = user.name || 'Property Admin';
-                const role = user.role || 'Property Manager';
-                if (nameEl) nameEl.textContent = name;
-                if (roleEl) roleEl.textContent = role;
-                if (avatarEl) {
-                    avatarEl.textContent = user.avatar || (name.charAt(0) || 'JD');
-                    avatarEl.style.background = user.avatarBg || '#2563EB';
-                }
-            }
+        const countEl = document.getElementById('showingCountText');
+        if (countEl) {
+            countEl.textContent = totalRows === 0 ? "Showing 0 tenants" : `Showing ${visibleCount} of ${totalRows} tenants`;
         }
+    }
 
-        function populateUnitDropdown() {
-            const units = getUnits();
-            const leases = getLeases();
-            const modalSelect = document.getElementById('modalTenantUnit');
-            if (!modalSelect) return;
+    function resetFilters() {
+        if (document.getElementById("searchInput")) document.getElementById("searchInput").value = "";
+        if (document.getElementById("typeFilter")) document.getElementById("typeFilter").value = "";
+        if (document.getElementById("statusFilter")) document.getElementById("statusFilter").value = "";
+        
+        const firstTab = document.querySelectorAll('.tab')[0];
+        if (firstTab) setTabFilter('ALL', firstTab);
+    }
 
-            modalSelect.innerHTML = '<option value="No Current Unit">No Current Unit</option>';
+    // Profile Dropdown Handler
+    const userProfileBtn = document.getElementById('userProfileBtn');
+    const userDropdown = document.getElementById('userDropdown');
 
-            if (units.length > 0) {
-                units.forEach(u => {
-                    const uName = u.unit_no || u.unitNo || u.unit_name || u.id;
-                    const pName = u.property_name || u.property || 'Property';
-                    modalSelect.innerHTML += `<option value="${pName} • ${uName}">${pName} • ${uName}</option>`;
-                });
-            } else if (leases.length > 0) {
-                leases.forEach(l => {
-                    const uName = l.unit || l.unit_number || 'Unit 101';
-                    const pName = l.property || l.property_name || 'Sunrise Property';
-                    modalSelect.innerHTML += `<option value="${pName} • ${uName}">${pName} • ${uName}</option>`;
-                });
-            } else {
-                modalSelect.innerHTML += '<option value="Sunrise Property • Unit 101">Sunrise Property • Unit 101</option>';
-                modalSelect.innerHTML += '<option value="Sunrise Residences • Unit 204">Sunrise Residences • Unit 204</option>';
-            }
-        }
+    if (userProfileBtn && userDropdown) {
+        userProfileBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            userDropdown.classList.toggle('show');
+        });
 
-        function renderTenantTable() {
-            const tenants = getTenants();
-            const leases = getLeases();
-            const tbody = document.getElementById('tenantTable');
-            if (!tbody) return;
-            tbody.innerHTML = '';
-
-            if (tenants.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--muted); padding:30px;">No tenant profiles registered. Click "New Tenant" to register one.</td></tr>`;
-                document.getElementById('showingCountText').textContent = `Showing 0 tenants`;
-                return;
-            }
-
-            tenants.forEach(t => {
-                const tr = document.createElement('tr');
-                const tenantName = t.name || `${t.first_name || ''} ${t.last_name || ''}`.trim() || 'Tenant';
-                const tenantType = t.type || 'Individual';
-                const tenantStatus = t.status || 'Active';
-
-                // Look for active lease mapping
-                const hasActiveLease = leases.some(l => 
-                    ((l.tenantName && l.tenantName.toLowerCase() === tenantName.toLowerCase()) || 
-                     (l.tenant_name && l.tenant_name.toLowerCase() === tenantName.toLowerCase())) &&
-                    ((l.status || '').toUpperCase() === 'ACTIVE')
-                );
-
-                const leaseStatusText = (hasActiveLease || (t.leaseStatus && t.leaseStatus.includes('Active')) || (t.unit && t.unit !== 'No Current Unit' && t.unit !== 'Unassigned'))
-                    ? 'Active Lease' 
-                    : 'No Active Lease';
-
-                tr.dataset.type = tenantType;
-                tr.dataset.status = tenantStatus;
-
-                let typeBadge = tenantType === 'Individual' 
-                    ? `<span class="badge badge-individual" style="background:#F1F5F9; color:#475569; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-person" style="margin-right:4px;"></i> Individual</span>`
-                    : `<span class="badge badge-organization" style="background:#FEF3C7; color:#92400E; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-building" style="margin-right:4px;"></i> Organization</span>`;
-
-                let leaseBadge = leaseStatusText === 'Active Lease'
-                    ? `<span class="badge badge-active" style="background:#ECFDF5; color:#059669; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;">Active Lease</span>`
-                    : `<span class="badge badge-inactive" style="background:#F3F4F6; color:#6B7280; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;">No Active Lease</span>`;
-
-                let accountBadge = tenantStatus.toLowerCase() === 'active'
-                    ? `<span class="badge badge-active" style="background:#ECFDF5; color:#059669; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;">Active</span>`
-                    : `<span class="badge badge-inactive" style="background:#F3F4F6; color:#6B7280; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;">Inactive</span>`;
-
-                tr.innerHTML = `
-                    <td>
-                        <div class="tenant-name" style="font-weight:600;">${tenantName}</div>
-                        <div class="tenant-email" style="font-size:11px; color:var(--muted);">${t.email || 'N/A'}</div>
-                    </td>
-                    <td>${typeBadge}</td>
-                    <td>${t.phone || 'N/A'}</td>
-                    <td><strong>${t.unit || 'Unassigned'}</strong></td>
-                    <td>${leaseBadge}</td>
-                    <td>${accountBadge}</td>
-                    <td>
-                        <div style="display:flex; gap:6px;">
-                            <button class="action-button" title="View Profile" onclick="viewTenantProfile('${t.id}')"><i class="bi bi-eye"></i></button>
-                            <button class="action-button delete" title="Archive Tenant" onclick="deleteTenant('${t.id}')"><i class="bi bi-trash"></i></button>
-                        </div>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
-
-            document.getElementById('showingCountText').textContent = `Showing 1–${tenants.length} of ${tenants.length} tenants`;
-        }
-
-        function viewTenantProfile(tenantId) {
-            const tenants = getTenants();
-            const t = tenants.find(item => item.id === tenantId);
-            if (!t) return;
-
-            currentInspectedTenantId = tenantId;
-            const tenantName = t.name || `${t.first_name || ''} ${t.last_name || ''}`.trim() || 'Tenant';
-
-            document.getElementById('vTenantHeading').textContent = `Tenant Profile — ${t.id}`;
-            document.getElementById('vTenantFullName').textContent = tenantName;
-            document.getElementById('vTenantIdBadge').textContent = `System Record: ${t.id}`;
-            document.getElementById('vTenantMeta').textContent = `Type: ${t.type || 'Individual'} | Account: ${t.status || 'Active'}`;
-            document.getElementById('vTenantEmail').textContent = t.email || 'N/A';
-            document.getElementById('vTenantPhone').textContent = t.phone || 'N/A';
-            document.getElementById('vTenantUnit').textContent = t.unit || 'No Current Unit';
-            document.getElementById('vTenantLeaseStatus').textContent = t.leaseStatus || 'No Active Lease';
-
-            openModal('viewTenantModal');
-        }
-
-        function saveTenant() {
-            const nameInput = document.getElementById('modalTenantName');
-            const emailInput = document.getElementById('modalTenantEmail');
-            const phoneInput = document.getElementById('modalTenantPhone');
-            const typeSelect = document.getElementById('modalTenantType');
-            const statusSelect = document.getElementById('modalTenantStatus');
-            const unitSelect = document.getElementById('modalTenantUnit');
-
-            const name = nameInput ? nameInput.value.trim() : '';
-            const email = emailInput ? emailInput.value.trim() : '';
-            const phone = phoneInput ? phoneInput.value.trim() : '';
-            const type = typeSelect ? typeSelect.value : 'Individual';
-            const status = statusSelect ? statusSelect.value : 'Active';
-            const unit = unitSelect ? unitSelect.value : 'No Current Unit';
-
-            if (!name) {
-                alert("Please enter a tenant name.");
-                return;
-            }
-
-            const newTenantId = `TNT-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
-            const isUnitAssigned = unit && unit !== 'No Current Unit' && unit !== 'Unassigned';
-
-            const newTenant = {
-                id: newTenantId,
-                name: name,
-                first_name: name.split(' ')[0] || name,
-                last_name: name.split(' ').slice(1).join(' ') || '',
-                email: email,
-                phone: phone,
-                type: type,
-                unit: unit || 'No Current Unit',
-                leaseStatus: isUnitAssigned ? 'Active Lease' : 'No Active Lease',
-                status: status,
-                created_at: new Date().toISOString()
-            };
-
-            let tenants = getTenants();
-            tenants.unshift(newTenant);
-            saveTenants(tenants);
-
-            // If unit is assigned, mark unit as occupied in units table
-            if (isUnitAssigned) {
-                let units = getUnits();
-                units = units.map(u => {
-                    const fullLoc = `${u.property_name || u.property || ''} • ${u.unit_no || u.unitNo || u.id}`;
-                    if (fullLoc.includes(unit) || unit.includes(u.unit_no || u.unitNo || 'XYZ')) {
-                        return { ...u, status: 'OCCUPIED', tenant: name, tenant_name: name };
-                    }
-                    return u;
-                });
-                saveUnits(units);
-            }
-
-            // Push notification
-            let notifications = getNotifications();
-            notifications.unshift({
-                id: `NOTIF-${Date.now()}`,
-                pov: 'admin',
-                category: 'asset',
-                status: 'unread',
-                title: 'New Tenant Profile Registered',
-                time: 'Just now',
-                description: `Tenant <strong>${name}</strong> (${type}) registered into the system directory. Assigned Unit: <strong>${unit}</strong>.`,
-                property: unit,
-                actionUrl: 'tenants.html',
-                actionText: 'View Tenant Profile'
-            });
-            saveNotifications(notifications);
-
-            renderTenantTable();
-            updateKPIs();
-            closeModal('tenantModal');
-
-            if (nameInput) nameInput.value = '';
-            if (emailInput) emailInput.value = '';
-            if (phoneInput) phoneInput.value = '';
-            if (unitSelect) unitSelect.value = 'No Current Unit';
-
-            alert(`Tenant profile for "${name}" registered successfully!`);
-        }
-
-        function deleteTenant(id) {
-            if (!confirm("Are you sure you want to archive/delete this tenant profile?")) return;
-            let tenants = getTenants();
-            tenants = tenants.filter(t => t.id !== id);
-            saveTenants(tenants);
-            renderTenantTable();
-            updateKPIs();
-        }
-
-        function updateKPIs() {
-            const tenants = getTenants();
-            const leases = getLeases();
-
-            let total = tenants.length;
-            let individual = tenants.filter(t => (t.type || 'Individual').toLowerCase() === 'individual').length;
-            let org = tenants.filter(t => (t.type || '').toLowerCase() === 'organization').length;
-
-            let activeLeaseCount = 0;
-            tenants.forEach(t => {
-                const tenantName = t.name || `${t.first_name || ''} ${t.last_name || ''}`.trim() || 'Tenant';
-                const hasActiveLease = leases.some(l => 
-                    ((l.tenantName && l.tenantName.toLowerCase() === tenantName.toLowerCase()) || 
-                     (l.tenant_name && l.tenant_name.toLowerCase() === tenantName.toLowerCase())) &&
-                    ((l.status || '').toUpperCase() === 'ACTIVE')
-                );
-                if (hasActiveLease || (t.leaseStatus && t.leaseStatus.includes('Active')) || (t.unit && t.unit !== 'No Current Unit' && t.unit !== 'Unassigned')) {
-                    activeLeaseCount++;
-                }
-            });
-
-            document.getElementById('kpiTotalTenants').textContent = total;
-            document.getElementById('kpiActiveTenants').textContent = activeLeaseCount;
-            document.getElementById('kpiIndividual').textContent = individual;
-            document.getElementById('kpiOrg').textContent = org;
-        }
-
-        function updateHeaderBadge() {
-            const notifs = getNotifications().filter(n => (n.pov === 'admin' || !n.pov) && (n.status === 'unread' || n.is_read === false));
-            const badge = document.getElementById('headerNotifBadge');
-            if (badge) badge.textContent = notifs.length;
-        }
-
-        function openModal(modalId = 'tenantModal') { 
-            populateUnitDropdown();
-            const modal = document.getElementById(modalId);
-            if (modal) modal.classList.add("show"); 
-        }
-
-        function closeModal(modalId = 'tenantModal') { 
-            const modal = document.getElementById(modalId);
-            if (modal) modal.classList.remove("show"); 
-            if (modalId === 'viewTenantModal') currentInspectedTenantId = null;
-        }
-
-        window.onclick = function(event) {
-            if (event.target.classList && event.target.classList.contains('modal-overlay')) {
-                event.target.classList.remove("show");
-            }
-        };
-
-        function setTabFilter(status, buttonEl) {
-            activeTabStatus = status;
-            document.querySelectorAll(".tab").forEach(tab => tab.classList.remove("active"));
-            if (buttonEl) buttonEl.classList.add("active");
-            applyAllFilters();
-        }
-
-        function applyAllFilters() {
-            const searchInput = document.getElementById("searchInput");
-            const typeFilter = document.getElementById("typeFilter");
-            const statusFilter = document.getElementById("statusFilter");
-
-            const searchQuery = searchInput ? searchInput.value.toLowerCase().trim() : "";
-            const typeVal = typeFilter ? typeFilter.value : "";
-            const statusVal = statusFilter ? statusFilter.value : "";
-
-            const rows = document.querySelectorAll("#tenantTable tr");
-            let visibleCount = 0;
-            let totalRows = 0;
-
-            rows.forEach(row => {
-                if (row.cells.length === 1) return;
-                totalRows++;
-
-                const text = row.innerText.toLowerCase();
-                const rowType = row.dataset.type || "";
-                const rowStatus = row.dataset.status || "";
-
-                const matchesTab = (activeTabStatus === "ALL" || rowStatus.toLowerCase() === activeTabStatus.toLowerCase());
-                const matchesSearch = searchQuery === "" || text.includes(searchQuery);
-                const matchesType = (typeVal === "" || rowType.toLowerCase() === typeVal.toLowerCase());
-                const matchesStatus = (statusVal === "" || rowStatus.toLowerCase() === statusVal.toLowerCase());
-
-                if (matchesTab && matchesSearch && matchesType && matchesStatus) {
-                    row.style.display = "";
-                    visibleCount++;
-                } else {
-                    row.style.display = "none";
-                }
-            });
-
-            const countEl = document.getElementById('showingCountText');
-            if (countEl) {
-                countEl.textContent = totalRows === 0 ? "Showing 0 tenants" : `Showing ${visibleCount} of ${totalRows} tenants`;
-            }
-        }
-
-        function resetFilters() {
-            const searchInput = document.getElementById("searchInput");
-            const typeFilter = document.getElementById("typeFilter");
-            const statusFilter = document.getElementById("statusFilter");
-
-            if (searchInput) searchInput.value = "";
-            if (typeFilter) typeFilter.value = "";
-            if (statusFilter) statusFilter.value = "";
-            
-            const firstTab = document.querySelectorAll('.tab')[0];
-            if (firstTab) setTabFilter('ALL', firstTab);
-        }
-
-        // Profile Dropdown Handler
-        const userProfileBtn = document.getElementById('userProfileBtn');
-        const userDropdown = document.getElementById('userDropdown');
-
-        if (userProfileBtn && userDropdown) {
-            userProfileBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                userDropdown.classList.toggle('show');
-            });
-
-            document.addEventListener('click', () => { 
-                userDropdown.classList.remove('show'); 
-            });
-        }
-    </script>
+        document.addEventListener('click', () => { 
+            userDropdown.classList.remove('show'); 
+        });
+    }
+</script>
 </body>

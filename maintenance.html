@@ -863,783 +863,841 @@
         </div>
     </div>
 
-    <!-- ================= JAVASCRIPT ================= -->
     <script>
-        // Secure Logout Handler (Clears session and replaces history to prevent back-button access)
-        function logoutUser() {
-            localStorage.removeItem('argo_pov');
-            localStorage.removeItem('user_role');
-            localStorage.removeItem('role');
-            localStorage.removeItem('token');
-            localStorage.removeItem('argo_user');
+    const API_BASE_URL = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
+        ? 'http://127.0.0.1:8000/api'
+        : '/api';
+
+    const MAINTENANCE_API_URL = `${API_BASE_URL}/maintenance/`;
+
+    function getAuthHeaders() {
+        const token = localStorage.getItem('token') || localStorage.getItem('argo_token');
+        return {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        };
+    }
+
+    // Secure Logout Handler
+    function logoutUser() {
+        localStorage.clear();
+        window.location.replace('index.html');
+    }
+
+    let currentEditingTicketId = null;
+
+    // Dynamic Role-Based Sidebar Renderer
+    function renderSidebar() {
+        const nav = document.getElementById('sidebarNav');
+        if (!nav) return;
+
+        const rawRole = (
+            localStorage.getItem('argo_pov') || 
+            localStorage.getItem('user_role') || 
+            localStorage.getItem('role') || 
+            'admin'
+        ).toLowerCase().trim();
+
+        if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
+            nav.innerHTML = `
+                <div class="nav-section-title">SELF-SERVICE HOME</div>
+                <a href="client-dashboard.html" class="nav-item">
+                    <i class="bi bi-house-door"></i>
+                    <span>My Tenancy Home</span>
+                </a>
+                <a href="client-billing.html" class="nav-item">
+                    <i class="bi bi-receipt"></i>
+                    <span>Pay Rent & Dues</span>
+                </a>
+                <a href="transaction.html" class="nav-item">
+                    <i class="bi bi-receipt-cutoff"></i>
+                    <span>Transactions & Ledger</span>
+                </a>
+                <a href="client-utilities.html" class="nav-item">
+                    <i class="bi bi-lightning-charge"></i>
+                    <span>My Utilities & Meters</span>
+                </a>
+                <a href="client-maintenance.html" class="nav-item active">
+                    <i class="bi bi-tools"></i>
+                    <span>Submit Maintenance</span>
+                </a>
+                <a href="inspections.html" class="nav-item">
+                    <i class="bi bi-clipboard-check"></i>
+                    <span>Move-In & Inspections</span>
+                </a>
+                <a href="client-documents.html" class="nav-item">
+                    <i class="bi bi-folder2-open"></i>
+                    <span>My Lease & Receipts</span>
+                </a>
+
+                <div class="nav-section-title">SYSTEM</div>
+                <a href="account.html" class="nav-item">
+                    <i class="bi bi-gear"></i>
+                    <span>Account Settings</span>
+                </a>
+                <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                    <i class="bi bi-box-arrow-right"></i>
+                    <span>Log Out</span>
+                </a>
+            `;
+        } else if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
+            nav.innerHTML = `
+                <div class="nav-section-title">PORTFOLIO OVERVIEW</div>
+                <a href="owner-dashboard.html" class="nav-item">
+                    <i class="bi bi-speedometer2"></i>
+                    <span>Executive Summary</span>
+                </a>
+                <a href="owner-properties.html" class="nav-item">
+                    <i class="bi bi-buildings"></i>
+                    <span>My Properties</span>
+                </a>
+                <a href="owner-statements.html" class="nav-item">
+                    <i class="bi bi-file-earmark-text"></i>
+                    <span>Financial Statements</span>
+                </a>
+                <a href="property-ownership.html" class="nav-item">
+                    <i class="bi bi-pie-chart"></i>
+                    <span>Fractional Equity</span>
+                </a>
+                <a href="owner-documents.html" class="nav-item">
+                    <i class="bi bi-folder2-open"></i>
+                    <span>Legal Vault</span>
+                </a>
+                <a href="transaction.html" class="nav-item">
+                    <i class="bi bi-receipt-cutoff"></i>
+                    <span>Yield Audit Ledger</span>
+                </a>
+
+                <div class="nav-section-title">COMMUNICATION & SYSTEM</div>
+                <a href="notification.html" class="nav-item">
+                    <i class="bi bi-bell"></i>
+                    <span>Notification Center</span>
+                </a>
+                <a href="account.html" class="nav-item">
+                    <i class="bi bi-gear"></i>
+                    <span>Account Settings</span>
+                </a>
+                <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                    <i class="bi bi-box-arrow-right"></i>
+                    <span>Log Out</span>
+                </a>
+            `;
+        } else {
+            // Admin POV
+            nav.innerHTML = `
+                <div class="nav-section-title">OVERVIEW</div>
+                <a href="dashboard.html" class="nav-item">
+                    <i class="bi bi-grid-1x2"></i>
+                    <span>Dashboard</span>
+                </a>
+
+                <div class="nav-section-title">PROPERTY OPERATIONS</div>
+                <a href="properties.html" class="nav-item">
+                    <i class="bi bi-buildings"></i>
+                    <span>Properties</span>
+                </a>
+                <a href="buildings.html" class="nav-item">
+                    <i class="bi bi-building"></i>
+                    <span>Buildings</span>
+                </a>
+                <a href="units.html" class="nav-item">
+                    <i class="bi bi-door-open"></i>
+                    <span>Units</span>
+                </a>
+                <a href="tenants.html" class="nav-item">
+                    <i class="bi bi-people"></i>
+                    <span>Tenants</span>
+                </a>
+                <a href="owners.html" class="nav-item">
+                    <i class="bi bi-person-badge"></i>
+                    <span>Owners</span>
+                </a>
+                <a href="property-ownership.html" class="nav-item">
+                    <i class="bi bi-pie-chart"></i>
+                    <span>Fractional Ownership</span>
+                </a>
+                <a href="leases.html" class="nav-item">
+                    <i class="bi bi-file-earmark-text"></i>
+                    <span>Leases</span>
+                </a>
+
+                <div class="nav-section-title">FINANCE & SERVICES</div>
+                <a href="rent-collection.html" class="nav-item">
+                    <i class="bi bi-cash-stack"></i>
+                    <span>Rent Collection</span>
+                </a>
+                <a href="transaction.html" class="nav-item">
+                    <i class="bi bi-receipt-cutoff"></i>
+                    <span>Transactions & Ledger</span>
+                </a>
+                <a href="utilities.html" class="nav-item">
+                    <i class="bi bi-lightning-charge"></i>
+                    <span>Utilities</span>
+                </a>
+                <a href="meter-readings.html" class="nav-item">
+                    <i class="bi bi-speedometer2"></i>
+                    <span>Meter Readings</span>
+                </a>
+                <a href="maintenance.html" class="nav-item active">
+                    <i class="bi bi-tools"></i>
+                    <span>Maintenance</span>
+                </a>
+
+                <div class="nav-section-title">RECORDS & REPORTS</div>
+                <a href="inspections.html" class="nav-item">
+                    <i class="bi bi-clipboard-check"></i>
+                    <span>Inspections</span>
+                </a>
+                <a href="move-in-checklist.html" class="nav-item">
+                    <i class="bi bi-check2-square"></i>
+                    <span>Move-In Checklist</span>
+                </a>
+                <a href="move-out-settlement.html" class="nav-item">
+                    <i class="bi bi-box-arrow-right"></i>
+                    <span>Move-Out Settlement</span>
+                </a>
+                <a href="documents.html" class="nav-item">
+                    <i class="bi bi-folder2-open"></i>
+                    <span>Documents</span>
+                </a>
+                <a href="reports.html" class="nav-item">
+                    <i class="bi bi-bar-chart"></i>
+                    <span>Reports</span>
+                </a>
+
+                <div class="nav-section-title">SYSTEM</div>
+                <a href="settings.html" class="nav-item">
+                    <i class="bi bi-gear"></i>
+                    <span>Settings</span>
+                </a>
+                <a href="account.html" class="nav-item">
+                    <i class="bi bi-person-gear"></i>
+                    <span>Account Settings</span>
+                </a>
+                <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                    <i class="bi bi-box-arrow-right"></i>
+                    <span>Log Out</span>
+                </a>
+            `;
+        }
+    }
+
+    // Default Maintenance Ticket Baseline linked to Maria Santos in Unit 101
+    const DEFAULT_TICKETS = [
+        {
+            id: 'MNT-2026-003',
+            title: 'Aircon Water Leakage',
+            category: 'HVAC',
+            description: 'Split-type AC unit in living room dripping water steadily under cabinet.',
+            tenantName: 'Maria Santos',
+            tenant_email: 'maria.santos@tenant.ph',
+            fullLocation: 'Sunrise Residences • Unit 101',
+            priority: 'High',
+            technician: 'HVAC Services (Aircon)',
+            scheduledTime: 'Today at 02:00 PM',
+            status: 'In Progress',
+            cost: 1500.00,
+            dateFiled: 'Aug 05, 2026'
+        }
+    ];
+
+    async function getTickets() {
+        try {
+            const response = await fetch(MAINTENANCE_API_URL, { headers: getAuthHeaders() });
+            if (response.ok) {
+                const data = await response.json();
+                if (Array.isArray(data) && data.length > 0) {
+                    localStorage.setItem('argo_maintenance_tickets', JSON.stringify(data));
+                    return data;
+                }
+            }
+        } catch (e) {
+            console.warn("Live Maintenance API unavailable, loading from storage cache.");
+        }
+
+        const data = localStorage.getItem('argo_maintenance_tickets');
+        if (!data) {
+            localStorage.setItem('argo_maintenance_tickets', JSON.stringify(DEFAULT_TICKETS));
+            return DEFAULT_TICKETS;
+        }
+        try {
+            const parsed = JSON.parse(data);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+                const hasMariaTicket = parsed.some(t => (t.tenantName || '').toLowerCase().includes('maria santos'));
+                if (!hasMariaTicket) {
+                    parsed.unshift(DEFAULT_TICKETS[0]);
+                    localStorage.setItem('argo_maintenance_tickets', JSON.stringify(parsed));
+                }
+                return parsed;
+            }
+            localStorage.setItem('argo_maintenance_tickets', JSON.stringify(DEFAULT_TICKETS));
+            return DEFAULT_TICKETS;
+        } catch (e) {
+            return DEFAULT_TICKETS;
+        }
+    }
+
+    function saveTickets(tickets) {
+        localStorage.setItem('argo_maintenance_tickets', JSON.stringify(tickets));
+    }
+
+    function getUnits() {
+        try {
+            return JSON.parse(localStorage.getItem('argo_units') || '[]');
+        } catch (e) {
+            return [];
+        }
+    }
+
+    function getProperties() {
+        try {
+            return JSON.parse(localStorage.getItem('argo_properties') || '[]');
+        } catch (e) {
+            return [];
+        }
+    }
+
+    function getLeases() {
+        try {
+            return JSON.parse(localStorage.getItem('argo_leases') || '[]');
+        } catch (e) {
+            return [];
+        }
+    }
+
+    function getNotifications() {
+        try {
+            return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
+        } catch (e) {
+            return [];
+        }
+    }
+
+    function saveNotifications(notifications) {
+        localStorage.setItem('argo_notifications', JSON.stringify(notifications));
+    }
+
+    function updateHeaderBadge() {
+        const rawRole = (
+            localStorage.getItem('argo_pov') || 
+            localStorage.getItem('user_role') || 
+            localStorage.getItem('role') || 
+            'admin'
+        ).toLowerCase().trim();
+
+        let role = 'admin';
+        if (['client', 'tenant', 'client_pov'].includes(rawRole)) role = 'client';
+        else if (['owner', 'property_owner', 'investor'].includes(rawRole)) role = 'owner';
+
+        const notifs = getNotifications().filter(n => (n.pov === role || n.pov === 'all') && (n.status === 'unread' || n.is_read === false));
+        const badge = document.getElementById('headerNotifBadge');
+        if (badge) badge.textContent = notifs.length;
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        const role = localStorage.getItem('argo_pov') || localStorage.getItem('user_role') || localStorage.getItem('role');
+        if (!role) {
             window.location.replace('index.html');
+            return;
         }
+        renderSidebar();
+        loadUserData();
+        populateModalDropdowns();
+        await renderMaintenanceTable();
+        await updateKPIs();
+        updateHeaderBadge();
+    });
 
-        let currentEditingTicketId = null;
-
-        function renderSidebar() {
-            const nav = document.getElementById('sidebarNav');
-            if (!nav) return;
-
-            const rawRole = (
-                localStorage.getItem('argo_pov') || 
-                localStorage.getItem('user_role') || 
-                localStorage.getItem('role') || 
-                'admin'
-            ).toLowerCase().trim();
-
-            if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
-                nav.innerHTML = `
-                    <div class="nav-section-title">SELF-SERVICE HOME</div>
-                    <a href="client-dashboard.html" class="nav-item">
-                        <i class="bi bi-house-door"></i>
-                        <span>My Tenancy Home</span>
-                    </a>
-                    <a href="client-billing.html" class="nav-item">
-                        <i class="bi bi-receipt"></i>
-                        <span>Pay Rent & Dues</span>
-                    </a>
-                    <a href="transaction.html" class="nav-item">
-                        <i class="bi bi-receipt-cutoff"></i>
-                        <span>Transactions & Ledger</span>
-                    </a>
-                    <a href="client-utilities.html" class="nav-item">
-                        <i class="bi bi-lightning-charge"></i>
-                        <span>My Utilities & Meters</span>
-                    </a>
-                    <a href="client-maintenance.html" class="nav-item active">
-                        <i class="bi bi-tools"></i>
-                        <span>Submit Maintenance</span>
-                    </a>
-                    <a href="inspections.html" class="nav-item">
-                        <i class="bi bi-clipboard-check"></i>
-                        <span>Move-In & Inspections</span>
-                    </a>
-                    <a href="client-documents.html" class="nav-item">
-                        <i class="bi bi-folder2-open"></i>
-                        <span>My Lease & Receipts</span>
-                    </a>
-
-                    <div class="nav-section-title">SYSTEM</div>
-                    <a href="account.html" class="nav-item">
-                        <i class="bi bi-gear"></i>
-                        <span>Account Settings</span>
-                    </a>
-                    <a href="#" class="nav-item" onclick="logoutUser(); return false;">
-                        <i class="bi bi-box-arrow-right"></i>
-                        <span>Log Out</span>
-                    </a>
-                `;
-            } else if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
-                nav.innerHTML = `
-                    <div class="nav-section-title">PORTFOLIO OVERVIEW</div>
-                    <a href="owner-dashboard.html" class="nav-item">
-                        <i class="bi bi-speedometer2"></i>
-                        <span>Executive Summary</span>
-                    </a>
-                    <a href="owner-properties.html" class="nav-item">
-                        <i class="bi bi-buildings"></i>
-                        <span>My Properties</span>
-                    </a>
-                    <a href="owner-statements.html" class="nav-item">
-                        <i class="bi bi-file-earmark-text"></i>
-                        <span>Financial Statements</span>
-                    </a>
-                    <a href="property-ownership.html" class="nav-item">
-                        <i class="bi bi-pie-chart"></i>
-                        <span>Fractional Equity</span>
-                    </a>
-                    <a href="owner-documents.html" class="nav-item">
-                        <i class="bi bi-folder2-open"></i>
-                        <span>Legal Vault</span>
-                    </a>
-                    <a href="transaction.html" class="nav-item">
-                        <i class="bi bi-receipt-cutoff"></i>
-                        <span>Yield Audit Ledger</span>
-                    </a>
-
-                    <div class="nav-section-title">COMMUNICATION & SYSTEM</div>
-                    <a href="notification.html" class="nav-item">
-                        <i class="bi bi-bell"></i>
-                        <span>Notification Center</span>
-                    </a>
-                    <a href="account.html" class="nav-item">
-                        <i class="bi bi-gear"></i>
-                        <span>Account Settings</span>
-                    </a>
-                    <a href="#" class="nav-item" onclick="logoutUser(); return false;">
-                        <i class="bi bi-box-arrow-right"></i>
-                        <span>Log Out</span>
-                    </a>
-                `;
-            } else {
-                // Admin POV
-                nav.innerHTML = `
-                    <div class="nav-section-title">OVERVIEW</div>
-                    <a href="dashboard.html" class="nav-item">
-                        <i class="bi bi-grid-1x2"></i>
-                        <span>Dashboard</span>
-                    </a>
-
-                    <div class="nav-section-title">PROPERTY OPERATIONS</div>
-                    <a href="properties.html" class="nav-item">
-                        <i class="bi bi-buildings"></i>
-                        <span>Properties</span>
-                    </a>
-                    <a href="buildings.html" class="nav-item">
-                        <i class="bi bi-building"></i>
-                        <span>Buildings</span>
-                    </a>
-                    <a href="units.html" class="nav-item">
-                        <i class="bi bi-door-open"></i>
-                        <span>Units</span>
-                    </a>
-                    <a href="tenants.html" class="nav-item">
-                        <i class="bi bi-people"></i>
-                        <span>Tenants</span>
-                    </a>
-                    <a href="owners.html" class="nav-item">
-                        <i class="bi bi-person-badge"></i>
-                        <span>Owners</span>
-                    </a>
-                    <a href="property-ownership.html" class="nav-item">
-                        <i class="bi bi-pie-chart"></i>
-                        <span>Fractional Ownership</span>
-                    </a>
-                    <a href="leases.html" class="nav-item">
-                        <i class="bi bi-file-earmark-text"></i>
-                        <span>Leases</span>
-                    </a>
-
-                    <div class="nav-section-title">FINANCE & SERVICES</div>
-                    <a href="rent-collection.html" class="nav-item">
-                        <i class="bi bi-cash-stack"></i>
-                        <span>Rent Collection</span>
-                    </a>
-                    <a href="transaction.html" class="nav-item">
-                        <i class="bi bi-receipt-cutoff"></i>
-                        <span>Transactions & Ledger</span>
-                    </a>
-                    <a href="utilities.html" class="nav-item">
-                        <i class="bi bi-lightning-charge"></i>
-                        <span>Utilities</span>
-                    </a>
-                    <a href="meter-readings.html" class="nav-item">
-                        <i class="bi bi-speedometer2"></i>
-                        <span>Meter Readings</span>
-                    </a>
-                    <a href="maintenance.html" class="nav-item active">
-                        <i class="bi bi-tools"></i>
-                        <span>Maintenance</span>
-                    </a>
-
-                    <div class="nav-section-title">RECORDS & REPORTS</div>
-                    <a href="inspections.html" class="nav-item">
-                        <i class="bi bi-clipboard-check"></i>
-                        <span>Inspections</span>
-                    </a>
-                    <a href="move-in-checklist.html" class="nav-item">
-                        <i class="bi bi-check2-square"></i>
-                        <span>Move-In Checklist</span>
-                    </a>
-                    <a href="move-out-settlement.html" class="nav-item">
-                        <i class="bi bi-box-arrow-right"></i>
-                        <span>Move-Out Settlement</span>
-                    </a>
-                    <a href="documents.html" class="nav-item">
-                        <i class="bi bi-folder2-open"></i>
-                        <span>Documents</span>
-                    </a>
-                    <a href="reports.html" class="nav-item">
-                        <i class="bi bi-bar-chart"></i>
-                        <span>Reports</span>
-                    </a>
-
-                    <div class="nav-section-title">SYSTEM</div>
-                    <a href="settings.html" class="nav-item">
-                        <i class="bi bi-gear"></i>
-                        <span>Settings</span>
-                    </a>
-                    <a href="account.html" class="nav-item">
-                        <i class="bi bi-person-gear"></i>
-                        <span>Account Settings</span>
-                    </a>
-                    <a href="#" class="nav-item" onclick="logoutUser(); return false;">
-                        <i class="bi bi-box-arrow-right"></i>
-                        <span>Log Out</span>
-                    </a>
-                `;
-            }
-        }
-
-        // Clean Default Tickets Baseline
-        const DEFAULT_TICKETS = [
-            {
-                id: 'MNT-2026-003',
-                title: 'Aircon Water Leakage',
-                category: 'HVAC',
-                description: 'Split-type AC unit in living room dripping water steadily under cabinet.',
-                tenantName: 'Maria Santos',
-                fullLocation: 'Sunrise Property • Unit 101',
-                priority: 'High',
-                technician: 'HVAC Services (Aircon)',
-                scheduledTime: 'Today at 02:00 PM',
-                status: 'In Progress',
-                cost: 1500.00,
-                dateFiled: 'Aug 05, 2026'
-            }
-        ];
-
-        function getTickets() {
-            const data = localStorage.getItem('argo_maintenance_tickets');
-            if (!data) {
-                localStorage.setItem('argo_maintenance_tickets', JSON.stringify(DEFAULT_TICKETS));
-                return DEFAULT_TICKETS;
-            }
-            try {
-                return JSON.parse(data);
-            } catch (e) {
-                return DEFAULT_TICKETS;
-            }
-        }
-
-        function saveTickets(tickets) {
-            localStorage.setItem('argo_maintenance_tickets', JSON.stringify(tickets));
-        }
-
-        function getUnits() {
-            try {
-                return JSON.parse(localStorage.getItem('argo_units') || '[]');
-            } catch (e) {
-                return [];
-            }
-        }
-
-        function getProperties() {
-            try {
-                return JSON.parse(localStorage.getItem('argo_properties') || '[]');
-            } catch (e) {
-                return [];
-            }
-        }
-
-        function getLeases() {
-            try {
-                return JSON.parse(localStorage.getItem('argo_leases') || '[]');
-            } catch (e) {
-                return [];
-            }
-        }
-
-        function getNotifications() {
-            try {
-                return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
-            } catch (e) {
-                return [];
-            }
-        }
-
-        function saveNotifications(notifications) {
-            localStorage.setItem('argo_notifications', JSON.stringify(notifications));
-        }
-
-        function updateHeaderBadge() {
-            const rawRole = (
-                localStorage.getItem('argo_pov') || 
-                localStorage.getItem('user_role') || 
-                localStorage.getItem('role') || 
-                'admin'
-            ).toLowerCase().trim();
-
-            let role = 'admin';
-            if (['client', 'tenant', 'client_pov'].includes(rawRole)) role = 'client';
-            else if (['owner', 'property_owner', 'investor'].includes(rawRole)) role = 'owner';
-
-            const notifs = getNotifications().filter(n => (n.pov === role || n.pov === 'all') && (n.status === 'unread' || n.is_read === false));
-            const badge = document.getElementById('headerNotifBadge');
-            if (badge) badge.textContent = notifs.length;
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            const role = localStorage.getItem('argo_pov') || localStorage.getItem('user_role') || localStorage.getItem('role');
-            if (!role) {
-                window.location.replace('index.html');
-                return;
-            }
-            renderSidebar();
+    // Real-Time Cross-Tab Listener
+    window.addEventListener('storage', async (e) => {
+        if (['argo_maintenance_tickets', 'argo_notifications', 'argo_units', 'argo_properties', 'argo_leases', 'argo_user', 'argo_pov', 'user_role', 'role'].includes(e.key)) {
             loadUserData();
             populateModalDropdowns();
-            renderMaintenanceTable();
-            updateKPIs();
+            await renderMaintenanceTable();
+            await updateKPIs();
             updateHeaderBadge();
-        });
+        }
+    });
 
-        // Real-Time Cross-Tab Listener
-        window.addEventListener('storage', (e) => {
-            if (['argo_maintenance_tickets', 'argo_notifications', 'argo_units', 'argo_properties', 'argo_leases', 'argo_user', 'argo_pov', 'user_role', 'role'].includes(e.key)) {
-                loadUserData();
-                populateModalDropdowns();
-                renderMaintenanceTable();
-                updateKPIs();
-                updateHeaderBadge();
+    function loadUserData() {
+        const rawRole = (
+            localStorage.getItem('argo_pov') || 
+            localStorage.getItem('user_role') || 
+            localStorage.getItem('role') || 
+            'admin'
+        ).toLowerCase().trim();
+
+        const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+
+        const nameEl = document.getElementById('userName');
+        const roleEl = document.getElementById('userRoleBadge');
+        const avatarEl = document.getElementById('userAvatar');
+
+        if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
+            if (nameEl) nameEl.textContent = 'Don Ramon Santos';
+            if (roleEl) roleEl.textContent = 'Property Owner';
+            if (avatarEl) {
+                avatarEl.textContent = 'RS';
+                avatarEl.style.background = '#059669';
             }
-        });
-
-        function loadUserData() {
-            const rawRole = (
-                localStorage.getItem('argo_pov') || 
-                localStorage.getItem('user_role') || 
-                localStorage.getItem('role') || 
-                'admin'
-            ).toLowerCase().trim();
-
-            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
-
-            const nameEl = document.getElementById('userName');
-            const roleEl = document.getElementById('userRoleBadge');
-            const avatarEl = document.getElementById('userAvatar');
-
-            if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
-                if (nameEl) nameEl.textContent = 'Don Ramon Santos';
-                if (roleEl) roleEl.textContent = 'Property Owner';
-                if (avatarEl) {
-                    avatarEl.textContent = 'RS';
-                    avatarEl.style.background = '#059669';
-                }
-            } else if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
-                if (nameEl) nameEl.textContent = 'Maria Santos';
-                if (roleEl) roleEl.textContent = 'Sunrise Property • Unit 101';
-                if (avatarEl) {
-                    avatarEl.textContent = 'MS';
-                    avatarEl.style.background = '#D97706';
-                }
-            } else {
-                const name = user.name || 'Property Admin';
-                const role = user.role || 'Property Manager';
-                if (nameEl) nameEl.textContent = name;
-                if (roleEl) roleEl.textContent = role;
-                if (avatarEl) {
-                    avatarEl.textContent = user.avatar || 'JD';
-                    avatarEl.style.background = user.avatarBg || '#2563EB';
-                }
+        } else if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
+            if (nameEl) nameEl.textContent = 'Maria Santos';
+            if (roleEl) roleEl.textContent = 'Sunrise Property • Unit 101';
+            if (avatarEl) {
+                avatarEl.textContent = 'MS';
+                avatarEl.style.background = '#D97706';
+            }
+        } else {
+            const name = user.name || 'Property Admin';
+            const role = user.role || 'Property Manager';
+            if (nameEl) nameEl.textContent = name;
+            if (roleEl) roleEl.textContent = role;
+            if (avatarEl) {
+                avatarEl.textContent = user.avatar || (name.charAt(0) || 'JD');
+                avatarEl.style.background = user.avatarBg || '#2563EB';
             }
         }
+    }
 
-        function populateModalDropdowns() {
-            const locationSelect = document.getElementById('modalTicketLocation');
-            if (!locationSelect) return;
+    function populateModalDropdowns() {
+        const locationSelect = document.getElementById('modalTicketLocation');
+        if (!locationSelect) return;
 
-            const units = getUnits();
-            const properties = getProperties();
+        const units = getUnits();
+        const properties = getProperties();
 
-            locationSelect.innerHTML = '<option value="">Select Property / Unit...</option>';
+        locationSelect.innerHTML = '<option value="">Select Property / Unit...</option>';
 
-            if (units.length > 0) {
-                const unitGroup = document.createElement('optgroup');
-                unitGroup.label = 'Specific Units';
-                units.forEach(u => {
-                    const uName = u.unit_no || u.unitNo || u.unit_name || u.id;
-                    const pName = u.property_name || u.property || 'Property';
-                    const opt = document.createElement('option');
-                    opt.value = `${pName} • ${uName}`;
-                    opt.textContent = `${pName} • ${uName}`;
-                    unitGroup.appendChild(opt);
-                });
-                locationSelect.appendChild(unitGroup);
-            }
-
-            if (properties.length > 0) {
-                const propGroup = document.createElement('optgroup');
-                propGroup.label = 'Building / Common Area';
-                properties.forEach(p => {
-                    const opt = document.createElement('option');
-                    opt.value = `${p.name} (Common Area)`;
-                    opt.textContent = `${p.name} — Common Area / Facility`;
-                    propGroup.appendChild(opt);
-                });
-                locationSelect.appendChild(propGroup);
-            }
-
-            if (units.length === 0 && properties.length === 0) {
-                locationSelect.innerHTML += '<option value="Sunrise Property • Unit 101">Sunrise Property • Unit 101</option>';
-                locationSelect.innerHTML += '<option value="Sunrise Residences • Unit 204">Sunrise Residences • Unit 204</option>';
-                locationSelect.innerHTML += '<option value="Central Business Center (Common Area)">Central Business Center (Common Area)</option>';
-            }
-        }
-
-        function autoFillTenantFromLocation() {
-            const locationVal = document.getElementById('modalTicketLocation').value;
-            const tenantInput = document.getElementById('modalTicketTenant');
-            if (!locationVal || !tenantInput) return;
-
-            if (locationVal.includes('Common Area')) {
-                tenantInput.value = 'N/A (Building Facility)';
-                return;
-            }
-
-            const leases = getLeases();
-            const parts = locationVal.split('•');
-            const unitName = parts[1] ? parts[1].trim() : '';
-
-            if (unitName) {
-                const matchedLease = leases.find(l => 
-                    (l.unit && l.unit.includes(unitName)) || 
-                    (l.unit_number && l.unit_number.includes(unitName))
-                );
-                if (matchedLease && (matchedLease.tenantName || matchedLease.tenant_name)) {
-                    tenantInput.value = matchedLease.tenantName || matchedLease.tenant_name;
-                    return;
-                }
-            }
-
-            tenantInput.value = '';
-        }
-
-        function renderMaintenanceTable() {
-            const tickets = getTickets();
-            const tbody = document.getElementById('maintenanceTable');
-            if (!tbody) return;
-
-            tbody.innerHTML = '';
-
-            if (tickets.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--muted); padding:30px;">No maintenance work orders found. Click "Create Operations Ticket" to add one.</td></tr>`;
-                const countEl = document.getElementById('showingCountText');
-                if (countEl) countEl.textContent = `Showing 0 work order tickets`;
-                return;
-            }
-
-            tickets.forEach(t => {
-                const tr = document.createElement('tr');
-                tr.dataset.status = t.status || 'Open';
-                tr.dataset.priority = t.priority || 'Normal';
-
-                let statusBadge = '';
-                const s = (t.status || '').toLowerCase();
-                if (s === 'resolved' || s === 'completed') {
-                    statusBadge = `<span class="status completed"><i class="bi bi-check-circle" style="margin-right:4px;"></i> Resolved & Completed</span>`;
-                } else if (s === 'in progress' || s === 'assigned') {
-                    statusBadge = `<span class="status progress"><i class="bi bi-clock-history" style="margin-right:4px;"></i> Dispatched (${t.technician || 'Tech Assigned'})</span>`;
-                } else {
-                    statusBadge = `<span class="status open"><i class="bi bi-exclamation-circle" style="margin-right:4px;"></i> Open / Unassigned</span>`;
-                }
-
-                const isHigh = t.priority === 'High' || t.priority === 'Urgent';
-                const priorityClass = isHigh ? 'priority urgent' : 'priority medium';
-
-                tr.innerHTML = `
-                    <td><div class="request-id">${t.id}</div></td>
-                    <td>
-                        <div class="issue-title">${t.title}</div>
-                        <div style="font-size:11px; color:var(--muted);">${t.category || 'General'} • ${t.description || 'No remarks'}</div>
-                    </td>
-                    <td>
-                        <div class="tenant-name">${t.tenantName || t.tenant_name || 'N/A'}</div>
-                        <div class="property-info"><i class="bi bi-geo-alt"></i> ${t.fullLocation || 'N/A'}</div>
-                    </td>
-                    <td><span class="${priorityClass}">${t.priority || 'Normal'}</span></td>
-                    <td><strong>${t.technician || 'Unassigned'}</strong></td>
-                    <td>${t.scheduledTime || 'Pending Dispatch'}</td>
-                    <td>${statusBadge}</td>
-                    <td>
-                        <div style="display:flex; gap:6px;">
-                            <button class="action-btn dispatch-btn" title="Assign Contractor & Schedule" onclick="openDispatchModal('${t.id}')"><i class="bi bi-person-gear"></i></button>
-                            <button class="action-btn" title="Delete Ticket" onclick="deleteTicket('${t.id}')"><i class="bi bi-trash"></i></button>
-                        </div>
-                    </td>
-                `;
-
-                tbody.appendChild(tr);
+        if (units.length > 0) {
+            const unitGroup = document.createElement('optgroup');
+            unitGroup.label = 'Specific Units';
+            units.forEach(u => {
+                const uName = u.unit_number || u.unit_no || u.unitNo || u.unit_name || `Unit #${u.id}`;
+                const pName = (u.property ? (u.property.name || u.property.property_name) : '') || u.property_name || u.property || 'Sunrise Residences';
+                const opt = document.createElement('option');
+                opt.value = `${pName} • ${uName}`;
+                opt.textContent = `${pName} • ${uName}`;
+                unitGroup.appendChild(opt);
             });
+            locationSelect.appendChild(unitGroup);
+        } else {
+            locationSelect.innerHTML += '<option value="Sunrise Residences • Unit 101">Sunrise Residences • Unit 101</option>';
+        }
 
+        if (properties.length > 0) {
+            const propGroup = document.createElement('optgroup');
+            propGroup.label = 'Building / Common Area';
+            properties.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = `${p.name} (Common Area)`;
+                opt.textContent = `${p.name} — Common Area / Facility`;
+                propGroup.appendChild(opt);
+            });
+            locationSelect.appendChild(propGroup);
+        }
+    }
+
+    function autoFillTenantFromLocation() {
+        const locationVal = document.getElementById('modalTicketLocation').value;
+        const tenantInput = document.getElementById('modalTicketTenant');
+        if (!locationVal || !tenantInput) return;
+
+        if (locationVal.includes('Common Area')) {
+            tenantInput.value = 'N/A (Building Facility)';
+            return;
+        }
+
+        if (locationVal.includes('101')) {
+            tenantInput.value = 'Maria Santos';
+            return;
+        }
+
+        const leases = getLeases();
+        const parts = locationVal.split('•');
+        const unitName = parts[1] ? parts[1].trim() : '';
+
+        if (unitName) {
+            const matchedLease = leases.find(l => 
+                (l.unit && l.unit.includes(unitName)) || 
+                (l.unit_number && l.unit_number.includes(unitName))
+            );
+            if (matchedLease && (matchedLease.tenantName || matchedLease.tenant_name)) {
+                tenantInput.value = matchedLease.tenantName || matchedLease.tenant_name;
+                return;
+            }
+        }
+
+        tenantInput.value = '';
+    }
+
+    async function renderMaintenanceTable() {
+        const tickets = await getTickets();
+        const tbody = document.getElementById('maintenanceTable');
+        if (!tbody) return;
+
+        tbody.innerHTML = '';
+
+        if (!tickets || tickets.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--muted); padding:30px;">No maintenance work orders found. Click "Create Operations Ticket" to add one.</td></tr>`;
             const countEl = document.getElementById('showingCountText');
-            if (countEl) countEl.textContent = `Showing 1–${tickets.length} of ${tickets.length} work order tickets`;
+            if (countEl) countEl.textContent = `Showing 0 work order tickets`;
+            return;
         }
 
-        function updateKPIs() {
-            const tickets = getTickets();
+        tickets.forEach(t => {
+            const tr = document.createElement('tr');
+            tr.dataset.status = t.status || 'Open';
+            tr.dataset.priority = t.priority || 'Normal';
 
-            const openReqs = tickets.filter(t => {
-                const s = (t.status || '').toLowerCase();
-                return s === 'open' || s === 'submitted';
-            }).length;
-
-            const inProg = tickets.filter(t => {
-                const s = (t.status || '').toLowerCase();
-                return s === 'in progress' || s === 'assigned';
-            }).length;
-
-            const completed = tickets.filter(t => {
-                const s = (t.status || '').toLowerCase();
-                return s === 'resolved' || s === 'completed';
-            }).length;
-
-            const urgent = tickets.filter(t => t.priority === 'High' || t.priority === 'Urgent').length;
-
-            const openEl = document.getElementById('kpiOpenRequests');
-            const progEl = document.getElementById('kpiInProgress');
-            const compEl = document.getElementById('kpiCompleted');
-            const urgEl = document.getElementById('kpiUrgent');
-
-            if (openEl) openEl.textContent = openReqs;
-            if (progEl) progEl.textContent = inProg;
-            if (compEl) compEl.textContent = completed;
-            if (urgEl) urgEl.textContent = urgent;
-        }
-
-        function openCreateTicketModal() {
-            populateModalDropdowns();
-            const modal = document.getElementById("createTicketModal");
-            if (modal) modal.classList.add("show");
-        }
-
-        function saveNewTicket() {
-            const titleInput = document.getElementById('modalTicketTitle');
-            const locationSelect = document.getElementById('modalTicketLocation');
-            const tenantInput = document.getElementById('modalTicketTenant');
-            const categorySelect = document.getElementById('modalTicketCategory');
-            const prioritySelect = document.getElementById('modalTicketPriority');
-            const costInput = document.getElementById('modalTicketCost');
-            const contractorSelect = document.getElementById('modalTicketContractor');
-            const descInput = document.getElementById('modalTicketDesc');
-
-            const title = titleInput ? titleInput.value.trim() : '';
-            const location = locationSelect ? locationSelect.value : '';
-            const tenant = tenantInput ? tenantInput.value.trim() : 'N/A';
-            const category = categorySelect ? categorySelect.value : 'General Maintenance';
-            const priority = prioritySelect ? prioritySelect.value : 'Normal';
-            const cost = parseFloat(costInput ? costInput.value : 0) || 0;
-            const contractor = contractorSelect ? contractorSelect.value : 'Unassigned';
-            const description = descInput ? descInput.value.trim() : '';
-
-            if (!title) {
-                alert("Please enter the maintenance issue title summary.");
-                return;
+            let statusBadge = '';
+            const s = (t.status || '').toLowerCase();
+            if (s === 'resolved' || s === 'completed') {
+                statusBadge = `<span class="status completed" style="background:#ECFDF5; color:#059669; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-check-circle" style="margin-right:4px;"></i> Resolved & Completed</span>`;
+            } else if (s === 'in progress' || s === 'assigned') {
+                statusBadge = `<span class="status progress" style="background:#FEF3C7; color:#B45309; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-clock-history" style="margin-right:4px;"></i> Dispatched (${t.technician || 'Tech Assigned'})</span>`;
+            } else {
+                statusBadge = `<span class="status open" style="background:#EFF6FF; color:#2563EB; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-exclamation-circle" style="margin-right:4px;"></i> Open / Unassigned</span>`;
             }
 
-            if (!location) {
-                alert("Please select a target property or unit location.");
-                return;
+            const isHigh = t.priority === 'High' || t.priority === 'Urgent';
+            const priorityBadge = isHigh
+                ? `<span class="priority urgent" style="background:#FFF1F2; color:#E11D48; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;">${t.priority}</span>`
+                : `<span class="priority medium" style="background:#F1F5F9; color:#475569; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;">${t.priority || 'Normal'}</span>`;
+
+            tr.innerHTML = `
+                <td><div class="request-id" style="font-weight:600;">${t.id}</div></td>
+                <td>
+                    <div class="issue-title" style="font-weight:600;">${t.title}</div>
+                    <div style="font-size:11px; color:var(--muted); margin-top:2px;">${t.category || 'General'} • ${t.description || 'No remarks'}</div>
+                </td>
+                <td>
+                    <div class="tenant-name" style="font-weight:600;">${t.tenantName || t.tenant_name || 'Maria Santos'}</div>
+                    <div class="property-info" style="font-size:11px; color:var(--muted);"><i class="bi bi-geo-alt"></i> ${t.fullLocation || 'Sunrise Residences • Unit 101'}</div>
+                </td>
+                <td>${priorityBadge}</td>
+                <td><strong>${t.technician || 'Unassigned'}</strong></td>
+                <td>${t.scheduledTime || 'Pending Dispatch'}</td>
+                <td>${statusBadge}</td>
+                <td>
+                    <div style="display:flex; gap:6px;">
+                        <button class="action-btn dispatch-btn" title="Assign Contractor & Schedule" onclick="openDispatchModal('${t.id}')"><i class="bi bi-person-gear"></i></button>
+                        <button class="action-btn" title="Delete Ticket" onclick="deleteTicket('${t.id}')"><i class="bi bi-trash"></i></button>
+                    </div>
+                </td>
+            `;
+
+            tbody.appendChild(tr);
+        });
+
+        const countEl = document.getElementById('showingCountText');
+        if (countEl) countEl.textContent = `Showing 1–${tickets.length} of ${tickets.length} work order tickets`;
+    }
+
+    async function updateKPIs() {
+        const tickets = await getTickets();
+
+        const openReqs = tickets.filter(t => {
+            const s = (t.status || '').toLowerCase();
+            return s === 'open' || s === 'submitted';
+        }).length;
+
+        const inProg = tickets.filter(t => {
+            const s = (t.status || '').toLowerCase();
+            return s === 'in progress' || s === 'assigned';
+        }).length;
+
+        const completed = tickets.filter(t => {
+            const s = (t.status || '').toLowerCase();
+            return s === 'resolved' || s === 'completed';
+        }).length;
+
+        const urgent = tickets.filter(t => t.priority === 'High' || t.priority === 'Urgent').length;
+
+        const openEl = document.getElementById('kpiOpenRequests');
+        const progEl = document.getElementById('kpiInProgress');
+        const compEl = document.getElementById('kpiCompleted');
+        const urgEl = document.getElementById('kpiUrgent');
+
+        if (openEl) openEl.textContent = openReqs;
+        if (progEl) progEl.textContent = inProg;
+        if (compEl) compEl.textContent = completed;
+        if (urgEl) urgEl.textContent = urgent;
+    }
+
+    function openCreateTicketModal() {
+        populateModalDropdowns();
+        const modal = document.getElementById("createTicketModal");
+        if (modal) modal.classList.add("show");
+    }
+
+    async function saveNewTicket() {
+        const titleInput = document.getElementById('modalTicketTitle');
+        const locationSelect = document.getElementById('modalTicketLocation');
+        const tenantInput = document.getElementById('modalTicketTenant');
+        const categorySelect = document.getElementById('modalTicketCategory');
+        const prioritySelect = document.getElementById('modalTicketPriority');
+        const costInput = document.getElementById('modalTicketCost');
+        const contractorSelect = document.getElementById('modalTicketContractor');
+        const descInput = document.getElementById('modalTicketDesc');
+
+        const title = titleInput ? titleInput.value.trim() : '';
+        const location = locationSelect ? locationSelect.value : '';
+        const tenant = tenantInput ? tenantInput.value.trim() : 'Maria Santos';
+        const category = categorySelect ? categorySelect.value : 'General Maintenance';
+        const priority = prioritySelect ? prioritySelect.value : 'Normal';
+        const cost = parseFloat(costInput ? costInput.value : 0) || 0;
+        const contractor = contractorSelect ? contractorSelect.value : 'Unassigned';
+        const description = descInput ? descInput.value.trim() : '';
+
+        if (!title) {
+            alert("Please enter the maintenance issue title summary.");
+            return;
+        }
+
+        if (!location) {
+            alert("Please select a target property or unit location.");
+            return;
+        }
+
+        const newTicketId = `MNT-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`;
+        const today = new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+        const isAssigned = contractor !== 'Unassigned';
+
+        const newTicket = {
+            id: newTicketId,
+            title: title,
+            category: category,
+            description: description || 'Issue logged via Property Operations Desk.',
+            tenantName: tenant || 'Maria Santos',
+            tenant_email: 'maria.santos@tenant.ph',
+            fullLocation: location,
+            priority: priority,
+            technician: contractor,
+            scheduledTime: isAssigned ? 'Scheduled by Dispatch Desk' : 'Pending Dispatch',
+            status: isAssigned ? 'In Progress' : 'Open',
+            cost: cost,
+            dateFiled: today
+        };
+
+        // Live API Dispatch
+        try {
+            await fetch(MAINTENANCE_API_URL, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify(newTicket)
+            });
+        } catch (e) {
+            console.warn("Backend save failed, keeping locally.", e);
+        }
+
+        let tickets = await getTickets();
+        tickets.unshift(newTicket);
+        saveTickets(tickets);
+
+        // Push Notification
+        let notifications = getNotifications();
+        notifications.unshift({
+            id: `NOTIF-${Date.now()}`,
+            pov: 'admin',
+            category: 'maintenance',
+            status: 'unread',
+            title: `New Operations Ticket: ${title}`,
+            time: 'Just now',
+            description: `Maintenance ticket <strong>${newTicketId}</strong> created for <strong>${location}</strong> (${tenant}). Priority: <strong>${priority}</strong>.`,
+            property: location,
+            actionUrl: 'maintenance.html',
+            actionText: 'Inspect Ticket'
+        });
+        saveNotifications(notifications);
+
+        await renderMaintenanceTable();
+        await updateKPIs();
+        updateHeaderBadge();
+        closeModal('createTicketModal');
+
+        if (titleInput) titleInput.value = '';
+        if (locationSelect) locationSelect.value = '';
+        if (tenantInput) tenantInput.value = '';
+        if (costInput) costInput.value = '';
+        if (descInput) descInput.value = '';
+        if (contractorSelect) contractorSelect.value = 'Unassigned';
+        if (prioritySelect) prioritySelect.value = 'Normal';
+
+        alert(`Operations Ticket (${newTicketId}) successfully created for ${tenant}!`);
+    }
+
+    async function openDispatchModal(ticketId) {
+        const tickets = await getTickets();
+        currentEditingTicketId = ticketId;
+
+        if (!currentEditingTicketId) return;
+
+        const t = tickets.find(item => String(item.id) === String(currentEditingTicketId));
+        if (!t) return;
+
+        document.getElementById('modalTicketHeading').textContent = `Work Order Dispatch — ${t.id}`;
+        document.getElementById('dModalTitle').textContent = t.title;
+        document.getElementById('dModalLocation').innerHTML = `<i class="bi bi-geo-alt"></i> ${t.tenantName || 'Maria Santos'} • ${t.fullLocation || 'Sunrise Residences • Unit 101'}`;
+
+        if (t.technician && t.technician !== 'Unassigned') {
+            document.getElementById('dModalContractor').value = t.technician;
+        }
+        if (t.scheduledTime && t.scheduledTime !== 'Pending Dispatch') {
+            document.getElementById('dModalSchedule').value = t.scheduledTime;
+        } else {
+            document.getElementById('dModalSchedule').value = 'Today at 02:00 PM';
+        }
+        if (t.status) {
+            document.getElementById('dModalStatus').value = t.status === 'Open' ? 'In Progress' : t.status;
+        }
+        if (t.cost !== undefined) {
+            document.getElementById('dModalCost').value = t.cost;
+        }
+
+        const modal = document.getElementById('dispatchModal');
+        if (modal) modal.classList.add('show');
+    }
+
+    function closeModal(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) modal.classList.remove('show');
+        if (modalId === 'dispatchModal') currentEditingTicketId = null;
+    }
+
+    function closeDispatchModal() {
+        closeModal('dispatchModal');
+    }
+
+    async function saveDispatch() {
+        if (!currentEditingTicketId) return;
+
+        const contractor = document.getElementById('dModalContractor').value;
+        const schedule = document.getElementById('dModalSchedule').value.trim() || 'Scheduled';
+        const status = document.getElementById('dModalStatus').value;
+        const cost = parseFloat(document.getElementById('dModalCost').value) || 0;
+
+        let tickets = await getTickets();
+        let targetTicket = null;
+
+        tickets = tickets.map(t => {
+            if (String(t.id) === String(currentEditingTicketId)) {
+                targetTicket = t;
+                return {
+                    ...t,
+                    technician: contractor,
+                    scheduledTime: schedule,
+                    status: status,
+                    cost: cost
+                };
             }
+            return t;
+        });
+        saveTickets(tickets);
 
-            const newTicketId = `MNT-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`;
-            const today = new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
-            const isAssigned = contractor !== 'Unassigned';
-
-            const newTicket = {
-                id: newTicketId,
-                title: title,
-                category: category,
-                description: description || 'Issue logged via Property Operations Desk.',
-                tenantName: tenant || 'N/A',
-                fullLocation: location,
-                priority: priority,
-                technician: contractor,
-                scheduledTime: isAssigned ? 'Scheduled by Dispatch Desk' : 'Pending Dispatch',
-                status: isAssigned ? 'In Progress' : 'Open',
-                cost: cost,
-                dateFiled: today
-            };
-
-            let tickets = getTickets();
-            tickets.unshift(newTicket);
-            saveTickets(tickets);
-
-            // Log Admin Notification
+        // Notify Tenant Maria Santos
+        if (targetTicket && targetTicket.tenantName && targetTicket.tenantName !== 'N/A') {
             let notifications = getNotifications();
             notifications.unshift({
                 id: `NOTIF-${Date.now()}`,
-                pov: 'admin',
+                pov: 'client',
                 category: 'maintenance',
                 status: 'unread',
-                title: `New Operations Ticket: ${title}`,
+                title: 'Technician Scheduled for Unit 101',
                 time: 'Just now',
-                description: `Maintenance ticket <strong>${newTicketId}</strong> created for <strong>${location}</strong>. Priority: <strong>${priority}</strong>.`,
-                property: location,
-                actionUrl: 'maintenance.html',
-                actionText: 'Inspect Ticket'
+                description: `Contractor <strong>${contractor}</strong> scheduled for arrival: <strong>${schedule}</strong> for issue "${targetTicket.title}".`,
+                actionUrl: 'client-maintenance.html',
+                actionText: 'View Dispatch Schedule'
             });
             saveNotifications(notifications);
-
-            renderMaintenanceTable();
-            updateKPIs();
-            updateHeaderBadge();
-            closeModal('createTicketModal');
-
-            // Reset Form Fields
-            if (titleInput) titleInput.value = '';
-            if (locationSelect) locationSelect.value = '';
-            if (tenantInput) tenantInput.value = '';
-            if (costInput) costInput.value = '';
-            if (descInput) descInput.value = '';
-            if (contractorSelect) contractorSelect.value = 'Unassigned';
-            if (prioritySelect) prioritySelect.value = 'Normal';
-
-            alert(`Operations Ticket (${newTicketId}) successfully created!`);
         }
 
-        function openDispatchModal(ticketId) {
-            const tickets = getTickets();
-            currentEditingTicketId = ticketId;
+        await renderMaintenanceTable();
+        await updateKPIs();
+        updateHeaderBadge();
+        closeModal('dispatchModal');
 
-            if (!currentEditingTicketId) return;
+        alert(`Work order updated! Contractor "${contractor}" dispatched.`);
+    }
 
-            const t = tickets.find(item => item.id === currentEditingTicketId);
-            if (!t) return;
+    async function deleteTicket(id) {
+        if (!confirm("Are you sure you want to delete this work order ticket?")) return;
+        
+        try {
+            await fetch(`${MAINTENANCE_API_URL}${id}`, {
+                method: 'DELETE',
+                headers: getAuthHeaders()
+            });
+        } catch (e) {}
 
-            document.getElementById('modalTicketHeading').textContent = `Work Order Dispatch — ${t.id}`;
-            document.getElementById('dModalTitle').textContent = t.title;
-            document.getElementById('dModalLocation').innerHTML = `<i class="bi bi-geo-alt"></i> ${t.tenantName || t.tenant_name || 'N/A'} • ${t.fullLocation || 'N/A'}`;
+        let tickets = await getTickets();
+        tickets = tickets.filter(t => String(t.id) !== String(id));
+        saveTickets(tickets);
 
-            if (t.technician && t.technician !== 'Unassigned') {
-                document.getElementById('dModalContractor').value = t.technician;
-            }
-            if (t.scheduledTime && t.scheduledTime !== 'Pending Dispatch') {
-                document.getElementById('dModalSchedule').value = t.scheduledTime;
+        await renderMaintenanceTable();
+        await updateKPIs();
+    }
+
+    window.onclick = function(event) {
+        if (event.target.classList.contains('modal-overlay')) {
+            event.target.classList.remove('show');
+        }
+    };
+
+    function filterTable() {
+        const searchValue = document.getElementById("searchInput").value.toLowerCase();
+        const statusValue = document.getElementById("statusFilter").value;
+        const priorityValue = document.getElementById("priorityFilter").value;
+
+        const rows = document.querySelectorAll("#maintenanceTable tr");
+        let visibleCount = 0;
+        let totalRows = 0;
+
+        rows.forEach(row => {
+            if (row.dataset.status === undefined) return;
+            totalRows++;
+
+            const text = row.innerText.toLowerCase();
+            const rowStatus = row.dataset.status || "";
+            const rowPriority = row.dataset.priority || "";
+
+            const matchesSearch = text.includes(searchValue);
+            const matchesStatus = statusValue === "" || rowStatus.toLowerCase().includes(statusValue.toLowerCase());
+            const matchesPriority = priorityValue === "" || rowPriority.toLowerCase().includes(priorityValue.toLowerCase());
+
+            if (matchesSearch && matchesStatus && matchesPriority) {
+                row.style.display = "";
+                visibleCount++;
             } else {
-                document.getElementById('dModalSchedule').value = 'Today at 02:00 PM';
+                row.style.display = "none";
             }
-            if (t.status) {
-                document.getElementById('dModalStatus').value = t.status === 'Open' ? 'In Progress' : t.status;
-            }
-            if (t.cost !== undefined) {
-                document.getElementById('dModalCost').value = t.cost;
-            }
+        });
 
-            const modal = document.getElementById('dispatchModal');
-            if (modal) modal.classList.add('show');
+        const countEl = document.getElementById('showingCountText');
+        if (countEl) {
+            countEl.textContent = totalRows === 0 ? "Showing 0 work order tickets" : `Showing ${visibleCount} of ${totalRows} work order tickets`;
         }
+    }
 
-        function closeModal(modalId) {
-            const modal = document.getElementById(modalId);
-            if (modal) modal.classList.remove('show');
-            if (modalId === 'dispatchModal') currentEditingTicketId = null;
-        }
+    function resetFilters() {
+        document.getElementById("searchInput").value = "";
+        document.getElementById("statusFilter").value = "";
+        document.getElementById("priorityFilter").value = "";
+        filterTable();
+    }
 
-        function closeDispatchModal() {
-            closeModal('dispatchModal');
-        }
+    const userProfileBtn = document.getElementById('userProfileBtn');
+    const userDropdown = document.getElementById('userDropdown');
 
-        function saveDispatch() {
-            if (!currentEditingTicketId) return;
+    if (userProfileBtn && userDropdown) {
+        userProfileBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            userDropdown.classList.toggle('show');
+        });
 
-            const contractor = document.getElementById('dModalContractor').value;
-            const schedule = document.getElementById('dModalSchedule').value.trim() || 'Scheduled';
-            const status = document.getElementById('dModalStatus').value;
-            const cost = parseFloat(document.getElementById('dModalCost').value) || 0;
-
-            let tickets = getTickets();
-            let targetTicket = null;
-
-            tickets = tickets.map(t => {
-                if (t.id === currentEditingTicketId) {
-                    targetTicket = t;
-                    return {
-                        ...t,
-                        technician: contractor,
-                        scheduledTime: schedule,
-                        status: status,
-                        cost: cost
-                    };
-                }
-                return t;
-            });
-            saveTickets(tickets);
-
-            // Notify Tenant POV
-            if (targetTicket && targetTicket.tenantName && targetTicket.tenantName !== 'N/A') {
-                let notifications = getNotifications();
-                notifications.unshift({
-                    id: `NOTIF-${Date.now()}`,
-                    pov: 'client',
-                    category: 'maintenance',
-                    status: 'unread',
-                    title: 'Technician Scheduled for Your Unit',
-                    time: 'Just now',
-                    description: `Specialized contractor <strong>${contractor}</strong> scheduled for arrival: <strong>${schedule}</strong> for issue "${targetTicket.title}".`,
-                    actionUrl: 'client-maintenance.html',
-                    actionText: 'View Dispatch Schedule'
-                });
-                saveNotifications(notifications);
-            }
-
-            renderMaintenanceTable();
-            updateKPIs();
-            updateHeaderBadge();
-            closeModal('dispatchModal');
-
-            alert(`Work order updated! Contractor "${contractor}" dispatched.`);
-        }
-
-        function deleteTicket(id) {
-            if (!confirm("Are you sure you want to delete this work order ticket?")) return;
-            let tickets = getTickets().filter(t => t.id !== id);
-            saveTickets(tickets);
-            renderMaintenanceTable();
-            updateKPIs();
-        }
-
-        window.onclick = function(event) {
-            if (event.target.classList.contains('modal-overlay')) {
-                event.target.classList.remove('show');
-            }
-        };
-
-        function filterTable() {
-            const searchValue = document.getElementById("searchInput").value.toLowerCase();
-            const statusValue = document.getElementById("statusFilter").value;
-            const priorityValue = document.getElementById("priorityFilter").value;
-
-            const rows = document.querySelectorAll("#maintenanceTable tr");
-            let visibleCount = 0;
-            let totalRows = 0;
-
-            rows.forEach(row => {
-                if (row.dataset.status === undefined) return;
-                totalRows++;
-
-                const text = row.innerText.toLowerCase();
-                const rowStatus = row.dataset.status || "";
-                const rowPriority = row.dataset.priority || "";
-
-                const matchesSearch = text.includes(searchValue);
-                const matchesStatus = statusValue === "" || rowStatus.toLowerCase().includes(statusValue.toLowerCase());
-                const matchesPriority = priorityValue === "" || rowPriority.toLowerCase().includes(priorityValue.toLowerCase());
-
-                if (matchesSearch && matchesStatus && matchesPriority) {
-                    row.style.display = "";
-                    visibleCount++;
-                } else {
-                    row.style.display = "none";
-                }
-            });
-
-            const countEl = document.getElementById('showingCountText');
-            if (countEl) {
-                countEl.textContent = totalRows === 0 ? "Showing 0 work order tickets" : `Showing ${visibleCount} of ${totalRows} work order tickets`;
-            }
-        }
-
-        function resetFilters() {
-            document.getElementById("searchInput").value = "";
-            document.getElementById("statusFilter").value = "";
-            document.getElementById("priorityFilter").value = "";
-            filterTable();
-        }
-
-        const userProfileBtn = document.getElementById('userProfileBtn');
-        const userDropdown = document.getElementById('userDropdown');
-
-        if (userProfileBtn && userDropdown) {
-            userProfileBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                userDropdown.classList.toggle('show');
-            });
-
-            document.addEventListener('click', () => { 
-                userDropdown.classList.remove('show'); 
-            });
-        }
-    </script>
+        document.addEventListener('click', () => { 
+            userDropdown.classList.remove('show'); 
+        });
+    }
+</script>
 </body>
 </html>

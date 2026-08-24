@@ -975,707 +975,735 @@
         </div>
     </div>
 
-    <!-- ================= JAVASCRIPT ================= -->
     <script>
-        let currentInspectedInvoiceId = null;
+    const API_BASE_URL = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
+        ? 'http://127.0.0.1:8000/api/invoices/'
+        : '/api/invoices/';
 
-        // Type-Safe Currency Parser
-        function parseCurrency(val) {
-            if (val === undefined || val === null || val === '') return 0;
-            if (typeof val === 'number') return isNaN(val) ? 0 : val;
-            const clean = val.toString().replace(/[^0-9.-]+/g, "");
-            const parsed = parseFloat(clean);
-            return isNaN(parsed) ? 0 : parsed;
+    const LEASES_API_URL = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
+        ? 'http://127.0.0.1:8000/api/leases/'
+        : '/api/leases/';
+
+    let currentInspectedInvoiceId = null;
+
+    // Baseline Invoices Synchronized with Maria Santos (Sunrise Residences • Unit 101 • ₱15,000 Rent)
+    const DEFAULT_INVOICES = [
+        {
+            id: "INV-2026-0801",
+            lease_id: "LSE-2026-0101",
+            tenantName: "Maria Santos",
+            tenant_email: "maria.santos@tenant.ph",
+            type: "Monthly Base Rent",
+            sub: "Sunrise Residences • Unit 101",
+            categoryType: "Rent",
+            dueDate: "2026-08-31",
+            amount: 15000.00,
+            status: "Pending PM Audit",
+            channel: "GCash",
+            refNo: "#GCASH-883192",
+            receiptAttachment: "gcash-receipt-august2026.png",
+            notes: "August 2026 Regular Rent Settlement",
+            createdAt: new Date().toISOString()
+        },
+        {
+            id: "INV-2026-0701",
+            lease_id: "LSE-2026-0101",
+            tenantName: "Maria Santos",
+            tenant_email: "maria.santos@tenant.ph",
+            type: "Monthly Base Rent",
+            sub: "Sunrise Residences • Unit 101",
+            categoryType: "Rent",
+            dueDate: "2026-07-31",
+            amount: 15000.00,
+            status: "Paid",
+            channel: "GCash (#GCASH-883192)",
+            refNo: "#GCASH-883192",
+            receiptAttachment: "gcash-receipt-july2026.png",
+            notes: "July 2026 Advance Rent Payment",
+            createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+        }
+    ];
+
+    function parseCurrency(val) {
+        if (val === undefined || val === null || val === '') return 0;
+        if (typeof val === 'number') return isNaN(val) ? 0 : val;
+        const clean = val.toString().replace(/[^0-9.-]+/g, "");
+        const parsed = parseFloat(clean);
+        return isNaN(parsed) ? 0 : parsed;
+    }
+
+    function formatPeso(val) {
+        const num = parseCurrency(val);
+        return '₱' + num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function getAuthHeaders() {
+        const token = localStorage.getItem('token') || localStorage.getItem('argo_token');
+        return {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        };
+    }
+
+    // Secure Logout Handler
+    function logoutUser() {
+        localStorage.clear();
+        window.location.replace('index.html');
+    }
+
+    // Dynamic Role-Based Sidebar Navigation Renderer
+    function renderSidebar() {
+        const nav = document.getElementById('sidebarNav');
+        if (!nav) return;
+
+        const rawRole = (
+            localStorage.getItem('argo_pov') || 
+            localStorage.getItem('user_role') || 
+            localStorage.getItem('role') || 
+            'admin'
+        ).toLowerCase().trim();
+
+        if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
+            nav.innerHTML = `
+                <div class="nav-section-title">SELF-SERVICE HOME</div>
+                <a href="client-dashboard.html" class="nav-item"><i class="bi bi-house-door"></i><span>My Tenancy Home</span></a>
+                <a href="client-billing.html" class="nav-item"><i class="bi bi-receipt"></i><span>Pay Rent & Dues</span></a>
+                <a href="transaction.html" class="nav-item"><i class="bi bi-receipt-cutoff"></i><span>Transactions & Ledger</span></a>
+                <a href="client-utilities.html" class="nav-item"><i class="bi bi-lightning-charge"></i><span>My Utilities & Meters</span></a>
+                <a href="client-maintenance.html" class="nav-item"><i class="bi bi-tools"></i><span>Submit Maintenance</span></a>
+                <a href="inspections.html" class="nav-item"><i class="bi bi-clipboard-check"></i><span>Move-In & Inspections</span></a>
+                <a href="client-documents.html" class="nav-item"><i class="bi bi-folder2-open"></i><span>My Lease & Receipts</span></a>
+                <div class="nav-section-title">SYSTEM</div>
+                <a href="account.html" class="nav-item"><i class="bi bi-gear"></i><span>Account Settings</span></a>
+                <a href="#" class="nav-item" onclick="logoutUser(); return false;"><i class="bi bi-box-arrow-right"></i><span>Log Out</span></a>
+            `;
+        } else if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
+            nav.innerHTML = `
+                <div class="nav-section-title">PORTFOLIO OVERVIEW</div>
+                <a href="owner-dashboard.html" class="nav-item"><i class="bi bi-speedometer2"></i><span>Executive Summary</span></a>
+                <a href="owner-properties.html" class="nav-item"><i class="bi bi-buildings"></i><span>My Properties</span></a>
+                <a href="owner-statements.html" class="nav-item"><i class="bi bi-file-earmark-text"></i><span>Financial Statements</span></a>
+                <a href="property-ownership.html" class="nav-item"><i class="bi bi-pie-chart"></i><span>Fractional Equity</span></a>
+                <a href="owner-documents.html" class="nav-item"><i class="bi bi-folder2-open"></i><span>Legal Vault</span></a>
+                <a href="transaction.html" class="nav-item"><i class="bi bi-receipt-cutoff"></i><span>Yield Audit Ledger</span></a>
+                <div class="nav-section-title">COMMUNICATION & SYSTEM</div>
+                <a href="notification.html" class="nav-item"><i class="bi bi-bell"></i><span>Notification Center</span></a>
+                <a href="account.html" class="nav-item"><i class="bi bi-gear"></i><span>Account Settings</span></a>
+                <a href="#" class="nav-item" onclick="logoutUser(); return false;"><i class="bi bi-box-arrow-right"></i><span>Log Out</span></a>
+            `;
+        } else {
+            // Admin POV
+            nav.innerHTML = `
+                <div class="nav-section-title">OVERVIEW</div>
+                <a href="dashboard.html" class="nav-item"><i class="bi bi-grid-1x2"></i><span>Dashboard</span></a>
+                <div class="nav-section-title">PROPERTY OPERATIONS</div>
+                <a href="properties.html" class="nav-item"><i class="bi bi-buildings"></i><span>Properties</span></a>
+                <a href="buildings.html" class="nav-item"><i class="bi bi-building"></i><span>Buildings</span></a>
+                <a href="units.html" class="nav-item"><i class="bi bi-door-open"></i><span>Units</span></a>
+                <a href="tenants.html" class="nav-item"><i class="bi bi-people"></i><span>Tenants</span></a>
+                <a href="owners.html" class="nav-item"><i class="bi bi-person-badge"></i><span>Owners</span></a>
+                <a href="property-ownership.html" class="nav-item"><i class="bi bi-pie-chart"></i><span>Fractional Ownership</span></a>
+                <a href="leases.html" class="nav-item"><i class="bi bi-file-earmark-text"></i><span>Leases</span></a>
+                <div class="nav-section-title">FINANCE & SERVICES</div>
+                <a href="rent-collection.html" class="nav-item active"><i class="bi bi-cash-stack"></i><span>Rent Collection</span></a>
+                <a href="transaction.html" class="nav-item"><i class="bi bi-receipt-cutoff"></i><span>Transactions & Ledger</span></a>
+                <a href="utilities.html" class="nav-item"><i class="bi bi-lightning-charge"></i><span>Utilities</span></a>
+                <a href="meter-readings.html" class="nav-item"><i class="bi bi-speedometer2"></i><span>Meter Readings</span></a>
+                <a href="maintenance.html" class="nav-item"><i class="bi bi-tools"></i><span>Maintenance</span></a>
+                <div class="nav-section-title">RECORDS & REPORTS</div>
+                <a href="inspections.html" class="nav-item"><i class="bi bi-clipboard-check"></i><span>Inspections</span></a>
+                <a href="move-in-checklist.html" class="nav-item"><i class="bi bi-check2-square"></i><span>Move-In Checklist</span></a>
+                <a href="move-out-settlement.html" class="nav-item"><i class="bi bi-box-arrow-right"></i><span>Move-Out Settlement</span></a>
+                <a href="documents.html" class="nav-item"><i class="bi bi-folder2-open"></i><span>Documents</span></a>
+                <a href="reports.html" class="nav-item"><i class="bi bi-bar-chart"></i><span>Reports</span></a>
+                <div class="nav-section-title">SYSTEM</div>
+                <a href="settings.html" class="nav-item"><i class="bi bi-gear"></i><span>Settings</span></a>
+                <a href="account.html" class="nav-item"><i class="bi bi-person-gear"></i><span>Account Settings</span></a>
+                <a href="#" class="nav-item" onclick="logoutUser(); return false;"><i class="bi bi-box-arrow-right"></i><span>Log Out</span></a>
+            `;
+        }
+    }
+
+    // Shared Storage & API Fetchers
+    async function getInvoices() {
+        try {
+            const response = await fetch(API_BASE_URL, { headers: getAuthHeaders() });
+            if (response.ok) {
+                const data = await response.json();
+                if (Array.isArray(data) && data.length > 0) {
+                    localStorage.setItem('argo_invoices', JSON.stringify(data));
+                    return data;
+                }
+            }
+        } catch (e) {
+            console.warn("Live Invoices API unreachable, reading cached records.");
         }
 
-        // Format Currency Helper
-        function formatPeso(val) {
-            const num = parseCurrency(val);
-            return '₱' + num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const raw = localStorage.getItem('argo_invoices');
+        if (!raw) {
+            localStorage.setItem('argo_invoices', JSON.stringify(DEFAULT_INVOICES));
+            return DEFAULT_INVOICES;
         }
 
-        // Secure Logout Handler
-        function logoutUser() {
-            localStorage.removeItem('argo_pov');
-            localStorage.removeItem('user_role');
-            localStorage.removeItem('role');
-            localStorage.removeItem('token');
-            localStorage.removeItem('argo_user');
+        try {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+                const hasMariaBill = parsed.some(i => (i.tenantName || '').toLowerCase().includes('maria santos'));
+                if (!hasMariaBill) {
+                    parsed.unshift(DEFAULT_INVOICES[0]);
+                    localStorage.setItem('argo_invoices', JSON.stringify(parsed));
+                }
+                return parsed;
+            }
+            localStorage.setItem('argo_invoices', JSON.stringify(DEFAULT_INVOICES));
+            return DEFAULT_INVOICES;
+        } catch (e) {
+            return DEFAULT_INVOICES;
+        }
+    }
+
+    function saveInvoicesLocally(invoices) {
+        localStorage.setItem('argo_invoices', JSON.stringify(invoices));
+    }
+
+    function getTransactions() {
+        try {
+            return JSON.parse(localStorage.getItem('argo_transactions') || '[]');
+        } catch (e) {
+            return [];
+        }
+    }
+
+    function saveTransactionsLocally(transactions) {
+        localStorage.setItem('argo_transactions', JSON.stringify(transactions));
+    }
+
+    function getNotifications() {
+        try {
+            return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
+        } catch (e) {
+            return [];
+        }
+    }
+
+    function saveNotificationsLocally(notifications) {
+        localStorage.setItem('argo_notifications', JSON.stringify(notifications));
+    }
+
+    async function getLeasesList() {
+        try {
+            const res = await fetch(LEASES_API_URL, { headers: getAuthHeaders() });
+            if (res.ok) {
+                const data = await res.json();
+                if (Array.isArray(data) && data.length > 0) return data;
+            }
+        } catch (e) {}
+
+        try {
+            const local = JSON.parse(localStorage.getItem('argo_leases') || '[]');
+            if (local.length > 0) return local;
+        } catch (e) {}
+
+        return [
+            {
+                id: "LSE-2026-0101",
+                tenantName: "Maria Santos",
+                unit: "Sunrise Residences • Unit 101",
+                rent: 15000,
+                status: "ACTIVE"
+            }
+        ];
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        const role = localStorage.getItem('argo_pov') || localStorage.getItem('user_role') || localStorage.getItem('role');
+        if (!role) {
             window.location.replace('index.html');
+            return;
         }
+        renderSidebar();
+        loadUserData();
+        await populateModalDropdowns();
+        await renderPaymentTable();
+        await updateAdminKPIs();
+        updateHeaderBadge();
+    });
 
-        function renderSidebar() {
-            const nav = document.getElementById('sidebarNav');
-            if (nav) {
-                const role = localStorage.getItem('argo_pov') || 'admin';
-                if (role === 'client') {
-                    nav.innerHTML = `
-                        <div class="nav-section-title">SELF-SERVICE HOME</div>
-                        <a href="client-dashboard.html" class="nav-item">
-                            <i class="bi bi-house-door"></i>
-                            <span>My Tenancy Home</span>
-                        </a>
-                        <a href="client-billing.html" class="nav-item">
-                            <i class="bi bi-receipt"></i>
-                            <span>Pay Rent & Dues</span>
-                        </a>
-                        <a href="transaction.html" class="nav-item">
-                            <i class="bi bi-receipt-cutoff"></i>
-                            <span>Transactions & Ledger</span>
-                        </a>
-                        <a href="client-utilities.html" class="nav-item">
-                            <i class="bi bi-lightning-charge"></i>
-                            <span>My Utilities & Meters</span>
-                        </a>
-                        <a href="client-maintenance.html" class="nav-item">
-                            <i class="bi bi-tools"></i>
-                            <span>Submit Maintenance</span>
-                        </a>
-                        <a href="inspections.html" class="nav-item">
-                            <i class="bi bi-clipboard-check"></i>
-                            <span>Move-In & Inspections</span>
-                        </a>
-                        <a href="client-documents.html" class="nav-item">
-                            <i class="bi bi-folder2-open"></i>
-                            <span>My Lease & Receipts</span>
-                        </a>
-
-                        <div class="nav-section-title">SYSTEM</div>
-                        <a href="account.html" class="nav-item">
-                            <i class="bi bi-gear"></i>
-                            <span>Account Settings</span>
-                        </a>
-                        <a href="#" class="nav-item" onclick="logoutUser(); return false;">
-                            <i class="bi bi-box-arrow-right"></i>
-                            <span>Log Out</span>
-                        </a>
-                    `;
-                } else if (role === 'owner') {
-                    nav.innerHTML = `
-                        <div class="nav-section-title">PORTFOLIO OVERVIEW</div>
-                        <a href="owner-dashboard.html" class="nav-item">
-                            <i class="bi bi-speedometer2"></i>
-                            <span>Owner Dashboard</span>
-                        </a>
-                        <a href="owner-properties.html" class="nav-item">
-                            <i class="bi bi-buildings"></i>
-                            <span>My Properties</span>
-                        </a>
-                        <a href="owner-statements.html" class="nav-item">
-                            <i class="bi bi-file-earmark-text"></i>
-                            <span>Financial Statements</span>
-                        </a>
-                        <a href="property-ownership.html" class="nav-item">
-                            <i class="bi bi-pie-chart"></i>
-                            <span>Fractional Equity</span>
-                        </a>
-                        <a href="owner-documents.html" class="nav-item">
-                            <i class="bi bi-folder2-open"></i>
-                            <span>Legal Vault</span>
-                        </a>
-                        <a href="transaction.html" class="nav-item">
-                            <i class="bi bi-receipt-cutoff"></i>
-                            <span>Yield Audit Ledger</span>
-                        </a>
-
-                        <div class="nav-section-title">SYSTEM</div>
-                        <a href="account.html" class="nav-item">
-                            <i class="bi bi-gear"></i>
-                            <span>Account Settings</span>
-                        </a>
-                        <a href="#" class="nav-item" onclick="logoutUser(); return false;">
-                            <i class="bi bi-box-arrow-right"></i>
-                            <span>Log Out</span>
-                        </a>
-                    `;
-                } else {
-                    nav.innerHTML = `
-                        <div class="nav-section-title">OVERVIEW</div>
-                        <a href="dashboard.html" class="nav-item">
-                            <i class="bi bi-grid-1x2"></i>
-                            <span>Dashboard</span>
-                        </a>
-
-                        <div class="nav-section-title">PROPERTY OPERATIONS</div>
-                        <a href="properties.html" class="nav-item">
-                            <i class="bi bi-buildings"></i>
-                            <span>Properties</span>
-                        </a>
-                        <a href="buildings.html" class="nav-item">
-                            <i class="bi bi-building"></i>
-                            <span>Buildings</span>
-                        </a>
-                        <a href="units.html" class="nav-item">
-                            <i class="bi bi-door-open"></i>
-                            <span>Units</span>
-                        </a>
-                        <a href="tenants.html" class="nav-item">
-                            <i class="bi bi-people"></i>
-                            <span>Tenants</span>
-                        </a>
-                        <a href="owners.html" class="nav-item">
-                            <i class="bi bi-person-badge"></i>
-                            <span>Owners</span>
-                        </a>
-                        <a href="property-ownership.html" class="nav-item">
-                            <i class="bi bi-pie-chart"></i>
-                            <span>Fractional Ownership</span>
-                        </a>
-                        <a href="leases.html" class="nav-item">
-                            <i class="bi bi-file-earmark-text"></i>
-                            <span>Leases</span>
-                        </a>
-
-                        <div class="nav-section-title">FINANCE & SERVICES</div>
-                        <a href="rent-collection.html" class="nav-item active">
-                            <i class="bi bi-cash-stack"></i>
-                            <span>Rent Collection</span>
-                        </a>
-                        <a href="transaction.html" class="nav-item">
-                            <i class="bi bi-receipt-cutoff"></i>
-                            <span>Transactions & Ledger</span>
-                        </a>
-                        <a href="utilities.html" class="nav-item">
-                            <i class="bi bi-lightning-charge"></i>
-                            <span>Utilities</span>
-                        </a>
-                        <a href="meter-readings.html" class="nav-item">
-                            <i class="bi bi-speedometer2"></i>
-                            <span>Meter Readings</span>
-                        </a>
-                        <a href="maintenance.html" class="nav-item">
-                            <i class="bi bi-tools"></i>
-                            <span>Maintenance</span>
-                        </a>
-
-                        <div class="nav-section-title">RECORDS & REPORTS</div>
-                        <a href="inspections.html" class="nav-item">
-                            <i class="bi bi-clipboard-check"></i>
-                            <span>Inspections</span>
-                        </a>
-                        <a href="move-in-checklist.html" class="nav-item">
-                            <i class="bi bi-check2-square"></i>
-                            <span>Move-In Checklist</span>
-                        </a>
-                        <a href="move-out-settlement.html" class="nav-item">
-                            <i class="bi bi-box-arrow-right"></i>
-                            <span>Move-Out Settlement</span>
-                        </a>
-                        <a href="documents.html" class="nav-item">
-                            <i class="bi bi-folder2-open"></i>
-                            <span>Documents</span>
-                        </a>
-                        <a href="reports.html" class="nav-item">
-                            <i class="bi bi-bar-chart"></i>
-                            <span>Reports</span>
-                        </a>
-
-                        <div class="nav-section-title">SYSTEM</div>
-                        <a href="settings.html" class="nav-item">
-                            <i class="bi bi-gear"></i>
-                            <span>Settings</span>
-                        </a>
-                        <a href="account.html" class="nav-item">
-                            <i class="bi bi-person-gear"></i>
-                            <span>Account Settings</span>
-                        </a>
-                        <a href="#" class="nav-item" onclick="logoutUser(); return false;">
-                            <i class="bi bi-box-arrow-right"></i>
-                            <span>Log Out</span>
-                        </a>
-                    `;
-                }
-            }
-        }
-
-        // Shared Storage Accessors
-        function getInvoices() {
-            try {
-                return JSON.parse(localStorage.getItem('argo_invoices') || '[]');
-            } catch (e) {
-                return [];
-            }
-        }
-
-        function saveInvoices(invoices) {
-            localStorage.setItem('argo_invoices', JSON.stringify(invoices));
-        }
-
-        function getTransactions() {
-            try {
-                return JSON.parse(localStorage.getItem('argo_transactions') || '[]');
-            } catch (e) {
-                return [];
-            }
-        }
-
-        function saveTransactions(transactions) {
-            localStorage.setItem('argo_transactions', JSON.stringify(transactions));
-        }
-
-        function getNotifications() {
-            try {
-                return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
-            } catch (e) {
-                return [];
-            }
-        }
-
-        function saveNotifications(notifications) {
-            localStorage.setItem('argo_notifications', JSON.stringify(notifications));
-        }
-
-        function getLeases() {
-            try {
-                return JSON.parse(localStorage.getItem('argo_leases') || '[]');
-            } catch (e) {
-                return [];
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            const role = localStorage.getItem('argo_pov');
-            if (!role) {
-                window.location.replace('index.html');
-                return;
-            }
-            renderSidebar();
+    // Real-Time Cross-Tab Listener
+    window.addEventListener('storage', async (e) => {
+        if (['argo_invoices', 'argo_transactions', 'argo_notifications', 'argo_leases', 'argo_user', 'argo_pov'].includes(e.key)) {
             loadUserData();
-            populateModalDropdowns();
-            renderPaymentTable();
-            updateAdminKPIs();
+            await populateModalDropdowns();
+            await renderPaymentTable();
+            await updateAdminKPIs();
             updateHeaderBadge();
+        }
+    });
+
+    function loadUserData() {
+        try {
+            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+            const name = user.name || 'Juan Dela Cruz';
+            const nameEl = document.getElementById('userName');
+            const roleEl = document.getElementById('userRoleBadge');
+            const avatarEl = document.getElementById('userAvatar');
+
+            if (nameEl) nameEl.textContent = name;
+            if (roleEl) roleEl.textContent = user.role || 'Property Manager';
+            if (avatarEl) avatarEl.textContent = user.avatar || (name.charAt(0) || 'JD');
+        } catch (e) {
+            console.error("Error loading user profile", e);
+        }
+    }
+
+    async function populateModalDropdowns() {
+        const leases = await getLeasesList();
+        const select = document.getElementById('modalTenantSelect');
+        if (!select) return;
+
+        select.innerHTML = '<option value="">Select Tenant...</option>';
+        leases.forEach(l => {
+            const tName = l.tenantName || l.tenant_name || 'Maria Santos';
+            const uLoc = l.unit || l.unit_no || 'Sunrise Residences • Unit 101';
+            const rentVal = parseCurrency(l.rent || l.rent_amount || 15000);
+            select.innerHTML += `<option value="${tName}|${uLoc}|${l.id}|${rentVal}">${tName} — ${uLoc} (Rent: ${formatPeso(rentVal)})</option>`;
         });
+    }
 
-        // Real-Time Cross-Tab Listener
-        window.addEventListener('storage', (e) => {
-            if (['argo_invoices', 'argo_transactions', 'argo_notifications', 'argo_leases', 'argo_user', 'argo_pov'].includes(e.key)) {
-                loadUserData();
-                populateModalDropdowns();
-                renderPaymentTable();
-                updateAdminKPIs();
-                updateHeaderBadge();
-            }
-        });
+    function autoFillLeaseRent() {
+        const select = document.getElementById('modalTenantSelect');
+        if (!select || !select.value) return;
 
-        function loadUserData() {
-            try {
-                const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
-                const name = user.name || 'Property Admin';
-                document.getElementById('userName').textContent = name;
-                document.getElementById('userRoleBadge').textContent = user.role || 'Property Manager';
-                document.getElementById('userAvatar').textContent = user.avatar || (name.charAt(0) || 'JD');
-            } catch (e) {
-                console.error("Error loading user profile", e);
-            }
+        const parts = select.value.split('|');
+        const rentAmt = parseFloat(parts[3]) || 15000;
+        const amountInput = document.getElementById('modalAmountInput');
+        if (amountInput && rentAmt > 0) {
+            amountInput.value = rentAmt;
+        }
+    }
+
+    async function renderPaymentTable() {
+        const invoices = await getInvoices();
+        const tbody = document.getElementById('paymentTable');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+
+        if (!invoices || invoices.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--muted); padding:30px;">No rental collection records found. Click "Record Manual Payment" to add one.</td></tr>`;
+            document.getElementById('showingCountText').textContent = `Showing 0 payment records`;
+            return;
         }
 
-        function populateModalDropdowns() {
-            const leases = getLeases();
-            const select = document.getElementById('modalTenantSelect');
-            if (!select) return;
+        invoices.forEach(inv => {
+            const tr = document.createElement('tr');
+            const statusStr = (inv.status || 'Unpaid').toLowerCase();
 
-            select.innerHTML = '<option value="">Select Tenant...</option>';
-            leases.forEach(l => {
-                const tName = l.tenantName || l.tenant_name || 'Tenant';
-                const uLoc = l.unit || l.unit_no || 'Unit';
-                const rentVal = parseCurrency(l.rent || l.rent_amount);
-                select.innerHTML += `<option value="${tName}|${uLoc}|${l.id}|${rentVal}">${tName} — ${uLoc} (Rent: ${formatPeso(rentVal)})</option>`;
-            });
-        }
+            tr.dataset.status = statusStr.includes('pending') ? 'Pending' : (statusStr === 'paid' ? 'Paid' : 'Unpaid');
+            tr.dataset.method = inv.channel || 'GCash';
 
-        function autoFillLeaseRent() {
-            const select = document.getElementById('modalTenantSelect');
-            if (!select || !select.value) return;
+            const locationTag = inv.sub || inv.property_location || 'Sunrise Residences • Unit 101';
+            const tenantName = inv.tenantName || inv.tenant_name || 'Maria Santos';
+            const displayRef = inv.refNo || inv.ref_no || `#REF-${inv.id}`;
 
-            const parts = select.value.split('|');
-            const rentAmt = parseFloat(parts[3]) || 0;
-            const amountInput = document.getElementById('modalAmountInput');
-            if (amountInput && rentAmt > 0) {
-                amountInput.value = rentAmt;
-            }
-        }
-
-        function renderPaymentTable() {
-            const invoices = getInvoices();
-            const tbody = document.getElementById('paymentTable');
-            if (!tbody) return;
-            tbody.innerHTML = '';
-
-            if (invoices.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--muted); padding:30px;">No rental collection records found. Click "Record Manual Payment" to add one.</td></tr>`;
-                document.getElementById('showingCountText').textContent = `Showing 0 payment records`;
-                return;
+            let badgeHtml = '';
+            if (statusStr === 'paid') {
+                badgeHtml = `<span class="status paid" style="background:#ECFDF5; color:#059669; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-check-circle" style="margin-right:4px;"></i> Paid (Verified)</span>`;
+            } else if (statusStr.includes('pending')) {
+                badgeHtml = `<span class="status pending" style="background:#FEF3C7; color:#B45309; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-clock-history" style="margin-right:4px;"></i> Pending PM Audit</span>`;
+            } else {
+                badgeHtml = `<span class="status overdue" style="background:#FFF1F2; color:#E11D48; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-exclamation-circle" style="margin-right:4px;"></i> ${inv.status || 'Unpaid / Overdue'}</span>`;
             }
 
-            invoices.forEach(inv => {
-                const tr = document.createElement('tr');
-                const statusStr = (inv.status || 'Unpaid').toLowerCase();
+            let typePill = '';
+            const typeText = (inv.type || '').toLowerCase();
+            if (typeText.includes('electricity') || (inv.id && inv.id.includes('ELE'))) {
+                typePill = `<span class="type-pill type-elec" style="background:#FEF3C7; color:#92400E; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:600;"><i class="bi bi-lightning-charge"></i> Electricity</span>`;
+            } else if (typeText.includes('water') || (inv.id && inv.id.includes('WTR'))) {
+                typePill = `<span class="type-pill type-water" style="background:#DBEAFE; color:#1D4ED8; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:600;"><i class="bi bi-droplet"></i> Water</span>`;
+            } else {
+                typePill = `<span class="type-pill type-rent" style="background:#EFF6FF; color:#2563EB; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:600;"><i class="bi bi-house-door"></i> Base Rent</span>`;
+            }
 
-                tr.dataset.status = statusStr.includes('pending') ? 'Pending' : (statusStr === 'paid' ? 'Paid' : 'Unpaid');
-                tr.dataset.method = inv.channel || 'GCash';
+            let actionsHtml = `
+                <button class="action-button" title="Inspect Payment Proof" onclick="inspectPaymentProof('${inv.id}')"><i class="bi bi-eye"></i></button>
+            `;
 
-                const locationTag = inv.sub || 'Property Unit';
-                const tenantName = inv.tenantName || 'Tenant';
-                const displayRef = inv.refNo || `#REF-${inv.id}`;
-
-                let badgeHtml = '';
-                if (statusStr === 'paid') {
-                    badgeHtml = `<span class="status paid" style="background:#ECFDF5; color:#059669; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-check-circle" style="margin-right:4px;"></i> Paid (Verified)</span>`;
-                } else if (statusStr.includes('pending')) {
-                    badgeHtml = `<span class="status pending" style="background:#FEF3C7; color:#B45309; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-clock-history" style="margin-right:4px;"></i> Pending PM Audit</span>`;
-                } else {
-                    badgeHtml = `<span class="status overdue" style="background:#FFF1F2; color:#E11D48; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-exclamation-circle" style="margin-right:4px;"></i> ${inv.status || 'Unpaid / Overdue'}</span>`;
-                }
-
-                let typePill = '';
-                const typeText = (inv.type || '').toLowerCase();
-                if (typeText.includes('electricity') || (inv.id && inv.id.includes('ELE'))) {
-                    typePill = `<span class="type-pill type-elec" style="background:#FEF3C7; color:#92400E; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:600;"><i class="bi bi-lightning-charge"></i> Electricity</span>`;
-                } else if (typeText.includes('water') || (inv.id && inv.id.includes('WTR'))) {
-                    typePill = `<span class="type-pill type-water" style="background:#DBEAFE; color:#1D4ED8; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:600;"><i class="bi bi-droplet"></i> Water</span>`;
-                } else {
-                    typePill = `<span class="type-pill type-rent" style="background:#EFF6FF; color:#2563EB; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:600;"><i class="bi bi-house-door"></i> Base Rent</span>`;
-                }
-
-                let actionsHtml = `
+            if (statusStr.includes('pending')) {
+                actionsHtml = `
+                    <button class="action-button verify-btn" title="Approve & Verify Payment" style="color:#059669;" onclick="verifyTenantPayment('${inv.id}', '${displayRef}', ${parseCurrency(inv.amount)})"><i class="bi bi-check-circle-fill" style="font-size:16px;"></i></button>
                     <button class="action-button" title="Inspect Payment Proof" onclick="inspectPaymentProof('${inv.id}')"><i class="bi bi-eye"></i></button>
                 `;
-
-                if (statusStr.includes('pending')) {
-                    actionsHtml = `
-                        <button class="action-button verify-btn" title="Approve & Verify Payment" style="color:#059669;" onclick="verifyTenantPayment('${inv.id}', '${displayRef}', ${parseCurrency(inv.amount)})"><i class="bi bi-check-circle-fill" style="font-size:16px;"></i></button>
-                        <button class="action-button" title="Inspect Payment Proof" onclick="inspectPaymentProof('${inv.id}')"><i class="bi bi-eye"></i></button>
-                    `;
-                }
-
-                tr.innerHTML = `
-                    <td>
-                        <div class="payment-id" style="font-weight:600;">${displayRef}</div>
-                        <div style="font-size:10px; color:var(--muted);">${inv.id}</div>
-                    </td>
-                    <td><div class="tenant-name" style="font-weight:600;">${tenantName}</div></td>
-                    <td>
-                        <div class="property-tag-highlight" style="font-size:12px; font-weight:600;"><i class="bi bi-geo-alt"></i> ${locationTag}</div>
-                        <div style="font-size:11px; color:var(--muted); margin-top:2px;">${typePill} ${inv.type || 'Invoice'}</div>
-                    </td>
-                    <td>${inv.dueDate || inv.due_date || 'N/A'}</td>
-                    <td><div class="amount" style="font-weight:700;">${formatPeso(inv.amount)}</div></td>
-                    <td>${inv.channel || 'GCash'}</td>
-                    <td>${badgeHtml}</td>
-                    <td>
-                        <div style="display:flex; gap:6px;">${actionsHtml}</div>
-                    </td>
-                `;
-
-                tbody.appendChild(tr);
-            });
-
-            document.getElementById('showingCountText').textContent = `Showing 1–${invoices.length} of ${invoices.length} rental payments`;
-        }
-
-        function inspectPaymentProof(invoiceId) {
-            const invoices = getInvoices();
-            const inv = invoices.find(i => i.id === invoiceId);
-            if (!inv) return;
-
-            currentInspectedInvoiceId = invoiceId;
-
-            document.getElementById('vInvoiceTitle').textContent = `Payment Inspection — ${inv.id}`;
-            document.getElementById('vTenantName').textContent = inv.tenantName || 'Tenant';
-            document.getElementById('vLocationTag').innerHTML = `<i class="bi bi-geo-alt"></i> ${inv.sub || 'Property Unit'}`;
-            document.getElementById('vAmount').textContent = formatPeso(inv.amount);
-            document.getElementById('vInvoiceId').textContent = inv.id;
-            document.getElementById('vRefCode').textContent = inv.refNo || `#REF-${inv.id}`;
-            document.getElementById('vChannel').textContent = inv.channel || 'GCash';
-            document.getElementById('vStatus').textContent = inv.status || 'Pending Verification';
-            
-            const attachmentEl = document.getElementById('vAttachment');
-            if (inv.receiptAttachment) {
-                attachmentEl.innerHTML = `<i class="bi bi-paperclip"></i> ${inv.receiptAttachment}`;
-            } else {
-                attachmentEl.textContent = 'None Attached';
             }
 
-            document.getElementById('vNotes').textContent = inv.notes || inv.remarks || 'No additional remarks provided.';
+            tr.innerHTML = `
+                <td>
+                    <div class="payment-id" style="font-weight:600;">${displayRef}</div>
+                    <div style="font-size:10px; color:var(--muted);">${inv.id}</div>
+                </td>
+                <td><div class="tenant-name" style="font-weight:600;">${tenantName}</div></td>
+                <td>
+                    <div class="property-tag-highlight" style="font-size:12px; font-weight:600;"><i class="bi bi-geo-alt"></i> ${locationTag}</div>
+                    <div style="font-size:11px; color:var(--muted); margin-top:2px;">${typePill} ${inv.type || 'Monthly Base Rent'}</div>
+                </td>
+                <td>${inv.dueDate || inv.due_date || '2026-08-31'}</td>
+                <td><div class="amount" style="font-weight:700;">${formatPeso(inv.amount)}</div></td>
+                <td>${inv.channel || 'GCash'}</td>
+                <td>${badgeHtml}</td>
+                <td>
+                    <div style="display:flex; gap:6px;">${actionsHtml}</div>
+                </td>
+            `;
 
-            const approveBtn = document.getElementById('vApproveBtn');
-            const statusStr = (inv.status || '').toLowerCase();
-            if (approveBtn) {
-                approveBtn.style.display = statusStr.includes('pending') ? 'inline-flex' : 'none';
+            tbody.appendChild(tr);
+        });
+
+        document.getElementById('showingCountText').textContent = `Showing 1–${invoices.length} of ${invoices.length} rental payments`;
+    }
+
+    async function inspectPaymentProof(invoiceId) {
+        const invoices = await getInvoices();
+        const inv = invoices.find(i => String(i.id) === String(invoiceId));
+        if (!inv) return;
+
+        currentInspectedInvoiceId = invoiceId;
+
+        document.getElementById('vInvoiceTitle').textContent = `Payment Inspection — ${inv.id}`;
+        document.getElementById('vTenantName').textContent = inv.tenantName || 'Maria Santos';
+        document.getElementById('vLocationTag').innerHTML = `<i class="bi bi-geo-alt"></i> ${inv.sub || 'Sunrise Residences • Unit 101'}`;
+        document.getElementById('vAmount').textContent = formatPeso(inv.amount);
+        document.getElementById('vInvoiceId').textContent = inv.id;
+        document.getElementById('vRefCode').textContent = inv.refNo || `#REF-${inv.id}`;
+        document.getElementById('vChannel').textContent = inv.channel || 'GCash';
+        document.getElementById('vStatus').textContent = inv.status || 'Pending Verification';
+        
+        const attachmentEl = document.getElementById('vAttachment');
+        if (inv.receiptAttachment) {
+            attachmentEl.innerHTML = `<i class="bi bi-paperclip"></i> ${inv.receiptAttachment}`;
+        } else {
+            attachmentEl.textContent = 'None Attached';
+        }
+
+        document.getElementById('vNotes').textContent = inv.notes || inv.remarks || 'No additional remarks provided.';
+
+        const approveBtn = document.getElementById('vApproveBtn');
+        const statusStr = (inv.status || '').toLowerCase();
+        if (approveBtn) {
+            approveBtn.style.display = statusStr.includes('pending') ? 'inline-flex' : 'none';
+        }
+
+        openModal('viewPaymentModal');
+    }
+
+    async function approveFromModal() {
+        if (!currentInspectedInvoiceId) return;
+        const invoices = await getInvoices();
+        const inv = invoices.find(i => String(i.id) === String(currentInspectedInvoiceId));
+        if (inv) {
+            closeModal('viewPaymentModal');
+            verifyTenantPayment(inv.id, inv.refNo || `#REF-${inv.id}`, parseCurrency(inv.amount));
+        }
+    }
+
+    async function verifyTenantPayment(invoiceId, refNo, amount) {
+        if (!confirm(`Are you sure you want to verify and clear payment ${refNo} for ${formatPeso(amount)}?`)) return;
+
+        let invoices = await getInvoices();
+        let verifiedRef = refNo;
+        let tenantName = 'Maria Santos';
+        let locationTag = 'Sunrise Residences • Unit 101';
+
+        // 1. Update Invoice Status to Paid
+        invoices = invoices.map(inv => {
+            if (String(inv.id) === String(invoiceId)) {
+                verifiedRef = inv.refNo || refNo;
+                tenantName = inv.tenantName || 'Maria Santos';
+                locationTag = inv.sub || 'Sunrise Residences • Unit 101';
+                return { ...inv, status: 'Paid' };
             }
+            return inv;
+        });
+        saveInvoicesLocally(invoices);
 
-            openModal('viewPaymentModal');
-        }
+        // 2. Update Master Transaction Inflow Ledger
+        let transactions = getTransactions();
+        let matchedTxn = false;
 
-        function approveFromModal() {
-            if (!currentInspectedInvoiceId) return;
-            const invoices = getInvoices();
-            const inv = invoices.find(i => i.id === currentInspectedInvoiceId);
-            if (inv) {
-                closeModal('viewPaymentModal');
-                verifyTenantPayment(inv.id, inv.refNo || `#REF-${inv.id}`, parseCurrency(inv.amount));
+        transactions = transactions.map(txn => {
+            if (txn.refCode === verifiedRef || (txn.txnId && txn.txnId.includes(invoiceId))) {
+                matchedTxn = true;
+                return { ...txn, status: 'Verified' };
             }
-        }
+            return txn;
+        });
 
-        function verifyTenantPayment(invoiceId, refNo, amount) {
-            if (!confirm(`Are you sure you want to verify and clear payment ${refNo} for ${formatPeso(amount)}?`)) return;
-
-            let invoices = getInvoices();
-            let verifiedRef = refNo;
-            let tenantName = 'Tenant';
-            let locationTag = 'Property Unit';
-
-            invoices = invoices.map(inv => {
-                if (inv.id === invoiceId) {
-                    verifiedRef = inv.refNo || refNo;
-                    tenantName = inv.tenantName || 'Tenant';
-                    locationTag = inv.sub || 'Property Unit';
-                    return { ...inv, status: 'Paid' };
-                }
-                return inv;
-            });
-            saveInvoices(invoices);
-
-            // Update or Insert Verified Transaction
-            let transactions = getTransactions();
-            let matchedTxn = false;
-
-            transactions = transactions.map(txn => {
-                if (txn.refCode === verifiedRef || (txn.txnId && txn.txnId.includes(invoiceId))) {
-                    matchedTxn = true;
-                    return { ...txn, status: 'Verified' };
-                }
-                return txn;
-            });
-
-            if (!matchedTxn) {
-                transactions.unshift({
-                    refCode: verifiedRef.startsWith('#') ? verifiedRef : '#' + verifiedRef,
-                    txnId: `TXN-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
-                    payer: tenantName,
-                    property_location: locationTag,
-                    category: invoiceId.includes('ELE') ? 'Electricity Charges' : (invoiceId.includes('WTR') ? 'Water Charges' : 'Monthly Base Rent'),
-                    direction: 'INFLOW',
-                    grossAmount: formatPeso(amount),
-                    amount: amount,
-                    channel: 'Verified Gateway',
-                    status: 'Verified',
-                    timestamp: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
-                });
-            }
-            saveTransactions(transactions);
-
-            // Push Notification to Tenant
-            let notifications = getNotifications();
-            notifications.unshift({
-                id: `NOTIF-${Date.now()}`,
-                pov: 'client',
-                category: 'payment',
-                status: 'unread',
-                title: 'Payment Verified & Official Receipt Issued',
-                time: 'Just now',
-                description: `Your payment of ${formatPeso(amount)} (${verifiedRef}) for Invoice ${invoiceId} has been verified by Property Management.`,
-                property: locationTag,
-                tag: 'Status: CLEARED',
-                tagColor: 'var(--success, #059669)',
-                amount: formatPeso(amount),
-                actionUrl: 'client-billing.html',
-                actionText: 'View Official Receipt'
-            });
-            saveNotifications(notifications);
-
-            renderPaymentTable();
-            updateAdminKPIs();
-            updateHeaderBadge();
-
-            alert(`Payment ${verifiedRef} successfully verified and balance cleared!`);
-        }
-
-        function updateAdminKPIs() {
-            const invoices = getInvoices();
-
-            let totalExpected = 0;
-            let totalCollected = 0;
-            let totalPending = 0;
-            let totalOverdue = 0;
-
-            invoices.forEach(inv => {
-                const amt = parseCurrency(inv.amount);
-                totalExpected += amt;
-
-                const s = (inv.status || '').toLowerCase();
-                if (s === 'paid') {
-                    totalCollected += amt;
-                } else if (s.includes('pending')) {
-                    totalPending += amt;
-                } else {
-                    totalOverdue += amt;
-                }
-            });
-
-            document.getElementById('kpiExpected').textContent = formatPeso(totalExpected);
-            document.getElementById('kpiCollected').textContent = formatPeso(totalCollected);
-            document.getElementById('kpiPending').textContent = formatPeso(totalPending);
-            document.getElementById('kpiOverdue').textContent = formatPeso(totalOverdue);
-
-            const rate = totalExpected > 0 ? Math.round((totalCollected / totalExpected) * 100) : 0;
-            document.getElementById('kpiRate').textContent = `${rate}% portfolio collection rate`;
-        }
-
-        function updateHeaderBadge() {
-            const notifs = getNotifications().filter(n => (n.pov === 'admin' || !n.pov) && (n.status === 'unread' || n.is_read === false));
-            const badgeEl = document.getElementById('adminNotifBadge');
-            if (badgeEl) badgeEl.textContent = notifs.length;
-        }
-
-        function openModal(modalId = 'paymentModal') { 
-            const modal = document.getElementById(modalId);
-            if (modal) modal.classList.add("show"); 
-        }
-
-        function closeModal(modalId = 'paymentModal') { 
-            const modal = document.getElementById(modalId);
-            if (modal) modal.classList.remove("show"); 
-            if (modalId === 'viewPaymentModal') currentInspectedInvoiceId = null;
-        }
-
-        function saveManualPayment() {
-            const selectVal = document.getElementById('modalTenantSelect').value;
-            if (!selectVal) {
-                alert("Please select a tenant/lease.");
-                return;
-            }
-
-            const tenantVal = selectVal.split('|');
-            const tenantName = tenantVal[0];
-            const locationTag = tenantVal[1];
-            const leaseId = tenantVal[2] || '';
-            const amount = parseFloat(document.getElementById('modalAmountInput').value) || 0;
-            const method = document.getElementById('modalMethodSelect').value;
-            let refNo = document.getElementById('modalRefInput').value.trim() || `#MANUAL-${Math.floor(1000 + Math.random() * 9000)}`;
-            const status = document.getElementById('modalStatusSelect').value;
-            const notes = document.getElementById('modalNotesInput').value.trim();
-
-            if (amount <= 0) {
-                alert("Please enter a valid payment amount.");
-                return;
-            }
-
-            if (!refNo.startsWith('#')) refNo = '#' + refNo;
-            const newInvoiceId = `INV-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
-            const today = new Date().toISOString().split('T')[0];
-
-            // 1. Add Invoice Record
-            let invoices = getInvoices();
-            invoices.unshift({
-                id: newInvoiceId,
-                lease_id: leaseId,
-                tenantName: tenantName,
-                type: 'Monthly Base Rent',
-                sub: locationTag,
-                categoryType: 'Rent',
-                dueDate: today,
-                amount: amount,
-                status: status,
-                channel: method,
-                refNo: refNo,
-                notes: notes,
-                created_at: new Date().toISOString()
-            });
-            saveInvoices(invoices);
-
-            // 2. Add Inflow Transaction Record
-            let transactions = getTransactions();
+        if (!matchedTxn) {
             transactions.unshift({
-                refCode: refNo,
+                refCode: verifiedRef.startsWith('#') ? verifiedRef : '#' + verifiedRef,
                 txnId: `TXN-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
                 payer: tenantName,
                 property_location: locationTag,
-                category: 'Monthly Base Rent',
+                fullLocation: locationTag,
+                category: String(invoiceId).includes('ELE') ? 'Electricity Charges' : (String(invoiceId).includes('WTR') ? 'Water Charges' : 'Monthly Base Rent'),
                 direction: 'INFLOW',
                 grossAmount: formatPeso(amount),
                 amount: amount,
-                channel: method,
-                status: status === 'Paid' ? 'Verified' : 'Pending Audit',
-                notes: notes,
+                channel: 'GCash Verified',
+                status: 'Verified',
                 timestamp: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
             });
-            saveTransactions(transactions);
+        }
+        saveTransactionsLocally(transactions);
 
-            renderPaymentTable();
-            updateAdminKPIs();
-            closeModal('paymentModal');
-
-            document.getElementById('modalAmountInput').value = '';
-            document.getElementById('modalRefInput').value = '';
-            document.getElementById('modalNotesInput').value = '';
-
-            alert(`Payment recorded successfully for ${tenantName}!`);
+        // 3. Issue and Sync Electronic Receipt to Maria Santos's Client Documents Vault
+        try {
+            let clientDocs = JSON.parse(localStorage.getItem('argo_client_documents') || '[]');
+            const docId = `DOC-CLI-${Date.now().toString().slice(-4)}`;
+            const today = new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+            
+            clientDocs.unshift({
+                id: docId,
+                title: `Official Rent Payment Receipt (${verifiedRef})`,
+                fileType: 'PDF • 850 KB • Electronic Receipt',
+                category: 'Official Receipt',
+                uploadedBy: 'Property Management',
+                uploadDate: today,
+                status: 'Verified',
+                notes: `Cleared monthly base rent payment (${formatPeso(amount)}) for Sunrise Residences • Unit 101.`,
+                fileUrl: ''
+            });
+            localStorage.setItem('argo_client_documents', JSON.stringify(clientDocs));
+        } catch (e) {
+            console.warn("Could not sync client document vault:", e);
         }
 
-        window.onclick = function(event) {
-            if (event.target.classList && event.target.classList.contains('modal-overlay')) {
-                event.target.classList.remove("show");
+        // 4. Push System Notification to Tenant Maria Santos
+        let notifications = getNotifications();
+        notifications.unshift({
+            id: `NOTIF-${Date.now()}`,
+            pov: 'client',
+            category: 'payment',
+            status: 'unread',
+            title: 'Rent Payment Verified & Official Receipt Issued',
+            time: 'Just now',
+            description: `Your rent payment of ${formatPeso(amount)} (${verifiedRef}) for Unit 101 has been verified and cleared in the master ledger.`,
+            property: locationTag,
+            tag: 'Status: CLEARED',
+            tagColor: 'var(--success, #059669)',
+            amount: formatPeso(amount),
+            actionUrl: 'client-billing.html',
+            actionText: 'View Official Receipt'
+        });
+        saveNotificationsLocally(notifications);
+
+        await renderPaymentTable();
+        await updateAdminKPIs();
+        updateHeaderBadge();
+
+        alert(`Payment ${verifiedRef} successfully verified! Official receipt issued to Maria Santos's portal.`);
+    }
+
+    async function updateAdminKPIs() {
+        const invoices = await getInvoices();
+
+        let totalExpected = 0;
+        let totalCollected = 0;
+        let totalPending = 0;
+        let totalOverdue = 0;
+
+        invoices.forEach(inv => {
+            const amt = parseCurrency(inv.amount);
+            totalExpected += amt;
+
+            const s = (inv.status || '').toLowerCase();
+            if (s === 'paid') {
+                totalCollected += amt;
+            } else if (s.includes('pending')) {
+                totalPending += amt;
+            } else {
+                totalOverdue += amt;
             }
+        });
+
+        const expEl = document.getElementById('kpiExpected');
+        const colEl = document.getElementById('kpiCollected');
+        const penEl = document.getElementById('kpiPending');
+        const ovrEl = document.getElementById('kpiOverdue');
+        const rateEl = document.getElementById('kpiRate');
+
+        if (expEl) expEl.textContent = formatPeso(totalExpected);
+        if (colEl) colEl.textContent = formatPeso(totalCollected);
+        if (penEl) penEl.textContent = formatPeso(totalPending);
+        if (ovrEl) ovrEl.textContent = formatPeso(totalOverdue);
+
+        const rate = totalExpected > 0 ? Math.round((totalCollected / totalExpected) * 100) : 0;
+        if (rateEl) rateEl.textContent = `${rate}% portfolio collection rate`;
+    }
+
+    function updateHeaderBadge() {
+        const notifs = getNotifications().filter(n => (n.pov === 'admin' || !n.pov) && (n.status === 'unread' || n.is_read === false));
+        const badgeEl = document.getElementById('adminNotifBadge');
+        if (badgeEl) badgeEl.textContent = notifs.length;
+    }
+
+    function openModal(modalId = 'paymentModal') { 
+        const modal = document.getElementById(modalId);
+        if (modal) modal.classList.add("show"); 
+    }
+
+    function closeModal(modalId = 'paymentModal') { 
+        const modal = document.getElementById(modalId);
+        if (modal) modal.classList.remove("show"); 
+        if (modalId === 'viewPaymentModal') currentInspectedInvoiceId = null;
+    }
+
+    async function saveManualPayment() {
+        const selectVal = document.getElementById('modalTenantSelect').value;
+        if (!selectVal) {
+            alert("Please select a tenant/lease.");
+            return;
+        }
+
+        const tenantVal = selectVal.split('|');
+        const tenantName = tenantVal[0];
+        const locationTag = tenantVal[1];
+        const leaseId = tenantVal[2] || 'LSE-2026-0101';
+        const amount = parseFloat(document.getElementById('modalAmountInput').value) || 15000;
+        const method = document.getElementById('modalMethodSelect').value;
+        let refNo = document.getElementById('modalRefInput').value.trim() || `#MANUAL-${Math.floor(1000 + Math.random() * 9000)}`;
+        const status = document.getElementById('modalStatusSelect').value;
+        const notes = document.getElementById('modalNotesInput').value.trim();
+
+        if (amount <= 0) {
+            alert("Please enter a valid payment amount.");
+            return;
+        }
+
+        if (!refNo.startsWith('#')) refNo = '#' + refNo;
+        const newInvoiceId = `INV-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+        const today = new Date().toISOString().split('T')[0];
+
+        const newInvoice = {
+            id: newInvoiceId,
+            lease_id: leaseId,
+            tenantName: tenantName,
+            tenant_email: 'maria.santos@tenant.ph',
+            type: 'Monthly Base Rent',
+            sub: locationTag,
+            categoryType: 'Rent',
+            dueDate: today,
+            amount: amount,
+            status: status,
+            channel: method,
+            refNo: refNo,
+            notes: notes,
+            created_at: new Date().toISOString()
         };
 
-        function filterTable() {
-            const searchValue = document.getElementById("searchInput").value.toLowerCase();
-            const statusValue = document.getElementById("statusFilter").value;
-            const methodValue = document.getElementById("methodFilter").value;
-
-            const rows = document.querySelectorAll("#paymentTable tr");
-            let visibleCount = 0;
-            let totalRows = 0;
-
-            rows.forEach(row => {
-                if (row.cells.length === 1) return;
-                totalRows++;
-
-                const text = row.innerText.toLowerCase();
-                const rowStatus = row.dataset.status || "";
-                const rowMethod = row.dataset.method || "";
-
-                const matchesSearch = text.includes(searchValue);
-                const matchesStatus = statusValue === "" || rowStatus.toLowerCase() === statusValue.toLowerCase();
-                const matchesMethod = methodValue === "" || rowMethod.toLowerCase().includes(methodValue.toLowerCase());
-
-                if (matchesSearch && matchesStatus && matchesMethod) {
-                    row.style.display = "";
-                    visibleCount++;
-                } else {
-                    row.style.display = "none";
-                }
+        // Live API Dispatch
+        try {
+            await fetch(API_BASE_URL, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify(newInvoice)
             });
+        } catch (e) {
+            console.warn("Backend save failed, keeping locally.", e);
+        }
 
-            const countEl = document.getElementById('showingCountText');
-            if (countEl) {
-                countEl.textContent = totalRows === 0 ? "Showing 0 payment records" : `Showing ${visibleCount} of ${totalRows} payment records`;
+        let invoices = await getInvoices();
+        invoices.unshift(newInvoice);
+        saveInvoicesLocally(invoices);
+
+        // Add Inflow Transaction Record
+        let transactions = getTransactions();
+        transactions.unshift({
+            refCode: refNo,
+            txnId: `TXN-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+            payer: tenantName,
+            property_location: locationTag,
+            category: 'Monthly Base Rent',
+            direction: 'INFLOW',
+            grossAmount: formatPeso(amount),
+            amount: amount,
+            channel: method,
+            status: status === 'Paid' ? 'Verified' : 'Pending Audit',
+            notes: notes,
+            timestamp: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
+        });
+        saveTransactionsLocally(transactions);
+
+        await renderPaymentTable();
+        await updateAdminKPIs();
+        closeModal('paymentModal');
+
+        document.getElementById('modalAmountInput').value = '';
+        document.getElementById('modalRefInput').value = '';
+        document.getElementById('modalNotesInput').value = '';
+
+        alert(`Payment recorded successfully for ${tenantName}!`);
+    }
+
+    window.onclick = function(event) {
+        if (event.target.classList && event.target.classList.contains('modal-overlay')) {
+            event.target.classList.remove("show");
+        }
+    };
+
+    function filterTable() {
+        const searchValue = document.getElementById("searchInput").value.toLowerCase();
+        const statusValue = document.getElementById("statusFilter").value;
+        const methodValue = document.getElementById("methodFilter").value;
+
+        const rows = document.querySelectorAll("#paymentTable tr");
+        let visibleCount = 0;
+        let totalRows = 0;
+
+        rows.forEach(row => {
+            if (row.cells.length === 1) return;
+            totalRows++;
+
+            const text = row.innerText.toLowerCase();
+            const rowStatus = row.dataset.status || "";
+            const rowMethod = row.dataset.method || "";
+
+            const matchesSearch = text.includes(searchValue);
+            const matchesStatus = statusValue === "" || rowStatus.toLowerCase() === statusValue.toLowerCase();
+            const matchesMethod = methodValue === "" || rowMethod.toLowerCase().includes(methodValue.toLowerCase());
+
+            if (matchesSearch && matchesStatus && matchesMethod) {
+                row.style.display = "";
+                visibleCount++;
+            } else {
+                row.style.display = "none";
             }
+        });
+
+        const countEl = document.getElementById('showingCountText');
+        if (countEl) {
+            countEl.textContent = totalRows === 0 ? "Showing 0 payment records" : `Showing ${visibleCount} of ${totalRows} payment records`;
         }
+    }
 
-        function resetFilters() {
-            document.getElementById("searchInput").value = "";
-            document.getElementById("statusFilter").value = "";
-            document.getElementById("methodFilter").value = "";
-            filterTable();
-        }
+    function resetFilters() {
+        document.getElementById("searchInput").value = "";
+        document.getElementById("statusFilter").value = "";
+        document.getElementById("methodFilter").value = "";
+        filterTable();
+    }
 
-        // Profile Dropdown Handler
-        const userProfileBtn = document.getElementById('userProfileBtn');
-        const userDropdown = document.getElementById('userDropdown');
+    const userProfileBtn = document.getElementById('userProfileBtn');
+    const userDropdown = document.getElementById('userDropdown');
 
-        if (userProfileBtn && userDropdown) {
-            userProfileBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                userDropdown.classList.toggle('show');
-            });
+    if (userProfileBtn && userDropdown) {
+        userProfileBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            userDropdown.classList.toggle('show');
+        });
 
-            document.addEventListener('click', () => { 
-                userDropdown.classList.remove('show'); 
-            });
-        }
-    </script>
+        document.addEventListener('click', () => { 
+            userDropdown.classList.remove('show'); 
+        });
+    }
+</script>
 </body>
 </html>
