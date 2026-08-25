@@ -1508,11 +1508,21 @@
     }
 
     async function getUnits() {
+        const raw = localStorage.getItem('argo_units');
+        if (raw) {
+            try {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed)) {
+                    return parsed;
+                }
+            } catch (e) {}
+        }
+
         try {
             const response = await fetch(API_BASE_URL, { headers: getAuthHeaders() });
             if (response.ok) {
                 const data = await response.json();
-                if (Array.isArray(data) && data.length >= 20) {
+                if (Array.isArray(data) && data.length > 0) {
                     localStorage.setItem('argo_units', JSON.stringify(data));
                     return data;
                 }
@@ -1521,30 +1531,8 @@
             console.warn("Using synchronized local unit inventory.");
         }
 
-        const raw = localStorage.getItem('argo_units');
-        if (!raw) {
-            localStorage.setItem('argo_units', JSON.stringify(DEFAULT_UNITS));
-            return DEFAULT_UNITS;
-        }
-
-        try {
-            const parsed = JSON.parse(raw);
-            if (Array.isArray(parsed) && parsed.length >= 20) {
-                // Ensure Unit 101 retains Maria Santos
-                const u101 = parsed.find(u => (u.unit_number && u.unit_number.includes('101')) || (u.unit_no && u.unit_no.includes('101')));
-                if (u101) {
-                    u101.status = 'OCCUPIED';
-                    u101.tenant = 'Maria Santos';
-                    u101.tenant_name = 'Maria Santos';
-                }
-                return parsed;
-            }
-            // Seed full 20-unit building inventory if missing or incomplete
-            localStorage.setItem('argo_units', JSON.stringify(DEFAULT_UNITS));
-            return DEFAULT_UNITS;
-        } catch (e) {
-            return DEFAULT_UNITS;
-        }
+        localStorage.setItem('argo_units', JSON.stringify(DEFAULT_UNITS));
+        return DEFAULT_UNITS;
     }
 
     let activeTabStatus = "ALL";
@@ -1626,7 +1614,7 @@
                 <td>${badgeHtml}</td>
                 <td>
                     <div style="display:flex; gap:6px;">
-                        <button class="action-button delete" title="Delete Unit" onclick="deleteUnit(${u.id})"><i class="bi bi-trash"></i></button>
+                        <button class="action-button delete" title="Delete Unit" onclick="deleteUnit('${u.id}')"><i class="bi bi-trash"></i></button>
                     </div>
                 </td>
             `;
@@ -1698,9 +1686,12 @@
                 method: 'DELETE',
                 headers: getAuthHeaders()
             });
-        } catch (err) {}
+        } catch (err) {
+            console.warn("Live API delete sync bypassed, updating local ledger.");
+        }
 
-        let units = await getUnits();
+        let raw = localStorage.getItem('argo_units');
+        let units = raw ? JSON.parse(raw) : DEFAULT_UNITS;
         units = units.filter(u => String(u.id) !== String(id));
         localStorage.setItem('argo_units', JSON.stringify(units));
 
