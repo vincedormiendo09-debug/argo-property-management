@@ -248,7 +248,7 @@ class Lease(Base):
     end_date: Mapped[date] = mapped_column(Date, nullable=False)
     rent: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False, default=0.0)
     deposit: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False, default=0.0)
-    status: Mapped[str] = mapped_column(String(50), nullable=False, default="DRAFT")
+    status: Mapped[str] = mapped_column(String(50), nullable=False, default="ACTIVE")
 
     # Audit Block
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
@@ -257,7 +257,38 @@ class Lease(Base):
     updated_by: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
 
 
-# 8. INVOICES TABLE
+# 8. UTILITY CHARGES TABLE (Newly Added to Fix Utilities.html Dispatch Disconnect)
+class UtilityCharge(Base):
+    __tablename__ = "property_utility_charges"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "charge_id", name="uq_property_util_charge_org_charge_id"),
+        Index("ix_property_util_charges_org_status", "organization_id", "status"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    
+    charge_id: Mapped[str] = mapped_column(String(50), nullable=False)
+    tenant_name: Mapped[str] = mapped_column(String(150), nullable=False)
+    tenant_email: Mapped[Optional[str]] = mapped_column(String(150), nullable=True)
+    unit_location: Mapped[str] = mapped_column(String(200), nullable=False)
+    type: Mapped[str] = mapped_column(String(100), nullable=False)
+    breakdown: Mapped[str] = mapped_column(Text, nullable=False)
+    period: Mapped[str] = mapped_column(String(50), nullable=False)
+    due_date: Mapped[date] = mapped_column(Date, nullable=False)
+    amount: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False, default=0.0)
+    status: Mapped[str] = mapped_column(String(50), nullable=False, default="Pending")
+
+    # Audit Block
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_by: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
+    updated_by: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
+
+
+# 9. INVOICES TABLE
 class Invoice(Base):
     __tablename__ = "property_invoices"
     __table_args__ = (
@@ -290,7 +321,7 @@ class Invoice(Base):
     updated_by: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
 
 
-# 9. MASTER TRANSACTIONS TABLE
+# 10. MASTER TRANSACTIONS TABLE
 class Transaction(Base):
     __tablename__ = "property_transactions"
     __table_args__ = (
@@ -320,7 +351,7 @@ class Transaction(Base):
     updated_by: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
 
 
-# 10. MAINTENANCE TICKETS TABLE
+# 11. MAINTENANCE TICKETS TABLE
 class MaintenanceTicket(Base):
     __tablename__ = "property_maintenance_tickets"
     __table_args__ = (
@@ -353,7 +384,7 @@ class MaintenanceTicket(Base):
     updated_by: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
 
 
-# 11. SUB-METER READINGS TABLE
+# 12. SUB-METER READINGS TABLE
 class MeterReading(Base):
     __tablename__ = "property_meter_readings"
     __table_args__ = (
@@ -386,7 +417,7 @@ class MeterReading(Base):
     updated_by: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
 
 
-# 12. INSPECTIONS & HANDOVERS TABLE
+# 13. INSPECTIONS & HANDOVERS TABLE
 class Inspection(Base):
     __tablename__ = "property_inspections"
     __table_args__ = (
@@ -418,7 +449,7 @@ class Inspection(Base):
     updated_by: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
 
 
-# 13. LEGAL VAULT & DOCUMENTS TABLE
+# 14. LEGAL VAULT & DOCUMENTS TABLE
 class Document(Base):
     __tablename__ = "property_documents"
     __table_args__ = (
@@ -447,7 +478,7 @@ class Document(Base):
     updated_by: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
 
 
-# 14. REAL-TIME NOTIFICATIONS TABLE
+# 15. REAL-TIME NOTIFICATIONS TABLE
 class Notification(Base):
     __tablename__ = "property_notifications"
     __table_args__ = (
