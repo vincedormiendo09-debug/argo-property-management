@@ -1356,6 +1356,7 @@
             {
                 id: "LSE-2026-0101",
                 tenantName: "Maria Santos",
+                tenant_email: "maria.santos@tenant.ph",
                 property: "Sunrise Residences",
                 unit: "Sunrise Residences • Unit 101",
                 status: "ACTIVE"
@@ -1456,11 +1457,12 @@
         leases.forEach(l => {
             const tName = l.tenantName || l.tenant_name || 'Maria Santos';
             const uLoc = l.unit || l.unit_no || 'Sunrise Residences • Unit 101';
-            select.innerHTML += `<option value="${tName}|${uLoc}">${tName} — ${uLoc}</option>`;
+            const tEmail = l.tenant_email || l.email || 'maria.santos@tenant.ph';
+            select.innerHTML += `<option value="${tName}|${uLoc}|${tEmail}">${tName} — ${uLoc}</option>`;
         });
 
         if (leases.length === 0) {
-            select.innerHTML += `<option value="Maria Santos|Sunrise Residences • Unit 101">Maria Santos — Sunrise Residences • Unit 101</option>`;
+            select.innerHTML += `<option value="Maria Santos|Sunrise Residences • Unit 101|maria.santos@tenant.ph">Maria Santos — Sunrise Residences • Unit 101</option>`;
         }
     }
 
@@ -1507,7 +1509,7 @@
                 charges.unshift({
                     id: targetId,
                     tenantName: r.tenantName || 'Maria Santos',
-                    tenant_email: "maria.santos@tenant.ph",
+                    tenant_email: r.tenant_email || "maria.santos@tenant.ph",
                     unitLocation: r.unitLocation || 'Sunrise Residences • Unit 101',
                     type: (r.utility === 'Meralco' || (r.type && r.type.includes('Elec'))) ? 'Electricity' : 'Water',
                     breakdown: `${r.utility || (r.type && r.type.includes('Elec') ? 'Meralco' : 'Maynilad')} ${parseCurrency(r.consumption).toFixed(2)} ${r.unitSymbol || (r.utility === 'Meralco' ? 'kWh' : 'cu.m')} @ ₱${r.utility === 'Meralco' ? RATES.MERALCO_KWH.toFixed(2) : RATES.MAYNILAD_CUM.toFixed(2)}/${r.unitSymbol || 'unit'}`,
@@ -1589,7 +1591,7 @@
             } else if (s === 'overdue') {
                 statusBadge = `<span class="status overdue" style="background:#FFF1F2; color:#E11D48; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-exclamation-circle" style="margin-right:4px;"></i> Overdue</span>`;
             } else {
-                statusBadge = `<span class="status pending" style="background:#FEF3C7; color:#D97706; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-clock" style="margin-right:4px;"></i> Unpaid / Pending Dispatch</span>`;
+                statusBadge = `<span class="status pending" style="background:#FEF3C7; color:#D97706; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-clock" style="margin-right:4px;"></i> Unpaid / Dispatched</span>`;
             }
 
             let actionsHtml = `
@@ -1599,7 +1601,7 @@
             if (!['client', 'tenant', 'owner', 'property_owner'].includes(rawRole)) {
                 if (s === 'pending' || s === 'unpaid') {
                     actionsHtml = `
-                        <button class="action-button dispatch-btn" title="Dispatch Utility Invoice to Tenant Portal" style="color:#2563EB;" onclick="dispatchUtilityInvoice('${c.id}', '${escapeQuotes(c.tenantName)}', '${escapeQuotes(c.unitLocation)}', ${parseCurrency(c.amount)}, '${escapeQuotes(c.period)}', '${escapeQuotes(c.breakdown)}', '${escapeQuotes(c.type)}')"><i class="bi bi-send-check" style="font-size:16px;"></i></button>
+                        <button class="action-button dispatch-btn" title="Re-dispatch Utility Invoice to Tenant Portal" style="color:#2563EB;" onclick="dispatchUtilityInvoice('${c.id}', '${escapeQuotes(c.tenantName)}', '${escapeQuotes(c.unitLocation)}', ${parseCurrency(c.amount)}, '${escapeQuotes(c.period)}', '${escapeQuotes(c.breakdown)}', '${escapeQuotes(c.type)}')"><i class="bi bi-send-check" style="font-size:16px;"></i></button>
                         <button class="action-button" title="View Breakdown Details" onclick="alert('Utility Statement Details for ${c.id}:\\nTenant: ${escapeQuotes(c.tenantName)}\\nBreakdown: ${escapeQuotes(c.breakdown)}')"><i class="bi bi-eye"></i></button>
                         <button class="action-button delete" title="Delete Charge" onclick="deleteUtilityCharge('${c.id}')"><i class="bi bi-trash"></i></button>
                     `;
@@ -1639,14 +1641,14 @@
 
         let invoices = getInvoices();
         const categoryType = type === 'Electricity' ? 'Electricity' : (type === 'Water' ? 'Water' : 'Utilities');
-        const typeLabel = type === 'Electricity' ? 'Electricity Sub-Meter (144.70 kWh)' : (type === 'Water' ? 'Water Sub-Meter (12.50 cu.m)' : 'Utilities');
+        const typeLabel = type === 'Electricity' ? 'Electricity Sub-Meter' : (type === 'Water' ? 'Water Sub-Meter' : 'Utility Charge');
 
         const newInvoice = {
             id: chargeId,
             lease_id: "LSE-2026-0101",
             tenantName: tenantName,
             tenant_email: "maria.santos@tenant.ph",
-            type: `${typeLabel}`,
+            type: `${typeLabel} (${type === 'Electricity' ? '144.70 kWh' : (type === 'Water' ? '12.50 cu.m' : period)})`,
             sub: breakdown || locationTag,
             categoryType: categoryType,
             dueDate: "2026-08-31",
@@ -1668,6 +1670,7 @@
             pov: 'client',
             category: 'payment',
             status: 'unread',
+            is_read: false,
             title: `New ${type} Sub-Meter Invoice Issued (${period})`,
             time: 'Just now',
             description: `Your monthly ${type.toLowerCase()} bill of ${formatPeso(amount)} (${breakdown}) has been issued for Unit 101.`,
@@ -1682,7 +1685,7 @@
 
         let readings = getReadings();
         readings = readings.map(r => {
-            if ((r.tenantName === tenantName || r.tenantName === 'Maria Santos') && (type.includes(r.utility) || r.utility.includes(type))) {
+            if ((r.tenantName === tenantName || r.tenantName === 'Maria Santos') && (type.includes(r.utility) || r.utility?.includes(type))) {
                 return { ...r, status: 'Billed to Ledger' };
             }
             return r;
@@ -1710,6 +1713,7 @@
         const tenantVal = selectVal.split('|');
         const tenantName = tenantVal[0];
         const locationTag = tenantVal[1];
+        const tenantEmail = tenantVal[2] || "maria.santos@tenant.ph";
         const type = document.getElementById('modalTypeSelect').value;
         const period = document.getElementById('modalPeriod').value.trim() || 'August 2026';
         const amountInput = document.getElementById('modalAmount');
@@ -1726,11 +1730,12 @@
         const chargePrefix = type === 'Electricity' ? 'UTL-ELE-' : (type === 'Water' ? 'UTL-WTR-' : 'UTL-');
         const chargeId = `${chargePrefix}${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`;
 
+        // 1. Save to Utility Charges Repository (Visible in utilities.html & client-utilities.html)
         let charges = getUtilityCharges();
         charges.unshift({
             id: chargeId,
             tenantName: tenantName,
-            tenant_email: "maria.santos@tenant.ph",
+            tenant_email: tenantEmail,
             unitLocation: locationTag,
             type: type,
             breakdown: notes,
@@ -1741,22 +1746,82 @@
         });
         saveUtilityCharges(charges);
 
+        // 2. Automatically generate and synchronize Invoice to Maria Santos's Client Billing Portal
+        const categoryType = type === 'Electricity' ? 'Electricity' : (type === 'Water' ? 'Water' : 'Utilities');
+        const invoiceStatus = (status || '').toLowerCase() === 'paid' ? 'Paid' : 'Unpaid';
+        let invoices = getInvoices();
+        invoices = invoices.filter(i => i.id !== chargeId);
+        invoices.unshift({
+            id: chargeId,
+            lease_id: "LSE-2026-0101",
+            tenantName: tenantName,
+            tenant_email: tenantEmail,
+            type: `${type} Bill — ${period}`,
+            sub: notes || locationTag,
+            categoryType: categoryType,
+            dueDate: dueDate,
+            amount: amount,
+            status: invoiceStatus,
+            channel: invoiceStatus === 'Paid' ? 'Cash / Verified' : 'Pending Payment',
+            refNo: `#UTL-${chargeId}`,
+            notes: notes,
+            createdAt: new Date().toISOString()
+        });
+        saveInvoices(invoices);
+
+        // 3. Immediately dispatch real-time Notification to Maria Santos
+        let notifications = getNotifications();
+        notifications.unshift({
+            id: `NOTIF-${Date.now()}`,
+            pov: 'client',
+            category: 'payment',
+            status: 'unread',
+            is_read: false,
+            title: `New ${type} Utility Charge Issued (${period})`,
+            time: 'Just now',
+            description: `A ${type.toLowerCase()} charge of ${formatPeso(amount)} (${notes}) for ${locationTag} has been posted directly to your account.`,
+            property: locationTag,
+            tag: invoiceStatus === 'Paid' ? 'Status: PAID' : 'Status: UNPAID',
+            tagColor: invoiceStatus === 'Paid' ? 'var(--success, #059669)' : 'var(--warning, #D97706)',
+            amount: formatPeso(amount),
+            actionUrl: 'client-billing.html',
+            actionText: 'Pay Rent & Dues'
+        });
+        saveNotifications(notifications);
+
+        // 4. Update Sub-Meter Dial Status if matching reading exists
+        let readings = getReadings();
+        readings = readings.map(r => {
+            if ((r.tenantName === tenantName || r.tenantName === 'Maria Santos') && (type.includes(r.utility) || r.utility?.includes(type))) {
+                return { ...r, status: 'Billed to Ledger' };
+            }
+            return r;
+        });
+        saveReadings(readings);
+
         renderUtilityTable();
         updateKPIs();
+        updateHeaderBadge();
         closeModal();
 
         if (amountInput) amountInput.value = '';
         document.getElementById('modalPeriod').value = '';
         document.getElementById('modalNotes').value = '';
 
-        alert(`Utility Charge (${chargeId}) logged successfully for ${tenantName}!`);
+        alert(`Utility Charge (${chargeId}) logged successfully! Reflected directly in ${tenantName}'s billing & utilities portal.`);
     }
 
     function deleteUtilityCharge(id) {
         if (!confirm("Are you sure you want to delete this utility charge?")) return;
         let charges = getUtilityCharges();
-        charges = charges.filter(c => c.id !== id);
+        charges = charges.filter(c => String(c.id) !== String(id));
         saveUtilityCharges(charges);
+
+        // Clean up corresponding invoice in billing portal
+        let invoices = getInvoices();
+        invoices = invoices.filter(i => String(i.id) !== String(id));
+        saveInvoices(invoices);
+
         renderUtilityTable();
         updateKPIs();
     }
