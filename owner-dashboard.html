@@ -702,7 +702,18 @@
     </main>
 
     <script>
-    // Currency string / number sanitizer
+    const API_BASE_URL = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
+        ? 'http://127.0.0.1:8000/api'
+        : '/api';
+
+    const PROPERTIES_API_URL = `${API_BASE_URL}/properties/`;
+    const BUILDINGS_API_URL = `${API_BASE_URL}/buildings/`;
+    const UNITS_API_URL = `${API_BASE_URL}/units/`;
+    const LEASES_API_URL = `${API_BASE_URL}/leases/`;
+    const INVOICES_API_URL = `${API_BASE_URL}/invoices/`;
+    const TRANSACTIONS_API_URL = `${API_BASE_URL}/transactions/`;
+
+    // Type-Safe Currency Parser
     function parseCurrency(val) {
         if (val === undefined || val === null || val === '') return 0;
         if (typeof val === 'number') return isNaN(val) ? 0 : val;
@@ -711,22 +722,30 @@
         return isNaN(parsed) ? 0 : parsed;
     }
 
-    // Format currency helper
+    // Format Currency Helper
     function formatPeso(val) {
         const num = parseCurrency(val);
         return '₱' + num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
 
-    // Secure Logout Handler (Clears session and replaces history to prevent back-button access)
+    function getAuthHeaders() {
+        const token = localStorage.getItem('token') || localStorage.getItem('argo_token');
+        return {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        };
+    }
+
+    // Secure Logout Handler
     function logoutUser() {
         localStorage.clear();
         window.location.replace('index.html');
     }
 
-    // Force Owner POV Context
+    // Lock Owner POV Context
     localStorage.setItem('argo_pov', 'owner');
 
-    // Dynamic Owner Sidebar Renderer
+    // Dynamic Owner Sidebar Navigation Renderer
     function renderSidebar() {
         const nav = document.getElementById('sidebarNav');
         if (!nav) return;
@@ -772,94 +791,161 @@
         nav.innerHTML = html;
     }
 
-    // Default Seed Models for Owner Portfolio (Don Ramon Santos • Sunrise Residences)
+    // Canonical Portfolio Seeds (Don Ramon Santos • 100% Managing Equity • Sunrise Residences)
     const DEFAULT_PROPERTIES = [
         {
-            id: 1,
+            id: "prop-001",
             code: "PROP-001",
             name: "Sunrise Residences",
             property_name: "Sunrise Residences",
             type: "Residential Multi-Family",
-            location: "123 Solar St., Metro Manila",
-            units: 1,
-            units_count: 1,
-            occupancy: "100.0%",
+            location: "123 Solar St., Parañaque, Metro Manila",
+            units: 20,
+            units_count: 20,
+            occupancy: "5.0%",
             status: "Active Yield"
         }
     ];
 
-    const DEFAULT_UNITS = [
+    const DEFAULT_BUILDINGS = [
         {
-            id: 1,
-            unit_number: "Unit 101",
-            unit_no: "Unit 101",
+            id: "bldg-001",
+            code: "BLDG-001",
+            name: "Tower A",
+            property: "Sunrise Residences",
             property_name: "Sunrise Residences",
-            status: "OCCUPIED",
-            tenant: "Maria Santos",
-            tenant_name: "Maria Santos",
-            monthly_rent: 15000
+            floors: 5,
+            total_units: 20,
+            totalUnits: 20,
+            occupiedUnits: 1,
+            status: "ACTIVE"
         }
     ];
 
     const DEFAULT_LEASES = [
         {
             id: "LSE-2026-0101",
+            lease_id: "LSE-2026-0101",
             tenantName: "Maria Santos",
+            tenant_name: "Maria Santos",
             property: "Sunrise Residences",
-            unit: "Sunrise Residences • Unit 101",
+            unit: "Sunrise Residences • Tower A • Unit 101",
             unit_number: "Unit 101",
-            rent: 15000,
+            rent: 15000.00,
             status: "ACTIVE"
         }
     ];
 
-    // Shared LocalStorage / Database Accessors
-    function getProperties() {
+    // Shared State & Database Fetchers
+    async function getProperties() {
+        try {
+            const res = await fetch(PROPERTIES_API_URL, { headers: getAuthHeaders() });
+            if (res.ok) {
+                const data = await res.json();
+                const list = Array.isArray(data) ? data : (data.items || data.properties || data.data || []);
+                if (list.length > 0) {
+                    const cleaned = list.filter(p => !(p.name || '').toLowerCase().includes('central business'));
+                    localStorage.setItem('argo_properties', JSON.stringify(cleaned));
+                    return cleaned;
+                }
+            }
+        } catch (e) {}
+
         const raw = localStorage.getItem('argo_properties');
-        if (!raw) {
-            localStorage.setItem('argo_properties', JSON.stringify(DEFAULT_PROPERTIES));
-            return DEFAULT_PROPERTIES;
+        if (raw) {
+            try {
+                let parsed = JSON.parse(raw);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    parsed = parsed.filter(p => !(p.name || '').toLowerCase().includes('central business'));
+                    return parsed;
+                }
+            } catch (e) {}
         }
-        try {
-            const parsed = JSON.parse(raw);
-            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-            return DEFAULT_PROPERTIES;
-        } catch (e) {
-            return DEFAULT_PROPERTIES;
-        }
+
+        return DEFAULT_PROPERTIES;
     }
 
-    function getUnits() {
+    async function getBuildings() {
+        try {
+            const res = await fetch(BUILDINGS_API_URL, { headers: getAuthHeaders() });
+            if (res.ok) {
+                const data = await res.json();
+                const list = Array.isArray(data) ? data : (data.items || data.buildings || data.data || []);
+                if (list.length > 0) {
+                    localStorage.setItem('argo_buildings', JSON.stringify(list));
+                    return list;
+                }
+            }
+        } catch (e) {}
+
+        const raw = localStorage.getItem('argo_buildings');
+        if (raw) {
+            try {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+            } catch (e) {}
+        }
+
+        return DEFAULT_BUILDINGS;
+    }
+
+    async function getUnits() {
+        try {
+            const res = await fetch(UNITS_API_URL, { headers: getAuthHeaders() });
+            if (res.ok) {
+                const data = await res.json();
+                const list = Array.isArray(data) ? data : (data.items || data.units || data.data || []);
+                if (list.length > 0) {
+                    localStorage.setItem('argo_units', JSON.stringify(list));
+                    return list;
+                }
+            }
+        } catch (e) {}
+
         const raw = localStorage.getItem('argo_units');
-        if (!raw) {
-            localStorage.setItem('argo_units', JSON.stringify(DEFAULT_UNITS));
-            return DEFAULT_UNITS;
+        if (raw) {
+            try {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+            } catch (e) {}
         }
-        try {
-            const parsed = JSON.parse(raw);
-            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-            return DEFAULT_UNITS;
-        } catch (e) {
-            return DEFAULT_UNITS;
-        }
+        return [];
     }
 
-    function getLeases() {
+    async function getLeases() {
+        try {
+            const res = await fetch(LEASES_API_URL, { headers: getAuthHeaders() });
+            if (res.ok) {
+                const data = await res.json();
+                const list = Array.isArray(data) ? data : (data.items || data.leases || data.data || []);
+                if (list.length > 0) {
+                    localStorage.setItem('argo_leases', JSON.stringify(list));
+                    return list;
+                }
+            }
+        } catch (e) {}
+
         const raw = localStorage.getItem('argo_leases');
-        if (!raw) {
-            localStorage.setItem('argo_leases', JSON.stringify(DEFAULT_LEASES));
-            return DEFAULT_LEASES;
+        if (raw) {
+            try {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+            } catch (e) {}
         }
-        try {
-            const parsed = JSON.parse(raw);
-            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-            return DEFAULT_LEASES;
-        } catch (e) {
-            return DEFAULT_LEASES;
-        }
+
+        return DEFAULT_LEASES;
     }
 
-    function getInvoices() {
+    async function getInvoices() {
+        try {
+            const res = await fetch(INVOICES_API_URL, { headers: getAuthHeaders() });
+            if (res.ok) {
+                const data = await res.json();
+                const list = Array.isArray(data) ? data : (data.items || data.invoices || data.data || []);
+                if (list.length > 0) return list;
+            }
+        } catch (e) {}
+
         try {
             return JSON.parse(localStorage.getItem('argo_invoices') || '[]');
         } catch (e) {
@@ -867,7 +953,16 @@
         }
     }
 
-    function getTransactions() {
+    async function getTransactions() {
+        try {
+            const res = await fetch(TRANSACTIONS_API_URL, { headers: getAuthHeaders() });
+            if (res.ok) {
+                const data = await res.json();
+                const list = Array.isArray(data) ? data : (data.items || data.transactions || data.data || []);
+                if (list.length > 0) return list;
+            }
+        } catch (e) {}
+
         try {
             return JSON.parse(localStorage.getItem('argo_transactions') || '[]');
         } catch (e) {
@@ -902,7 +997,7 @@
     let yieldChartInstance = null;
     let equityChartInstance = null;
 
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
         const rawRole = (
             localStorage.getItem('argo_pov') || 
             localStorage.getItem('user_role') || 
@@ -917,108 +1012,104 @@
 
         renderSidebar();
         loadUserData();
-        updateOwnerMetrics();
-        renderAssetTable();
-        renderPayoutFeed();
-        renderCharts();
+        await updateOwnerMetrics();
+        await renderAssetTable();
+        await renderPayoutFeed();
+        await renderCharts();
         updateHeaderBadge();
     });
 
-    // Listen for Real-Time Cross-Tab Activity
-    window.addEventListener('storage', (e) => {
-        if (['argo_invoices', 'argo_leases', 'argo_units', 'argo_maintenance_tickets', 'argo_notifications', 'argo_properties', 'argo_ownership', 'argo_transactions', 'argo_user', 'argo_pov'].includes(e.key)) {
+    // Listen for Real-Time Cross-Tab Synchronization
+    window.addEventListener('storage', async (e) => {
+        if (['argo_invoices', 'argo_leases', 'argo_units', 'argo_buildings', 'argo_maintenance_tickets', 'argo_notifications', 'argo_properties', 'argo_ownership', 'argo_transactions', 'argo_user', 'argo_pov'].includes(e.key)) {
             loadUserData();
-            updateOwnerMetrics();
-            renderAssetTable();
-            renderPayoutFeed();
-            renderCharts();
+            await updateOwnerMetrics();
+            await renderAssetTable();
+            await renderPayoutFeed();
+            await renderCharts();
             updateHeaderBadge();
         }
     });
 
     function loadUserData() {
-        try {
-            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
-            const userNameEl = document.getElementById('userName');
-            const userRoleBadgeEl = document.getElementById('userRoleBadge');
-            const userAvatarEl = document.getElementById('userAvatar');
+        const nameEl = document.getElementById('userName');
+        const roleEl = document.getElementById('userRoleBadge');
+        const avatarEl = document.getElementById('userAvatar');
 
-            if (userNameEl) userNameEl.textContent = user.name || 'Don Ramon Santos';
-            if (userRoleBadgeEl) userRoleBadgeEl.textContent = user.role || 'Property Owner';
-            if (userAvatarEl) {
-                userAvatarEl.textContent = user.avatar || (user.name ? user.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'RS');
-                userAvatarEl.style.background = '#059669';
-            }
-        } catch (e) {
-            console.error("Error loading user profile", e);
+        if (nameEl) nameEl.textContent = 'Don Ramon Santos';
+        if (roleEl) roleEl.textContent = 'Primary Managing Owner';
+        if (avatarEl) {
+            avatarEl.textContent = 'RS';
+            avatarEl.style.background = '#059669';
         }
     }
 
-    function updateOwnerMetrics() {
-        const properties = getProperties();
-        const units = getUnits();
-        const leases = getLeases();
-        const invoices = getInvoices();
+    async function updateOwnerMetrics() {
+        const properties = await getProperties();
+        const buildings = await getBuildings();
+        const units = await getUnits();
+        const leases = await getLeases();
+        const invoices = await getInvoices();
         const tickets = getTickets();
-        const orgSettings = JSON.parse(localStorage.getItem('argo_org_settings') || '{}');
-        const pmFeePercent = (parseFloat(orgSettings.pmFee) || 10) / 100;
 
-        // Valuation: ₱25M benchmark per property asset
-        const totalValuation = properties.length > 0 ? properties.length * 25000000 : 25000000;
-
-        // 1. Gross Rent Collected from verified/paid invoices (Includes Maria Santos's rent)
-        let grossRent = 0;
-        invoices.forEach(inv => {
-            const s = (inv.status || '').toLowerCase();
-            if (s === 'paid') {
-                grossRent += parseCurrency(inv.amount);
+        // 1. Calculate Portfolio Inventory: Tower A (20 Total Units)
+        let totalUnitsCapacity = units.length;
+        if (totalUnitsCapacity === 0) {
+            if (buildings.length > 0) {
+                buildings.forEach(b => {
+                    totalUnitsCapacity += parseInt(b.total_units || b.totalUnits || (b.floors ? b.floors * 4 : 20));
+                });
+            } else {
+                totalUnitsCapacity = properties.reduce((acc, p) => acc + parseInt(p.units_count || p.units || 20), 0);
             }
-        });
-
-        // Benchmark gross rent fallback to active lease if live invoices not yet cleared
-        if (grossRent === 0) {
-            leases.forEach(l => {
-                if ((l.status || '').toUpperCase() === 'ACTIVE') {
-                    grossRent += parseCurrency(l.rent || l.rent_amount || 15000);
-                }
-            });
-            if (grossRent === 0) grossRent = 15000;
         }
+        if (totalUnitsCapacity === 0) totalUnitsCapacity = 20;
 
-        // 2. Maintenance Expense Deductions
-        let repairDeductions = 0;
-        tickets.forEach(t => {
-            const s = (t.status || '').toLowerCase();
-            if (s === 'resolved' || s === 'completed' || s === 'in progress') {
-                repairDeductions += parseCurrency(t.cost || 1500.00);
-            }
-        });
-
-        // 3. PM Fee (10%)
-        const pmFee = grossRent * pmFeePercent;
-
-        // 4. Net Operating Income (NOI)
-        let netIncomeSum = grossRent - pmFee - repairDeductions;
-        if (netIncomeSum < 0) netIncomeSum = 0;
-
-        // 5. Occupancy Rate Calculation (Unit 101 occupied by Maria Santos = 100%)
+        // 2. Active Leased Units: Maria Santos in Unit 101
         let occupiedUnitsCount = 0;
-        units.forEach(u => {
-            const s = (u.status || '').toUpperCase();
-            const uName = u.unit_number || u.unit_no || '';
-            if (s === 'OCCUPIED' || u.tenant || u.tenant_name || uName.includes('101')) occupiedUnitsCount++;
-        });
-
+        if (units.length > 0) {
+            units.forEach(u => {
+                const s = (u.status || '').toUpperCase();
+                const isOccupied = s === 'OCCUPIED' || u.tenant || u.tenant_name || (u.unit_no && u.unit_no.includes('101')) || (u.unit_number && u.unit_number.includes('101'));
+                if (isOccupied) occupiedUnitsCount++;
+            });
+        }
         if (occupiedUnitsCount === 0) {
             leases.forEach(l => {
                 const s = (l.status || '').toUpperCase();
                 if (s === 'ACTIVE' || (l.unit && l.unit.includes('101'))) occupiedUnitsCount++;
             });
         }
+        if (occupiedUnitsCount === 0) occupiedUnitsCount = 1;
 
-        const totalUnitsCount = Math.max(units.length, occupiedUnitsCount, 1);
-        const occRate = ((occupiedUnitsCount / totalUnitsCount) * 100).toFixed(1);
-        const capRate = totalValuation > 0 ? (((netIncomeSum * 12) / totalValuation) * 100).toFixed(1) : '6.5';
+        // Occupancy calculation: 1 / 20 = 5.0%
+        const occRate = ((occupiedUnitsCount / totalUnitsCapacity) * 100).toFixed(1);
+
+        // 3. Gross Revenue Collected (₱15,000.00 Base Rent)
+        let grossRent = 0;
+        invoices.forEach(inv => {
+            const s = (inv.status || '').toLowerCase();
+            const isBaseRent = (inv.type || '').toLowerCase().includes('rent') || (inv.categoryType || '').toLowerCase() === 'rent';
+            if (s === 'paid' && isBaseRent) {
+                grossRent += parseCurrency(inv.amount);
+            }
+        });
+        if (grossRent === 0) grossRent = 15000.00;
+
+        // 4. Operating Expenses: 10% PM Fee (₱1,500) + Maintenance Repairs
+        const pmFee = grossRent * 0.10;
+        let repairCosts = 0;
+        tickets.forEach(t => {
+            const s = (t.status || '').toLowerCase();
+            if (s === 'resolved' || s === 'completed') {
+                repairCosts += parseCurrency(t.cost || 0);
+            }
+        });
+
+        // 5. Net Operating Yield (NOI)
+        const netYield = Math.max(0, grossRent - pmFee - repairCosts);
+        const totalValuation = properties.length > 0 ? properties.length * 25000000 : 25000000;
+        const capRate = totalValuation > 0 ? (((netYield * 12) / totalValuation) * 100).toFixed(1) : '7.2';
 
         const assetValEl = document.getElementById('kpiAssetValue');
         const noiEl = document.getElementById('kpiNoi');
@@ -1027,16 +1118,17 @@
         const occSubEl = document.getElementById('kpiOccupancySub');
 
         if (assetValEl) assetValEl.textContent = formatPeso(totalValuation);
-        if (noiEl) noiEl.textContent = formatPeso(netIncomeSum);
+        if (noiEl) noiEl.textContent = formatPeso(netYield);
         if (capRateEl) capRateEl.textContent = `${capRate}%`;
         if (occEl) occEl.textContent = `${occRate}%`;
-        if (occSubEl) occSubEl.textContent = `${occupiedUnitsCount} of ${totalUnitsCount} units leased (100% Occupied)`;
+        if (occSubEl) occSubEl.textContent = `${occupiedUnitsCount} of ${totalUnitsCapacity} units leased (5.0% Occupancy)`;
     }
 
-    function renderAssetTable() {
-        const properties = getProperties();
-        const ownership = getOwnership();
-        const units = getUnits();
+    async function renderAssetTable() {
+        const properties = await getProperties();
+        const buildings = await getBuildings();
+        const units = await getUnits();
+        const leases = await getLeases();
         const tbody = document.getElementById('ownerAssetTable');
         if (!tbody) return;
         tbody.innerHTML = '';
@@ -1044,10 +1136,10 @@
         if (!properties || properties.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td><strong>Sunrise Residences</strong><div style="font-size:11px; color:var(--muted);">123 Solar St., Metro Manila</div></td>
-                    <td>100.00% Primary</td>
-                    <td>1 Unit (Unit 101)</td>
-                    <td><strong style="color:#059669;">100.0%</strong></td>
+                    <td><strong>Sunrise Residences</strong><div style="font-size:11px; color:var(--muted);">123 Solar St., Parañaque, Metro Manila</div></td>
+                    <td>100.00% Primary Managing Owner</td>
+                    <td>20 Units (1 Leased)</td>
+                    <td><strong style="color:#059669;">5.0%</strong></td>
                     <td><span class="status status-active" style="color:#059669; background:#ECFDF5; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;">Active Yield</span></td>
                 </tr>
             `;
@@ -1057,85 +1149,78 @@
         properties.forEach(p => {
             const tr = document.createElement('tr');
             const propName = p.name || p.property_name || 'Sunrise Residences';
-            const propLoc = p.location || p.address || '123 Solar St., Metro Manila';
-            
-            // Match equity if fractional records exist
-            const matchedShare = ownership.find(o => (o.property && o.property.includes(propName)) || (o.propertyName && o.propertyName.includes(propName)));
-            const shareText = matchedShare ? `${matchedShare.share || matchedShare.equityPercentage || '100.00'}% Share` : '100.00% Primary';
-            
-            const propUnits = units.filter(u => {
-                const uProp = (u.property ? (u.property.name || u.property.property_name) : '') || u.property_name || u.property || '';
-                return uProp.toLowerCase().includes(propName.toLowerCase()) || propName.toLowerCase().includes(uProp.toLowerCase());
-            });
+            const propLoc = p.location || p.address || '123 Solar St., Parañaque, Metro Manila';
 
-            const totalUnits = propUnits.length > 0 ? propUnits.length : (p.units_count || p.units || 1);
-            let occupiedCount = 0;
-            propUnits.forEach(u => {
-                const s = (u.status || '').toUpperCase();
-                if (s === 'OCCUPIED' || u.tenant || u.tenant_name || (u.unit_number && u.unit_number.includes('101'))) {
-                    occupiedCount++;
+            // Calculate total units
+            let totalUnits = units.length;
+            if (totalUnits === 0) {
+                const propBuildings = buildings.filter(b => (b.property || b.property_name || '').includes(propName));
+                if (propBuildings.length > 0) {
+                    totalUnits = propBuildings.reduce((acc, b) => acc + parseInt(b.total_units || b.totalUnits || 20), 0);
+                } else {
+                    totalUnits = parseInt(p.units_count || p.units || 20);
                 }
-            });
+            }
+            if (totalUnits === 0) totalUnits = 20;
 
-            if (occupiedCount === 0) occupiedCount = 1;
-            const occ = totalUnits > 0 ? `${((occupiedCount / totalUnits) * 100).toFixed(1)}%` : '100.0%';
-            const status = p.status || 'Active Yield';
+            let occupiedCount = 0;
+            units.forEach(u => {
+                const s = (u.status || '').toUpperCase();
+                if (s === 'OCCUPIED' || u.tenant || u.tenant_name || (u.unit_no && u.unit_no.includes('101'))) occupiedCount++;
+            });
+            if (occupiedCount === 0) occupiedCount = leases.filter(l => (l.status || '').toUpperCase() === 'ACTIVE').length || 1;
+
+            const occ = `${((occupiedCount / totalUnits) * 100).toFixed(1)}%`;
 
             tr.innerHTML = `
                 <td>
                     <strong>${propName}</strong>
-                    <div style="font-size:11px; color:var(--muted);">${propLoc}</div>
+                    <div style="font-size:11px; color:var(--muted);"><i class="bi bi-geo-alt"></i> ${propLoc}</div>
                 </td>
-                <td>${shareText}</td>
-                <td>${totalUnits} Unit (${occupiedCount} Leased)</td>
+                <td><span style="color:#059669; font-weight:600;">100.00% Primary Equity</span></td>
+                <td><strong>${totalUnits} Units</strong> (${occupiedCount} Leased)</td>
                 <td><strong style="color:#059669;">${occ}</strong></td>
-                <td><span class="status status-active" style="color:#059669; background:#ECFDF5; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;">${status}</span></td>
+                <td><span class="status status-active" style="color:#059669; background:#ECFDF5; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;">Active Yield</span></td>
             `;
             tbody.appendChild(tr);
         });
     }
 
-    function renderPayoutFeed() {
-        const txns = getTransactions().filter(t => 
-            t.direction === 'OUTFLOW' || 
-            (t.category && (t.category.includes('Yield') || t.category.includes('Payout') || t.category.includes('Disbursement')))
-        ).slice(0, 4);
-
+    async function renderPayoutFeed() {
+        const txns = await getTransactions();
         const container = document.getElementById('ownerPayoutFeed');
         if (!container) return;
         container.innerHTML = '';
 
-        if (!txns || txns.length === 0) {
+        const payouts = txns.filter(t => 
+            (t.direction || '').toUpperCase() === 'OUTFLOW' || 
+            (t.category && (t.category.includes('Yield') || t.category.includes('Payout') || t.category.includes('Disbursement')))
+        ).slice(0, 4);
+
+        if (payouts.length === 0) {
             container.innerHTML = `
                 <div class="activity-item">
                     <div class="activity-icon" style="background:#ECFDF5; color:#059669;"><i class="bi bi-cash-stack"></i></div>
                     <div class="activity-content">
                         <p><strong>₱112,500.00 Disbursed</strong></p>
-                        <span>Aug 01, 2026 • Bank Transfer (BDO)</span>
-                    </div>
-                </div>
-                <div class="activity-item">
-                    <div class="activity-icon" style="background:#ECFDF5; color:#059669;"><i class="bi bi-cash-stack"></i></div>
-                    <div class="activity-content">
-                        <p><strong>₱108,000.00 Disbursed</strong></p>
-                        <span>Jul 01, 2026 • Bank Transfer (BDO)</span>
+                        <span>Aug 01, 2026 • Bank Transfer (BDO Unibank)</span>
                     </div>
                 </div>
             `;
             return;
         }
 
-        txns.forEach(t => {
+        payouts.forEach(t => {
             const item = document.createElement('div');
             item.className = 'activity-item';
-            const grossText = t.grossAmount || formatPeso(t.amount || 0);
-            const channelText = t.channel || 'BDO Transfer';
-            const timeText = t.timestamp || t.date || 'Recent';
+            const grossText = t.grossAmount ? t.grossAmount.replace('-', '') : formatPeso(t.amount || 112500);
+            const channelText = t.channel || 'Bank Transfer (BDO)';
+            const timeText = t.timestamp || 'Aug 01, 2026';
 
             item.innerHTML = `
                 <div class="activity-icon" style="background:#ECFDF5; color:#059669;"><i class="bi bi-cash-stack"></i></div>
                 <div class="activity-content">
-                    <p><strong>${grossText.replace('-', '')} Disbursed</strong></p>
+                    <p><strong>${grossText} Disbursed</strong></p>
                     <span>${timeText} • ${channelText}</span>
                 </div>
             `;
@@ -1149,16 +1234,16 @@
         if (badge) badge.textContent = notifs.length;
     }
 
-    function renderCharts() {
-        const invoices = getInvoices();
-        let netPaid = 0;
+    async function renderCharts() {
+        const invoices = await getInvoices();
+        let currentMonthYield = 0;
+
         invoices.forEach(i => { 
-            if ((i.status || '').toLowerCase() === 'paid') {
-                netPaid += parseCurrency(i.amount) * 0.90; 
+            if ((i.status || '').toLowerCase() === 'paid' && (i.type || '').toLowerCase().includes('rent')) {
+                currentMonthYield += parseCurrency(i.amount) * 0.90; 
             }
         });
-
-        if (netPaid === 0) netPaid = 135000; // Baseline benchmark for initial chart view
+        if (currentMonthYield === 0) currentMonthYield = 13500.00; // ₱15,000 gross - 10% PM fee
 
         // 1. Yield vs Management Fees Bar Chart
         const canvas1 = document.getElementById('ownerYieldChart');
@@ -1172,14 +1257,14 @@
                     labels: ['March', 'April', 'May', 'June', 'July', 'August'],
                     datasets: [
                         {
-                            label: 'Net Yield Disbursed (₱)',
-                            data: [120000, 125000, 130000, 130000, 135000, netPaid],
+                            label: 'Net Operating Yield (₱)',
+                            data: [13500, 13500, 13500, 13500, 13500, currentMonthYield],
                             backgroundColor: '#059669',
                             borderRadius: 4
                         },
                         {
-                            label: 'Management Fees (₱)',
-                            data: [13333, 13888, 14444, 14444, 15000, netPaid * 0.11],
+                            label: 'PM Management Fee (₱)',
+                            data: [1500, 1500, 1500, 1500, 1500, currentMonthYield * 0.111],
                             backgroundColor: '#9CA3AF',
                             borderRadius: 4
                         }
@@ -1194,7 +1279,7 @@
             });
         }
 
-        // 2. Equity Distribution Doughnut Chart
+        // 2. Equity Distribution Doughnut Chart (Don Ramon Santos • 100%)
         const canvas2 = document.getElementById('ownerEquityChart');
         if (canvas2) {
             const ctx2 = canvas2.getContext('2d');
@@ -1203,7 +1288,7 @@
             equityChartInstance = new Chart(ctx2, {
                 type: 'doughnut',
                 data: {
-                    labels: ['Primary Equity Share (Don Ramon Santos)', 'Co-Owner Share', 'Unallocated'],
+                    labels: ['Primary Equity (Don Ramon Santos)', 'Co-Ownership Shares', 'Unallocated'],
                     datasets: [{
                         data: [100, 0, 0],
                         backgroundColor: ['#059669', '#2563EB', '#D97706'],

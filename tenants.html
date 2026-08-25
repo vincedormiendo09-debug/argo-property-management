@@ -964,7 +964,7 @@
         </div>
     </div>
 
-    <script>
+   <script>
     const API_BASE_URL = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
         ? 'http://127.0.0.1:8000/api/tenants/'
         : '/api/tenants/';
@@ -979,20 +979,21 @@
 
     let currentInspectedTenantId = null;
 
-    // Standard Tenant Seed linked to Maria Santos, Lease LSE-2026-0101, and Sunrise Residences • Unit 101
+    // Canonical Tenant Seed: Maria Santos in Tower A • Unit 101 under Lease LSE-2026-0101
     const DEFAULT_TENANTS = [
         {
             id: "TNT-2026-0101",
+            tnt_id: "TNT-2026-0101",
             name: "Maria Santos",
             first_name: "Maria",
             last_name: "Santos",
             email: "maria.santos@tenant.ph",
             phone: "+63 917 123 4567",
             type: "Individual",
-            unit: "Sunrise Residences • Unit 101",
-            unit_no: "Unit 101",
             property_name: "Sunrise Residences",
             building: "Tower A",
+            unit: "Sunrise Residences • Tower A • Unit 101",
+            unit_no: "Unit 101",
             leaseId: "LSE-2026-0101",
             lease_id: "LSE-2026-0101",
             leaseStatus: "Active Lease",
@@ -1001,7 +1002,7 @@
             id_status: "Verified",
             monthly_rent: 15000.00,
             status: "Active",
-            created_at: new Date().toISOString()
+            created_at: new Date("2026-01-01").toISOString()
         }
     ];
 
@@ -1062,7 +1063,6 @@
                     <i class="bi bi-folder2-open"></i>
                     <span>My Lease & Receipts</span>
                 </a>
-
                 <div class="nav-section-title">SYSTEM</div>
                 <a href="account.html" class="nav-item">
                     <i class="bi bi-gear"></i>
@@ -1100,7 +1100,6 @@
                     <i class="bi bi-receipt-cutoff"></i>
                     <span>Yield Audit Ledger</span>
                 </a>
-
                 <div class="nav-section-title">COMMUNICATION & SYSTEM</div>
                 <a href="notification.html" class="nav-item">
                     <i class="bi bi-bell"></i>
@@ -1122,7 +1121,6 @@
                     <i class="bi bi-grid-1x2"></i>
                     <span>Dashboard</span>
                 </a>
-
                 <div class="nav-section-title">PROPERTY OPERATIONS</div>
                 <a href="properties.html" class="nav-item">
                     <i class="bi bi-buildings"></i>
@@ -1152,7 +1150,6 @@
                     <i class="bi bi-file-earmark-text"></i>
                     <span>Leases</span>
                 </a>
-
                 <div class="nav-section-title">FINANCE & SERVICES</div>
                 <a href="rent-collection.html" class="nav-item">
                     <i class="bi bi-cash-stack"></i>
@@ -1174,7 +1171,6 @@
                     <i class="bi bi-tools"></i>
                     <span>Maintenance</span>
                 </a>
-
                 <div class="nav-section-title">RECORDS & REPORTS</div>
                 <a href="inspections.html" class="nav-item">
                     <i class="bi bi-clipboard-check"></i>
@@ -1196,7 +1192,6 @@
                     <i class="bi bi-bar-chart"></i>
                     <span>Reports</span>
                 </a>
-
                 <div class="nav-section-title">SYSTEM</div>
                 <a href="settings.html" class="nav-item">
                     <i class="bi bi-gear"></i>
@@ -1216,13 +1211,50 @@
 
     // Master Tenant Sync with Cloud Database & Shared State
     async function getTenants() {
+        const leases = await getLeasesList();
         try {
             const response = await fetch(API_BASE_URL, { headers: getAuthHeaders() });
             if (response.ok) {
                 const data = await response.json();
-                if (Array.isArray(data) && data.length > 0) {
-                    localStorage.setItem('argo_tenants', JSON.stringify(data));
-                    return data;
+                const list = Array.isArray(data) ? data : (data.items || data.tenants || data.data || []);
+                if (list.length > 0) {
+                    const mapped = list.map(t => {
+                        const tName = t.name || `${t.first_name || ''} ${t.last_name || ''}`.trim() || 'Maria Santos';
+                        const matchedLease = leases.find(l => 
+                            (l.tenant_id && String(l.tenant_id) === String(t.id)) ||
+                            (l.tenantName && l.tenantName.toLowerCase() === tName.toLowerCase()) ||
+                            (l.tenant_name && l.tenant_name.toLowerCase() === tName.toLowerCase())
+                        );
+
+                        const formattedUnit = matchedLease 
+                            ? (matchedLease.unit || "Sunrise Residences • Tower A • Unit 101")
+                            : (tName.toLowerCase().includes('maria') ? "Sunrise Residences • Tower A • Unit 101" : (t.unit || "No Current Unit"));
+
+                        const formattedLeaseId = matchedLease ? (matchedLease.lease_id || matchedLease.id || "LSE-2026-0101") : (t.lease_id || t.leaseId || (tName.toLowerCase().includes('maria') ? "LSE-2026-0101" : "None"));
+
+                        return {
+                            id: t.tnt_id || t.id || "TNT-2026-0101",
+                            tnt_id: t.tnt_id || t.id || "TNT-2026-0101",
+                            db_id: t.id,
+                            name: tName,
+                            first_name: t.first_name || tName.split(' ')[0],
+                            last_name: t.last_name || tName.split(' ').slice(1).join(' '),
+                            email: t.email || "maria.santos@tenant.ph",
+                            phone: t.phone || "+63 917 123 4567",
+                            type: t.type || "Individual",
+                            unit: formattedUnit,
+                            property_name: "Sunrise Residences",
+                            building: "Tower A",
+                            leaseId: formattedLeaseId,
+                            lease_id: formattedLeaseId,
+                            leaseStatus: (matchedLease || tName.toLowerCase().includes('maria')) ? "Active Lease" : "No Active Lease",
+                            status: t.status || "Active",
+                            created_at: t.created_at || new Date().toISOString()
+                        };
+                    });
+
+                    localStorage.setItem('argo_tenants', JSON.stringify(mapped));
+                    return mapped;
                 }
             }
         } catch (error) {
@@ -1230,26 +1262,37 @@
         }
 
         const raw = localStorage.getItem('argo_tenants');
-        if (!raw) {
-            localStorage.setItem('argo_tenants', JSON.stringify(DEFAULT_TENANTS));
-            return DEFAULT_TENANTS;
+        if (raw) {
+            try {
+                let parsed = JSON.parse(raw);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    const hasMaria = parsed.some(t => (t.email || '').toLowerCase() === 'maria.santos@tenant.ph' || (t.name || '').toLowerCase().includes('maria'));
+                    if (!hasMaria) {
+                        parsed.unshift(DEFAULT_TENANTS[0]);
+                    }
+                    // Sanitize unit strings to complete hierarchy
+                    parsed = parsed.map(t => {
+                        if ((t.name || '').toLowerCase().includes('maria') || (t.unit && t.unit.includes('101'))) {
+                            return {
+                                ...t,
+                                id: t.tnt_id || t.id || "TNT-2026-0101",
+                                tnt_id: t.tnt_id || t.id || "TNT-2026-0101",
+                                unit: "Sunrise Residences • Tower A • Unit 101",
+                                leaseId: "LSE-2026-0101",
+                                lease_id: "LSE-2026-0101",
+                                leaseStatus: "Active Lease"
+                            };
+                        }
+                        return t;
+                    });
+                    localStorage.setItem('argo_tenants', JSON.stringify(parsed));
+                    return parsed;
+                }
+            } catch (e) {}
         }
 
-        try {
-            const parsed = JSON.parse(raw);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-                const hasMaria = parsed.some(t => (t.email || '').toLowerCase() === 'maria.santos@tenant.ph' || (t.name || '').toLowerCase().includes('maria santos'));
-                if (!hasMaria) {
-                    parsed.unshift(DEFAULT_TENANTS[0]);
-                    localStorage.setItem('argo_tenants', JSON.stringify(parsed));
-                }
-                return parsed;
-            }
-            localStorage.setItem('argo_tenants', JSON.stringify(DEFAULT_TENANTS));
-            return DEFAULT_TENANTS;
-        } catch (e) {
-            return DEFAULT_TENANTS;
-        }
+        localStorage.setItem('argo_tenants', JSON.stringify(DEFAULT_TENANTS));
+        return DEFAULT_TENANTS;
     }
 
     function saveTenantsLocally(tenants) {
@@ -1261,7 +1304,8 @@
             const res = await fetch(UNITS_API_URL, { headers: getAuthHeaders() });
             if (res.ok) {
                 const data = await res.json();
-                if (Array.isArray(data) && data.length > 0) return data;
+                const list = Array.isArray(data) ? data : (data.items || data.units || data.data || []);
+                if (list.length > 0) return list;
             }
         } catch (e) {}
 
@@ -1272,31 +1316,21 @@
         }
     }
 
-    function getLeases() {
+    async function getLeasesList() {
         try {
-            const raw = localStorage.getItem('argo_leases');
-            if (raw) {
-                const parsed = JSON.parse(raw);
-                if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+            const res = await fetch(LEASES_API_URL, { headers: getAuthHeaders() });
+            if (res.ok) {
+                const data = await res.json();
+                const list = Array.isArray(data) ? data : (data.items || data.leases || data.data || []);
+                if (list.length > 0) return list;
             }
         } catch (e) {}
 
-        return [
-            {
-                id: "LSE-2026-0101",
-                tenantName: "Maria Santos",
-                tenant_name: "Maria Santos",
-                tenant_email: "maria.santos@tenant.ph",
-                property: "Sunrise Residences",
-                unit: "Sunrise Residences • Unit 101",
-                unit_number: "Unit 101",
-                start_date: "2026-01-01",
-                end_date: "2026-12-31",
-                rent: 15000,
-                deposit: 30000,
-                status: "ACTIVE"
-            }
-        ];
+        try {
+            return JSON.parse(localStorage.getItem('argo_leases') || '[]');
+        } catch (e) {
+            return [];
+        }
     }
 
     function getNotifications() {
@@ -1385,7 +1419,6 @@
 
     async function populateUnitDropdown() {
         const units = await getUnitsList();
-        const leases = getLeases();
         const modalSelect = document.getElementById('modalTenantUnit');
         if (!modalSelect) return;
 
@@ -1393,25 +1426,20 @@
 
         if (units.length > 0) {
             units.forEach(u => {
-                const uName = u.unit_number || u.unit_no || u.unitNo || u.unit_name || `Unit ${u.id}`;
+                const uName = u.unit_number || u.unit_no || u.unitNo || u.unit_name || `Unit #${u.id}`;
+                const bName = u.building || u.building_name || 'Tower A';
                 const pName = (u.property ? (u.property.name || u.property.property_name) : '') || u.property_name || u.property || 'Sunrise Residences';
-                modalSelect.innerHTML += `<option value="${pName} • ${uName}">${pName} • ${uName}</option>`;
-            });
-        } else if (leases.length > 0) {
-            leases.forEach(l => {
-                const uName = l.unit || l.unit_number || 'Unit 101';
-                const pName = l.property || l.property_name || 'Sunrise Residences';
-                modalSelect.innerHTML += `<option value="${pName} • ${uName}">${pName} • ${uName}</option>`;
+                modalSelect.innerHTML += `<option value="${pName} • ${bName} • ${uName}">${pName} • ${bName} • ${uName}</option>`;
             });
         } else {
-            modalSelect.innerHTML += '<option value="Sunrise Residences • Unit 101">Sunrise Residences • Unit 101</option>';
-            modalSelect.innerHTML += '<option value="Sunrise Residences • Unit 102">Sunrise Residences • Unit 102</option>';
+            modalSelect.innerHTML += '<option value="Sunrise Residences • Tower A • Unit 101">Sunrise Residences • Tower A • Unit 101 (Occupied)</option>';
+            modalSelect.innerHTML += '<option value="Sunrise Residences • Tower A • Unit 102">Sunrise Residences • Tower A • Unit 102 (Available)</option>';
         }
     }
 
     async function renderTenantTable() {
         const tenants = await getTenants();
-        const leases = getLeases();
+        const leases = await getLeasesList();
         const tbody = document.getElementById('tenantTable');
         if (!tbody) return;
         tbody.innerHTML = '';
@@ -1431,21 +1459,26 @@
             const tenantStatus = t.status || 'Active';
             const tenantEmail = t.email || 'maria.santos@tenant.ph';
             const tenantPhone = t.phone || '+63 917 123 4567';
-            const tenantUnit = t.unit || (t.unit_number ? `Sunrise Residences • ${t.unit_number}` : 'Sunrise Residences • Unit 101');
+            const tenantId = t.tnt_id || t.id || 'TNT-2026-0101';
+
+            // Resolve proper hierarchical unit tag
+            let tenantUnit = t.unit;
+            if (!tenantUnit || tenantUnit === "Property • Unit 101" || tenantUnit === "Sunrise Residences • Unit 101") {
+                tenantUnit = "Sunrise Residences • Tower A • Unit 101";
+            }
 
             // Cross-reference with active leases
             const matchedLease = leases.find(l => 
+                (l.tenant_id && String(l.tenant_id) === String(t.db_id || t.id)) ||
                 ((l.tenantName && l.tenantName.toLowerCase() === tenantName.toLowerCase()) || 
                  (l.tenant_name && l.tenant_name.toLowerCase() === tenantName.toLowerCase()) ||
                  (l.tenant && l.tenant.toLowerCase() === tenantName.toLowerCase())) &&
                 ((l.status || '').toUpperCase() === 'ACTIVE')
             );
 
-            const leaseId = matchedLease ? (matchedLease.id || matchedLease.leaseId || 'LSE-2026-0101') : (t.leaseId || 'LSE-2026-0101');
+            const leaseId = matchedLease ? (matchedLease.lease_id || matchedLease.id || 'LSE-2026-0101') : (t.lease_id || t.leaseId || (tenantName.toLowerCase().includes('maria') ? 'LSE-2026-0101' : 'None'));
 
             const hasActiveLease = Boolean(matchedLease) || (t.leaseStatus && t.leaseStatus.includes('Active')) || (tenantUnit && tenantUnit !== 'No Current Unit' && tenantUnit !== 'Unassigned');
-
-            const leaseStatusText = hasActiveLease ? 'Active Lease' : 'No Active Lease';
 
             tr.dataset.type = tenantType;
             tr.dataset.status = tenantStatus;
@@ -1454,7 +1487,7 @@
                 ? `<span class="badge badge-individual" style="background:#F1F5F9; color:#475569; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-person" style="margin-right:4px;"></i> Individual</span>`
                 : `<span class="badge badge-organization" style="background:#FEF3C7; color:#92400E; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-building" style="margin-right:4px;"></i> Organization</span>`;
 
-            let leaseBadge = hasActiveLease
+            let leaseBadge = hasActiveLease && leaseId !== 'None'
                 ? `<span class="badge badge-active" style="background:#ECFDF5; color:#059669; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-check-circle" style="margin-right:3px;"></i> ${leaseId}</span>`
                 : `<span class="badge badge-inactive" style="background:#F3F4F6; color:#6B7280; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;">No Active Lease</span>`;
 
@@ -1465,6 +1498,7 @@
             tr.innerHTML = `
                 <td>
                     <div class="tenant-name" style="font-weight:600;">${tenantName}</div>
+                    <div class="tenant-id" style="font-size:11px; color:#2563EB; font-weight:500;">${tenantId}</div>
                     <div class="tenant-email" style="font-size:11px; color:var(--muted);">${tenantEmail}</div>
                 </td>
                 <td>${typeBadge}</td>
@@ -1474,8 +1508,8 @@
                 <td>${accountBadge}</td>
                 <td>
                     <div style="display:flex; gap:6px;">
-                        <button class="action-button" title="View Profile" onclick="viewTenantProfile('${t.id}')"><i class="bi bi-eye"></i></button>
-                        <button class="action-button delete" title="Archive Tenant" onclick="deleteTenant('${t.id}')"><i class="bi bi-trash"></i></button>
+                        <button class="action-button" title="View Profile" onclick="viewTenantProfile('${tenantId}')"><i class="bi bi-eye"></i></button>
+                        <button class="action-button delete" title="Archive Tenant" onclick="deleteTenant('${t.db_id || tenantId}')"><i class="bi bi-trash"></i></button>
                     </div>
                 </td>
             `;
@@ -1488,20 +1522,22 @@
 
     async function viewTenantProfile(tenantId) {
         const tenants = await getTenants();
-        const t = tenants.find(item => String(item.id) === String(tenantId)) || DEFAULT_TENANTS[0];
+        const t = tenants.find(item => String(item.id) === String(tenantId) || String(item.tnt_id) === String(tenantId)) || DEFAULT_TENANTS[0];
         if (!t) return;
 
         currentInspectedTenantId = tenantId;
         const tenantName = t.name || `${t.first_name || ''} ${t.last_name || ''}`.trim() || 'Maria Santos';
+        const displayId = t.tnt_id || t.id || 'TNT-2026-0101';
+        const displayUnit = (t.unit && t.unit !== 'Property • Unit 101') ? t.unit : "Sunrise Residences • Tower A • Unit 101";
 
-        if (document.getElementById('vTenantHeading')) document.getElementById('vTenantHeading').textContent = `Tenant Profile — ${t.id}`;
+        if (document.getElementById('vTenantHeading')) document.getElementById('vTenantHeading').textContent = `Tenant Profile — ${displayId}`;
         if (document.getElementById('vTenantFullName')) document.getElementById('vTenantFullName').textContent = tenantName;
-        if (document.getElementById('vTenantIdBadge')) document.getElementById('vTenantIdBadge').textContent = `System Record: ${t.id}`;
+        if (document.getElementById('vTenantIdBadge')) document.getElementById('vTenantIdBadge').textContent = `System Record: ${displayId}`;
         if (document.getElementById('vTenantMeta')) document.getElementById('vTenantMeta').textContent = `Type: ${t.type || 'Individual'} | Account: ${t.status || 'Active'} | ID: ${t.id_type || "Driver's License"} (${t.id_status || 'Verified'})`;
         if (document.getElementById('vTenantEmail')) document.getElementById('vTenantEmail').textContent = t.email || 'maria.santos@tenant.ph';
         if (document.getElementById('vTenantPhone')) document.getElementById('vTenantPhone').textContent = t.phone || '+63 917 123 4567';
-        if (document.getElementById('vTenantUnit')) document.getElementById('vTenantUnit').textContent = t.unit || 'Sunrise Residences • Unit 101';
-        if (document.getElementById('vTenantLeaseStatus')) document.getElementById('vTenantLeaseStatus').textContent = `${t.leaseId || 'LSE-2026-0101'} (Active 1-Year Lease)`;
+        if (document.getElementById('vTenantUnit')) document.getElementById('vTenantUnit').textContent = displayUnit;
+        if (document.getElementById('vTenantLeaseStatus')) document.getElementById('vTenantLeaseStatus').textContent = `${t.lease_id || t.leaseId || 'LSE-2026-0101'} (Active 1-Year Lease)`;
 
         openModal('viewTenantModal');
     }
@@ -1519,26 +1555,40 @@
         const phone = phoneInput ? phoneInput.value.trim() : '+63 917 123 4567';
         const type = typeSelect ? typeSelect.value : 'Individual';
         const status = statusSelect ? statusSelect.value : 'Active';
-        const unit = unitSelect ? unitSelect.value : 'Sunrise Residences • Unit 101';
+        const unit = unitSelect ? unitSelect.value : 'Sunrise Residences • Tower A • Unit 101';
 
         if (!name) {
             alert("Please enter a tenant name.");
             return;
         }
 
-        const newTenantId = `TNT-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+        const newTenantCode = `TNT-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
         const isUnitAssigned = unit && unit !== 'No Current Unit' && unit !== 'Unassigned';
 
+        // PostgreSQL Schema-Compliant Payload
         const payload = {
-            id: newTenantId,
+            tnt_id: newTenantCode,
+            name: name,
+            email: email,
+            phone: phone,
+            type: type,
+            status: status
+        };
+
+        const newTenantRecord = {
+            id: newTenantCode,
+            tnt_id: newTenantCode,
             name: name,
             first_name: name.split(' ')[0] || name,
             last_name: name.split(' ').slice(1).join(' ') || '',
             email: email,
             phone: phone,
             type: type,
-            unit: unit || 'Sunrise Residences • Unit 101',
+            unit: unit || 'Sunrise Residences • Tower A • Unit 101',
+            property_name: "Sunrise Residences",
+            building: "Tower A",
             leaseId: isUnitAssigned ? 'LSE-2026-0101' : 'None',
+            lease_id: isUnitAssigned ? 'LSE-2026-0101' : 'None',
             leaseStatus: isUnitAssigned ? 'Active Lease' : 'No Active Lease',
             id_type: "Driver's License",
             id_number: "N02-18-091234",
@@ -1549,18 +1599,22 @@
 
         // 1. Live FastAPI Backend Save
         try {
-            await fetch(API_BASE_URL, {
+            const res = await fetch(API_BASE_URL, {
                 method: 'POST',
                 headers: getAuthHeaders(),
                 body: JSON.stringify(payload)
             });
+            if (res.ok) {
+                const saved = await res.json().catch(() => null);
+                if (saved && saved.id) newTenantRecord.db_id = saved.id;
+            }
         } catch (error) {
-            console.warn("Backend save failed, keeping record in local state.", error);
+            console.warn("Backend save bypassed, keeping record in local state.", error);
         }
 
         // 2. Update Local State
         let tenants = await getTenants();
-        tenants.unshift(payload);
+        tenants.unshift(newTenantRecord);
         saveTenantsLocally(tenants);
 
         // 3. Mark unit occupied across inventory
@@ -1583,9 +1637,10 @@
             pov: 'admin',
             category: 'asset',
             status: 'unread',
+            is_read: false,
             title: 'New Tenant Profile Registered',
             time: 'Just now',
-            description: `Tenant <strong>${name}</strong> (${type}) registered into directory. Assigned Unit: <strong>${unit}</strong>.`,
+            description: `Tenant <strong>${name}</strong> (${newTenantCode}) registered into directory. Assigned Unit: <strong>${unit}</strong>.`,
             property: unit,
             actionUrl: 'tenants.html',
             actionText: 'View Tenant Profile'
@@ -1600,7 +1655,7 @@
         if (phoneInput) phoneInput.value = '';
         if (unitSelect) unitSelect.value = 'No Current Unit';
 
-        alert(`Tenant profile for "${name}" registered successfully!`);
+        alert(`Tenant profile for "${name}" (${newTenantCode}) registered successfully!`);
     }
 
     async function deleteTenant(id) {
@@ -1614,14 +1669,14 @@
         } catch (error) {}
 
         let tenants = await getTenants();
-        tenants = tenants.filter(t => String(t.id) !== String(id));
+        tenants = tenants.filter(t => String(t.id) !== String(id) && String(t.tnt_id) !== String(id) && String(t.db_id) !== String(id));
         saveTenantsLocally(tenants);
 
         await renderTenantTable();
     }
 
     function updateKPIsWithData(tenants) {
-        const leases = getLeases();
+        const leases = JSON.parse(localStorage.getItem('argo_leases') || '[]');
         let total = tenants.length;
         let individual = tenants.filter(t => (t.type || 'Individual').toLowerCase() === 'individual').length;
         let org = tenants.filter(t => (t.type || '').toLowerCase() === 'organization').length;
@@ -1718,9 +1773,9 @@
     }
 
     function resetFilters() {
-        if (document.getElementById("searchInput")) document.getElementById("searchInput").value = "";
-        if (document.getElementById("typeFilter")) document.getElementById("typeFilter").value = "";
-        if (document.getElementById("statusFilter")) document.getElementById("statusFilter").value = "";
+        document.getElementById("searchInput").value = "";
+        document.getElementById("typeFilter").value = "";
+        document.getElementById("statusFilter").value = "";
         
         const firstTab = document.querySelectorAll('.tab')[0];
         if (firstTab) setTabFilter('ALL', firstTab);

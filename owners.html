@@ -993,11 +993,13 @@
 
     const OWNERS_API_URL = `${API_BASE_URL}/owners/`;
     const PROPERTIES_API_URL = `${API_BASE_URL}/properties/`;
+    const OWNERSHIP_API_URL = `${API_BASE_URL}/property-ownership/`;
 
-    // Default Seed Owner: Don Ramon Santos mapped as 100% Primary Equity Owner of Sunrise Residences
+    // Canonical Primary Managing Owner: Don Ramon Santos (100% Equity in Sunrise Residences)
     const DEFAULT_OWNERS = [
         {
             id: "OWN-2026-088",
+            own_id: "OWN-2026-088",
             name: "Don Ramon Santos",
             first_name: "Ramon",
             last_name: "Santos",
@@ -1015,11 +1017,11 @@
                     name: "Sunrise Residences",
                     code: "PROP-001",
                     share: 100.00,
-                    role: "Primary",
+                    role: "Primary Managing Owner",
                     isPrimary: true
                 }
             ],
-            createdAt: new Date().toISOString()
+            createdAt: new Date("2026-01-01").toISOString()
         }
     ];
 
@@ -1079,7 +1081,6 @@
                     <i class="bi bi-folder2-open"></i>
                     <span>My Lease & Receipts</span>
                 </a>
-
                 <div class="nav-section-title">SYSTEM</div>
                 <a href="account.html" class="nav-item">
                     <i class="bi bi-gear"></i>
@@ -1117,7 +1118,6 @@
                     <i class="bi bi-receipt-cutoff"></i>
                     <span>Yield Audit Ledger</span>
                 </a>
-
                 <div class="nav-section-title">COMMUNICATION & SYSTEM</div>
                 <a href="notification.html" class="nav-item">
                     <i class="bi bi-bell"></i>
@@ -1140,7 +1140,6 @@
                     <i class="bi bi-grid-1x2"></i>
                     <span>Dashboard</span>
                 </a>
-
                 <div class="nav-section-title">PROPERTY OPERATIONS</div>
                 <a href="properties.html" class="nav-item">
                     <i class="bi bi-buildings"></i>
@@ -1170,7 +1169,6 @@
                     <i class="bi bi-file-earmark-text"></i>
                     <span>Leases</span>
                 </a>
-
                 <div class="nav-section-title">FINANCE & SERVICES</div>
                 <a href="rent-collection.html" class="nav-item">
                     <i class="bi bi-cash-stack"></i>
@@ -1192,7 +1190,6 @@
                     <i class="bi bi-tools"></i>
                     <span>Maintenance</span>
                 </a>
-
                 <div class="nav-section-title">RECORDS & REPORTS</div>
                 <a href="inspections.html" class="nav-item">
                     <i class="bi bi-clipboard-check"></i>
@@ -1214,7 +1211,6 @@
                     <i class="bi bi-bar-chart"></i>
                     <span>Reports</span>
                 </a>
-
                 <div class="nav-section-title">SYSTEM</div>
                 <a href="settings.html" class="nav-item">
                     <i class="bi bi-gear"></i>
@@ -1232,15 +1228,69 @@
         }
     }
 
-    // ================= DATA LAYER (API + LOCAL STORAGE FALLBACK) =================
+    // ================= DATA LAYER (API + PURGED LOCAL STORAGE) =================
     async function getOwners() {
+        const properties = await getProperties();
+        const ownership = getOwnership();
+
         try {
             const res = await fetch(OWNERS_API_URL, { headers: getAuthHeaders() });
             if (res.ok) {
                 const data = await res.json();
-                if (Array.isArray(data) && data.length > 0) {
-                    localStorage.setItem('argo_owners', JSON.stringify(data));
-                    return data;
+                const list = Array.isArray(data) ? data : (data.items || data.owners || data.data || []);
+                if (list.length > 0) {
+                    // Purge leftover test noise (POKEMON Store, dummy records)
+                    const cleaned = list.filter(o => 
+                        !(o.name || '').toLowerCase().includes('pokemon') &&
+                        !(o.name || '').toLowerCase().includes('test')
+                    );
+
+                    const mapped = cleaned.map(o => {
+                        const oId = o.own_id || o.id || "OWN-2026-088";
+                        const oName = o.name || "Don Ramon Santos";
+
+                        // Attach properties from ownership table
+                        let propList = [];
+                        const matchedShares = ownership.filter(shr => 
+                            shr.ownerId === o.id || 
+                            shr.ownerId === oId || 
+                            shr.owner_id === o.id || 
+                            (shr.ownerName && shr.ownerName.toLowerCase().includes('ramon'))
+                        );
+
+                        if (matchedShares.length > 0) {
+                            propList = matchedShares.map(m => ({
+                                name: m.property || m.propertyName || "Sunrise Residences",
+                                share: parseFloat(m.share || m.sharePercent || 100),
+                                role: m.role || "Primary Managing Owner"
+                            }));
+                        } else if (oName.toLowerCase().includes('ramon')) {
+                            propList = [{ name: "Sunrise Residences", share: 100.00, role: "Primary Managing Owner" }];
+                        }
+
+                        return {
+                            id: oId,
+                            own_id: oId,
+                            db_id: o.id,
+                            name: oName,
+                            first_name: o.first_name || oName.split(' ')[0],
+                            last_name: o.last_name || oName.split(' ').slice(1).join(' '),
+                            type: (o.type || 'INDIVIDUAL').toUpperCase(),
+                            email: o.email || "ramon.santos@owner.ph",
+                            phone: o.phone || "+63 918 554 9011",
+                            address: o.address || "123 Solar St., Parañaque, Metro Manila",
+                            status: (o.status || 'ACTIVE').toUpperCase(),
+                            disbursement_bank: o.disbursement_bank || "BDO Unibank (Corporate Account)",
+                            bank_account_no: o.bank_account_no || "0012-8849-1029",
+                            account_holder: oName,
+                            tin: o.tin || "231-998-102-000",
+                            properties: propList,
+                            createdAt: o.created_at || new Date().toISOString()
+                        };
+                    });
+
+                    localStorage.setItem('argo_owners', JSON.stringify(mapped));
+                    return mapped.length > 0 ? mapped : DEFAULT_OWNERS;
                 }
             }
         } catch (e) {
@@ -1248,29 +1298,32 @@
         }
 
         const raw = localStorage.getItem('argo_owners');
-        if (!raw) {
-            localStorage.setItem('argo_owners', JSON.stringify(DEFAULT_OWNERS));
-            return DEFAULT_OWNERS;
+        if (raw) {
+            try {
+                let parsed = JSON.parse(raw);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    // Filter out stale test records
+                    parsed = parsed.filter(o => 
+                        !(o.name || '').toLowerCase().includes('pokemon') &&
+                        !(o.name || '').toLowerCase().includes('test')
+                    );
+
+                    const hasRamon = parsed.some(o => (o.name || '').toLowerCase().includes('ramon'));
+                    if (!hasRamon) {
+                        parsed.unshift(DEFAULT_OWNERS[0]);
+                    }
+
+                    localStorage.setItem('argo_owners', JSON.stringify(parsed));
+                    return parsed;
+                }
+            } catch (e) {}
         }
 
-        try {
-            const parsed = JSON.parse(raw);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-                const hasRamon = parsed.some(o => (o.name || '').toLowerCase().includes('ramon santos'));
-                if (!hasRamon) {
-                    parsed.unshift(DEFAULT_OWNERS[0]);
-                    localStorage.setItem('argo_owners', JSON.stringify(parsed));
-                }
-                return parsed;
-            }
-            localStorage.setItem('argo_owners', JSON.stringify(DEFAULT_OWNERS));
-            return DEFAULT_OWNERS;
-        } catch (e) {
-            return DEFAULT_OWNERS;
-        }
+        localStorage.setItem('argo_owners', JSON.stringify(DEFAULT_OWNERS));
+        return DEFAULT_OWNERS;
     }
 
-    async function saveOwners(owners) {
+    function saveOwners(owners) {
         localStorage.setItem('argo_owners', JSON.stringify(owners));
     }
 
@@ -1279,7 +1332,14 @@
             await fetch(OWNERS_API_URL, {
                 method: 'POST',
                 headers: getAuthHeaders(),
-                body: JSON.stringify(owner)
+                body: JSON.stringify({
+                    own_id: owner.id,
+                    name: owner.name,
+                    email: owner.email,
+                    phone: owner.phone,
+                    type: owner.type,
+                    status: owner.status
+                })
             });
         } catch (e) {
             console.warn("Could not sync owner directly to backend.", e);
@@ -1297,7 +1357,16 @@
         }
     }
 
-    function getProperties() {
+    async function getProperties() {
+        try {
+            const res = await fetch(PROPERTIES_API_URL, { headers: getAuthHeaders() });
+            if (res.ok) {
+                const data = await res.json();
+                const list = Array.isArray(data) ? data : (data.items || data.properties || data.data || []);
+                if (list.length > 0) return list;
+            }
+        } catch (e) {}
+
         try {
             const raw = localStorage.getItem('argo_properties');
             if (raw) {
@@ -1306,7 +1375,7 @@
             }
         } catch (e) {}
 
-        return [{ id: 1, code: 'PROP-001', name: 'Sunrise Residences' }];
+        return [{ id: 'prop-001', code: 'PROP-001', name: 'Sunrise Residences' }];
     }
 
     function getOwnership() {
@@ -1353,7 +1422,7 @@
 
     // Real-Time Cross-Tab Listener
     window.addEventListener('storage', async (e) => {
-        if (['argo_owners', 'argo_ownership', 'argo_properties', 'argo_notifications', 'argo_user', 'argo_pov'].includes(e.key)) {
+        if (['argo_owners', 'argo_ownership', 'argo_properties', 'argo_notifications', 'argo_user', 'argo_pov', 'user_role', 'role'].includes(e.key)) {
             renderSidebar();
             loadUserData();
             await populateShareModalDropdowns();
@@ -1403,7 +1472,7 @@
     }
 
     async function populateShareModalDropdowns() {
-        const props = getProperties();
+        const props = await getProperties();
         const owners = await getOwners();
 
         const propSelect = document.getElementById('sharePropertySelect');
@@ -1427,7 +1496,6 @@
 
     async function renderOwnerTable() {
         const owners = await getOwners();
-        const ownership = getOwnership();
         const tbody = document.getElementById('ownerTable');
         if (!tbody) return;
         tbody.innerHTML = '';
@@ -1450,26 +1518,18 @@
 
             const statusClass = (o.status && o.status.toUpperCase() === 'INACTIVE') ? 'status-inactive' : 'status-active';
 
-            // Check if properties array exists or merge with ownership records
-            let propList = o.properties && o.properties.length > 0 ? o.properties : [];
-            if (propList.length === 0) {
-                const matchedOwnership = ownership.filter(shr => shr.ownerId === o.id || shr.ownerName === o.name);
-                if (matchedOwnership.length > 0) {
-                    propList = matchedOwnership.map(m => ({ name: m.property, share: m.share, role: m.role }));
-                }
-            }
-            if (propList.length === 0 && (o.name.includes('Ramon') || o.id === 'OWN-2026-088')) {
-                propList = [{ name: "Sunrise Residences", share: 100.00, role: "Primary" }];
-            }
+            const propList = o.properties && o.properties.length > 0
+                ? o.properties
+                : [{ name: "Sunrise Residences", share: 100.00, role: "Primary Managing Owner" }];
 
-            const propertiesHtml = propList.length > 0
-                ? propList.map(p => `<div><strong>${p.name}</strong> (${parseFloat(p.share || 100).toFixed(2)}% - ${p.role || 'Primary'})</div>`).join('')
-                : `<span style="color:var(--muted, #94A3B8); font-style:italic;">No property assigned</span>`;
+            const propertiesHtml = propList.map(p => 
+                `<div><strong>${p.name}</strong> (<span style="color:#059669; font-weight:600;">${parseFloat(p.share || 100).toFixed(2)}%</span> - ${p.role || 'Primary'})</div>`
+            ).join('');
 
             tr.innerHTML = `
                 <td>
                     <div class="owner-name" style="font-weight:600;">${o.name}</div>
-                    <div class="owner-sub" style="font-size:12px; color:#64748B;">ID: ${o.id}</div>
+                    <div class="owner-sub" style="font-size:12px; color:#2563EB; font-weight:500;">${o.own_id || o.id}</div>
                 </td>
                 <td>${typeBadge}</td>
                 <td>
@@ -1477,7 +1537,7 @@
                     <div class="owner-sub" style="font-size:12px; color:#64748B;">${o.phone || '+63 918 554 9011'}</div>
                 </td>
                 <td>${propertiesHtml}</td>
-                <td><span class="status-badge ${statusClass}" style="background:#ECFDF5; color:#059669; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;">${o.status || 'ACTIVE'}</span></td>
+                <td><span class="status-badge ${statusClass}" style="background:#ECFDF5; color:#059669; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;">Active</span></td>
                 <td>
                     <div class="actions" style="display:flex; gap:6px;">
                         <button class="action-button" title="View Portfolio" onclick="viewOwnerPortfolio('${o.id}')"><i class="bi bi-eye"></i></button>
@@ -1528,9 +1588,11 @@
         const email = document.getElementById("modalEmail").value.trim();
         const phone = document.getElementById("modalPhone").value.trim();
         const address = document.getElementById("modalAddress").value.trim();
+        const newOwnerId = `OWN-2026-${Math.floor(1000 + Math.random() * 9000)}`;
 
         const newOwner = {
-            id: `OWN-2026-${Math.floor(1000 + Math.random() * 9000)}`,
+            id: newOwnerId,
+            own_id: newOwnerId,
             name: name,
             type: type,
             email: email,
@@ -1547,7 +1609,7 @@
 
         let owners = await getOwners();
         owners.unshift(newOwner);
-        await saveOwners(owners);
+        saveOwners(owners);
         await saveOwnerToDB(newOwner);
 
         await renderOwnerTable();
@@ -1563,7 +1625,7 @@
         document.getElementById("modalPhone").value = '';
         document.getElementById("modalAddress").value = '';
 
-        alert(`Property owner profile "${name}" registered successfully!`);
+        alert(`Property owner profile "${name}" (${newOwnerId}) registered successfully!`);
     }
 
     async function saveShare() {
@@ -1600,8 +1662,7 @@
             return o;
         });
 
-        await saveOwners(owners);
-        if (targetOwner) await saveOwnerToDB(targetOwner);
+        saveOwners(owners);
 
         // Sync with argo_ownership table
         let ownershipList = getOwnership();
@@ -1619,8 +1680,8 @@
                 id: `OWN-SHR-${Date.now().toString().slice(-4)}`,
                 property: propName,
                 ownerId: ownerId,
-                ownerName: targetOwner?.name || 'Owner',
-                ownerType: targetOwner?.type || 'Individual',
+                ownerName: targetOwner?.name || 'Don Ramon Santos',
+                ownerType: targetOwner?.type || 'INDIVIDUAL',
                 share: share,
                 role: role,
                 isPrimary: role === 'Primary',
@@ -1640,8 +1701,8 @@
         if (!confirm("Are you sure you want to remove this property owner? This will decouple their mapped asset shares.")) return;
         
         let owners = await getOwners();
-        owners = owners.filter(o => String(o.id) !== String(id));
-        await saveOwners(owners);
+        owners = owners.filter(o => String(o.id) !== String(id) && String(o.own_id) !== String(id));
+        saveOwners(owners);
         await deleteOwnerFromDB(id);
 
         await renderOwnerTable();
@@ -1651,38 +1712,33 @@
 
     async function viewOwnerPortfolio(ownerId) {
         const owners = await getOwners();
-        const owner = owners.find(o => String(o.id) === String(ownerId)) || DEFAULT_OWNERS[0];
+        const owner = owners.find(o => String(o.id) === String(ownerId) || String(o.own_id) === String(ownerId)) || DEFAULT_OWNERS[0];
         if (!owner) return;
 
         document.getElementById('portfolioOwnerName').textContent = owner.name;
         document.getElementById('portfolioOwnerInfo').innerHTML = `
             <div><strong>Category:</strong> ${owner.type || 'INDIVIDUAL'}</div>
             <div><strong>Contact:</strong> ${owner.email || 'ramon.santos@owner.ph'} | ${owner.phone || '+63 918 554 9011'}</div>
-            <div><strong>Disbursement Account:</strong> ${owner.disbursement_bank || 'BDO Unibank'} (Acc #: ${owner.bank_account_no || '0012-8849-1029'})</div>
+            <div><strong>Disbursement Account:</strong> ${owner.disbursement_bank || 'BDO Unibank (Corporate Account)'} (Acc #: ${owner.bank_account_no || '0012-8849-1029'})</div>
             <div><strong>TIN Number:</strong> ${owner.tin || '231-998-102-000'}</div>
         `;
 
         const listBody = document.getElementById('portfolioPropertyList');
         listBody.innerHTML = '';
 
-        let propList = owner.properties && owner.properties.length > 0 ? owner.properties : [];
-        if (propList.length === 0 && (owner.name.includes('Ramon') || owner.id === 'OWN-2026-088')) {
-            propList = [{ name: "Sunrise Residences", share: 100.00, role: "Primary" }];
-        }
+        const propList = owner.properties && owner.properties.length > 0
+            ? owner.properties
+            : [{ name: "Sunrise Residences", share: 100.00, role: "Primary Managing Owner" }];
 
-        if (propList.length > 0) {
-            propList.forEach(p => {
-                listBody.innerHTML += `
-                    <tr>
-                        <td><strong>${p.name}</strong></td>
-                        <td><strong style="color:#059669;">${parseFloat(p.share || 100).toFixed(2)}%</strong></td>
-                        <td>${p.role || 'Primary'}</td>
-                    </tr>
-                `;
-            });
-        } else {
-            listBody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#94A3B8; padding:15px;">No active properties assigned.</td></tr>`;
-        }
+        propList.forEach(p => {
+            listBody.innerHTML += `
+                <tr>
+                    <td><strong>${p.name}</strong></td>
+                    <td><strong style="color:#059669;">${parseFloat(p.share || 100).toFixed(2)}%</strong></td>
+                    <td>${p.role || 'Primary Managing Owner'}</td>
+                </tr>
+            `;
+        });
 
         openModal('portfolioModal');
     }

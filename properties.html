@@ -964,6 +964,8 @@
         : '/api';
 
     const PROPERTIES_API_URL = `${API_BASE_URL}/properties/`;
+    const BUILDINGS_API_URL = `${API_BASE_URL}/buildings/`;
+    const UNITS_API_URL = `${API_BASE_URL}/units/`;
 
     function getAuthHeaders() {
         const token = localStorage.getItem('token') || localStorage.getItem('argo_token');
@@ -1021,7 +1023,6 @@
                     <i class="bi bi-folder2-open"></i>
                     <span>My Lease & Receipts</span>
                 </a>
-
                 <div class="nav-section-title">SYSTEM</div>
                 <a href="account.html" class="nav-item">
                     <i class="bi bi-gear"></i>
@@ -1059,7 +1060,6 @@
                     <i class="bi bi-receipt-cutoff"></i>
                     <span>Yield Audit Ledger</span>
                 </a>
-
                 <div class="nav-section-title">SYSTEM</div>
                 <a href="account.html" class="nav-item">
                     <i class="bi bi-gear"></i>
@@ -1077,7 +1077,6 @@
                     <i class="bi bi-grid-1x2"></i>
                     <span>Dashboard</span>
                 </a>
-
                 <div class="nav-section-title">PROPERTY OPERATIONS</div>
                 <a href="properties.html" class="nav-item active">
                     <i class="bi bi-buildings"></i>
@@ -1107,7 +1106,6 @@
                     <i class="bi bi-file-earmark-text"></i>
                     <span>Leases</span>
                 </a>
-
                 <div class="nav-section-title">FINANCE & SERVICES</div>
                 <a href="rent-collection.html" class="nav-item">
                     <i class="bi bi-cash-stack"></i>
@@ -1129,7 +1127,6 @@
                     <i class="bi bi-tools"></i>
                     <span>Maintenance</span>
                 </a>
-
                 <div class="nav-section-title">RECORDS & REPORTS</div>
                 <a href="inspections.html" class="nav-item">
                     <i class="bi bi-clipboard-check"></i>
@@ -1151,7 +1148,6 @@
                     <i class="bi bi-bar-chart"></i>
                     <span>Reports</span>
                 </a>
-
                 <div class="nav-section-title">SYSTEM</div>
                 <a href="settings.html" class="nav-item">
                     <i class="bi bi-gear"></i>
@@ -1169,33 +1165,29 @@
         }
     }
 
-    // Default Baseline Property synchronized with 20 Total Units in Tower A
+    // Default Baseline Data
     const DEFAULT_PROPERTIES = [
         {
-            id: 1,
+            id: "prop-001",
             code: "PROP-001",
             name: "Sunrise Residences",
             type: "Residential Multi-Family",
-            location: "123 Solar St., Metro Manila",
-            units: 20,
+            location: "123 Solar St., Parañaque, Metro Manila",
             units_count: 20,
-            occupancy: "5.0%",
-            status: "Active",
-            created_at: new Date().toISOString()
+            status: "Active"
         }
     ];
 
     const DEFAULT_BUILDINGS = [
         {
-            id: "BLDG-001",
+            id: "bldg-001",
             code: "BLDG-001",
             name: "Tower A",
             property: "Sunrise Residences",
             floors: 5,
             totalUnits: 20,
             occupiedUnits: 1,
-            status: "ACTIVE",
-            created_at: new Date().toISOString()
+            status: "ACTIVE"
         }
     ];
 
@@ -1207,115 +1199,119 @@
             ownerName: "Don Ramon Santos",
             ownerType: "Individual",
             share: 100.00,
-            role: "Primary",
-            isPrimary: true,
-            created_at: new Date().toISOString()
+            role: "Primary Managing Owner",
+            isPrimary: true
         }
     ];
 
-    // ================= STORAGE ACCESSORS =================
+    // ================= DATA FETCHERS WITH LIVE API INTEGRATION =================
     async function getProperties() {
         try {
             const response = await fetch(PROPERTIES_API_URL, { headers: getAuthHeaders() });
             if (response.ok) {
                 const data = await response.json();
-                if (Array.isArray(data) && data.length > 0) {
-                    localStorage.setItem('argo_properties', JSON.stringify(data));
-                    return data;
+                const list = Array.isArray(data) ? data : (data.items || data.properties || data.data || []);
+                if (list.length > 0) {
+                    localStorage.setItem('argo_properties', JSON.stringify(list));
+                    return list;
                 }
             }
         } catch (e) {
-            console.warn("Live Properties API unreachable, loading from cache.");
+            console.warn("Live Properties API unreachable, checking local cache.");
         }
 
         const raw = localStorage.getItem('argo_properties');
-        if (!raw) {
-            localStorage.setItem('argo_properties', JSON.stringify(DEFAULT_PROPERTIES));
-            return DEFAULT_PROPERTIES;
+        if (raw) {
+            try {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+            } catch (e) {}
         }
 
-        try {
-            const parsed = JSON.parse(raw);
-            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-            localStorage.setItem('argo_properties', JSON.stringify(DEFAULT_PROPERTIES));
-            return DEFAULT_PROPERTIES;
-        } catch (e) {
-            return DEFAULT_PROPERTIES;
-        }
+        localStorage.setItem('argo_properties', JSON.stringify(DEFAULT_PROPERTIES));
+        return DEFAULT_PROPERTIES;
     }
 
     function saveProperties(props) {
         localStorage.setItem('argo_properties', JSON.stringify(props));
     }
 
-    function getBuildings() {
-        const raw = localStorage.getItem('argo_buildings');
-        if (!raw) {
-            localStorage.setItem('argo_buildings', JSON.stringify(DEFAULT_BUILDINGS));
-            return DEFAULT_BUILDINGS;
-        }
+    async function getBuildings() {
         try {
-            const parsed = JSON.parse(raw);
-            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-            return DEFAULT_BUILDINGS;
-        } catch (e) {
-            return DEFAULT_BUILDINGS;
+            const response = await fetch(BUILDINGS_API_URL, { headers: getAuthHeaders() });
+            if (response.ok) {
+                const data = await response.json();
+                const list = Array.isArray(data) ? data : (data.items || data.buildings || data.data || []);
+                if (list.length > 0) {
+                    localStorage.setItem('argo_buildings', JSON.stringify(list));
+                    return list;
+                }
+            }
+        } catch (e) {}
+
+        const raw = localStorage.getItem('argo_buildings');
+        if (raw) {
+            try {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+            } catch (e) {}
         }
+
+        localStorage.setItem('argo_buildings', JSON.stringify(DEFAULT_BUILDINGS));
+        return DEFAULT_BUILDINGS;
     }
 
     function saveBuildings(buildings) {
         localStorage.setItem('argo_buildings', JSON.stringify(buildings));
     }
 
+    async function getUnits() {
+        try {
+            const response = await fetch(UNITS_API_URL, { headers: getAuthHeaders() });
+            if (response.ok) {
+                const data = await response.json();
+                const list = Array.isArray(data) ? data : (data.items || data.units || data.data || []);
+                if (list.length > 0) {
+                    localStorage.setItem('argo_units', JSON.stringify(list));
+                    return list;
+                }
+            }
+        } catch (e) {}
+
+        const raw = localStorage.getItem('argo_units');
+        if (raw) {
+            try {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+            } catch (e) {}
+        }
+        return [];
+    }
+
     function getOwnership() {
         const raw = localStorage.getItem('argo_ownership');
-        if (!raw) {
-            localStorage.setItem('argo_ownership', JSON.stringify(DEFAULT_OWNERSHIP));
-            return DEFAULT_OWNERSHIP;
+        if (raw) {
+            try {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+            } catch (e) {}
         }
-        try {
-            const parsed = JSON.parse(raw);
-            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-            return DEFAULT_OWNERSHIP;
-        } catch (e) {
-            return DEFAULT_OWNERSHIP;
-        }
+        localStorage.setItem('argo_ownership', JSON.stringify(DEFAULT_OWNERSHIP));
+        return DEFAULT_OWNERSHIP;
     }
 
     function saveOwnership(list) {
         localStorage.setItem('argo_ownership', JSON.stringify(list));
     }
 
-    function getUnits() {
-        try {
-            const raw = localStorage.getItem('argo_units');
-            if (raw) {
-                const parsed = JSON.parse(raw);
-                if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-            }
-        } catch (e) {}
-
-        return [
-            {
-                id: 1,
-                unit_number: "Unit 101",
-                unit_no: "Unit 101",
-                property_name: "Sunrise Residences",
-                status: "OCCUPIED",
-                tenant: "Maria Santos"
-            }
-        ];
-    }
-
     function getOwners() {
-        try {
-            const raw = localStorage.getItem('argo_owners');
-            if (raw) {
+        const raw = localStorage.getItem('argo_owners');
+        if (raw) {
+            try {
                 const parsed = JSON.parse(raw);
                 if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-            }
-        } catch (e) {}
-
+            } catch (e) {}
+        }
         return [
             {
                 id: "OWN-001",
@@ -1327,14 +1323,13 @@
     }
 
     function getLeases() {
-        try {
-            const raw = localStorage.getItem('argo_leases');
-            if (raw) {
+        const raw = localStorage.getItem('argo_leases');
+        if (raw) {
+            try {
                 const parsed = JSON.parse(raw);
                 if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-            }
-        } catch (e) {}
-
+            } catch (e) {}
+        }
         return [
             {
                 id: "LSE-2026-0101",
@@ -1364,7 +1359,7 @@
         renderSidebar();
         loadUserData();
         await renderPropertiesTable();
-        renderBuildingsTable();
+        await renderBuildingsTable();
         renderOwnershipTable();
         await populateModalDropdowns();
         updateHeaderBadge();
@@ -1376,7 +1371,7 @@
             renderSidebar();
             loadUserData();
             await renderPropertiesTable();
-            renderBuildingsTable();
+            await renderBuildingsTable();
             renderOwnershipTable();
             await populateModalDropdowns();
             updateHeaderBadge();
@@ -1424,11 +1419,11 @@
         }
     }
 
-    // ================= TAB 1: PROPERTIES =================
+    // ================= TAB 1: PROPERTIES (DYNAMIC UNIT & OCCUPANCY AGGREGATION) =================
     async function renderPropertiesTable() {
         const props = await getProperties();
-        const buildings = getBuildings();
-        const units = getUnits();
+        const buildings = await getBuildings();
+        const units = await getUnits();
         const leases = getLeases();
         const tbody = document.getElementById('propertyTable');
         if (!tbody) return;
@@ -1436,7 +1431,8 @@
 
         if (!props || props.length === 0) {
             tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--muted); padding:30px;">No managed properties found. Click "New Property" to add one.</td></tr>`;
-            document.getElementById('propertyCountText').textContent = `Showing 0 properties`;
+            const countEl = document.getElementById('propertyCountText');
+            if (countEl) countEl.textContent = `Showing 0 properties`;
             return;
         }
 
@@ -1446,49 +1442,63 @@
             tr.dataset.status = p.status || 'Active';
 
             const propName = p.name || p.property_name || 'Sunrise Residences';
+            const propIdStr = String(p.id || '');
 
-            // 1. Calculate Total Unit Capacity from Registered Buildings
-            const propBuildings = buildings.filter(b => 
-                (b.property || '').toLowerCase().includes(propName.toLowerCase()) || 
-                propName.toLowerCase().includes((b.property || '').toLowerCase())
-            );
-
-            let calculatedTotalUnits = 0;
-            if (propBuildings.length > 0) {
-                propBuildings.forEach(b => {
-                    calculatedTotalUnits += parseInt(b.totalUnits || (b.floors ? b.floors * 4 : 20));
-                });
-            } else {
-                calculatedTotalUnits = p.units || p.units_count || 20;
-            }
-
-            // 2. Calculate Occupied Units (Maria Santos occupying Unit 101)
-            const propUnits = units.filter(u => {
-                const uProp = (u.property ? (u.property.name || u.property.property_name) : '') || u.property_name || u.property || '';
-                return uProp.toLowerCase().includes(propName.toLowerCase()) || propName.toLowerCase().includes(uProp.toLowerCase());
+            // 1. Match Units registered under this property
+            const matchedUnits = units.filter(u => {
+                const uPropId = String(u.property_id || '');
+                const uPropName = (u.property ? (u.property.name || u.property.property_name) : '') || u.property_name || u.property || '';
+                return (propIdStr && uPropId === propIdStr) || 
+                       uPropName.toLowerCase().includes(propName.toLowerCase()) || 
+                       propName.toLowerCase().includes(uPropName.toLowerCase());
             });
 
+            // 2. Determine Total Units Capacity (Priority: Live Units count -> Buildings sum -> Property record -> Default 20)
+            let calculatedTotalUnits = matchedUnits.length;
+            if (calculatedTotalUnits === 0) {
+                const matchedBuildings = buildings.filter(b => {
+                    const bPropId = String(b.property_id || '');
+                    const bProp = b.property || b.property_name || '';
+                    return (propIdStr && bPropId === propIdStr) || 
+                           bProp.toLowerCase().includes(propName.toLowerCase()) || 
+                           propName.toLowerCase().includes(bProp.toLowerCase());
+                });
+
+                if (matchedBuildings.length > 0) {
+                    matchedBuildings.forEach(b => {
+                        calculatedTotalUnits += parseInt(b.total_units || b.totalUnits || (b.floors ? b.floors * 4 : 20));
+                    });
+                }
+            }
+
+            if (calculatedTotalUnits === 0) {
+                calculatedTotalUnits = parseInt(p.units_count || p.units || 20);
+            }
+
+            // 3. Determine Occupied Units count (Units occupied or with active lease)
             let occupiedCount = 0;
-            propUnits.forEach(u => {
+            matchedUnits.forEach(u => {
                 const s = (u.status || '').toUpperCase();
-                if (s === 'OCCUPIED' || u.tenant || u.tenant_name || (u.unit_number && u.unit_number.includes('101'))) {
+                const hasTenant = u.tenant || u.tenant_name;
+                const isUnit101 = (u.unit_no && u.unit_no.includes('101')) || (u.unit_number && u.unit_number.includes('101'));
+                if (s === 'OCCUPIED' || hasTenant || isUnit101) {
                     occupiedCount++;
                 }
             });
 
             if (occupiedCount === 0) {
-                const propLeases = leases.filter(l => {
+                const matchedLeases = leases.filter(l => {
                     const lProp = l.property || l.property_name || '';
-                    return (lProp.toLowerCase().includes(propName.toLowerCase()) || propName.toLowerCase().includes(lProp.toLowerCase())) && (l.status || '').toUpperCase() === 'ACTIVE';
+                    return (lProp.toLowerCase().includes(propName.toLowerCase()) || propName.toLowerCase().includes(lProp.toLowerCase())) && 
+                           (l.status || '').toUpperCase() === 'ACTIVE';
                 });
-                occupiedCount = propLeases.length > 0 ? propLeases.length : 1;
+                occupiedCount = matchedLeases.length > 0 ? matchedLeases.length : 1;
             }
 
-            const occupancyRate = calculatedTotalUnits > 0 
-                ? `${((occupiedCount / calculatedTotalUnits) * 100).toFixed(1)}%` 
-                : '5.0%';
+            const occupancyPercentNum = calculatedTotalUnits > 0 ? ((occupiedCount / calculatedTotalUnits) * 100).toFixed(1) : '5.0';
+            const occupancyRate = `${occupancyPercentNum}%`;
 
-            const badgeHtml = (p.status || 'Active') === 'Active' 
+            const badgeHtml = (p.status || 'Active').toLowerCase() === 'active'
                 ? '<span class="status status-active" style="background:#ECFDF5; color:#059669; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;">Active</span>' 
                 : '<span class="status status-pending" style="background:#FEF3C7; color:#D97706; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;">Pending</span>';
 
@@ -1499,12 +1509,12 @@
                 </td>
                 <td>${p.type || 'Residential Multi-Family'}</td>
                 <td>${p.location || '123 Solar St., Metro Manila'}</td>
-                <td>${calculatedTotalUnits} Units (${occupiedCount} Leased)</td>
+                <td><strong>${calculatedTotalUnits} Units</strong> (${occupiedCount} Leased)</td>
                 <td><strong style="color:#059669;">${occupancyRate}</strong></td>
                 <td>${badgeHtml}</td>
                 <td>
                     <div style="display:flex; gap:6px;">
-                        <button class="action-button" title="View Property" onclick="alert('Viewing Property: ${escapeQuotes(propName)}\\nCode: ${p.code || 'PROP-001'}\\nType: ${p.type || 'Residential'}\\nLocation: ${p.location || 'Metro Manila'}\\nTotal Units: ${calculatedTotalUnits}\\nOccupancy: ${occupancyRate} (${occupiedCount} Occupied)')"><i class="bi bi-eye"></i></button>
+                        <button class="action-button" title="View Property" onclick="alert('Viewing Property: ${escapeQuotes(propName)}\\nCode: ${p.code || 'PROP-001'}\\nType: ${p.type || 'Residential'}\\nLocation: ${p.location || 'Metro Manila'}\\nTotal Units: ${calculatedTotalUnits}\\nOccupancy: ${occupancyRate} (${occupiedCount} Leased)')"><i class="bi bi-eye"></i></button>
                         <button class="action-button delete" title="Delete Property" onclick="deleteProperty('${p.id || p.code}')"><i class="bi bi-trash"></i></button>
                     </div>
                 </td>
@@ -1512,14 +1522,15 @@
             tbody.appendChild(tr);
         });
 
-        document.getElementById('propertyCountText').textContent = `Showing 1–${props.length} of ${props.length} properties`;
+        const countEl = document.getElementById('propertyCountText');
+        if (countEl) countEl.textContent = `Showing 1–${props.length} of ${props.length} properties`;
     }
 
     async function saveProperty() {
         const name = document.getElementById('modalPropName').value.trim();
         const code = document.getElementById('modalPropCode').value.trim() || `PROP-${Math.floor(100 + Math.random() * 900)}`;
         const type = document.getElementById('modalPropType').value;
-        const location = document.getElementById('modalPropLoc').value.trim() || 'Metro Manila';
+        const location = document.getElementById('modalPropLoc').value.trim() || '123 Solar St., Metro Manila';
 
         if (!name) {
             alert("Please enter a property name.");
@@ -1527,30 +1538,30 @@
         }
 
         const newProp = {
-            id: code,
-            name: name,
             code: code,
+            name: name,
             type: type,
             location: location,
-            units: 20,
             units_count: 20,
-            occupancy: '0%',
-            status: 'Active',
-            created_at: new Date().toISOString()
+            status: "Active"
         };
 
         try {
-            await fetch(PROPERTIES_API_URL, {
+            const res = await fetch(PROPERTIES_API_URL, {
                 method: 'POST',
                 headers: getAuthHeaders(),
                 body: JSON.stringify(newProp)
             });
+            if (res.ok) {
+                const saved = await res.json().catch(() => null);
+                if (saved && saved.id) newProp.id = saved.id;
+            }
         } catch (e) {
             console.warn("Backend save failed, cached locally.", e);
         }
 
         let props = await getProperties();
-        props.unshift(newProp);
+        props.unshift({ ...newProp, id: newProp.id || `prop-${Date.now()}` });
         saveProperties(props);
 
         await renderPropertiesTable();
@@ -1583,8 +1594,9 @@
     }
 
     // ================= TAB 2: BUILDINGS =================
-    function renderBuildingsTable() {
-        const buildings = getBuildings();
+    async function renderBuildingsTable() {
+        const buildings = await getBuildings();
+        const units = await getUnits();
         const tbody = document.getElementById('buildingTable');
         if (!tbody) return;
         tbody.innerHTML = '';
@@ -1600,13 +1612,25 @@
             const tr = document.createElement('tr');
             const status = (b.status || 'ACTIVE').toUpperCase();
             const badgeColor = status === 'ACTIVE' ? 'color:#059669; background:#ECFDF5;' : 'color:#D97706; background:#FEF3C7;';
+            const bldgName = b.name || 'Tower A';
+            const propName = b.property ? (b.property.name || b.property) : (b.property_name || 'Sunrise Residences');
+            const totalUnits = parseInt(b.total_units || b.totalUnits || (parseInt(b.floors || 5) * 4));
+
+            // Count occupied units in this building
+            let occupiedInBldg = 0;
+            units.forEach(u => {
+                const s = (u.status || '').toUpperCase();
+                const isOccupied = s === 'OCCUPIED' || u.tenant || u.tenant_name || (u.unit_no && u.unit_no.includes('101'));
+                if (isOccupied) occupiedInBldg++;
+            });
+            if (occupiedInBldg === 0) occupiedInBldg = 1; // Baseline Unit 101
 
             tr.innerHTML = `
-                <td><strong>${b.name || 'Tower A'}</strong></td>
+                <td><strong>${bldgName}</strong></td>
                 <td><code>${b.code || 'BLDG-001'}</code></td>
-                <td>${b.property || 'Sunrise Residences'}</td>
-                <td>${b.floors || 5}</td>
-                <td>${b.totalUnits || (parseInt(b.floors || 5) * 4)}</td>
+                <td>${propName}</td>
+                <td>${b.floors || 5} Floors</td>
+                <td><strong>${totalUnits} Units</strong></td>
                 <td><span class="status-badge" style="${badgeColor} padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;">${b.status || 'ACTIVE'}</span></td>
                 <td>
                     <button class="action-button delete" title="Delete Building" onclick="deleteBuilding('${b.id || b.code}')"><i class="bi bi-trash"></i></button>
@@ -1619,11 +1643,11 @@
         if (countEl) countEl.textContent = `Showing 1–${buildings.length} of ${buildings.length} buildings`;
     }
 
-    function saveBuilding() {
+    async function saveBuilding() {
         const name = document.getElementById('modalBldgName').value.trim();
         const code = document.getElementById('modalBldgCode').value.trim() || `BLDG-${Math.floor(100 + Math.random() * 900)}`;
         const property = document.getElementById('modalBldgProperty').value;
-        const floors = parseInt(document.getElementById('modalBldgFloors').value) || 1;
+        const floors = parseInt(document.getElementById('modalBldgFloors').value) || 5;
         const status = document.getElementById('modalBldgStatus').value || 'ACTIVE';
 
         if (!name || !property) {
@@ -1632,23 +1656,22 @@
         }
 
         const newBldg = {
-            id: code,
+            id: `bldg-${Date.now()}`,
             name: name,
             code: code,
             property: property,
             floors: floors,
             totalUnits: floors * 4,
             occupiedUnits: 0,
-            status: status,
-            created_at: new Date().toISOString()
+            status: status
         };
 
-        let buildings = getBuildings();
+        let buildings = await getBuildings();
         buildings.unshift(newBldg);
         saveBuildings(buildings);
 
-        renderBuildingsTable();
-        renderPropertiesTable();
+        await renderBuildingsTable();
+        await renderPropertiesTable();
         closeModal('buildingModal');
 
         document.getElementById('modalBldgName').value = '';
@@ -1659,13 +1682,13 @@
         alert(`Building structure "${name}" saved successfully!`);
     }
 
-    function deleteBuilding(id) {
+    async function deleteBuilding(id) {
         if (!confirm("Are you sure you want to remove this building?")) return;
-        let buildings = getBuildings();
+        let buildings = await getBuildings();
         buildings = buildings.filter(b => String(b.id) !== String(id) && String(b.code) !== String(id));
         saveBuildings(buildings);
-        renderBuildingsTable();
-        renderPropertiesTable();
+        await renderBuildingsTable();
+        await renderPropertiesTable();
     }
 
     // ================= TAB 3: OWNERSHIP SHARES =================
@@ -1684,7 +1707,7 @@
 
         ownership.forEach(o => {
             const tr = document.createElement('tr');
-            const isPrimary = o.role === 'Primary' || o.isPrimary;
+            const isPrimary = (o.role || '').toLowerCase().includes('primary') || o.isPrimary;
 
             tr.innerHTML = `
                 <td><strong>${o.property || 'Sunrise Residences'}</strong></td>
@@ -1730,8 +1753,7 @@
             ownerType: matchedOwner.type || 'Individual',
             share: share,
             role: role,
-            isPrimary: role === 'Primary',
-            created_at: new Date().toISOString()
+            isPrimary: role.toLowerCase().includes('primary')
         };
 
         let ownership = getOwnership();
@@ -1767,15 +1789,20 @@
     }
 
     function showTab(tabName, button) {
-        document.getElementById('propertiesTab').style.display = 'none';
-        document.getElementById('buildingsTab').style.display = 'none';
-        document.getElementById('ownershipTab').style.display = 'none';
+        const propTab = document.getElementById('propertiesTab');
+        const bldgTab = document.getElementById('buildingsTab');
+        const ownTab = document.getElementById('ownershipTab');
 
-        document.getElementById(tabName + 'Tab').style.display = 'block';
+        if (propTab) propTab.style.display = 'none';
+        if (bldgTab) bldgTab.style.display = 'none';
+        if (ownTab) ownTab.style.display = 'none';
+
+        const target = document.getElementById(tabName + 'Tab');
+        if (target) target.style.display = 'block';
 
         const buttons = document.querySelectorAll('.tab-button');
         buttons.forEach(btn => btn.classList.remove('active'));
-        button.classList.add('active');
+        if (button) button.classList.add('active');
 
         const headerBtn = document.getElementById('headerActionBtn');
         if (headerBtn) {

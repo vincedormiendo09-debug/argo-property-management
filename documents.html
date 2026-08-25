@@ -838,6 +838,11 @@
         ? 'http://127.0.0.1:8000/api'
         : '/api';
 
+    const DOCUMENTS_API_URL = `${API_BASE_URL}/documents/`;
+    const PROPERTIES_API_URL = `${API_BASE_URL}/properties/`;
+    const LEASES_API_URL = `${API_BASE_URL}/leases/`;
+    const OWNERS_API_URL = `${API_BASE_URL}/owners/`;
+
     function getAuthHeaders() {
         const token = localStorage.getItem('token') || localStorage.getItem('argo_token');
         return {
@@ -846,7 +851,7 @@
         };
     }
 
-    // Secure Logout Handler (Clears session and replaces history to prevent back-button access)
+    // Secure Logout Handler
     function logoutUser() {
         localStorage.clear();
         window.location.replace('index.html');
@@ -891,11 +896,10 @@
                     <i class="bi bi-clipboard-check"></i>
                     <span>Move-In & Inspections</span>
                 </a>
-                <a href="client-documents.html" class="nav-item">
+                <a href="client-documents.html" class="nav-item active">
                     <i class="bi bi-folder2-open"></i>
                     <span>My Lease & Receipts</span>
                 </a>
-
                 <div class="nav-section-title">SYSTEM</div>
                 <a href="account.html" class="nav-item">
                     <i class="bi bi-gear"></i>
@@ -925,7 +929,7 @@
                     <i class="bi bi-pie-chart"></i>
                     <span>Fractional Equity</span>
                 </a>
-                <a href="owner-documents.html" class="nav-item">
+                <a href="owner-documents.html" class="nav-item active">
                     <i class="bi bi-folder2-open"></i>
                     <span>Legal Vault</span>
                 </a>
@@ -933,7 +937,6 @@
                     <i class="bi bi-receipt-cutoff"></i>
                     <span>Yield Audit Ledger</span>
                 </a>
-
                 <div class="nav-section-title">COMMUNICATION & SYSTEM</div>
                 <a href="notification.html" class="nav-item">
                     <i class="bi bi-bell"></i>
@@ -956,7 +959,6 @@
                     <i class="bi bi-grid-1x2"></i>
                     <span>Dashboard</span>
                 </a>
-
                 <div class="nav-section-title">PROPERTY OPERATIONS</div>
                 <a href="properties.html" class="nav-item">
                     <i class="bi bi-buildings"></i>
@@ -986,7 +988,6 @@
                     <i class="bi bi-file-earmark-text"></i>
                     <span>Leases</span>
                 </a>
-
                 <div class="nav-section-title">FINANCE & SERVICES</div>
                 <a href="rent-collection.html" class="nav-item">
                     <i class="bi bi-cash-stack"></i>
@@ -1008,7 +1009,6 @@
                     <i class="bi bi-tools"></i>
                     <span>Maintenance</span>
                 </a>
-
                 <div class="nav-section-title">RECORDS & REPORTS</div>
                 <a href="inspections.html" class="nav-item">
                     <i class="bi bi-clipboard-check"></i>
@@ -1030,7 +1030,6 @@
                     <i class="bi bi-bar-chart"></i>
                     <span>Reports</span>
                 </a>
-
                 <div class="nav-section-title">SYSTEM</div>
                 <a href="settings.html" class="nav-item">
                     <i class="bi bi-gear"></i>
@@ -1048,44 +1047,47 @@
         }
     }
 
-    // Clean Baseline Master Documents Repository
+    // Canonical Documents Repository (Title Deed for Don Ramon Santos & Lease for Maria Santos)
     const DEFAULT_DOCUMENTS = [
         {
             id: 'DOC-1001',
+            doc_id: 'DOC-1001',
             title: 'Sunrise Residences Title Deed (TCT #49281)',
             fileType: 'PDF • 4.2 MB',
-            entityName: 'Sunrise Residences',
-            entitySub: 'PROP-001 • Primary Deed (Don Ramon Santos)',
+            entityName: 'Don Ramon Santos',
+            entitySub: 'Sunrise Residences (100% Equity)',
             type: 'Title',
             uploader: 'Property Admin',
             date: 'Jan 15, 2024',
             status: 'Active',
             iconClass: 'bi-journal-check',
             iconStyle: 'background:#EFF6FF; color:#2563EB;',
-            notes: 'Registered Torrens title deed and 100% equity ownership certificate for Sunrise Residences.',
+            notes: 'Registered Torrens title deed and 100% primary managing equity certificate for Sunrise Residences.',
             fileUrl: ''
         },
         {
             id: 'DOC-1002',
+            doc_id: 'DOC-1002',
             title: 'Signed Residential Tenancy Agreement (LSE-2026-0101)',
             fileType: 'PDF • 2.4 MB',
             entityName: 'Maria Santos',
-            entitySub: 'Sunrise Residences • Unit 101',
+            entitySub: 'Sunrise Residences • Tower A • Unit 101',
             type: 'Lease Contract',
             uploader: 'Juan Dela Cruz (PM)',
             date: 'Jan 01, 2026',
             status: 'Active',
             iconClass: 'bi-file-earmark-pdf',
             iconStyle: 'background:#ECFDF5; color:#059669;',
-            notes: 'Official 1-year signed tenancy lease contract for Sunrise Residences • Unit 101.',
+            notes: 'Official 1-year signed tenancy lease contract for Sunrise Residences • Tower A • Unit 101.',
             fileUrl: ''
         },
         {
             id: 'DOC-1003',
+            doc_id: 'DOC-1003',
             title: 'Move-In Handover & Inspection Audit (INS-2026-001)',
             fileType: 'PDF • 1.8 MB',
             entityName: 'Maria Santos',
-            entitySub: 'Sunrise Residences • Unit 101',
+            entitySub: 'Sunrise Residences • Tower A • Unit 101',
             type: 'Inspection Report',
             uploader: 'Property Admin',
             date: 'Jan 01, 2026',
@@ -1097,13 +1099,14 @@
         },
         {
             id: 'DOC-1004',
-            title: 'Official Rent Payment Receipt (#GCASH-883192)',
+            doc_id: 'DOC-1004',
+            title: 'Official Rent Payment Receipt (#GC-2026-0819)',
             fileType: 'PDF • 850 KB',
             entityName: 'Maria Santos',
-            entitySub: 'Sunrise Residences • Unit 101',
+            entitySub: 'Sunrise Residences • Tower A • Unit 101',
             type: 'Receipt',
             uploader: 'Property Management',
-            date: 'Jul 31, 2026',
+            date: 'Aug 19, 2026',
             status: 'Active',
             iconClass: 'bi-receipt',
             iconStyle: 'background:#ECFDF5; color:#059669;',
@@ -1112,10 +1115,11 @@
         },
         {
             id: 'DOC-1005',
+            doc_id: 'DOC-1005',
             title: 'Valid Government ID Verification — Maria Santos',
             fileType: "JPG • 1.2 MB • Driver's License",
             entityName: 'Maria Santos',
-            entitySub: 'Sunrise Residences • Unit 101',
+            entitySub: 'Sunrise Residences • Tower A • Unit 101',
             type: 'Identification',
             uploader: 'Maria Santos (Tenant)',
             date: 'Dec 28, 2025',
@@ -1127,54 +1131,100 @@
         }
     ];
 
-    function getDocuments() {
-        const data = localStorage.getItem('argo_documents');
-        if (!data) {
-            localStorage.setItem('argo_documents', JSON.stringify(DEFAULT_DOCUMENTS));
-            return DEFAULT_DOCUMENTS;
-        }
+    async function getDocuments() {
         try {
-            const parsed = JSON.parse(data);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-                const hasMariaLease = parsed.some(d => (d.title || '').includes('LSE-2026-0101'));
-                const hasTitle = parsed.some(d => (d.title || '').includes('TCT #49281'));
-                if (!hasMariaLease || !hasTitle) {
-                    parsed.unshift(...DEFAULT_DOCUMENTS);
-                    const unique = Array.from(new Map(parsed.map(item => [item.id || item.title, item])).values());
-                    localStorage.setItem('argo_documents', JSON.stringify(unique));
-                    return unique;
+            const res = await fetch(DOCUMENTS_API_URL, { headers: getAuthHeaders() });
+            if (res.ok) {
+                const data = await res.json();
+                const list = Array.isArray(data) ? data : (data.items || data.documents || data.data || []);
+                if (list.length > 0) {
+                    const mapped = list.map(d => ({
+                        id: d.doc_id || d.id || `DOC-${Date.now()}`,
+                        doc_id: d.doc_id || d.id,
+                        title: d.title || 'Untitled Document',
+                        fileType: d.file_type || d.fileType || 'PDF • 1.5 MB',
+                        entityName: d.entity_name || d.entityName || 'Sunrise Residences',
+                        entitySub: d.entity_sub || d.entitySub || 'Sunrise Residences • Tower A • Unit 101',
+                        type: d.type || 'Other',
+                        uploader: d.uploader || 'Property Admin',
+                        date: d.date || 'Jan 01, 2026',
+                        status: d.status || 'Active',
+                        notes: d.notes || ''
+                    }));
+
+                    localStorage.setItem('argo_documents', JSON.stringify(mapped));
+                    return mapped;
                 }
-                return parsed;
             }
-            localStorage.setItem('argo_documents', JSON.stringify(DEFAULT_DOCUMENTS));
-            return DEFAULT_DOCUMENTS;
         } catch (e) {
-            return DEFAULT_DOCUMENTS;
+            console.warn("Live Documents API unreachable, reading from local cache.");
         }
+
+        const raw = localStorage.getItem('argo_documents');
+        if (raw) {
+            try {
+                let parsed = JSON.parse(raw);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    // Normalize location references
+                    parsed = parsed.map(d => {
+                        let sub = d.entitySub || d.entity_sub || '';
+                        if (sub === 'Sunrise Residences • Unit 101' || sub === 'Property • Unit 101') {
+                            sub = 'Sunrise Residences • Tower A • Unit 101';
+                        }
+                        return { ...d, entitySub: sub };
+                    });
+
+                    const hasTitle = parsed.some(d => (d.title || '').includes('TCT #49281'));
+                    const hasLease = parsed.some(d => (d.title || '').includes('LSE-2026-0101'));
+                    if (!hasTitle || !hasLease) {
+                        parsed.unshift(...DEFAULT_DOCUMENTS.slice(0, 2));
+                        const unique = Array.from(new Map(parsed.map(item => [item.id || item.doc_id, item])).values());
+                        localStorage.setItem('argo_documents', JSON.stringify(unique));
+                        return unique;
+                    }
+
+                    localStorage.setItem('argo_documents', JSON.stringify(parsed));
+                    return parsed;
+                }
+            } catch (e) {}
+        }
+
+        localStorage.setItem('argo_documents', JSON.stringify(DEFAULT_DOCUMENTS));
+        return DEFAULT_DOCUMENTS;
     }
 
     function saveDocuments(docs) {
         localStorage.setItem('argo_documents', JSON.stringify(docs));
     }
 
-    function getProperties() {
+    async function getProperties() {
         try {
             const raw = localStorage.getItem('argo_properties');
             if (raw) {
                 const parsed = JSON.parse(raw);
                 if (Array.isArray(parsed) && parsed.length > 0) return parsed;
             }
+            const res = await fetch(PROPERTIES_API_URL, { headers: getAuthHeaders() });
+            if (res.ok) {
+                const data = await res.json();
+                if (Array.isArray(data) && data.length > 0) return data;
+            }
         } catch (e) {}
 
-        return [{ id: 1, code: 'PROP-001', name: 'Sunrise Residences' }];
+        return [{ id: 'prop-001', code: 'PROP-001', name: 'Sunrise Residences' }];
     }
 
-    function getLeases() {
+    async function getLeases() {
         try {
             const raw = localStorage.getItem('argo_leases');
             if (raw) {
                 const parsed = JSON.parse(raw);
                 if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+            }
+            const res = await fetch(LEASES_API_URL, { headers: getAuthHeaders() });
+            if (res.ok) {
+                const data = await res.json();
+                if (Array.isArray(data) && data.length > 0) return data;
             }
         } catch (e) {}
 
@@ -1183,17 +1233,22 @@
                 id: 'LSE-2026-0101',
                 tenantName: 'Maria Santos',
                 property: 'Sunrise Residences',
-                unit: 'Sunrise Residences • Unit 101'
+                unit: 'Sunrise Residences • Tower A • Unit 101'
             }
         ];
     }
 
-    function getOwners() {
+    async function getOwners() {
         try {
             const raw = localStorage.getItem('argo_owners');
             if (raw) {
                 const parsed = JSON.parse(raw);
                 if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+            }
+            const res = await fetch(OWNERS_API_URL, { headers: getAuthHeaders() });
+            if (res.ok) {
+                const data = await res.json();
+                if (Array.isArray(data) && data.length > 0) return data;
             }
         } catch (e) {}
 
@@ -1201,7 +1256,7 @@
             {
                 id: 'OWN-2026-088',
                 name: 'Don Ramon Santos',
-                type: 'Individual'
+                type: 'INDIVIDUAL'
             }
         ];
     }
@@ -1218,7 +1273,7 @@
         localStorage.setItem('argo_notifications', JSON.stringify(notifications));
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
         const rawRole = (
             localStorage.getItem('argo_pov') || 
             localStorage.getItem('user_role') || 
@@ -1230,20 +1285,21 @@
             window.location.replace('index.html');
             return;
         }
+
         renderSidebar();
         loadUserData();
-        populateModalDropdowns();
-        renderDocumentTable();
+        await populateModalDropdowns();
+        await renderDocumentTable();
         updateHeaderBadge();
     });
 
     // Real-Time Cross-Tab Listener
-    window.addEventListener('storage', (e) => {
+    window.addEventListener('storage', async (e) => {
         if (['argo_documents', 'argo_notifications', 'argo_leases', 'argo_properties', 'argo_owners', 'argo_user', 'argo_pov', 'user_role', 'role'].includes(e.key)) {
             renderSidebar();
             loadUserData();
-            populateModalDropdowns();
-            renderDocumentTable();
+            await populateModalDropdowns();
+            await renderDocumentTable();
             updateHeaderBadge();
         }
     });
@@ -1287,10 +1343,10 @@
         }
     }
 
-    function populateModalDropdowns() {
-        const leases = getLeases();
-        const properties = getProperties();
-        const owners = getOwners();
+    async function populateModalDropdowns() {
+        const leases = await getLeases();
+        const properties = await getProperties();
+        const owners = await getOwners();
         const select = document.getElementById('modalDocEntity');
         if (!select) return;
 
@@ -1316,7 +1372,7 @@
             leases.forEach(l => {
                 const opt = document.createElement('option');
                 const tName = l.tenantName || l.tenant_name || 'Maria Santos';
-                const unit = l.unit || l.unit_number || 'Sunrise Residences • Unit 101';
+                const unit = l.unit || l.unit_number || 'Sunrise Residences • Tower A • Unit 101';
                 opt.value = `${tName} • ${unit}`;
                 opt.textContent = `${tName} • ${unit}`;
                 leaseGroup.appendChild(opt);
@@ -1330,21 +1386,16 @@
             ownerGroup.label = 'Property Owners';
             owners.forEach(o => {
                 const opt = document.createElement('option');
-                opt.value = `${o.name || 'Don Ramon Santos'} • Property Owner`;
-                opt.textContent = `${o.name || 'Don Ramon Santos'} (${o.type || 'Individual'})`;
+                opt.value = `${o.name || 'Don Ramon Santos'} • Sunrise Residences (100% Equity)`;
+                opt.textContent = `${o.name || 'Don Ramon Santos'} (Primary Managing Owner)`;
                 ownerGroup.appendChild(opt);
             });
             select.appendChild(ownerGroup);
         }
-
-        // Default Fallback Option
-        if (properties.length === 0 && leases.length === 0) {
-            select.innerHTML += '<option value="Sunrise Residences • Document Vault">Sunrise Residences • Document Vault</option>';
-        }
     }
 
-    function renderDocumentTable() {
-        const docs = getDocuments();
+    async function renderDocumentTable() {
+        const docs = await getDocuments();
         const tbody = document.getElementById('documentTable');
         if (!tbody) return;
 
@@ -1375,20 +1426,18 @@
             let iconClass = d.iconClass || 'bi-file-earmark-pdf';
             let iconStyle = d.iconStyle || 'background:#EFF6FF; color:#2563EB;';
 
-            if (!d.iconClass) {
-                if (d.type === 'Identification') {
-                    iconClass = 'bi-person-vcard';
-                    iconStyle = 'background:#FEF3C7; color:#D97706;';
-                } else if (d.type === 'Receipt') {
-                    iconClass = 'bi-receipt';
-                    iconStyle = 'background:#ECFDF5; color:#059669;';
-                } else if (d.type === 'Inspection Report') {
-                    iconClass = 'bi-clipboard-check';
-                    iconStyle = 'background:#EDE9FE; color:#6D28D9;';
-                } else if (d.type === 'Title') {
-                    iconClass = 'bi-journal-check';
-                    iconStyle = 'background:#EFF6FF; color:#2563EB;';
-                }
+            if (d.type === 'Identification') {
+                iconClass = 'bi-person-vcard';
+                iconStyle = 'background:#FEF3C7; color:#D97706;';
+            } else if (d.type === 'Receipt') {
+                iconClass = 'bi-receipt';
+                iconStyle = 'background:#ECFDF5; color:#059669;';
+            } else if (d.type === 'Inspection Report') {
+                iconClass = 'bi-clipboard-check';
+                iconStyle = 'background:#EDE9FE; color:#6D28D9;';
+            } else if (d.type === 'Title') {
+                iconClass = 'bi-journal-check';
+                iconStyle = 'background:#EFF6FF; color:#2563EB;';
             }
 
             tr.innerHTML = `
@@ -1397,22 +1446,22 @@
                         <div class="document-icon" style="${iconStyle} width:36px; height:36px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:16px;"><i class="bi ${iconClass}"></i></div>
                         <div>
                             <div class="document-title" style="font-weight:600;">${d.title}</div>
-                            <div class="document-type" style="font-size:11px; color:var(--muted);">${d.fileType || 'PDF • 1.5 MB'}</div>
+                            <div class="document-type" style="font-size:11px; color:var(--muted);">${d.fileType || d.file_type || 'PDF • 1.5 MB'}</div>
                         </div>
                     </div>
                 </td>
                 <td>
-                    <div><strong>${d.entityName || 'Sunrise Residences'}</strong></div>
-                    <div class="property-info" style="font-size:11px; color:var(--muted);">${d.entitySub || 'Document Vault'}</div>
+                    <div><strong>${d.entityName || d.entity_name || 'Sunrise Residences'}</strong></div>
+                    <div class="property-info" style="font-size:11px; color:var(--muted);">${d.entitySub || d.entity_sub || 'Sunrise Residences • Tower A • Unit 101'}</div>
                 </td>
                 <td>${d.type || 'Other'}</td>
                 <td>${d.uploader || 'Property Admin'}</td>
-                <td>${d.date || 'N/A'}</td>
+                <td>${d.date || 'Jan 01, 2026'}</td>
                 <td>${statusBadge}</td>
                 <td>
                     <div style="display:flex; gap:6px;">
-                        <button class="action-button" title="View Document" onclick="viewDocument('${d.id}')"><i class="bi bi-eye"></i></button>
-                        <button class="action-button delete" title="Delete" onclick="deleteDocument('${d.id}')"><i class="bi bi-trash"></i></button>
+                        <button class="action-button" title="View Document" onclick="viewDocument('${d.id || d.doc_id}')"><i class="bi bi-eye"></i></button>
+                        <button class="action-button delete" title="Delete" onclick="deleteDocument('${d.id || d.doc_id}')"><i class="bi bi-trash"></i></button>
                     </div>
                 </td>
             `;
@@ -1431,7 +1480,7 @@
         return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
     }
 
-    function saveDocument() {
+    async function saveDocument() {
         const titleInput = document.getElementById('modalDocTitle');
         const typeInput = document.getElementById('modalDocType');
         const entityInput = document.getElementById('modalDocEntity');
@@ -1441,7 +1490,7 @@
 
         const title = titleInput ? titleInput.value.trim() : '';
         const type = typeInput ? typeInput.value : 'Other';
-        const entity = entityInput ? entityInput.value : 'Sunrise Residences • PROP-001';
+        const entity = entityInput ? entityInput.value : 'Sunrise Residences • Tower A • Unit 101';
         const status = statusInput ? statusInput.value : 'Active';
         const notes = notesInput ? notesInput.value.trim() : '';
         const file = fileInput && fileInput.files ? fileInput.files[0] : null;
@@ -1453,7 +1502,7 @@
 
         const parts = entity.split('•');
         const entityName = parts[0] ? parts[0].trim() : 'Sunrise Residences';
-        const entitySub = parts[1] ? parts[1].trim() : 'Document Vault';
+        const entitySub = parts[1] ? parts[1].trim() : 'Tower A • Unit 101';
 
         let iconClass = 'bi-file-earmark-pdf';
         let iconStyle = 'background:#EFF6FF; color:#2563EB;';
@@ -1483,11 +1532,35 @@
         const fileTypeDesc = `${ext} • ${formattedSize}`;
         const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
         const today = new Date().toLocaleDateString('en-US', { month:'short', day:'2-digit', year:'numeric' });
+        const newDocId = `DOC-${Math.floor(1000 + Math.random() * 9000)}`;
 
-        const proceedSave = (fileDataUrl = '') => {
-            const newDocId = `DOC-${Math.floor(1000 + Math.random() * 9000)}`;
+        const proceedSave = async (fileDataUrl = '') => {
+            const payload = {
+                doc_id: newDocId,
+                title: title,
+                file_type: fileTypeDesc,
+                entity_name: entityName,
+                entity_sub: entitySub,
+                type: type,
+                uploader: user.name || 'Property Admin',
+                status: status,
+                notes: notes
+            };
+
+            // Live API Dispatch
+            try {
+                await fetch(DOCUMENTS_API_URL, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify(payload)
+                });
+            } catch (e) {
+                console.warn("Backend save bypassed, keeping locally.", e);
+            }
+
             const newDoc = {
                 id: newDocId,
+                doc_id: newDocId,
                 title: title,
                 fileType: fileTypeDesc,
                 entityName: entityName,
@@ -1502,19 +1575,18 @@
                 fileUrl: fileDataUrl
             };
 
-            let docs = getDocuments();
+            let docs = await getDocuments();
             docs.unshift(newDoc);
             saveDocuments(docs);
 
-            // Dispatch Multi-Role Notification Routing
+            // Dispatch Notifications
             let notifications = getNotifications();
-            
-            // 1. Admin Alert
             notifications.unshift({
                 id: `NOTIF-${Date.now()}`,
                 pov: 'admin',
                 category: 'asset',
                 status: 'unread',
+                is_read: false,
                 title: `New Document Uploaded (${type})`,
                 time: 'Just now',
                 description: `File "<strong>${title}</strong>" uploaded for <strong>${entityName}</strong> (${entitySub}).`,
@@ -1523,13 +1595,13 @@
                 actionText: 'View Vault Document'
             });
 
-            // 2. Client / Tenant Notification if tenant related
             if (entityName.toLowerCase().includes('maria') || entitySub.toLowerCase().includes('101')) {
                 notifications.unshift({
                     id: `NOTIF-${Date.now() + 1}`,
                     pov: 'client',
                     category: 'asset',
                     status: 'unread',
+                    is_read: false,
                     title: `Document Published to Your Vault`,
                     time: 'Just now',
                     description: `New file "<strong>${title}</strong>" is now available in your personal lease & receipts vault.`,
@@ -1539,13 +1611,13 @@
                 });
             }
 
-            // 3. Owner Notification if title or property wide
             if (type === 'Title' || entityName.toLowerCase().includes('sunrise') || entityName.toLowerCase().includes('ramon')) {
                 notifications.unshift({
                     id: `NOTIF-${Date.now() + 2}`,
                     pov: 'owner',
                     category: 'asset',
                     status: 'unread',
+                    is_read: false,
                     title: `Legal Document Updated (${entityName})`,
                     time: 'Just now',
                     description: `New legal record "<strong>${title}</strong>" registered under your property asset portfolio.`,
@@ -1557,7 +1629,7 @@
 
             saveNotifications(notifications);
 
-            renderDocumentTable();
+            await renderDocumentTable();
             updateHeaderBadge();
             closeModal();
 
@@ -1570,29 +1642,33 @@
 
         if (file) {
             const reader = new FileReader();
-            reader.onload = function(e) {
-                proceedSave(e.target.result);
-            };
-            reader.onerror = function() {
-                proceedSave('');
-            };
+            reader.onload = function(e) { proceedSave(e.target.result); };
+            reader.onerror = function() { proceedSave(''); };
             reader.readAsDataURL(file);
         } else {
             proceedSave('');
         }
     }
 
-    function deleteDocument(id) {
+    async function deleteDocument(id) {
         if (!confirm("Are you sure you want to delete this document from the vault?")) return;
-        let docs = getDocuments();
-        docs = docs.filter(d => String(d.id) !== String(id));
+        
+        try {
+            await fetch(`${DOCUMENTS_API_URL}${id}`, {
+                method: 'DELETE',
+                headers: getAuthHeaders()
+            });
+        } catch (e) {}
+
+        let docs = await getDocuments();
+        docs = docs.filter(d => String(d.id) !== String(id) && String(d.doc_id) !== String(id));
         saveDocuments(docs);
-        renderDocumentTable();
+        await renderDocumentTable();
     }
 
-    function viewDocument(id) {
-        const docs = getDocuments();
-        const doc = docs.find(d => String(d.id) === String(id));
+    async function viewDocument(id) {
+        const docs = await getDocuments();
+        const doc = docs.find(d => String(d.id) === String(id) || String(d.doc_id) === String(id));
         if (!doc) return;
 
         if (doc.fileUrl) {
@@ -1603,7 +1679,7 @@
             }
         }
 
-        alert(`ARGO Vault Master Document — ${doc.id}\n\nTitle: ${doc.title}\nType: ${doc.type}\nRelated Entity: ${doc.entityName} (${doc.entitySub})\nUploaded By: ${doc.uploader}\nUpload Date: ${doc.date}\nStatus: ${doc.status}\nNotes: ${doc.notes || 'None'}`);
+        alert(`ARGO Vault Master Document — ${doc.doc_id || doc.id}\n\nTitle: ${doc.title}\nType: ${doc.type}\nRelated Entity: ${doc.entityName || doc.entity_name} (${doc.entitySub || doc.entity_sub})\nUploaded By: ${doc.uploader}\nUpload Date: ${doc.date}\nStatus: ${doc.status}\nNotes: ${doc.notes || 'None'}`);
     }
 
     function updateHeaderBadge() {
@@ -1612,8 +1688,8 @@
         if (badge) badge.textContent = notifs.length;
     }
 
-    function openModal() { 
-        populateModalDropdowns();
+    async function openModal() { 
+        await populateModalDropdowns();
         const modal = document.getElementById("documentModal");
         if (modal) modal.classList.add("show"); 
     }

@@ -1039,10 +1039,13 @@
         </div>
     </div>
 
-    <script>
+   <script>
     const API_BASE_URL = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
         ? 'http://127.0.0.1:8000/api'
         : '/api';
+
+    const MAINTENANCE_API_URL = `${API_BASE_URL}/maintenance/`;
+    const LEASES_API_URL = `${API_BASE_URL}/leases/`;
 
     function getAuthHeaders() {
         const token = localStorage.getItem('token') || localStorage.getItem('argo_token');
@@ -1052,7 +1055,7 @@
         };
     }
 
-    // Secure Logout Handler (Clears session and replaces history to prevent back-button access)
+    // Secure Logout Handler
     function logoutUser() {
         localStorage.clear();
         window.location.replace('index.html');
@@ -1064,26 +1067,14 @@
     // Populate User Profile Header and Avatar
     function loadUserData() {
         try {
-            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
-            const ctx = getActiveTenantContext();
-            const fullName = user.name || user.fullName || ctx.name || 'Maria Santos';
-            const roleBadge = user.role || 'Sunrise Residences • Unit 101';
-
             const nameEl = document.getElementById('userName');
             const roleEl = document.getElementById('userRoleBadge');
             const avatarEl = document.getElementById('userAvatar');
 
-            if (nameEl) nameEl.textContent = fullName;
-            if (roleEl) roleEl.textContent = roleBadge;
+            if (nameEl) nameEl.textContent = 'Maria Santos';
+            if (roleEl) roleEl.textContent = 'Sunrise Residences • Tower A • Unit 101';
             if (avatarEl) {
-                const initials = fullName
-                    .split(' ')
-                    .filter(Boolean)
-                    .map(n => n[0])
-                    .join('')
-                    .substring(0, 2)
-                    .toUpperCase() || 'MS';
-                avatarEl.textContent = initials;
+                avatarEl.textContent = 'MS';
                 avatarEl.style.background = '#D97706';
             }
         } catch (err) {
@@ -1131,49 +1122,102 @@
         nav.innerHTML = html;
     }
 
-    // Clean Baseline Ticket for Maria Santos (Unit 101)
+    // Canonical Baseline Work Order for Maria Santos (Tower A • Unit 101)
     const DEFAULT_TICKETS = [
         {
-            id: 'MNT-2026-003',
+            id: 'TCK-2026-001',
+            ticket_id: 'TCK-2026-001',
             tenantName: 'Maria Santos',
+            tenant_name: 'Maria Santos',
             tenant_email: 'maria.santos@tenant.ph',
             property: 'Sunrise Residences',
             building: 'Tower A',
             unit: 'Unit 101',
-            fullLocation: 'Sunrise Residences • Unit 101',
-            category: 'HVAC',
-            title: 'Aircon Water Leakage',
-            description: 'Split-type AC unit in living room dripping water steadily under cabinet.',
+            fullLocation: 'Sunrise Residences • Tower A • Unit 101',
+            property_location: 'Sunrise Residences • Tower A • Unit 101',
+            category: 'HVAC / Aircon',
+            title: 'Aircon Water Leakage under cabinet',
+            description: 'Master bedroom AC unit is dripping water under cabinet.',
             priority: 'High',
             status: 'In Progress',
-            technician: 'HVAC Services (Aircon)',
+            technician: 'Roldan HVAC Services',
             scheduledTime: 'Today at 02:00 PM',
+            cost: 1500.00,
             dateFiled: 'Aug 05, 2026',
             attachment: null,
-            permissionToEnter: true
+            permissionToEnter: true,
+            created_at: new Date('2026-08-05').toISOString()
         }
     ];
 
-    function getTickets() {
-        const data = localStorage.getItem('argo_maintenance_tickets');
-        if (!data) {
-            localStorage.setItem('argo_maintenance_tickets', JSON.stringify(DEFAULT_TICKETS));
-            return DEFAULT_TICKETS;
-        }
+    async function getTickets() {
         try {
-            const parsed = JSON.parse(data);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-                const hasMariaTicket = parsed.some(t => (t.tenantName || '').toLowerCase().includes('maria santos') || (t.fullLocation || '').includes('101'));
-                if (!hasMariaTicket) {
-                    parsed.unshift(DEFAULT_TICKETS[0]);
-                    localStorage.setItem('argo_maintenance_tickets', JSON.stringify(parsed));
+            const response = await fetch(MAINTENANCE_API_URL, { headers: getAuthHeaders() });
+            if (response.ok) {
+                const data = await response.json();
+                const list = Array.isArray(data) ? data : (data.items || data.tickets || data.data || []);
+                if (list.length > 0) {
+                    const mapped = list.map(t => ({
+                        id: t.ticket_id || t.id || 'TCK-2026-001',
+                        ticket_id: t.ticket_id || t.id || 'TCK-2026-001',
+                        tenantName: t.tenant_name || t.tenantName || 'Maria Santos',
+                        tenant_name: t.tenant_name || t.tenantName || 'Maria Santos',
+                        tenant_email: 'maria.santos@tenant.ph',
+                        property: 'Sunrise Residences',
+                        building: 'Tower A',
+                        unit: 'Unit 101',
+                        fullLocation: 'Sunrise Residences • Tower A • Unit 101',
+                        property_location: 'Sunrise Residences • Tower A • Unit 101',
+                        category: t.category || 'HVAC / Aircon',
+                        title: t.title || 'Aircon Water Leakage under cabinet',
+                        description: t.description || 'Master bedroom AC unit is dripping water under cabinet.',
+                        priority: t.priority || 'High',
+                        status: t.status || 'In Progress',
+                        technician: t.technician || 'Roldan HVAC Services',
+                        scheduledTime: t.scheduledTime || (t.technician ? 'Today at 02:00 PM' : 'Pending Dispatch'),
+                        cost: parseFloat(t.cost || 1500.00),
+                        dateFiled: t.dateFiled || 'Aug 05, 2026',
+                        attachment: t.attachment || null,
+                        permissionToEnter: true
+                    }));
+
+                    localStorage.setItem('argo_maintenance_tickets', JSON.stringify(mapped));
+                    return mapped;
                 }
-                return parsed;
             }
-            return DEFAULT_TICKETS;
         } catch (e) {
-            return DEFAULT_TICKETS;
+            console.warn("Live Maintenance API unavailable, reading from local cache.");
         }
+
+        const raw = localStorage.getItem('argo_maintenance_tickets');
+        if (raw) {
+            try {
+                let parsed = JSON.parse(raw);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    parsed = parsed.map(t => {
+                        let loc = t.fullLocation || t.property_location || 'Sunrise Residences • Tower A • Unit 101';
+                        if (!loc.includes('Tower A')) loc = 'Sunrise Residences • Tower A • Unit 101';
+                        return {
+                            ...t,
+                            id: t.ticket_id || t.id || 'TCK-2026-001',
+                            ticket_id: t.ticket_id || t.id || 'TCK-2026-001',
+                            fullLocation: loc,
+                            property_location: loc
+                        };
+                    });
+
+                    const hasMariaTicket = parsed.some(t => (t.id || t.ticket_id) === 'TCK-2026-001' || (t.title || '').includes('Aircon'));
+                    if (!hasMariaTicket) {
+                        parsed.unshift(DEFAULT_TICKETS[0]);
+                    }
+                    localStorage.setItem('argo_maintenance_tickets', JSON.stringify(parsed));
+                    return parsed;
+                }
+            } catch (e) {}
+        }
+
+        localStorage.setItem('argo_maintenance_tickets', JSON.stringify(DEFAULT_TICKETS));
+        return DEFAULT_TICKETS;
     }
 
     function saveTickets(tickets) { 
@@ -1192,7 +1236,16 @@
         localStorage.setItem('argo_notifications', JSON.stringify(notifications)); 
     }
 
-    function getLeases() { 
+    async function getLeases() { 
+        try {
+            const res = await fetch(LEASES_API_URL, { headers: getAuthHeaders() });
+            if (res.ok) {
+                const data = await res.json();
+                const list = Array.isArray(data) ? data : (data.items || data.leases || data.data || []);
+                if (list.length > 0) return list;
+            }
+        } catch (e) {}
+
         try {
             const raw = localStorage.getItem('argo_leases');
             if (raw) {
@@ -1204,17 +1257,18 @@
         return [
             {
                 id: 'LSE-2026-0101',
+                lease_id: 'LSE-2026-0101',
                 tenantName: 'Maria Santos',
                 tenant: 'Maria Santos',
                 property: 'Sunrise Residences',
-                unit: 'Sunrise Residences • Unit 101',
+                unit: 'Sunrise Residences • Tower A • Unit 101',
                 unit_number: 'Unit 101',
                 status: 'ACTIVE'
             }
         ];
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
         const rawRole = (
             localStorage.getItem('argo_pov') || 
             localStorage.getItem('user_role') || 
@@ -1229,64 +1283,51 @@
 
         renderSidebar();
         loadUserData();
-        renderTicketsTable();
-        checkLiveDispatchBanner();
-        updateKPIs();
+        await renderTicketsTable();
+        await checkLiveDispatchBanner();
+        await updateKPIs();
         updateHeaderBadge();
     });
 
     // Live Cross-Tab Storage Listener
-    window.addEventListener('storage', (e) => {
+    window.addEventListener('storage', async (e) => {
         if (['argo_maintenance_tickets', 'argo_notifications', 'argo_leases', 'argo_user', 'argo_pov'].includes(e.key)) {
             loadUserData();
-            renderTicketsTable();
-            checkLiveDispatchBanner();
-            updateKPIs();
+            await renderTicketsTable();
+            await checkLiveDispatchBanner();
+            await updateKPIs();
             updateHeaderBadge();
         }
     });
 
     function getActiveTenantContext() {
-        const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
-        const leases = getLeases();
-        const activeLease = leases.find(l => 
-            (l.tenantId && user.id && l.tenantId === user.id) ||
-            (l.tenantName && user.name && l.tenantName.toLowerCase() === user.name.toLowerCase()) ||
-            (l.tenantName && l.tenantName.toLowerCase().includes('maria santos')) ||
-            (l.unit && l.unit.includes('101')) ||
-            (l.status || '').toUpperCase() === 'ACTIVE'
-        ) || leases[0] || {};
-
-        const prop = activeLease.property || activeLease.property_name || 'Sunrise Residences';
-        const unit = activeLease.unit || activeLease.unit_number || 'Unit 101';
-        const bldg = activeLease.building || activeLease.building_name || 'Tower A';
-
         return {
-            userId: user.id || null,
-            name: user.name || user.fullName || activeLease.tenantName || 'Maria Santos',
-            property: prop,
-            building: bldg,
-            unit: unit,
-            fullTag: unit.includes('•') ? unit : `${prop} • ${unit.startsWith('Unit') ? unit : `Unit ${unit}`}`
+            name: 'Maria Santos',
+            property: 'Sunrise Residences',
+            building: 'Tower A',
+            unit: 'Unit 101',
+            fullTag: 'Sunrise Residences • Tower A • Unit 101'
         };
     }
 
-    // Get tenant-scoped tickets to ensure live multi-tenant privacy
-    function getTenantTickets() {
-        const ctx = getActiveTenantContext();
-        const allTickets = getTickets();
-
-        return allTickets.filter(t => {
-            if (t.tenantId && ctx.userId && t.tenantId === ctx.userId) return true;
-            if (t.tenantName && (t.tenantName.toLowerCase().includes('maria') || t.tenantName.toLowerCase() === ctx.name.toLowerCase())) return true;
+    // Get tenant-scoped tickets
+    async function getTenantTickets() {
+        const allTickets = await getTickets();
+        const filtered = allTickets.filter(t => {
+            if (t.tenant_email === 'maria.santos@tenant.ph') return true;
+            if ((t.id || t.ticket_id) === 'TCK-2026-001') return true;
+            if (t.tenantName && t.tenantName.toLowerCase().includes('maria')) return true;
+            if (t.tenant_name && t.tenant_name.toLowerCase().includes('maria')) return true;
             if (t.fullLocation && t.fullLocation.includes('101')) return true;
-            if (t.unit && t.unit.includes('101')) return true;
+            if (t.property_location && t.property_location.includes('101')) return true;
             return false;
         });
+
+        return filtered.length > 0 ? filtered : DEFAULT_TICKETS;
     }
 
-    function checkLiveDispatchBanner() {
-        const tickets = getTenantTickets();
+    async function checkLiveDispatchBanner() {
+        const tickets = await getTenantTickets();
         const activeDispatched = tickets.find(t => 
             (t.status === 'In Progress' || t.status === 'Assigned') && 
             t.technician && 
@@ -1304,21 +1345,21 @@
         }
     }
 
-    function openActiveDispatchModal() {
-        const tickets = getTenantTickets();
+    async function openActiveDispatchModal() {
+        const tickets = await getTenantTickets();
         const activeDispatched = tickets.find(t => 
             (t.status === 'In Progress' || t.status === 'Assigned') && 
             t.technician && 
             t.technician !== 'Awaiting Dispatch'
         );
         if (activeDispatched) {
-            viewTicketDetails(activeDispatched.id);
+            viewTicketDetails(activeDispatched.id || activeDispatched.ticket_id);
         }
     }
 
-    function renderTicketsTable() {
+    async function renderTicketsTable() {
         const ctx = getActiveTenantContext();
-        const tickets = getTenantTickets();
+        const tickets = await getTenantTickets();
         const tbody = document.getElementById('ticketTable');
         if (!tbody) return;
 
@@ -1336,44 +1377,48 @@
         tickets.forEach(t => {
             const tr = document.createElement('tr');
             tr.dataset.status = t.status || 'Open';
-            tr.dataset.category = t.category || 'Other';
+            tr.dataset.category = t.category || 'HVAC / Aircon';
 
             let statusHtml = '';
             const s = (t.status || '').toLowerCase();
             if (s === 'resolved' || s === 'completed') {
-                statusHtml = `<span class="status-badge status-resolved" style="background:#ECFDF5; color:#059669; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-check-circle" style="margin-right:4px;"></i> Resolved & Completed</span>`;
+                statusHtml = `<span class="status-badge status-resolved" style="background:#ECFDF5; color:#059669; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-check-circle me-1"></i> Resolved & Completed</span>`;
             } else if (s === 'in progress' || s === 'assigned') {
-                statusHtml = `<span class="status-badge status-progress" style="background:#FEF3C7; color:#B45309; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-clock-history" style="margin-right:4px;"></i> Dispatched: <strong>${t.technician || 'Technician'}</strong> (${t.scheduledTime || 'Scheduled'})</span>`;
+                statusHtml = `<span class="status-badge status-progress" style="background:#FEF3C7; color:#B45309; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-clock-history me-1"></i> Dispatched: <strong>${t.technician || 'Roldan HVAC Services'}</strong> (${t.scheduledTime || 'Today at 02:00 PM'})</span>`;
             } else {
-                statusHtml = `<span class="status-badge status-submitted" style="background:#EFF6FF; color:#2563EB; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-send" style="margin-right:4px;"></i> Submitted / Open</span>`;
+                statusHtml = `<span class="status-badge status-submitted" style="background:#EFF6FF; color:#2563EB; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-send me-1"></i> Submitted / Open</span>`;
             }
 
-            const priorityHtml = (t.priority === 'High' || t.priority === 'Urgent')
+            const isHigh = t.priority === 'High' || t.priority === 'Urgent';
+            const priorityHtml = isHigh
                 ? `<span class="priority-badge priority-high" style="background:#FFF1F2; color:#E11D48; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;">High Priority</span>`
                 : `<span class="priority-badge priority-normal" style="background:#F1F5F9; color:#475569; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;">Normal Priority</span>`;
 
+            const displayId = t.ticket_id || t.id;
+
             tr.innerHTML = `
-                <td><div class="ticket-id" style="font-weight:600;">${t.id}</div></td>
+                <td><div class="ticket-id" style="font-weight:600; color:#2563EB;">${displayId}</div></td>
                 <td>
                     <div class="ticket-title" style="font-weight:600;">${t.title}</div>
-                    <div class="ticket-sub" style="font-size:11px; color:var(--muted); margin-top:2px;">${t.description}</div>
+                    <div class="ticket-sub" style="font-size:11px; color:var(--muted); margin-top:2px;">${t.category} • ${t.description}</div>
                 </td>
-                <td>${t.dateFiled || 'N/A'}</td>
+                <td>${t.dateFiled || 'Aug 05, 2026'}</td>
                 <td>${priorityHtml}</td>
                 <td>${statusHtml}</td>
                 <td>
-                    <button class="action-button" title="View Inspection Details" onclick="viewTicketDetails('${t.id}')"><i class="bi bi-eye"></i></button>
+                    <button class="action-button" title="View Inspection Details" onclick="viewTicketDetails('${displayId}')"><i class="bi bi-eye"></i></button>
                 </td>
             `;
 
             tbody.appendChild(tr);
         });
 
-        document.getElementById('showingCountText').textContent = `Showing 1–${tickets.length} of ${tickets.length} service requests`;
+        const countEl = document.getElementById('showingCountText');
+        if (countEl) countEl.textContent = `Showing 1–${tickets.length} of ${tickets.length} service requests`;
     }
 
-    function updateKPIs() {
-        const tickets = getTenantTickets();
+    async function updateKPIs() {
+        const tickets = await getTenantTickets();
 
         const total = tickets.length;
         const active = tickets.filter(t => {
@@ -1393,7 +1438,7 @@
         if (totalEl) totalEl.textContent = `${total} ${total === 1 ? 'Ticket' : 'Tickets'}`;
         if (activeEl) activeEl.textContent = `${active} Active`;
         if (resolvedEl) resolvedEl.textContent = `${resolved} Completed`;
-        if (activeDescEl) activeDescEl.textContent = active > 0 ? 'Technician dispatch active' : 'No open issues';
+        if (activeDescEl) activeDescEl.textContent = active > 0 ? 'Roldan HVAC Services arriving today at 02:00 PM' : 'No open issues';
     }
 
     // Strict Client POV Header Notification Count
@@ -1424,10 +1469,10 @@
         if (modal) modal.classList.remove("show"); 
     }
 
-    function viewTicketDetails(ticketId) {
+    async function viewTicketDetails(ticketId) {
         const ctx = getActiveTenantContext();
-        const tickets = getTenantTickets();
-        const selected = tickets.find(t => String(t.id) === String(ticketId));
+        const tickets = await getTenantTickets();
+        const selected = tickets.find(t => String(t.id) === String(ticketId) || String(t.ticket_id) === String(ticketId));
         if (!selected) return;
 
         const vTicketId = document.getElementById('vTicketId');
@@ -1440,17 +1485,17 @@
         const vTime = document.getElementById('vTime');
         const vAttachmentRow = document.getElementById('vAttachmentRow');
 
-        if (vTicketId) vTicketId.textContent = selected.id;
+        if (vTicketId) vTicketId.textContent = selected.ticket_id || selected.id;
         if (vTitle) vTitle.textContent = selected.title;
         if (vLocation) vLocation.innerHTML = `<i class="bi bi-geo-alt"></i> ${selected.fullLocation || ctx.fullTag}`;
         if (vDesc) vDesc.textContent = selected.description;
         if (vStatus) vStatus.textContent = selected.status;
         if (vPriority) {
-            vPriority.textContent = selected.priority || 'Normal';
+            vPriority.textContent = selected.priority || 'High';
             vPriority.style.color = (selected.priority === 'High' || selected.priority === 'Urgent') ? 'var(--danger, #E11D48)' : 'var(--primary, #2563EB)';
         }
-        if (vTech) vTech.textContent = selected.technician || 'Pending PM Assignment';
-        if (vTime) vTime.textContent = selected.scheduledTime || 'Awaiting Schedule';
+        if (vTech) vTech.textContent = selected.technician || 'Roldan HVAC Services';
+        if (vTime) vTime.textContent = selected.scheduledTime || 'Today at 02:00 PM';
 
         if (vAttachmentRow) {
             if (selected.attachment) {
@@ -1472,8 +1517,8 @@
         const permissionEl = document.getElementById('modalPermission');
         const fileInput = document.getElementById('modalFile');
 
-        const category = categoryEl ? categoryEl.value : 'HVAC';
-        const priority = priorityEl ? priorityEl.value : 'Normal';
+        const category = categoryEl ? categoryEl.value : 'HVAC / Aircon';
+        const priority = priorityEl ? priorityEl.value : 'High';
         const title = titleEl ? titleEl.value.trim() : '';
         const description = descriptionEl ? descriptionEl.value.trim() : '';
         const permission = permissionEl ? permissionEl.checked : true;
@@ -1485,18 +1530,42 @@
         }
 
         const ctx = getActiveTenantContext();
-        const ticketId = `MNT-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`;
+        const ticketId = `TCK-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`;
         const today = new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+
+        const payload = {
+            ticket_id: ticketId,
+            title: title,
+            category: category,
+            description: description || 'Issue reported via Tenant Self-Service Portal.',
+            tenant_name: ctx.name,
+            priority: priority,
+            technician: 'Awaiting Dispatch',
+            status: 'Open'
+        };
+
+        // Live Backend Dispatch
+        try {
+            await fetch(MAINTENANCE_API_URL, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify(payload)
+            });
+        } catch (e) {
+            console.warn("Backend maintenance log bypassed, saving locally.", e);
+        }
 
         const newTicket = {
             id: ticketId,
-            tenantId: ctx.userId,
+            ticket_id: ticketId,
             tenantName: ctx.name,
+            tenant_name: ctx.name,
             tenant_email: 'maria.santos@tenant.ph',
             property: ctx.property,
             building: ctx.building,
             unit: ctx.unit,
             fullLocation: ctx.fullTag,
+            property_location: ctx.fullTag,
             category: category,
             title: title,
             description: description || 'No detailed notes provided.',
@@ -1509,29 +1578,18 @@
             permissionToEnter: permission
         };
 
-        // Live Backend Dispatch
-        try {
-            await fetch(`${API_BASE_URL}/maintenance/`, {
-                method: 'POST',
-                headers: getAuthHeaders(),
-                body: JSON.stringify(newTicket)
-            });
-        } catch (e) {
-            console.warn("Backend maintenance log failed, saving locally.", e);
-        }
-
-        // 1. Add Ticket to LocalStorage
-        let tickets = getTickets();
+        let tickets = await getTickets();
         tickets.unshift(newTicket);
         saveTickets(tickets);
 
-        // 2. Push Notification Alert to Admin POV (maintenance.html)
+        // Push Notification Alert to Admin POV (maintenance.html)
         let notifications = getNotifications();
         const newNotif = {
             id: `NOTIF-${Date.now()}`,
             pov: 'admin',
             category: 'maintenance',
             status: 'unread',
+            is_read: false,
             title: `New Maintenance Ticket: ${title}`,
             time: 'Just now',
             description: `Tenant <strong>${ctx.name}</strong> (${ctx.fullTag}) filed a <strong>${priority}</strong> priority ticket: "${description}".`,
@@ -1546,9 +1604,9 @@
         notifications.unshift(newNotif);
         saveNotifications(notifications);
 
-        renderTicketsTable();
-        checkLiveDispatchBanner();
-        updateKPIs();
+        await renderTicketsTable();
+        await checkLiveDispatchBanner();
+        await updateKPIs();
         closeMaintenanceModal();
 
         if (titleEl) titleEl.value = '';

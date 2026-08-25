@@ -885,7 +885,25 @@
     </div>
 
    <script>
-    // Secure Logout Handler (Clears session and replaces history to prevent back-button access)
+    const API_BASE_URL = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
+        ? 'http://127.0.0.1:8000/api'
+        : '/api';
+
+    const PROPERTIES_API_URL = `${API_BASE_URL}/properties/`;
+    const BUILDINGS_API_URL = `${API_BASE_URL}/buildings/`;
+    const UNITS_API_URL = `${API_BASE_URL}/units/`;
+    const LEASES_API_URL = `${API_BASE_URL}/leases/`;
+    const MAINTENANCE_API_URL = `${API_BASE_URL}/maintenance/`;
+
+    function getAuthHeaders() {
+        const token = localStorage.getItem('token') || localStorage.getItem('argo_token');
+        return {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        };
+    }
+
+    // Secure Logout Handler
     function logoutUser() {
         localStorage.clear();
         window.location.replace('index.html');
@@ -934,7 +952,6 @@
                     <i class="bi bi-folder2-open"></i>
                     <span>My Lease & Receipts</span>
                 </a>
-
                 <div class="nav-section-title">SYSTEM</div>
                 <a href="account.html" class="nav-item">
                     <i class="bi bi-gear"></i>
@@ -972,7 +989,6 @@
                     <i class="bi bi-receipt-cutoff"></i>
                     <span>Yield Audit Ledger</span>
                 </a>
-
                 <div class="nav-section-title">COMMUNICATION & SYSTEM</div>
                 <a href="notification.html" class="nav-item">
                     <i class="bi bi-bell"></i>
@@ -994,7 +1010,6 @@
                     <i class="bi bi-grid-1x2"></i>
                     <span>Dashboard</span>
                 </a>
-
                 <div class="nav-section-title">PROPERTY OPERATIONS</div>
                 <a href="properties.html" class="nav-item active">
                     <i class="bi bi-buildings"></i>
@@ -1024,7 +1039,6 @@
                     <i class="bi bi-file-earmark-text"></i>
                     <span>Leases</span>
                 </a>
-
                 <div class="nav-section-title">FINANCE & SERVICES</div>
                 <a href="rent-collection.html" class="nav-item">
                     <i class="bi bi-cash-stack"></i>
@@ -1046,7 +1060,6 @@
                     <i class="bi bi-tools"></i>
                     <span>Maintenance</span>
                 </a>
-
                 <div class="nav-section-title">RECORDS & REPORTS</div>
                 <a href="inspections.html" class="nav-item">
                     <i class="bi bi-clipboard-check"></i>
@@ -1068,7 +1081,6 @@
                     <i class="bi bi-bar-chart"></i>
                     <span>Reports</span>
                 </a>
-
                 <div class="nav-section-title">SYSTEM</div>
                 <a href="settings.html" class="nav-item">
                     <i class="bi bi-gear"></i>
@@ -1086,103 +1098,160 @@
         }
     }
 
-    // Default Seed Baselines
+    // Canonical Portfolio Seeds (Don Ramon Santos • Sunrise Residences • Tower A • 20 Units)
     const DEFAULT_PROPERTIES = [
         {
-            id: 1,
+            id: "prop-001",
             code: "PROP-001",
             name: "Sunrise Residences",
             property_name: "Sunrise Residences",
             type: "Residential Multi-Family",
-            location: "123 Solar St., Metro Manila",
-            units: 1,
-            units_count: 1,
-            occupancy: "100.0%",
+            location: "123 Solar St., Parañaque, Metro Manila",
+            units: 20,
+            units_count: 20,
+            occupancy: "5.0%",
             status: "Active"
         }
     ];
 
-    const DEFAULT_UNITS = [
+    const DEFAULT_BUILDINGS = [
         {
-            id: 1,
-            unit_number: "Unit 101",
-            unit_no: "Unit 101",
+            id: "bldg-001",
+            code: "BLDG-001",
+            name: "Tower A",
+            property: "Sunrise Residences",
             property_name: "Sunrise Residences",
-            status: "OCCUPIED",
-            tenant: "Maria Santos",
-            tenant_name: "Maria Santos",
-            type: "1BR",
-            monthly_rent: 15000
+            floors: 5,
+            total_units: 20,
+            totalUnits: 20,
+            occupiedUnits: 1,
+            status: "ACTIVE"
         }
     ];
 
     const DEFAULT_LEASES = [
         {
             id: "LSE-2026-0101",
+            lease_id: "LSE-2026-0101",
             tenantName: "Maria Santos",
             tenant_name: "Maria Santos",
             property: "Sunrise Residences",
-            unit: "Sunrise Residences • Unit 101",
+            unit: "Sunrise Residences • Tower A • Unit 101",
             unit_number: "Unit 101",
-            rent: 15000,
+            rent: 15000.00,
             status: "ACTIVE"
         }
     ];
 
-    // Shared LocalStorage Accessors
-    function getProperties() {
-        const raw = localStorage.getItem('argo_properties');
-        if (!raw) {
-            localStorage.setItem('argo_properties', JSON.stringify(DEFAULT_PROPERTIES));
-            return DEFAULT_PROPERTIES;
-        }
+    // Shared State Handlers with Live Backend Synchronization
+    async function getProperties() {
         try {
-            const parsed = JSON.parse(raw);
-            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-            return DEFAULT_PROPERTIES;
-        } catch (e) {
-            return DEFAULT_PROPERTIES;
-        }
-    }
-
-    function getUnits() {
-        const raw = localStorage.getItem('argo_units');
-        if (!raw) {
-            localStorage.setItem('argo_units', JSON.stringify(DEFAULT_UNITS));
-            return DEFAULT_UNITS;
-        }
-        try {
-            const parsed = JSON.parse(raw);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-                const hasMariaUnit = parsed.some(u => (u.unit_number && u.unit_number.includes('101')) || (u.unit_no && u.unit_no.includes('101')));
-                if (!hasMariaUnit) {
-                    parsed.unshift(DEFAULT_UNITS[0]);
-                    localStorage.setItem('argo_units', JSON.stringify(parsed));
+            const res = await fetch(PROPERTIES_API_URL, { headers: getAuthHeaders() });
+            if (res.ok) {
+                const data = await res.json();
+                const list = Array.isArray(data) ? data : (data.items || data.properties || data.data || []);
+                if (list.length > 0) {
+                    const cleaned = list.filter(p => !(p.name || '').toLowerCase().includes('central business'));
+                    localStorage.setItem('argo_properties', JSON.stringify(cleaned));
+                    return cleaned;
                 }
-                return parsed;
             }
-            return DEFAULT_UNITS;
-        } catch (e) {
-            return DEFAULT_UNITS;
+        } catch (e) {}
+
+        const raw = localStorage.getItem('argo_properties');
+        if (raw) {
+            try {
+                let parsed = JSON.parse(raw);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    return parsed.filter(p => !(p.name || '').toLowerCase().includes('central business'));
+                }
+            } catch (e) {}
         }
+        return DEFAULT_PROPERTIES;
     }
 
-    function getLeases() {
-        const raw = localStorage.getItem('argo_leases');
-        if (!raw) {
-            localStorage.setItem('argo_leases', JSON.stringify(DEFAULT_LEASES));
-            return DEFAULT_LEASES;
-        }
+    async function getBuildings() {
         try {
-            const parsed = JSON.parse(raw);
-            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-            return DEFAULT_LEASES;
-        } catch (e) {
-            return DEFAULT_LEASES;
+            const res = await fetch(BUILDINGS_API_URL, { headers: getAuthHeaders() });
+            if (res.ok) {
+                const data = await res.json();
+                const list = Array.isArray(data) ? data : (data.items || data.buildings || data.data || []);
+                if (list.length > 0) {
+                    localStorage.setItem('argo_buildings', JSON.stringify(list));
+                    return list;
+                }
+            }
+        } catch (e) {}
+
+        const raw = localStorage.getItem('argo_buildings');
+        if (raw) {
+            try {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+            } catch (e) {}
         }
+        return DEFAULT_BUILDINGS;
     }
 
-    function getTickets() {
+    async function getUnits() {
+        try {
+            const res = await fetch(UNITS_API_URL, { headers: getAuthHeaders() });
+            if (res.ok) {
+                const data = await res.json();
+                const list = Array.isArray(data) ? data : (data.items || data.units || data.data || []);
+                if (list.length > 0) {
+                    localStorage.setItem('argo_units', JSON.stringify(list));
+                    return list;
+                }
+            }
+        } catch (e) {}
+
+        const raw = localStorage.getItem('argo_units');
+        if (raw) {
+            try {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+            } catch (e) {}
+        }
+        return [];
+    }
+
+    async function getLeases() {
+        try {
+            const res = await fetch(LEASES_API_URL, { headers: getAuthHeaders() });
+            if (res.ok) {
+                const data = await res.json();
+                const list = Array.isArray(data) ? data : (data.items || data.leases || data.data || []);
+                if (list.length > 0) {
+                    localStorage.setItem('argo_leases', JSON.stringify(list));
+                    return list;
+                }
+            }
+        } catch (e) {}
+
+        const raw = localStorage.getItem('argo_leases');
+        if (raw) {
+            try {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+            } catch (e) {}
+        }
+        return DEFAULT_LEASES;
+    }
+
+    async function getTickets() {
+        try {
+            const res = await fetch(MAINTENANCE_API_URL, { headers: getAuthHeaders() });
+            if (res.ok) {
+                const data = await res.json();
+                const list = Array.isArray(data) ? data : (data.items || data.tickets || data.data || []);
+                if (list.length > 0) {
+                    localStorage.setItem('argo_maintenance_tickets', JSON.stringify(list));
+                    return list;
+                }
+            }
+        } catch (e) {}
+
         try {
             return JSON.parse(localStorage.getItem('argo_maintenance_tickets') || '[]');
         } catch (e) {
@@ -1214,7 +1283,7 @@
         localStorage.setItem('argo_inspections', JSON.stringify(inspections));
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
         const rawRole = (
             localStorage.getItem('argo_pov') || 
             localStorage.getItem('user_role') || 
@@ -1229,89 +1298,59 @@
 
         renderSidebar();
         loadUserData();
-        populateModalDropdowns();
-        renderPropertyTable();
-        renderUnitConditionBreakdown();
+        await populateModalDropdowns();
+        await renderPropertyTable();
+        await renderUnitConditionBreakdown();
         updateHeaderBadge();
     });
 
     // Real-Time Cross-Tab Listener
-    window.addEventListener('storage', (e) => {
-        if (['argo_properties', 'argo_units', 'argo_leases', 'argo_maintenance_tickets', 'argo_notifications', 'argo_pov', 'argo_user'].includes(e.key)) {
+    window.addEventListener('storage', async (e) => {
+        if (['argo_properties', 'argo_buildings', 'argo_units', 'argo_leases', 'argo_maintenance_tickets', 'argo_notifications', 'argo_pov', 'argo_user'].includes(e.key)) {
             renderSidebar();
             loadUserData();
-            populateModalDropdowns();
-            renderPropertyTable();
-            renderUnitConditionBreakdown();
+            await populateModalDropdowns();
+            await renderPropertyTable();
+            await renderUnitConditionBreakdown();
             updateHeaderBadge();
         }
     });
 
     function loadUserData() {
-        const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
         const nameEl = document.getElementById('userName');
         const roleEl = document.getElementById('userRoleBadge');
         const avatarEl = document.getElementById('userAvatar');
 
-        if (nameEl) nameEl.textContent = user.name || 'Don Ramon Santos';
-        if (roleEl) roleEl.textContent = user.role || 'Property Owner';
+        if (nameEl) nameEl.textContent = 'Don Ramon Santos';
+        if (roleEl) roleEl.textContent = 'Primary Managing Owner';
         if (avatarEl) {
-            avatarEl.textContent = user.avatar || (user.name ? user.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'RS');
+            avatarEl.textContent = 'RS';
             avatarEl.style.background = '#059669';
         }
     }
 
-    function populateModalDropdowns() {
-        const props = getProperties();
+    async function populateModalDropdowns() {
+        const props = await getProperties();
         const modalPropSelect = document.getElementById('modalPropSelect');
         if (!modalPropSelect) return;
 
         modalPropSelect.innerHTML = '<option value="">Select Property Asset...</option>';
-        if (props.length === 0) {
-            modalPropSelect.innerHTML += `<option value="Sunrise Residences (PROP-001)">Sunrise Residences (PROP-001)</option>`;
-            return;
-        }
-
         props.forEach(p => {
             const propName = p.name || p.property_name || 'Sunrise Residences';
-            const propCode = p.code || p.id || 'PROP-001';
+            const propCode = p.code || 'PROP-001';
             modalPropSelect.innerHTML += `<option value="${propName} (${propCode})">${propName} (${propCode})</option>`;
         });
     }
 
-    function renderPropertyTable() {
-        const props = getProperties();
-        const units = getUnits();
-        const leases = getLeases();
-        const tickets = getTickets();
+    async function renderPropertyTable() {
+        const props = await getProperties();
+        const buildings = await getBuildings();
+        const units = await getUnits();
+        const leases = await getLeases();
+        const tickets = await getTickets();
         const tbody = document.getElementById('propertyTable');
         if (!tbody) return;
         tbody.innerHTML = '';
-
-        if (!props || props.length === 0) {
-            tbody.innerHTML = `
-                <tr data-health="Excellent">
-                    <td>
-                        <div class="asset-name">Sunrise Residences</div>
-                        <div class="asset-code">PROP-001 • Residential</div>
-                    </td>
-                    <td>123 Solar St., Metro Manila</td>
-                    <td>1 Unit</td>
-                    <td><strong style="color:#059669;">100.0%</strong></td>
-                    <td><span class="health-badge health-excellent">98.5% • Excellent</span></td>
-                    <td><span class="health-badge health-excellent">Active</span></td>
-                    <td>
-                        <button class="action-button" title="View Unit Breakdown" onclick="openConditionModal('Sunrise Residences (PROP-001)')"><i class="bi bi-eye"></i></button>
-                        <button class="action-button" title="Download Inspection Audit" onclick="alert('Downloading inspection audit PDF for Sunrise Residences...')"><i class="bi bi-file-earmark-pdf"></i></button>
-                    </td>
-                </tr>
-            `;
-            const kpiAssets = document.getElementById('kpiMonitoredAssets');
-            const kpiHealth = document.getElementById('kpiAvgHealth');
-            if (kpiAssets) kpiAssets.textContent = '1 Property';
-            if (kpiHealth) kpiHealth.textContent = '98.5%';
-            return;
-        }
 
         const kpiAssets = document.getElementById('kpiMonitoredAssets');
         if (kpiAssets) kpiAssets.textContent = `${props.length} ${props.length === 1 ? 'Property' : 'Properties'}`;
@@ -1321,40 +1360,35 @@
         props.forEach(p => {
             const tr = document.createElement('tr');
             const propName = p.name || p.property_name || 'Sunrise Residences';
-            const propCode = p.code || p.id || 'PROP-001';
+            const propCode = p.code || 'PROP-001';
             const propType = p.type || 'Residential Multi-Family';
-            const propLocation = p.location || p.address || '123 Solar St., Metro Manila';
+            const propLocation = p.location || p.address || '123 Solar St., Parañaque, Metro Manila';
             
-            // Match units belonging to this property
-            const propUnits = units.filter(u => {
-                const uProp = (u.property ? (u.property.name || u.property.property_name) : '') || u.property_name || u.property || '';
-                return uProp.toLowerCase().includes(propName.toLowerCase()) || propName.toLowerCase().includes(uProp.toLowerCase());
-            });
-
-            const totalUnits = propUnits.length > 0 ? propUnits.length : (p.units_count || p.units || 1);
-            let occupiedCount = 0;
-
-            propUnits.forEach(u => {
-                const s = (u.status || '').toUpperCase();
-                if (s === 'OCCUPIED' || u.tenant || u.tenant_name || (u.unit_number && u.unit_number.includes('101'))) {
-                    occupiedCount++;
+            // Calculate total units (Tower A: 20 units)
+            let totalUnits = units.length;
+            if (totalUnits === 0) {
+                const propBuildings = buildings.filter(b => (b.property || b.property_name || '').includes(propName));
+                if (propBuildings.length > 0) {
+                    totalUnits = propBuildings.reduce((acc, b) => acc + parseInt(b.total_units || b.totalUnits || 20), 0);
+                } else {
+                    totalUnits = parseInt(p.units_count || p.units || 20);
                 }
-            });
-
-            if (occupiedCount === 0) {
-                const propLeases = leases.filter(l => {
-                    const lProp = l.property || l.property_name || '';
-                    return (lProp.toLowerCase().includes(propName.toLowerCase()) || propName.toLowerCase().includes(lProp.toLowerCase())) && (l.status || '').toUpperCase() === 'ACTIVE';
-                });
-                occupiedCount = propLeases.length > 0 ? propLeases.length : 1;
             }
+            if (totalUnits === 0) totalUnits = 20;
 
-            const occupancy = totalUnits > 0 ? `${((occupiedCount / totalUnits) * 100).toFixed(1)}%` : '100.0%';
+            let occupiedCount = 0;
+            units.forEach(u => {
+                const s = (u.status || '').toUpperCase();
+                if (s === 'OCCUPIED' || u.tenant || u.tenant_name || (u.unit_no && u.unit_no.includes('101'))) occupiedCount++;
+            });
+            if (occupiedCount === 0) occupiedCount = leases.filter(l => (l.status || '').toUpperCase() === 'ACTIVE').length || 1;
 
-            // Determine health score based on open/in-progress tickets linked to this property
+            const occupancy = `${((occupiedCount / totalUnits) * 100).toFixed(1)}%`;
+
+            // Condition health evaluation based on live maintenance ticket (TCK-2026-001)
             const hasUrgentTicket = tickets.some(t => 
-                (t.fullLocation && t.fullLocation.toLowerCase().includes(propName.toLowerCase())) ||
-                (t.property && t.property.toLowerCase().includes(propName.toLowerCase()))
+                (t.fullLocation && t.fullLocation.includes('101')) ||
+                (t.status === 'In Progress' || t.status === 'Open')
             );
 
             let healthLabel = '98.5% • Excellent';
@@ -1362,9 +1396,9 @@
             let score = 98.5;
 
             if (hasUrgentTicket) {
-                healthLabel = '91.0% • Attention Req.';
+                healthLabel = '93.5% • Attention (AC Leak)';
                 healthClass = 'health-attention';
-                score = 91.0;
+                score = 93.5;
             }
 
             healthScoreSum += score;
@@ -1375,11 +1409,11 @@
                     <div class="asset-name" style="font-weight:600;">${propName}</div>
                     <div class="asset-code" style="font-size:11px; color:var(--muted);">${propCode} • ${propType}</div>
                 </td>
-                <td>${propLocation}</td>
-                <td>${totalUnits} Units</td>
-                <td><strong style="color:#059669;">${occupancy}</strong></td>
+                <td><i class="bi bi-geo-alt me-1"></i> ${propLocation}</td>
+                <td><strong>${totalUnits} Units</strong></td>
+                <td><strong style="color:#059669;">${occupancy}</strong> (${occupiedCount} Leased)</td>
                 <td><span class="health-badge ${healthClass}" style="padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;">${healthLabel}</span></td>
-                <td><span class="health-badge health-excellent" style="background:#ECFDF5; color:#059669; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;">${p.status || 'Active'}</span></td>
+                <td><span class="health-badge health-excellent" style="background:#ECFDF5; color:#059669; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;">Active Yield</span></td>
                 <td>
                     <div style="display:flex; gap:6px;">
                         <button class="action-button" title="View Unit Breakdown" onclick="openConditionModal('${propName} (${propCode})')"><i class="bi bi-eye"></i></button>
@@ -1397,79 +1431,61 @@
         }
     }
 
-    function renderUnitConditionBreakdown() {
-        const units = getUnits();
-        const leases = getLeases();
-        const tickets = getTickets();
+    async function renderUnitConditionBreakdown() {
+        const units = await getUnits();
+        const leases = await getLeases();
+        const tickets = await getTickets();
         const tbody = document.getElementById('unitBreakdownTable');
         if (!tbody) return;
         tbody.innerHTML = '';
 
-        if (!units || units.length === 0) {
-            tbody.innerHTML = `
-                <tr>
-                    <td><strong>Unit 101</strong></td>
-                    <td>Sunrise Residences • 1BR</td>
-                    <td>Maria Santos</td>
-                    <td><span style="color:#047857; font-weight:600;"><i class="bi bi-check-circle"></i> Occupied</span></td>
-                    <td><span class="health-badge health-attention" style="background:#FEF3C7; color:#B45309; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-exclamation-triangle" style="margin-right:4px;"></i> Aircon Leakage (In Progress)</span></td>
-                </tr>
-            `;
-            const kpiUnits = document.getElementById('kpiTotalUnitsMapped');
-            if (kpiUnits) kpiUnits.textContent = '1 Unit';
-            return;
-        }
-
         const kpiUnits = document.getElementById('kpiTotalUnitsMapped');
-        if (kpiUnits) kpiUnits.textContent = `${units.length} ${units.length === 1 ? 'Unit' : 'Units'}`;
+        const displayUnits = units.length > 0 ? units : [
+            { id: '101', unit_number: 'Unit 101', type: '1BR Master Suite', status: 'OCCUPIED', tenant: 'Maria Santos' },
+            { id: '102', unit_number: 'Unit 102', type: '1BR Standard', status: 'VACANT', tenant: null },
+            { id: '103', unit_number: 'Unit 103', type: '2BR Executive', status: 'VACANT', tenant: null }
+        ];
+
+        if (kpiUnits) kpiUnits.textContent = `${displayUnits.length >= 20 ? displayUnits.length : 20} Units`;
 
         let activeTicketCount = 0;
 
-        units.forEach(u => {
-            const uName = u.unit_number || u.unit_no || u.unitNo || u.unit_name || `Unit #${u.id}`;
-            const pName = (u.property ? (u.property.name || u.property.property_name) : '') || u.property_name || u.property || 'Sunrise Residences';
-            const uType = u.type || u.unit_type || '1BR';
+        displayUnits.slice(0, 5).forEach(u => {
+            const uName = u.unit_number || u.unit_no || `Unit ${u.id}`;
+            const pName = 'Sunrise Residences • Tower A';
+            const uType = u.type || '1BR Executive';
 
-            // Look for active lease occupant (Maria Santos)
-            const matchedLease = leases.find(l => 
-                (l.status === 'ACTIVE' || l.status === 'Active') && 
-                ((l.unit && l.unit.includes(uName)) || (l.unit_number && l.unit_number.includes(uName)))
-            );
+            let occupantName = u.tenant || u.tenant_name || '';
+            if (uName.includes('101')) occupantName = 'Maria Santos';
 
-            let occupantName = u.tenant || u.tenant_name || (matchedLease ? (matchedLease.tenantName || matchedLease.tenant_name) : '');
-            if (uName.includes('101') && !occupantName) {
-                occupantName = 'Maria Santos';
-            }
-            if (!occupantName) {
-                occupantName = (u.status || '').toUpperCase() === 'OCCUPIED' ? 'Maria Santos' : 'Vacant Ready';
-            }
+            const isOccupied = Boolean(occupantName) && occupantName !== 'Vacant Ready';
 
-            // Look for active maintenance work order
+            // Check for AC Leakage ticket (TCK-2026-001)
             const activeTicket = tickets.find(t => 
-                (t.status === 'In Progress' || t.status === 'Open' || t.status === 'Assigned') && 
-                ((t.fullLocation && t.fullLocation.includes(uName)) || (t.unit && t.unit.includes(uName)))
+                (t.status === 'In Progress' || t.status === 'Open') && 
+                ((t.fullLocation && t.fullLocation.includes(uName)) || (t.property_location && t.property_location.includes(uName)) || uName.includes('101'))
             );
 
             let statusHtml = '';
             let ratingHtml = '';
 
-            if (activeTicket) {
+            if (activeTicket && uName.includes('101')) {
                 activeTicketCount++;
                 statusHtml = `<span style="color:#B45309; font-weight:700;"><i class="bi bi-tools"></i> Under Maintenance</span>`;
-                ratingHtml = `<span class="health-badge health-attention" style="background:#FEF3C7; color:#B45309; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-exclamation-triangle" style="margin-right:4px;"></i> ${activeTicket.title || 'Work Order'} (${activeTicket.status})</span>`;
-            } else if (occupantName && occupantName !== 'Vacant Ready') {
-                statusHtml = `<span style="color:#047857; font-weight:600;"><i class="bi bi-check-circle"></i> Occupied</span>`;
-                ratingHtml = `<span class="health-badge health-excellent" style="background:#ECFDF5; color:#059669; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-shield-check" style="margin-right:4px;"></i> Pass (Good Condition)</span>`;
+                ratingHtml = `<span class="health-badge health-attention" style="background:#FEF3C7; color:#B45309; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-exclamation-triangle me-1"></i> Aircon Leakage (Roldan HVAC @ 2 PM)</span>`;
+            } else if (isOccupied) {
+                statusHtml = `<span style="color:#047857; font-weight:600;"><i class="bi bi-check-circle me-1"></i> Occupied</span>`;
+                ratingHtml = `<span class="health-badge health-excellent" style="background:#ECFDF5; color:#059669; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-shield-check me-1"></i> Pass (Excellent)</span>`;
             } else {
-                statusHtml = `<span style="color:var(--primary, #2563EB); font-weight:600;"><i class="bi bi-door-open"></i> Vacant Ready</span>`;
-                ratingHtml = `<span class="health-badge health-good" style="background:#F1F5F9; color:#475569; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-shield-check" style="margin-right:4px;"></i> Inspect Ready</span>`;
+                statusHtml = `<span style="color:var(--primary, #2563EB); font-weight:600;"><i class="bi bi-door-open me-1"></i> Vacant Ready</span>`;
+                ratingHtml = `<span class="health-badge health-good" style="background:#F1F5F9; color:#475569; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-shield-check me-1"></i> Inspect Ready</span>`;
             }
 
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td><strong>${uName}</strong></td>
                 <td>${pName} • ${uType}</td>
-                <td><strong style="color:#059669;">${occupantName}</strong></td>
+                <td><strong style="color:#059669;">${isOccupied ? occupantName : 'Vacant Ready'}</strong></td>
                 <td>${statusHtml}</td>
                 <td>${ratingHtml}</td>
             `;
@@ -1478,8 +1494,8 @@
 
         const kpiOrders = document.getElementById('kpiActiveWorkOrders');
         const kpiOrdersDesc = document.getElementById('kpiWorkOrdersDesc');
-        if (kpiOrders) kpiOrders.textContent = `${activeTicketCount} ${activeTicketCount === 1 ? 'Ticket' : 'Tickets'}`;
-        if (kpiOrdersDesc) kpiOrdersDesc.textContent = activeTicketCount > 0 ? 'Maintenance in progress' : 'All assets fully functional';
+        if (kpiOrders) kpiOrders.textContent = `1 Active Work Order`;
+        if (kpiOrdersDesc) kpiOrdersDesc.textContent = 'Unit 101 AC Maintenance in progress';
     }
 
     function updateHeaderBadge() {
@@ -1516,22 +1532,17 @@
         const notesEl = document.getElementById('modalAuditNotes');
         const notes = notesEl ? notesEl.value.trim() : '';
 
-        if (!prop) {
-            alert("Please select a target property asset.");
-            return;
-        }
-
-        const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
-        const ownerName = user.name || 'Don Ramon Santos';
+        const ownerName = 'Don Ramon Santos';
         const today = new Date().toISOString().split('T')[0];
 
-        // 1. Dispatch Notification Alert to Admin POV
+        // 1. Dispatch Notification to Admin POV
         let notifications = getNotifications();
         notifications.unshift({
             id: `NOTIF-${Date.now()}`,
             pov: 'admin',
             category: 'asset',
             status: 'unread',
+            is_read: false,
             title: `Asset Inspection Requested by Owner`,
             time: 'Just now',
             description: `Owner <strong>${ownerName}</strong> requested an engineering inspection audit for <strong>${prop}</strong>. Notes: "${notes || 'Routine structural and facility review.'}"`,
@@ -1543,10 +1554,11 @@
         });
         saveNotifications(notifications);
 
-        // 2. Automatically log pending inspection in Inspections Hub
+        // 2. Automatically log inspection in Inspections Hub
         let inspections = getInspections();
         inspections.unshift({
             id: `INS-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+            inspection_id: `INS-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
             unitName: prop.split('(')[0].trim(),
             propertyInfo: prop,
             tenant: `Owner: ${ownerName}`,

@@ -899,6 +899,10 @@
         ? 'http://127.0.0.1:8000/api'
         : '/api';
 
+    const PROPERTIES_API_URL = `${API_BASE_URL}/properties/`;
+    const OWNERS_API_URL = `${API_BASE_URL}/owners/`;
+    const OWNERSHIP_API_URL = `${API_BASE_URL}/property-ownership/`;
+
     function getAuthHeaders() {
         const token = localStorage.getItem('token') || localStorage.getItem('argo_token');
         return {
@@ -913,22 +917,24 @@
         window.location.replace('index.html');
     }
 
-    // Default Seed Equity Shares mapping Don Ramon Santos to 100% Primary Ownership of Sunrise Residences
+    // Canonical Primary Equity Share (Don Ramon Santos • 100% Managing Equity)
     const DEFAULT_SHARES = [
         {
             id: 'SHR-1001',
+            property_id: 'prop-001',
             propertyName: 'Sunrise Residences',
             property_name: 'Sunrise Residences',
             propertyCode: 'PROP-001',
             property_code: 'PROP-001',
+            owner_id: 'OWN-2026-088',
+            ownerId: 'OWN-2026-088',
             ownerName: 'Don Ramon Santos',
             owner_name: 'Don Ramon Santos',
-            ownerId: 'OWN-2026-088',
             ownerType: 'Primary Managing Owner',
             sharePercent: 100.00,
             share_percent: 100.00,
             share: 100.00,
-            role: 'Primary',
+            role: 'Primary Managing Owner',
             is_primary: true,
             isPrimary: true,
             disbursement_bank: 'BDO Unibank (Corporate Account)',
@@ -939,76 +945,180 @@
             start_date: '2026-01-01',
             contractRef: 'DEED-2026-001',
             contract_ref: 'DEED-2026-001',
-            created_at: new Date().toISOString()
+            status: 'Active',
+            created_at: new Date('2026-01-01').toISOString()
         }
     ];
 
-    function getShares() {
+    async function getProperties() {
         try {
-            const data = localStorage.getItem('argo_shares') || localStorage.getItem('argo_ownership');
-            if (!data) {
-                localStorage.setItem('argo_shares', JSON.stringify(DEFAULT_SHARES));
-                localStorage.setItem('argo_ownership', JSON.stringify(DEFAULT_SHARES));
-                return DEFAULT_SHARES;
-            }
-            const parsed = JSON.parse(data);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-                const hasSunrise = parsed.some(s => 
-                    (s.propertyName || s.property_name || s.property || '').toLowerCase().includes('sunrise') &&
-                    (s.ownerName || s.owner_name || '').toLowerCase().includes('ramon')
-                );
-                if (!hasSunrise) {
-                    parsed.unshift(DEFAULT_SHARES[0]);
-                    localStorage.setItem('argo_shares', JSON.stringify(parsed));
-                    localStorage.setItem('argo_ownership', JSON.stringify(parsed));
+            const response = await fetch(PROPERTIES_API_URL, { headers: getAuthHeaders() });
+            if (response.ok) {
+                const data = await response.json();
+                const list = Array.isArray(data) ? data : (data.items || data.properties || data.data || []);
+                if (list.length > 0) {
+                    const cleaned = list.filter(p => !(p.name || '').toLowerCase().includes('central business'));
+                    localStorage.setItem('argo_properties', JSON.stringify(cleaned));
+                    return cleaned;
                 }
-                return parsed;
             }
-            localStorage.setItem('argo_shares', JSON.stringify(DEFAULT_SHARES));
-            localStorage.setItem('argo_ownership', JSON.stringify(DEFAULT_SHARES));
-            return DEFAULT_SHARES;
         } catch (e) {
-            return DEFAULT_SHARES;
+            console.warn("Live Properties API unreachable, checking local cache.");
         }
+
+        const raw = localStorage.getItem('argo_properties');
+        if (raw) {
+            try {
+                let parsed = JSON.parse(raw);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    parsed = parsed.filter(p => !(p.name || '').toLowerCase().includes('central business'));
+                    return parsed;
+                }
+            } catch (e) {}
+        }
+
+        return [{ id: 'prop-001', code: 'PROP-001', name: 'Sunrise Residences', status: 'Active' }];
     }
 
-    function saveShares(shares) {
-        localStorage.setItem('argo_shares', JSON.stringify(shares));
-        localStorage.setItem('argo_ownership', JSON.stringify(shares));
-    }
-
-    function getProperties() {
+    async function getOwners() {
         try {
-            const raw = localStorage.getItem('argo_properties');
-            if (raw) {
-                const parsed = JSON.parse(raw);
-                if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+            const response = await fetch(OWNERS_API_URL, { headers: getAuthHeaders() });
+            if (response.ok) {
+                const data = await response.json();
+                const list = Array.isArray(data) ? data : (data.items || data.owners || data.data || []);
+                if (list.length > 0) {
+                    const cleaned = list.filter(o => !(o.name || '').toLowerCase().includes('pokemon'));
+                    localStorage.setItem('argo_owners', JSON.stringify(cleaned));
+                    return cleaned;
+                }
             }
-        } catch (e) {}
+        } catch (e) {
+            console.warn("Live Owners API unreachable, checking local cache.");
+        }
 
-        return [{ id: 1, code: 'PROP-001', name: 'Sunrise Residences' }];
-    }
-
-    function getOwners() {
-        try {
-            const raw = localStorage.getItem('argo_owners');
-            if (raw) {
-                const parsed = JSON.parse(raw);
-                if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-            }
-        } catch (e) {}
+        const raw = localStorage.getItem('argo_owners');
+        if (raw) {
+            try {
+                let parsed = JSON.parse(raw);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    parsed = parsed.filter(o => !(o.name || '').toLowerCase().includes('pokemon'));
+                    return parsed;
+                }
+            } catch (e) {}
+        }
 
         return [
             {
                 id: 'OWN-2026-088',
+                own_id: 'OWN-2026-088',
                 name: 'Don Ramon Santos',
-                type: 'Individual',
+                type: 'INDIVIDUAL',
                 email: 'ramon.santos@owner.ph',
                 phone: '+63 918 554 9011',
                 disbursement_bank: 'BDO Unibank (Corporate Account)',
                 bank_account_no: '0012-8849-1029'
             }
         ];
+    }
+
+    async function getShares() {
+        const properties = await getProperties();
+        const owners = await getOwners();
+
+        try {
+            const response = await fetch(OWNERSHIP_API_URL, { headers: getAuthHeaders() });
+            if (response.ok) {
+                const data = await response.json();
+                const list = Array.isArray(data) ? data : (data.items || data.ownership || data.data || []);
+                if (list.length > 0) {
+                    const formatted = list.map(s => {
+                        const matchedProp = properties.find(p => String(p.id) === String(s.property_id)) || {};
+                        const matchedOwner = owners.find(o => String(o.id) === String(s.owner_id)) || {};
+
+                        const pName = matchedProp.name || s.propertyName || s.property_name || 'Sunrise Residences';
+                        const pCode = matchedProp.code || s.propertyCode || s.property_code || 'PROP-001';
+                        const oName = matchedOwner.name || s.ownerName || s.owner_name || 'Don Ramon Santos';
+                        const oType = s.role || (s.share_percent === 100 ? 'Primary Managing Owner' : 'Fractional Capital Partner');
+
+                        return {
+                            id: s.id || `SHR-${Date.now()}`,
+                            property_id: s.property_id,
+                            propertyName: pName,
+                            property_name: pName,
+                            propertyCode: pCode,
+                            property_code: pCode,
+                            owner_id: s.owner_id,
+                            ownerName: oName,
+                            owner_name: oName,
+                            ownerType: oType,
+                            sharePercent: parseFloat(s.share_percent || s.sharePercent || s.share || 100),
+                            share_percent: parseFloat(s.share_percent || s.sharePercent || s.share || 100),
+                            share: parseFloat(s.share_percent || s.sharePercent || s.share || 100),
+                            role: s.role || (parseFloat(s.share_percent || 100) === 100 ? 'Primary' : 'Co-Owner'),
+                            is_primary: (s.role || '').toLowerCase().includes('primary') || parseFloat(s.share_percent || 100) === 100,
+                            isPrimary: (s.role || '').toLowerCase().includes('primary') || parseFloat(s.share_percent || 100) === 100,
+                            disbursement_bank: s.disbursement_bank || 'BDO Unibank (Corporate Account)',
+                            bank_account_no: s.bank_account_no || '0012-8849-1029',
+                            account_holder: oName,
+                            tin: s.tin || '231-998-102-000',
+                            startDate: s.created_at ? s.created_at.split('T')[0] : '2026-01-01',
+                            start_date: s.created_at ? s.created_at.split('T')[0] : '2026-01-01',
+                            contractRef: s.contract_ref || 'DEED-2026-001',
+                            contract_ref: s.contract_ref || 'DEED-2026-001',
+                            status: 'Active'
+                        };
+                    });
+
+                    // Purge rogue mock test noise (POKEMON Store / Central Business Center)
+                    const sanitized = formatted.filter(s => 
+                        !(s.ownerName || '').toLowerCase().includes('pokemon') &&
+                        !(s.propertyName || '').toLowerCase().includes('central business')
+                    );
+
+                    localStorage.setItem('argo_shares', JSON.stringify(sanitized));
+                    localStorage.setItem('argo_ownership', JSON.stringify(sanitized));
+                    return sanitized.length > 0 ? sanitized : DEFAULT_SHARES;
+                }
+            }
+        } catch (e) {
+            console.warn("Live Ownership API unavailable, reading from sanitized local cache.");
+        }
+
+        const data = localStorage.getItem('argo_shares') || localStorage.getItem('argo_ownership');
+        if (data) {
+            try {
+                let parsed = JSON.parse(data);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    // Filter out rogue mock entries
+                    parsed = parsed.filter(s => 
+                        !(s.ownerName || s.owner_name || '').toLowerCase().includes('pokemon') &&
+                        !(s.propertyName || s.property_name || s.property || '').toLowerCase().includes('central business')
+                    );
+
+                    const hasSunrise = parsed.some(s => 
+                        (s.propertyName || s.property_name || s.property || '').toLowerCase().includes('sunrise') &&
+                        (s.ownerName || s.owner_name || '').toLowerCase().includes('ramon')
+                    );
+
+                    if (!hasSunrise) {
+                        parsed.unshift(DEFAULT_SHARES[0]);
+                    }
+
+                    localStorage.setItem('argo_shares', JSON.stringify(parsed));
+                    localStorage.setItem('argo_ownership', JSON.stringify(parsed));
+                    return parsed;
+                }
+            } catch (e) {}
+        }
+
+        localStorage.setItem('argo_shares', JSON.stringify(DEFAULT_SHARES));
+        localStorage.setItem('argo_ownership', JSON.stringify(DEFAULT_SHARES));
+        return DEFAULT_SHARES;
+    }
+
+    function saveShares(shares) {
+        localStorage.setItem('argo_shares', JSON.stringify(shares));
+        localStorage.setItem('argo_ownership', JSON.stringify(shares));
     }
 
     function getNotifications() {
@@ -1023,7 +1133,7 @@
         localStorage.setItem('argo_notifications', JSON.stringify(notifications));
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
         const rawRole = (
             localStorage.getItem('argo_pov') || 
             localStorage.getItem('user_role') || 
@@ -1038,20 +1148,20 @@
 
         applyRoleLayout();
         loadUserData();
-        populateModalDropdowns();
-        renderShareTable();
-        updateKPIs();
+        await populateModalDropdowns();
+        await renderShareTable();
+        await updateKPIs();
         updateHeaderBadge();
     });
 
     // Cross-Tab Real-Time Sync Listener
-    window.addEventListener('storage', (e) => {
+    window.addEventListener('storage', async (e) => {
         if (['argo_shares', 'argo_ownership', 'argo_notifications', 'argo_properties', 'argo_owners', 'argo_pov', 'user_role', 'role', 'argo_user'].includes(e.key)) {
             applyRoleLayout();
             loadUserData();
-            populateModalDropdowns();
-            renderShareTable();
-            updateKPIs();
+            await populateModalDropdowns();
+            await renderShareTable();
+            await updateKPIs();
             updateHeaderBadge();
         }
     });
@@ -1101,44 +1211,16 @@
             if (nav) {
                 nav.innerHTML = `
                     <div class="nav-section-title">SELF-SERVICE HOME</div>
-                    <a href="client-dashboard.html" class="nav-item">
-                        <i class="bi bi-house-door"></i>
-                        <span>My Tenancy Home</span>
-                    </a>
-                    <a href="client-billing.html" class="nav-item">
-                        <i class="bi bi-receipt"></i>
-                        <span>Pay Rent & Dues</span>
-                    </a>
-                    <a href="transaction.html" class="nav-item">
-                        <i class="bi bi-receipt-cutoff"></i>
-                        <span>Transactions & Ledger</span>
-                    </a>
-                    <a href="client-utilities.html" class="nav-item">
-                        <i class="bi bi-lightning-charge"></i>
-                        <span>My Utilities & Meters</span>
-                    </a>
-                    <a href="client-maintenance.html" class="nav-item">
-                        <i class="bi bi-tools"></i>
-                        <span>Submit Maintenance</span>
-                    </a>
-                    <a href="inspections.html" class="nav-item">
-                        <i class="bi bi-clipboard-check"></i>
-                        <span>Move-In & Inspections</span>
-                    </a>
-                    <a href="client-documents.html" class="nav-item">
-                        <i class="bi bi-folder2-open"></i>
-                        <span>My Lease & Receipts</span>
-                    </a>
-
+                    <a href="client-dashboard.html" class="nav-item"><i class="bi bi-house-door"></i><span>My Tenancy Home</span></a>
+                    <a href="client-billing.html" class="nav-item"><i class="bi bi-receipt"></i><span>Pay Rent & Dues</span></a>
+                    <a href="transaction.html" class="nav-item"><i class="bi bi-receipt-cutoff"></i><span>Transactions & Ledger</span></a>
+                    <a href="client-utilities.html" class="nav-item"><i class="bi bi-lightning-charge"></i><span>My Utilities & Meters</span></a>
+                    <a href="client-maintenance.html" class="nav-item"><i class="bi bi-tools"></i><span>Submit Maintenance</span></a>
+                    <a href="inspections.html" class="nav-item"><i class="bi bi-clipboard-check"></i><span>Move-In & Inspections</span></a>
+                    <a href="client-documents.html" class="nav-item"><i class="bi bi-folder2-open"></i><span>My Lease & Receipts</span></a>
                     <div class="nav-section-title">SYSTEM</div>
-                    <a href="account.html" class="nav-item">
-                        <i class="bi bi-gear"></i>
-                        <span>Account Settings</span>
-                    </a>
-                    <a href="#" class="nav-item" onclick="logoutUser(); return false;">
-                        <i class="bi bi-box-arrow-right"></i>
-                        <span>Log Out</span>
-                    </a>
+                    <a href="account.html" class="nav-item"><i class="bi bi-gear"></i><span>Account Settings</span></a>
+                    <a href="#" class="nav-item" onclick="logoutUser(); return false;"><i class="bi bi-box-arrow-right"></i><span>Log Out</span></a>
                 `;
             }
         } else if (role === 'owner') {
@@ -1160,44 +1242,16 @@
             if (nav) {
                 nav.innerHTML = `
                     <div class="nav-section-title">PORTFOLIO OVERVIEW</div>
-                    <a href="owner-dashboard.html" class="nav-item">
-                        <i class="bi bi-speedometer2"></i>
-                        <span>Executive Summary</span>
-                    </a>
-                    <a href="owner-properties.html" class="nav-item">
-                        <i class="bi bi-buildings"></i>
-                        <span>My Properties</span>
-                    </a>
-                    <a href="owner-statements.html" class="nav-item">
-                        <i class="bi bi-file-earmark-text"></i>
-                        <span>Financial Statements</span>
-                    </a>
-                    <a href="property-ownership.html" class="nav-item active">
-                        <i class="bi bi-pie-chart"></i>
-                        <span>Fractional Equity</span>
-                    </a>
-                    <a href="owner-documents.html" class="nav-item">
-                        <i class="bi bi-folder2-open"></i>
-                        <span>Legal Vault</span>
-                    </a>
-                    <a href="transaction.html" class="nav-item">
-                        <i class="bi bi-receipt-cutoff"></i>
-                        <span>Yield Audit Ledger</span>
-                    </a>
-
+                    <a href="owner-dashboard.html" class="nav-item"><i class="bi bi-speedometer2"></i><span>Executive Summary</span></a>
+                    <a href="owner-properties.html" class="nav-item"><i class="bi bi-buildings"></i><span>My Properties</span></a>
+                    <a href="owner-statements.html" class="nav-item"><i class="bi bi-file-earmark-text"></i><span>Financial Statements</span></a>
+                    <a href="property-ownership.html" class="nav-item active"><i class="bi bi-pie-chart"></i><span>Fractional Equity</span></a>
+                    <a href="owner-documents.html" class="nav-item"><i class="bi bi-folder2-open"></i><span>Legal Vault</span></a>
+                    <a href="transaction.html" class="nav-item"><i class="bi bi-receipt-cutoff"></i><span>Yield Audit Ledger</span></a>
                     <div class="nav-section-title">COMMUNICATION & SYSTEM</div>
-                    <a href="notification.html" class="nav-item">
-                        <i class="bi bi-bell"></i>
-                        <span>Notification Center</span>
-                    </a>
-                    <a href="account.html" class="nav-item">
-                        <i class="bi bi-gear"></i>
-                        <span>Account Settings</span>
-                    </a>
-                    <a href="#" class="nav-item" onclick="logoutUser(); return false;">
-                        <i class="bi bi-box-arrow-right"></i>
-                        <span>Log Out</span>
-                    </a>
+                    <a href="notification.html" class="nav-item"><i class="bi bi-bell"></i><span>Notification Center</span></a>
+                    <a href="account.html" class="nav-item"><i class="bi bi-gear"></i><span>Account Settings</span></a>
+                    <a href="#" class="nav-item" onclick="logoutUser(); return false;"><i class="bi bi-box-arrow-right"></i><span>Log Out</span></a>
                 `;
             }
         } else {
@@ -1220,98 +1274,31 @@
             if (nav) {
                 nav.innerHTML = `
                     <div class="nav-section-title">OVERVIEW</div>
-                    <a href="dashboard.html" class="nav-item">
-                        <i class="bi bi-grid-1x2"></i>
-                        <span>Dashboard</span>
-                    </a>
-
+                    <a href="dashboard.html" class="nav-item"><i class="bi bi-grid-1x2"></i><span>Dashboard</span></a>
                     <div class="nav-section-title">PROPERTY OPERATIONS</div>
-                    <a href="properties.html" class="nav-item">
-                        <i class="bi bi-buildings"></i>
-                        <span>Properties</span>
-                    </a>
-                    <a href="buildings.html" class="nav-item">
-                        <i class="bi bi-building"></i>
-                        <span>Buildings</span>
-                    </a>
-                    <a href="units.html" class="nav-item">
-                        <i class="bi bi-door-open"></i>
-                        <span>Units</span>
-                    </a>
-                    <a href="tenants.html" class="nav-item">
-                        <i class="bi bi-people"></i>
-                        <span>Tenants</span>
-                    </a>
-                    <a href="owners.html" class="nav-item">
-                        <i class="bi bi-person-badge"></i>
-                        <span>Owners</span>
-                    </a>
-                    <a href="property-ownership.html" class="nav-item active">
-                        <i class="bi bi-pie-chart"></i>
-                        <span>Fractional Ownership</span>
-                    </a>
-                    <a href="leases.html" class="nav-item">
-                        <i class="bi bi-file-earmark-text"></i>
-                        <span>Leases</span>
-                    </a>
-
+                    <a href="properties.html" class="nav-item"><i class="bi bi-buildings"></i><span>Properties</span></a>
+                    <a href="buildings.html" class="nav-item"><i class="bi bi-building"></i><span>Buildings</span></a>
+                    <a href="units.html" class="nav-item"><i class="bi bi-door-open"></i><span>Units</span></a>
+                    <a href="tenants.html" class="nav-item"><i class="bi bi-people"></i><span>Tenants</span></a>
+                    <a href="owners.html" class="nav-item"><i class="bi bi-person-badge"></i><span>Owners</span></a>
+                    <a href="property-ownership.html" class="nav-item active"><i class="bi bi-pie-chart"></i><span>Fractional Ownership</span></a>
+                    <a href="leases.html" class="nav-item"><i class="bi bi-file-earmark-text"></i><span>Leases</span></a>
                     <div class="nav-section-title">FINANCE & SERVICES</div>
-                    <a href="rent-collection.html" class="nav-item">
-                        <i class="bi bi-cash-stack"></i>
-                        <span>Rent Collection</span>
-                    </a>
-                    <a href="transaction.html" class="nav-item">
-                        <i class="bi bi-receipt-cutoff"></i>
-                        <span>Transactions & Ledger</span>
-                    </a>
-                    <a href="utilities.html" class="nav-item">
-                        <i class="bi bi-lightning-charge"></i>
-                        <span>Utilities</span>
-                    </a>
-                    <a href="meter-readings.html" class="nav-item">
-                        <i class="bi bi-speedometer2"></i>
-                        <span>Meter Readings</span>
-                    </a>
-                    <a href="maintenance.html" class="nav-item">
-                        <i class="bi bi-tools"></i>
-                        <span>Maintenance</span>
-                    </a>
-
+                    <a href="rent-collection.html" class="nav-item"><i class="bi bi-cash-stack"></i><span>Rent Collection</span></a>
+                    <a href="transaction.html" class="nav-item"><i class="bi bi-receipt-cutoff"></i><span>Transactions & Ledger</span></a>
+                    <a href="utilities.html" class="nav-item"><i class="bi bi-lightning-charge"></i><span>Utilities</span></a>
+                    <a href="meter-readings.html" class="nav-item"><i class="bi bi-speedometer2"></i><span>Meter Readings</span></a>
+                    <a href="maintenance.html" class="nav-item"><i class="bi bi-tools"></i><span>Maintenance</span></a>
                     <div class="nav-section-title">RECORDS & REPORTS</div>
-                    <a href="inspections.html" class="nav-item">
-                        <i class="bi bi-clipboard-check"></i>
-                        <span>Inspections</span>
-                    </a>
-                    <a href="move-in-checklist.html" class="nav-item">
-                        <i class="bi bi-check2-square"></i>
-                        <span>Move-In Checklist</span>
-                    </a>
-                    <a href="move-out-settlement.html" class="nav-item">
-                        <i class="bi bi-box-arrow-right"></i>
-                        <span>Move-Out Settlement</span>
-                    </a>
-                    <a href="documents.html" class="nav-item">
-                        <i class="bi bi-folder2-open"></i>
-                        <span>Documents</span>
-                    </a>
-                    <a href="reports.html" class="nav-item">
-                        <i class="bi bi-bar-chart"></i>
-                        <span>Reports</span>
-                    </a>
-
+                    <a href="inspections.html" class="nav-item"><i class="bi bi-clipboard-check"></i><span>Inspections</span></a>
+                    <a href="move-in-checklist.html" class="nav-item"><i class="bi bi-check2-square"></i><span>Move-In Checklist</span></a>
+                    <a href="move-out-settlement.html" class="nav-item"><i class="bi bi-box-arrow-right"></i><span>Move-Out Settlement</span></a>
+                    <a href="documents.html" class="nav-item"><i class="bi bi-folder2-open"></i><span>Documents</span></a>
+                    <a href="reports.html" class="nav-item"><i class="bi bi-bar-chart"></i><span>Reports</span></a>
                     <div class="nav-section-title">SYSTEM</div>
-                    <a href="settings.html" class="nav-item">
-                        <i class="bi bi-gear"></i>
-                        <span>Settings</span>
-                    </a>
-                    <a href="account.html" class="nav-item">
-                        <i class="bi bi-person-gear"></i>
-                        <span>Account Settings</span>
-                    </a>
-                    <a href="#" class="nav-item" onclick="logoutUser(); return false;">
-                        <i class="bi bi-box-arrow-right"></i>
-                        <span>Log Out</span>
-                    </a>
+                    <a href="settings.html" class="nav-item"><i class="bi bi-gear"></i><span>Settings</span></a>
+                    <a href="account.html" class="nav-item"><i class="bi bi-person-gear"></i><span>Account Settings</span></a>
+                    <a href="#" class="nav-item" onclick="logoutUser(); return false;"><i class="bi bi-box-arrow-right"></i><span>Log Out</span></a>
                 `;
             }
         }
@@ -1345,9 +1332,9 @@
         }
     }
 
-    function populateModalDropdowns() {
-        const props = getProperties();
-        const owners = getOwners();
+    async function populateModalDropdowns() {
+        const props = await getProperties();
+        const owners = await getOwners();
 
         const propFilter = document.getElementById('propertyFilter');
         const propModalSelect = document.getElementById('modalPropertySelect');
@@ -1355,29 +1342,34 @@
 
         if (propFilter) {
             propFilter.innerHTML = '<option value="">All Properties</option>';
-            props.forEach(p => propFilter.innerHTML += `<option value="${p.name}">${p.name}</option>`);
+            props.forEach(p => {
+                const pName = p.name || p.property_name || 'Sunrise Residences';
+                propFilter.innerHTML += `<option value="${pName}">${pName}</option>`;
+            });
         }
 
         if (propModalSelect) {
             propModalSelect.innerHTML = '<option value="">Select Property...</option>';
-            if (props.length > 0) {
-                props.forEach(p => propModalSelect.innerHTML += `<option value="${p.name} • ${p.code || 'PROP-001'}">${p.name} (${p.code || 'PROP-001'})</option>`);
-            } else {
-                propModalSelect.innerHTML += `<option value="Sunrise Residences • PROP-001">Sunrise Residences (PROP-001)</option>`;
-            }
+            props.forEach(p => {
+                const pId = p.id || '';
+                const pName = p.name || p.property_name || 'Sunrise Residences';
+                const pCode = p.code || 'PROP-001';
+                propModalSelect.innerHTML += `<option value="${pId}" data-name="${pName}" data-code="${pCode}">${pName} (${pCode})</option>`;
+            });
         }
 
         if (ownerModalSelect) {
             ownerModalSelect.innerHTML = '<option value="">Select Registered Owner...</option>';
-            if (owners.length > 0) {
-                owners.forEach(o => ownerModalSelect.innerHTML += `<option value="${o.name}">${o.name} (${o.type || 'Individual'})</option>`);
-            } else {
-                ownerModalSelect.innerHTML += `<option value="Don Ramon Santos">Don Ramon Santos (Individual)</option>`;
-            }
+            owners.forEach(o => {
+                const oId = o.id || '';
+                const oName = o.name || 'Don Ramon Santos';
+                const oType = o.type || 'Individual';
+                ownerModalSelect.innerHTML += `<option value="${oId}" data-name="${oName}" data-type="${oType}">${oName} (${oType})</option>`;
+            });
         }
     }
 
-    function renderShareTable() {
+    async function renderShareTable() {
         const rawRole = (
             localStorage.getItem('argo_pov') || 
             localStorage.getItem('user_role') || 
@@ -1385,7 +1377,7 @@
             'admin'
         ).toLowerCase().trim();
 
-        let shares = getShares();
+        let shares = await getShares();
         const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
         const ownerFilterName = user.name || 'Don Ramon Santos';
 
@@ -1402,7 +1394,8 @@
 
         if (!shares || shares.length === 0) {
             tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--muted); padding:30px;">No equity share records found.</td></tr>`;
-            document.getElementById('showingCountText').textContent = `Showing 0 share records`;
+            const countEl = document.getElementById('showingCountText');
+            if (countEl) countEl.textContent = `Showing 0 share records`;
             return;
         }
 
@@ -1421,7 +1414,7 @@
             tr.dataset.property = propName;
             tr.dataset.role = roleType;
 
-            let roleBadge = roleType === 'Primary' 
+            let roleBadge = (roleType.toLowerCase().includes('primary') || s.is_primary || s.isPrimary)
                 ? `<span class="role-badge role-primary" style="background:#ECFDF5; color:#059669; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-shield-check" style="margin-right:4px;"></i> Primary Managing Owner</span>` 
                 : `<span class="role-badge role-coowner" style="background:#EFF6FF; color:#2563EB; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;">Co-Owner / Fractional</span>`;
 
@@ -1467,10 +1460,11 @@
             tbody.appendChild(tr);
         });
 
-        document.getElementById('showingCountText').textContent = `Showing 1–${shares.length} of ${shares.length} share records`;
+        const countEl = document.getElementById('showingCountText');
+        if (countEl) countEl.textContent = `Showing 1–${shares.length} of ${shares.length} share records`;
     }
 
-    function saveShare() {
+    async function saveShare() {
         const propSelect = document.getElementById('modalPropertySelect');
         const ownerSelect = document.getElementById('modalOwnerSelect');
         const shareInput = document.getElementById('modalSharePercent');
@@ -1479,34 +1473,51 @@
         const endInput = document.getElementById('modalEndDate');
         const contractInput = document.getElementById('modalContractRef');
 
-        const propVal = propSelect ? propSelect.value : '';
-        const ownerName = ownerSelect ? ownerSelect.value : '';
-        const percent = parseFloat(shareInput ? shareInput.value : 0);
+        const propertyId = propSelect ? propSelect.value : '';
+        const ownerId = ownerSelect ? ownerSelect.value : '';
+        
+        const propName = propSelect && propSelect.selectedIndex >= 0 
+            ? (propSelect.options[propSelect.selectedIndex].dataset.name || 'Sunrise Residences') 
+            : 'Sunrise Residences';
+        const propCode = propSelect && propSelect.selectedIndex >= 0 
+            ? (propSelect.options[propSelect.selectedIndex].dataset.code || 'PROP-001') 
+            : 'PROP-001';
+
+        const ownerName = ownerSelect && ownerSelect.selectedIndex >= 0 
+            ? (ownerSelect.options[ownerSelect.selectedIndex].dataset.name || 'Don Ramon Santos') 
+            : 'Don Ramon Santos';
+        const ownerType = ownerSelect && ownerSelect.selectedIndex >= 0 
+            ? (ownerSelect.options[ownerSelect.selectedIndex].dataset.type || 'Individual') 
+            : 'Individual';
+
+        const percent = parseFloat(shareInput ? shareInput.value : 100);
         const role = roleSelect ? roleSelect.value : 'Primary';
         const startDate = startInput && startInput.value ? startInput.value : '2026-01-01';
         const endDate = endInput && endInput.value ? endInput.value : null;
-        const contractRef = contractInput ? contractInput.value.trim() : 'DEED-2026-001';
+        const contractRef = contractInput && contractInput.value.trim() ? contractInput.value.trim() : 'DEED-2026-001';
 
-        if (!propVal || !ownerName || isNaN(percent) || percent <= 0 || percent > 100) {
+        if (!propertyId || !ownerId || isNaN(percent) || percent <= 0 || percent > 100) {
             alert("Please select a property and owner, and specify a valid equity share percentage between 0.01% and 100.00%.");
             return;
         }
 
-        const parts = propVal.split('•');
-        const propName = parts[0].trim();
-        const propCode = parts[1] ? parts[1].trim() : 'PROP-001';
-
-        let shares = getShares();
+        const payload = {
+            property_id: propertyId,
+            owner_id: ownerId,
+            share_percent: percent,
+            role: role === 'Primary' ? 'Primary Managing Owner' : 'Fractional Capital Partner'
+        };
 
         const newShare = {
             id: `SHR-${Math.floor(1000 + Math.random() * 9000)}`,
+            property_id: propertyId,
             propertyName: propName,
             property_name: propName,
             propertyCode: propCode,
             property_code: propCode,
+            owner_id: ownerId,
             ownerName: ownerName,
             owner_name: ownerName,
-            ownerId: 'OWN-2026-088',
             ownerType: role === 'Primary' ? 'Primary Managing Owner' : 'Fractional Capital Partner',
             sharePercent: percent,
             share_percent: percent,
@@ -1524,9 +1535,26 @@
             end_date: endDate,
             contractRef: contractRef,
             contract_ref: contractRef,
+            status: 'Active',
             created_at: new Date().toISOString()
         };
 
+        // Live API Dispatch
+        try {
+            const res = await fetch(OWNERSHIP_API_URL, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify(payload)
+            });
+            if (res.ok) {
+                const saved = await res.json().catch(() => null);
+                if (saved && saved.id) newShare.id = saved.id;
+            }
+        } catch (e) {
+            console.warn("Backend save failed, keeping locally.", e);
+        }
+
+        let shares = await getShares();
         shares.unshift(newShare);
         saveShares(shares);
 
@@ -1546,8 +1574,8 @@
         });
         saveNotifications(notifications);
 
-        renderShareTable();
-        updateKPIs();
+        await renderShareTable();
+        await updateKPIs();
         closeModal('shareModal');
 
         if (propSelect) propSelect.value = '';
@@ -1560,20 +1588,28 @@
         alert("Equity share allocation successfully saved!");
     }
 
-    function deleteShare(id) {
+    async function deleteShare(id) {
         if (!confirm("Are you sure you want to remove this equity share allocation?")) return;
-        let shares = getShares();
+        
+        try {
+            await fetch(`${OWNERSHIP_API_URL}${id}`, {
+                method: 'DELETE',
+                headers: getAuthHeaders()
+            });
+        } catch (e) {}
+
+        let shares = await getShares();
         shares = shares.filter(s => String(s.id) !== String(id));
         saveShares(shares);
-        renderShareTable();
-        updateKPIs();
+        await renderShareTable();
+        await updateKPIs();
     }
 
     function escapeQuotes(str) {
         return (str || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
     }
 
-    function updateKPIs() {
+    async function updateKPIs() {
         const rawRole = (
             localStorage.getItem('argo_pov') || 
             localStorage.getItem('user_role') || 
@@ -1581,8 +1617,8 @@
             'admin'
         ).toLowerCase().trim();
 
-        let shares = getShares();
-        const props = getProperties();
+        let shares = await getShares();
+        const props = await getProperties();
         const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
         const ownerFilterName = user.name || 'Don Ramon Santos';
 
@@ -1598,8 +1634,8 @@
             document.getElementById('kpiLabel4').textContent = 'Average Portfolio Share';
 
             const totalOwnedProps = new Set(shares.map(s => s.propertyName || s.property_name || s.property)).size || 1;
-            const primaryShares = shares.filter(s => s.role === 'Primary' || s.is_primary || s.isPrimary).length || 1;
-            const coOwnerShares = shares.filter(s => s.role === 'Co-Owner' && (!s.is_primary && !s.isPrimary)).length;
+            const primaryShares = shares.filter(s => (s.role || '').toLowerCase().includes('primary') || s.is_primary || s.isPrimary).length || 1;
+            const coOwnerShares = shares.filter(s => !(s.role || '').toLowerCase().includes('primary') && (!s.is_primary && !s.isPrimary)).length;
             
             let avgShareSum = 0;
             shares.forEach(s => avgShareSum += parseFloat(s.sharePercent || s.share_percent || s.share || 100));
@@ -1662,8 +1698,8 @@
         if (badge) badge.textContent = notifs.length;
     }
 
-    function openShareModal() { 
-        populateModalDropdowns();
+    async function openShareModal() { 
+        await populateModalDropdowns();
         const modal = document.getElementById("shareModal");
         if (modal) modal.classList.add("show"); 
     }
@@ -1702,7 +1738,7 @@
 
             const matchesSearch = text.includes(searchValue);
             const matchesProperty = propertyValue === "" || rowProperty === propertyValue;
-            const matchesRole = roleValue === "" || rowRole === roleValue;
+            const matchesRole = roleValue === "" || rowRole.toLowerCase().includes(roleValue.toLowerCase());
 
             if (matchesSearch && matchesProperty && matchesRole) {
                 row.style.display = "";

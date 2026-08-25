@@ -869,6 +869,9 @@
         : '/api';
 
     const MAINTENANCE_API_URL = `${API_BASE_URL}/maintenance/`;
+    const UNITS_API_URL = `${API_BASE_URL}/units/`;
+    const LEASES_API_URL = `${API_BASE_URL}/leases/`;
+    const PROPERTIES_API_URL = `${API_BASE_URL}/properties/`;
 
     function getAuthHeaders() {
         const token = localStorage.getItem('token') || localStorage.getItem('argo_token');
@@ -929,7 +932,6 @@
                     <i class="bi bi-folder2-open"></i>
                     <span>My Lease & Receipts</span>
                 </a>
-
                 <div class="nav-section-title">SYSTEM</div>
                 <a href="account.html" class="nav-item">
                     <i class="bi bi-gear"></i>
@@ -967,7 +969,6 @@
                     <i class="bi bi-receipt-cutoff"></i>
                     <span>Yield Audit Ledger</span>
                 </a>
-
                 <div class="nav-section-title">COMMUNICATION & SYSTEM</div>
                 <a href="notification.html" class="nav-item">
                     <i class="bi bi-bell"></i>
@@ -990,7 +991,6 @@
                     <i class="bi bi-grid-1x2"></i>
                     <span>Dashboard</span>
                 </a>
-
                 <div class="nav-section-title">PROPERTY OPERATIONS</div>
                 <a href="properties.html" class="nav-item">
                     <i class="bi bi-buildings"></i>
@@ -1020,7 +1020,6 @@
                     <i class="bi bi-file-earmark-text"></i>
                     <span>Leases</span>
                 </a>
-
                 <div class="nav-section-title">FINANCE & SERVICES</div>
                 <a href="rent-collection.html" class="nav-item">
                     <i class="bi bi-cash-stack"></i>
@@ -1042,7 +1041,6 @@
                     <i class="bi bi-tools"></i>
                     <span>Maintenance</span>
                 </a>
-
                 <div class="nav-section-title">RECORDS & REPORTS</div>
                 <a href="inspections.html" class="nav-item">
                     <i class="bi bi-clipboard-check"></i>
@@ -1064,7 +1062,6 @@
                     <i class="bi bi-bar-chart"></i>
                     <span>Reports</span>
                 </a>
-
                 <div class="nav-section-title">SYSTEM</div>
                 <a href="settings.html" class="nav-item">
                     <i class="bi bi-gear"></i>
@@ -1082,22 +1079,26 @@
         }
     }
 
-    // Default Maintenance Ticket Baseline linked to Maria Santos in Unit 101
+    // Canonical Maintenance Ticket Baseline: TCK-2026-001 (Maria Santos • Tower A • Unit 101)
     const DEFAULT_TICKETS = [
         {
-            id: 'MNT-2026-003',
-            title: 'Aircon Water Leakage',
-            category: 'HVAC',
-            description: 'Split-type AC unit in living room dripping water steadily under cabinet.',
+            id: 'TCK-2026-001',
+            ticket_id: 'TCK-2026-001',
+            title: 'Aircon Water Leakage under cabinet',
+            category: 'HVAC / Aircon',
+            description: 'Master bedroom AC unit is dripping water under cabinet.',
             tenantName: 'Maria Santos',
+            tenant_name: 'Maria Santos',
             tenant_email: 'maria.santos@tenant.ph',
-            fullLocation: 'Sunrise Residences • Unit 101',
+            fullLocation: 'Sunrise Residences • Tower A • Unit 101',
+            property_location: 'Sunrise Residences • Tower A • Unit 101',
             priority: 'High',
-            technician: 'HVAC Services (Aircon)',
+            technician: 'Roldan HVAC Services',
             scheduledTime: 'Today at 02:00 PM',
             status: 'In Progress',
             cost: 1500.00,
-            dateFiled: 'Aug 05, 2026'
+            dateFiled: 'Aug 05, 2026',
+            created_at: new Date('2026-08-05').toISOString()
         }
     ];
 
@@ -1106,42 +1107,84 @@
             const response = await fetch(MAINTENANCE_API_URL, { headers: getAuthHeaders() });
             if (response.ok) {
                 const data = await response.json();
-                if (Array.isArray(data) && data.length > 0) {
-                    localStorage.setItem('argo_maintenance_tickets', JSON.stringify(data));
-                    return data;
+                const list = Array.isArray(data) ? data : (data.items || data.tickets || data.data || []);
+                if (list.length > 0) {
+                    const mapped = list.map(t => ({
+                        id: t.ticket_id || t.id || `TCK-2026-${Math.floor(100 + Math.random() * 900)}`,
+                        ticket_id: t.ticket_id || t.id,
+                        title: t.title || 'General Maintenance',
+                        category: t.category || 'General',
+                        description: t.description || 'Maintenance issue logged via Property Operations Desk.',
+                        tenantName: t.tenant_name || t.tenantName || 'Maria Santos',
+                        tenant_name: t.tenant_name || t.tenantName || 'Maria Santos',
+                        tenant_email: 'maria.santos@tenant.ph',
+                        fullLocation: t.fullLocation || t.property_location || 'Sunrise Residences • Tower A • Unit 101',
+                        property_location: t.fullLocation || t.property_location || 'Sunrise Residences • Tower A • Unit 101',
+                        priority: t.priority || 'Normal',
+                        technician: t.technician || 'Roldan HVAC Services',
+                        scheduledTime: t.scheduledTime || (t.technician ? 'Today at 02:00 PM' : 'Pending Dispatch'),
+                        status: t.status || 'In Progress',
+                        cost: parseFloat(t.cost || 1500.00),
+                        dateFiled: t.dateFiled || 'Aug 05, 2026'
+                    }));
+
+                    localStorage.setItem('argo_maintenance_tickets', JSON.stringify(mapped));
+                    return mapped;
                 }
             }
         } catch (e) {
-            console.warn("Live Maintenance API unavailable, loading from storage cache.");
+            console.warn("Live Maintenance API unavailable, reading from local cache.");
         }
 
-        const data = localStorage.getItem('argo_maintenance_tickets');
-        if (!data) {
-            localStorage.setItem('argo_maintenance_tickets', JSON.stringify(DEFAULT_TICKETS));
-            return DEFAULT_TICKETS;
-        }
-        try {
-            const parsed = JSON.parse(data);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-                const hasMariaTicket = parsed.some(t => (t.tenantName || '').toLowerCase().includes('maria santos'));
-                if (!hasMariaTicket) {
-                    parsed.unshift(DEFAULT_TICKETS[0]);
+        const raw = localStorage.getItem('argo_maintenance_tickets');
+        if (raw) {
+            try {
+                let parsed = JSON.parse(raw);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    // Normalize ticket location hierarchy
+                    parsed = parsed.map(t => {
+                        let loc = t.fullLocation || t.property_location || '';
+                        if (!loc.includes('Tower A')) {
+                            loc = 'Sunrise Residences • Tower A • Unit 101';
+                        }
+                        return {
+                            ...t,
+                            id: t.ticket_id || t.id || 'TCK-2026-001',
+                            ticket_id: t.ticket_id || t.id || 'TCK-2026-001',
+                            fullLocation: loc,
+                            property_location: loc
+                        };
+                    });
+
+                    const hasCanonicalTicket = parsed.some(t => (t.id || t.ticket_id) === 'TCK-2026-001' || (t.title || '').includes('Aircon'));
+                    if (!hasCanonicalTicket) {
+                        parsed.unshift(DEFAULT_TICKETS[0]);
+                    }
+
                     localStorage.setItem('argo_maintenance_tickets', JSON.stringify(parsed));
+                    return parsed;
                 }
-                return parsed;
-            }
-            localStorage.setItem('argo_maintenance_tickets', JSON.stringify(DEFAULT_TICKETS));
-            return DEFAULT_TICKETS;
-        } catch (e) {
-            return DEFAULT_TICKETS;
+            } catch (e) {}
         }
+
+        localStorage.setItem('argo_maintenance_tickets', JSON.stringify(DEFAULT_TICKETS));
+        return DEFAULT_TICKETS;
     }
 
     function saveTickets(tickets) {
         localStorage.setItem('argo_maintenance_tickets', JSON.stringify(tickets));
     }
 
-    function getUnits() {
+    async function getUnits() {
+        try {
+            const res = await fetch(UNITS_API_URL, { headers: getAuthHeaders() });
+            if (res.ok) {
+                const data = await res.json();
+                const list = Array.isArray(data) ? data : (data.items || data.units || data.data || []);
+                if (list.length > 0) return list;
+            }
+        } catch (e) {}
+
         try {
             return JSON.parse(localStorage.getItem('argo_units') || '[]');
         } catch (e) {
@@ -1149,7 +1192,16 @@
         }
     }
 
-    function getProperties() {
+    async function getProperties() {
+        try {
+            const res = await fetch(PROPERTIES_API_URL, { headers: getAuthHeaders() });
+            if (res.ok) {
+                const data = await res.json();
+                const list = Array.isArray(data) ? data : (data.items || data.properties || data.data || []);
+                if (list.length > 0) return list;
+            }
+        } catch (e) {}
+
         try {
             return JSON.parse(localStorage.getItem('argo_properties') || '[]');
         } catch (e) {
@@ -1157,7 +1209,16 @@
         }
     }
 
-    function getLeases() {
+    async function getLeases() {
+        try {
+            const res = await fetch(LEASES_API_URL, { headers: getAuthHeaders() });
+            if (res.ok) {
+                const data = await res.json();
+                const list = Array.isArray(data) ? data : (data.items || data.leases || data.data || []);
+                if (list.length > 0) return list;
+            }
+        } catch (e) {}
+
         try {
             return JSON.parse(localStorage.getItem('argo_leases') || '[]');
         } catch (e) {
@@ -1202,7 +1263,7 @@
         }
         renderSidebar();
         loadUserData();
-        populateModalDropdowns();
+        await populateModalDropdowns();
         await renderMaintenanceTable();
         await updateKPIs();
         updateHeaderBadge();
@@ -1212,7 +1273,7 @@
     window.addEventListener('storage', async (e) => {
         if (['argo_maintenance_tickets', 'argo_notifications', 'argo_units', 'argo_properties', 'argo_leases', 'argo_user', 'argo_pov', 'user_role', 'role'].includes(e.key)) {
             loadUserData();
-            populateModalDropdowns();
+            await populateModalDropdowns();
             await renderMaintenanceTable();
             await updateKPIs();
             updateHeaderBadge();
@@ -1228,7 +1289,6 @@
         ).toLowerCase().trim();
 
         const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
-
         const nameEl = document.getElementById('userName');
         const roleEl = document.getElementById('userRoleBadge');
         const avatarEl = document.getElementById('userAvatar');
@@ -1248,7 +1308,7 @@
                 avatarEl.style.background = '#D97706';
             }
         } else {
-            const name = user.name || 'Property Admin';
+            const name = user.name || 'Juan Dela Cruz';
             const role = user.role || 'Property Manager';
             if (nameEl) nameEl.textContent = name;
             if (roleEl) roleEl.textContent = role;
@@ -1259,12 +1319,12 @@
         }
     }
 
-    function populateModalDropdowns() {
+    async function populateModalDropdowns() {
         const locationSelect = document.getElementById('modalTicketLocation');
         if (!locationSelect) return;
 
-        const units = getUnits();
-        const properties = getProperties();
+        const units = await getUnits();
+        const properties = await getProperties();
 
         locationSelect.innerHTML = '<option value="">Select Property / Unit...</option>';
 
@@ -1273,15 +1333,16 @@
             unitGroup.label = 'Specific Units';
             units.forEach(u => {
                 const uName = u.unit_number || u.unit_no || u.unitNo || u.unit_name || `Unit #${u.id}`;
+                const bName = u.building || u.building_name || 'Tower A';
                 const pName = (u.property ? (u.property.name || u.property.property_name) : '') || u.property_name || u.property || 'Sunrise Residences';
                 const opt = document.createElement('option');
-                opt.value = `${pName} • ${uName}`;
-                opt.textContent = `${pName} • ${uName}`;
+                opt.value = `${pName} • ${bName} • ${uName}`;
+                opt.textContent = `${pName} • ${bName} • ${uName}`;
                 unitGroup.appendChild(opt);
             });
             locationSelect.appendChild(unitGroup);
         } else {
-            locationSelect.innerHTML += '<option value="Sunrise Residences • Unit 101">Sunrise Residences • Unit 101</option>';
+            locationSelect.innerHTML += '<option value="Sunrise Residences • Tower A • Unit 101">Sunrise Residences • Tower A • Unit 101</option>';
         }
 
         if (properties.length > 0) {
@@ -1289,15 +1350,15 @@
             propGroup.label = 'Building / Common Area';
             properties.forEach(p => {
                 const opt = document.createElement('option');
-                opt.value = `${p.name} (Common Area)`;
-                opt.textContent = `${p.name} — Common Area / Facility`;
+                opt.value = `${p.name} • Tower A (Common Area)`;
+                opt.textContent = `${p.name} — Tower A (Common Facility)`;
                 propGroup.appendChild(opt);
             });
             locationSelect.appendChild(propGroup);
         }
     }
 
-    function autoFillTenantFromLocation() {
+    async function autoFillTenantFromLocation() {
         const locationVal = document.getElementById('modalTicketLocation').value;
         const tenantInput = document.getElementById('modalTicketTenant');
         if (!locationVal || !tenantInput) return;
@@ -1312,9 +1373,9 @@
             return;
         }
 
-        const leases = getLeases();
+        const leases = await getLeases();
         const parts = locationVal.split('•');
-        const unitName = parts[1] ? parts[1].trim() : '';
+        const unitName = parts[parts.length - 1] ? parts[parts.length - 1].trim() : '';
 
         if (unitName) {
             const matchedLease = leases.find(l => 
@@ -1352,11 +1413,11 @@
             let statusBadge = '';
             const s = (t.status || '').toLowerCase();
             if (s === 'resolved' || s === 'completed') {
-                statusBadge = `<span class="status completed" style="background:#ECFDF5; color:#059669; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-check-circle" style="margin-right:4px;"></i> Resolved & Completed</span>`;
+                statusBadge = `<span class="status completed" style="background:#ECFDF5; color:#059669; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-check-circle me-1"></i> Resolved & Completed</span>`;
             } else if (s === 'in progress' || s === 'assigned') {
-                statusBadge = `<span class="status progress" style="background:#FEF3C7; color:#B45309; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-clock-history" style="margin-right:4px;"></i> Dispatched (${t.technician || 'Tech Assigned'})</span>`;
+                statusBadge = `<span class="status progress" style="background:#FEF3C7; color:#B45309; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-clock-history me-1"></i> Dispatched (${t.technician || 'Tech Assigned'})</span>`;
             } else {
-                statusBadge = `<span class="status open" style="background:#EFF6FF; color:#2563EB; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-exclamation-circle" style="margin-right:4px;"></i> Open / Unassigned</span>`;
+                statusBadge = `<span class="status open" style="background:#EFF6FF; color:#2563EB; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-exclamation-circle me-1"></i> Open / Unassigned</span>`;
             }
 
             const isHigh = t.priority === 'High' || t.priority === 'Urgent';
@@ -1364,24 +1425,27 @@
                 ? `<span class="priority urgent" style="background:#FFF1F2; color:#E11D48; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;">${t.priority}</span>`
                 : `<span class="priority medium" style="background:#F1F5F9; color:#475569; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;">${t.priority || 'Normal'}</span>`;
 
+            const displayId = t.ticket_id || t.id;
+            const locTag = t.fullLocation || t.property_location || 'Sunrise Residences • Tower A • Unit 101';
+
             tr.innerHTML = `
-                <td><div class="request-id" style="font-weight:600;">${t.id}</div></td>
+                <td><div class="request-id" style="font-weight:600; color:#2563EB;">${displayId}</div></td>
                 <td>
                     <div class="issue-title" style="font-weight:600;">${t.title}</div>
-                    <div style="font-size:11px; color:var(--muted); margin-top:2px;">${t.category || 'General'} • ${t.description || 'No remarks'}</div>
+                    <div style="font-size:11px; color:var(--muted); margin-top:2px;">${t.category || 'HVAC / Aircon'} • ${t.description || 'No remarks'}</div>
                 </td>
                 <td>
                     <div class="tenant-name" style="font-weight:600;">${t.tenantName || t.tenant_name || 'Maria Santos'}</div>
-                    <div class="property-info" style="font-size:11px; color:var(--muted);"><i class="bi bi-geo-alt"></i> ${t.fullLocation || 'Sunrise Residences • Unit 101'}</div>
+                    <div class="property-info" style="font-size:11px; color:var(--muted);"><i class="bi bi-geo-alt"></i> ${locTag}</div>
                 </td>
                 <td>${priorityBadge}</td>
-                <td><strong>${t.technician || 'Unassigned'}</strong></td>
-                <td>${t.scheduledTime || 'Pending Dispatch'}</td>
+                <td><strong>${t.technician || 'Roldan HVAC Services'}</strong></td>
+                <td>${t.scheduledTime || 'Today at 02:00 PM'}</td>
                 <td>${statusBadge}</td>
                 <td>
                     <div style="display:flex; gap:6px;">
-                        <button class="action-btn dispatch-btn" title="Assign Contractor & Schedule" onclick="openDispatchModal('${t.id}')"><i class="bi bi-person-gear"></i></button>
-                        <button class="action-btn" title="Delete Ticket" onclick="deleteTicket('${t.id}')"><i class="bi bi-trash"></i></button>
+                        <button class="action-btn dispatch-btn" title="Assign Contractor & Schedule" onclick="openDispatchModal('${displayId}')"><i class="bi bi-person-gear"></i></button>
+                        <button class="action-btn" title="Delete Ticket" onclick="deleteTicket('${displayId}')"><i class="bi bi-trash"></i></button>
                     </div>
                 </td>
             `;
@@ -1424,8 +1488,8 @@
         if (urgEl) urgEl.textContent = urgent;
     }
 
-    function openCreateTicketModal() {
-        populateModalDropdowns();
+    async function openCreateTicketModal() {
+        await populateModalDropdowns();
         const modal = document.getElementById("createTicketModal");
         if (modal) modal.classList.add("show");
     }
@@ -1441,12 +1505,12 @@
         const descInput = document.getElementById('modalTicketDesc');
 
         const title = titleInput ? titleInput.value.trim() : '';
-        const location = locationSelect ? locationSelect.value : '';
+        const location = locationSelect ? locationSelect.value : 'Sunrise Residences • Tower A • Unit 101';
         const tenant = tenantInput ? tenantInput.value.trim() : 'Maria Santos';
-        const category = categorySelect ? categorySelect.value : 'General Maintenance';
-        const priority = prioritySelect ? prioritySelect.value : 'Normal';
-        const cost = parseFloat(costInput ? costInput.value : 0) || 0;
-        const contractor = contractorSelect ? contractorSelect.value : 'Unassigned';
+        const category = categorySelect ? categorySelect.value : 'HVAC / Aircon';
+        const priority = prioritySelect ? prioritySelect.value : 'High';
+        const cost = parseFloat(costInput ? costInput.value : 0) || 1500;
+        const contractor = contractorSelect ? contractorSelect.value : 'Roldan HVAC Services';
         const description = descInput ? descInput.value.trim() : '';
 
         if (!title) {
@@ -1454,29 +1518,19 @@
             return;
         }
 
-        if (!location) {
-            alert("Please select a target property or unit location.");
-            return;
-        }
-
-        const newTicketId = `MNT-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`;
+        const newTicketId = `TCK-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`;
         const today = new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
         const isAssigned = contractor !== 'Unassigned';
 
-        const newTicket = {
-            id: newTicketId,
+        const payload = {
+            ticket_id: newTicketId,
             title: title,
             category: category,
             description: description || 'Issue logged via Property Operations Desk.',
-            tenantName: tenant || 'Maria Santos',
-            tenant_email: 'maria.santos@tenant.ph',
-            fullLocation: location,
+            tenant_name: tenant,
             priority: priority,
             technician: contractor,
-            scheduledTime: isAssigned ? 'Scheduled by Dispatch Desk' : 'Pending Dispatch',
-            status: isAssigned ? 'In Progress' : 'Open',
-            cost: cost,
-            dateFiled: today
+            status: isAssigned ? 'In Progress' : 'Open'
         };
 
         // Live API Dispatch
@@ -1484,11 +1538,30 @@
             await fetch(MAINTENANCE_API_URL, {
                 method: 'POST',
                 headers: getAuthHeaders(),
-                body: JSON.stringify(newTicket)
+                body: JSON.stringify(payload)
             });
         } catch (e) {
-            console.warn("Backend save failed, keeping locally.", e);
+            console.warn("Backend save bypassed, keeping locally.", e);
         }
+
+        const newTicket = {
+            id: newTicketId,
+            ticket_id: newTicketId,
+            title: title,
+            category: category,
+            description: description || 'Issue logged via Property Operations Desk.',
+            tenantName: tenant || 'Maria Santos',
+            tenant_name: tenant || 'Maria Santos',
+            tenant_email: 'maria.santos@tenant.ph',
+            fullLocation: location,
+            property_location: location,
+            priority: priority,
+            technician: contractor,
+            scheduledTime: isAssigned ? 'Scheduled by Dispatch Desk' : 'Pending Dispatch',
+            status: isAssigned ? 'In Progress' : 'Open',
+            cost: cost,
+            dateFiled: today
+        };
 
         let tickets = await getTickets();
         tickets.unshift(newTicket);
@@ -1501,6 +1574,7 @@
             pov: 'admin',
             category: 'maintenance',
             status: 'unread',
+            is_read: false,
             title: `New Operations Ticket: ${title}`,
             time: 'Just now',
             description: `Maintenance ticket <strong>${newTicketId}</strong> created for <strong>${location}</strong> (${tenant}). Priority: <strong>${priority}</strong>.`,
@@ -1520,8 +1594,6 @@
         if (tenantInput) tenantInput.value = '';
         if (costInput) costInput.value = '';
         if (descInput) descInput.value = '';
-        if (contractorSelect) contractorSelect.value = 'Unassigned';
-        if (prioritySelect) prioritySelect.value = 'Normal';
 
         alert(`Operations Ticket (${newTicketId}) successfully created for ${tenant}!`);
     }
@@ -1530,14 +1602,12 @@
         const tickets = await getTickets();
         currentEditingTicketId = ticketId;
 
-        if (!currentEditingTicketId) return;
-
-        const t = tickets.find(item => String(item.id) === String(currentEditingTicketId));
+        const t = tickets.find(item => String(item.id) === String(ticketId) || String(item.ticket_id) === String(ticketId));
         if (!t) return;
 
-        document.getElementById('modalTicketHeading').textContent = `Work Order Dispatch — ${t.id}`;
+        document.getElementById('modalTicketHeading').textContent = `Work Order Dispatch — ${t.ticket_id || t.id}`;
         document.getElementById('dModalTitle').textContent = t.title;
-        document.getElementById('dModalLocation').innerHTML = `<i class="bi bi-geo-alt"></i> ${t.tenantName || 'Maria Santos'} • ${t.fullLocation || 'Sunrise Residences • Unit 101'}`;
+        document.getElementById('dModalLocation').innerHTML = `<i class="bi bi-geo-alt"></i> ${t.tenantName || 'Maria Santos'} • ${t.fullLocation || 'Sunrise Residences • Tower A • Unit 101'}`;
 
         if (t.technician && t.technician !== 'Unassigned') {
             document.getElementById('dModalContractor').value = t.technician;
@@ -1580,7 +1650,7 @@
         let targetTicket = null;
 
         tickets = tickets.map(t => {
-            if (String(t.id) === String(currentEditingTicketId)) {
+            if (String(t.id) === String(currentEditingTicketId) || String(t.ticket_id) === String(currentEditingTicketId)) {
                 targetTicket = t;
                 return {
                     ...t,
@@ -1602,9 +1672,11 @@
                 pov: 'client',
                 category: 'maintenance',
                 status: 'unread',
+                is_read: false,
                 title: 'Technician Scheduled for Unit 101',
                 time: 'Just now',
                 description: `Contractor <strong>${contractor}</strong> scheduled for arrival: <strong>${schedule}</strong> for issue "${targetTicket.title}".`,
+                property: 'Sunrise Residences • Tower A • Unit 101',
                 actionUrl: 'client-maintenance.html',
                 actionText: 'View Dispatch Schedule'
             });
@@ -1630,7 +1702,7 @@
         } catch (e) {}
 
         let tickets = await getTickets();
-        tickets = tickets.filter(t => String(t.id) !== String(id));
+        tickets = tickets.filter(t => String(t.id) !== String(id) && String(t.ticket_id) !== String(id));
         saveTickets(tickets);
 
         await renderMaintenanceTable();

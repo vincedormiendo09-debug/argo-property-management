@@ -925,6 +925,22 @@
     </div>
 
    <script>
+    const API_BASE_URL = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
+        ? 'http://127.0.0.1:8000/api'
+        : '/api';
+
+    const SETTLEMENTS_API_URL = `${API_BASE_URL}/settlements/`;
+    const LEASES_API_URL = `${API_BASE_URL}/leases/`;
+    const UNITS_API_URL = `${API_BASE_URL}/units/`;
+
+    function getAuthHeaders() {
+        const token = localStorage.getItem('token') || localStorage.getItem('argo_token');
+        return {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        };
+    }
+
     // Utility for safe currency parsing
     function parseCurrency(val) {
         if (val === undefined || val === null || val === '') return 0;
@@ -988,7 +1004,6 @@
                     <i class="bi bi-folder2-open"></i>
                     <span>My Lease & Receipts</span>
                 </a>
-
                 <div class="nav-section-title">SYSTEM</div>
                 <a href="account.html" class="nav-item">
                     <i class="bi bi-gear"></i>
@@ -1026,7 +1041,6 @@
                     <i class="bi bi-receipt-cutoff"></i>
                     <span>Yield Audit Ledger</span>
                 </a>
-
                 <div class="nav-section-title">COMMUNICATION & SYSTEM</div>
                 <a href="notification.html" class="nav-item">
                     <i class="bi bi-bell"></i>
@@ -1049,7 +1063,6 @@
                     <i class="bi bi-grid-1x2"></i>
                     <span>Dashboard</span>
                 </a>
-
                 <div class="nav-section-title">PROPERTY OPERATIONS</div>
                 <a href="properties.html" class="nav-item">
                     <i class="bi bi-buildings"></i>
@@ -1079,7 +1092,6 @@
                     <i class="bi bi-file-earmark-text"></i>
                     <span>Leases</span>
                 </a>
-
                 <div class="nav-section-title">FINANCE & SERVICES</div>
                 <a href="rent-collection.html" class="nav-item">
                     <i class="bi bi-cash-stack"></i>
@@ -1101,7 +1113,6 @@
                     <i class="bi bi-tools"></i>
                     <span>Maintenance</span>
                 </a>
-
                 <div class="nav-section-title">RECORDS & REPORTS</div>
                 <a href="inspections.html" class="nav-item">
                     <i class="bi bi-clipboard-check"></i>
@@ -1123,7 +1134,6 @@
                     <i class="bi bi-bar-chart"></i>
                     <span>Reports</span>
                 </a>
-
                 <div class="nav-section-title">SYSTEM</div>
                 <a href="settings.html" class="nav-item">
                     <i class="bi bi-gear"></i>
@@ -1141,20 +1151,53 @@
         }
     }
 
-    // Default Seed Settlements if empty
+    // Default Seed Settlements synchronized with Inspection INS-2026-001 baseline
     const DEFAULT_SETTLEMENTS = [];
 
-    // Data Storage Getters & Setters
-    function getSettlements() {
-        const data = localStorage.getItem('argo_settlements');
-        if (!data) {
+    // Data Storage Getters & Setters with API Sync
+    async function getSettlements() {
+        try {
+            const res = await fetch(SETTLEMENTS_API_URL, { headers: getAuthHeaders() });
+            if (res.ok) {
+                const data = await res.json();
+                const list = Array.isArray(data) ? data : (data.items || data.settlements || data.data || []);
+                if (list.length > 0) {
+                    const mapped = list.map(s => ({
+                        id: s.settlement_id || s.id || 'SET-2026-0101',
+                        settlement_id: s.settlement_id || s.id || 'SET-2026-0101',
+                        leaseId: s.lease_id || s.leaseId || 'LSE-2026-0101',
+                        tenantName: s.tenant_name || s.tenantName || 'Maria Santos',
+                        tenant_name: s.tenant_name || s.tenantName || 'Maria Santos',
+                        tenant_email: 'maria.santos@tenant.ph',
+                        property: s.property_name || s.property || 'Sunrise Residences • Tower A',
+                        unit: s.unit_no || s.unit || 'Sunrise Residences • Tower A • Unit 101',
+                        vacateDate: s.vacate_date || s.vacateDate || '2026-12-31',
+                        initialDeposit: parseCurrency(s.initial_deposit || s.initialDeposit || 30000),
+                        deductions: parseCurrency(s.deductions || 0),
+                        netRefund: parseCurrency(s.net_refund || s.netRefund || 30000),
+                        status: s.status || 'Pending Audit',
+                        paymentMethod: s.payment_method || s.paymentMethod || 'GCash Express',
+                        referenceCode: s.reference_code || s.referenceCode || '#REF-SET-001',
+                        notes: s.notes || 'Synchronized with inspection record INS-2026-001.'
+                    }));
+                    localStorage.setItem('argo_settlements', JSON.stringify(mapped));
+                    return mapped;
+                }
+            }
+        } catch (e) {
+            console.warn("Live Settlements API unavailable, reading from local cache.");
+        }
+
+        const raw = localStorage.getItem('argo_settlements');
+        if (!raw) {
             localStorage.setItem('argo_settlements', JSON.stringify(DEFAULT_SETTLEMENTS));
             return DEFAULT_SETTLEMENTS;
         }
         try {
-            return JSON.parse(data);
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) return parsed;
+            return DEFAULT_SETTLEMENTS;
         } catch (e) {
-            console.error("Failed to parse settlements:", e);
             return DEFAULT_SETTLEMENTS;
         }
     }
@@ -1187,32 +1230,37 @@
         localStorage.setItem('argo_transactions', JSON.stringify(transactions));
     }
 
-    function getUnits() {
+    async function getUnits() {
         try {
-            const raw = localStorage.getItem('argo_units');
-            if (raw) {
-                const parsed = JSON.parse(raw);
-                if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+            const res = await fetch(UNITS_API_URL, { headers: getAuthHeaders() });
+            if (res.ok) {
+                const data = await res.json();
+                const list = Array.isArray(data) ? data : (data.items || data.units || data.data || []);
+                if (list.length > 0) return list;
             }
         } catch (e) {}
 
-        return [
-            {
-                id: 1,
-                unit_no: 'Unit 101',
-                unit_number: 'Unit 101',
-                property_name: 'Sunrise Residences',
-                status: 'OCCUPIED',
-                tenant: 'Maria Santos'
-            }
-        ];
+        try {
+            return JSON.parse(localStorage.getItem('argo_units') || '[]');
+        } catch (e) {
+            return [];
+        }
     }
 
     function saveUnits(units) {
         localStorage.setItem('argo_units', JSON.stringify(units));
     }
 
-    function getLeases() {
+    async function getLeases() {
+        try {
+            const res = await fetch(LEASES_API_URL, { headers: getAuthHeaders() });
+            if (res.ok) {
+                const data = await res.json();
+                const list = Array.isArray(data) ? data : (data.items || data.leases || data.data || []);
+                if (list.length > 0) return list;
+            }
+        } catch (e) {}
+
         try {
             const raw = localStorage.getItem('argo_leases');
             if (raw) {
@@ -1224,12 +1272,13 @@
         return [
             {
                 id: 'LSE-2026-0101',
+                lease_id: 'LSE-2026-0101',
                 tenantName: 'Maria Santos',
-                tenant_name: 'Maria Santos',
+                tenant: 'Maria Santos',
                 tenant_email: 'maria.santos@tenant.ph',
-                property: 'Sunrise Residences',
-                unit: 'Sunrise Residences • Unit 101',
-                unit_no: 'Unit 101',
+                property: 'Sunrise Residences • Tower A',
+                unit: 'Sunrise Residences • Tower A • Unit 101',
+                unit_number: 'Unit 101',
                 deposit: 30000,
                 deposit_amount: 30000,
                 rent: 15000,
@@ -1251,10 +1300,10 @@
             }
         } catch (e) {}
 
-        return [{ id: 1, name: 'Sunrise Residences' }];
+        return [{ id: 1, name: 'Sunrise Residences • Tower A' }];
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
         const role = localStorage.getItem('argo_pov') || localStorage.getItem('user_role') || localStorage.getItem('role');
         if (!role) {
             window.location.replace('index.html');
@@ -1262,20 +1311,25 @@
         }
         renderSidebar();
         loadUserData();
-        populateModalDropdowns();
-        renderSettlementTable();
-        updateKPIs();
+        await populateModalDropdowns();
+        await renderSettlementTable();
+        await updateKPIs();
         updateHeaderBadge();
+
+        const dateInput = document.getElementById('modalVacateDate');
+        if (dateInput) {
+            dateInput.value = new Date().toISOString().split('T')[0];
+        }
     });
 
     // Real-Time Cross-Tab Listener
-    window.addEventListener('storage', (e) => {
+    window.addEventListener('storage', async (e) => {
         if (['argo_settlements', 'argo_leases', 'argo_properties', 'argo_transactions', 'argo_units', 'argo_notifications', 'argo_user', 'argo_pov'].includes(e.key)) {
             renderSidebar();
             loadUserData();
-            populateModalDropdowns();
-            renderSettlementTable();
-            updateKPIs();
+            await populateModalDropdowns();
+            await renderSettlementTable();
+            await updateKPIs();
             updateHeaderBadge();
         }
     });
@@ -1292,8 +1346,8 @@
         }
     }
 
-    function populateModalDropdowns() {
-        const leases = getLeases();
+    async function populateModalDropdowns() {
+        const leases = await getLeases();
         const props = getProperties();
 
         const leaseSelect = document.getElementById('leaseSelect');
@@ -1304,7 +1358,7 @@
             leases.forEach(l => {
                 const leaseId = l.id || l.lease_id || 'LSE-2026-0101';
                 const tenantName = l.tenantName || l.tenant_name || 'Maria Santos';
-                const property = l.property || l.property_name || 'Sunrise Residences';
+                const property = l.property || l.property_name || 'Sunrise Residences • Tower A';
                 const unit = l.unit || l.unit_no || l.unit_number || 'Unit 101';
                 
                 let depositVal = 30000;
@@ -1335,27 +1389,31 @@
             propFilter.innerHTML = '<option value="">All Properties</option>';
             props.forEach(p => {
                 const propName = p.name || p.property_name || p;
-                propFilter.innerHTML += `<option value="${propName}">${propName}</option>`;
+                if (propName) {
+                    propFilter.innerHTML += `<option value="${propName}">${propName}</option>`;
+                }
             });
         }
     }
 
-    function renderSettlementTable() {
-        const settlements = getSettlements();
+    async function renderSettlementTable() {
+        const settlements = await getSettlements();
         const tbody = document.getElementById('settlementTable');
         if (!tbody) return;
         tbody.innerHTML = '';
 
         if (!settlements || settlements.length === 0) {
             tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:var(--muted, #6B7280); padding:30px;">No move-out settlement records found. Click "New Move-Out Settlement" to process one.</td></tr>`;
-            document.getElementById('showingCountText').textContent = `Showing 0 exit settlement logs`;
+            const countEl = document.getElementById('showingCountText');
+            if (countEl) countEl.textContent = `Showing 0 exit settlement logs`;
             return;
         }
 
         settlements.forEach(s => {
             const tr = document.createElement('tr');
-            const prop = s.property || s.property_name || 'Sunrise Residences';
+            const prop = s.property || s.property_name || 'Sunrise Residences • Tower A';
             const status = s.status || 'Pending Audit';
+            const displayId = s.settlement_id || s.id;
             tr.dataset.property = prop;
             tr.dataset.status = status;
 
@@ -1378,14 +1436,14 @@
             const deductColor = deductions > 0 ? 'var(--danger, #E11D48)' : 'var(--success, #059669)';
 
             tr.innerHTML = `
-                <td><div class="settlement-id" style="font-weight:600;">${s.id}</div></td>
+                <td><div class="settlement-id" style="font-weight:600; color:#2563EB;">${displayId}</div></td>
                 <td>
                     <div class="tenant-name" style="font-weight:600;">${s.tenantName || s.tenant_name || 'Maria Santos'}</div>
                     <div class="property-info" style="font-size:11px; color:var(--muted);">Lease: ${s.leaseId || s.lease_id || 'LSE-2026-0101'}</div>
                 </td>
                 <td>
                     <div><strong>${prop}</strong></div>
-                    <div class="property-info" style="font-size:11px; color:var(--muted);">${s.unit || s.unit_no || 'Unit 101'}</div>
+                    <div class="property-info" style="font-size:11px; color:var(--muted);"><i class="bi bi-geo-alt"></i> ${s.unit || s.unit_no || 'Sunrise Residences • Tower A • Unit 101'}</div>
                 </td>
                 <td>${s.vacateDate || s.vacate_date || 'N/A'}</td>
                 <td>${formatPeso(initialDep)}</td>
@@ -1394,19 +1452,20 @@
                 <td>${badgeHtml}</td>
                 <td>
                     <div class="actions" style="display:flex; gap:4px;">
-                        <button class="action-button" title="View Statement" onclick="viewStatement('${s.id}')"><i class="bi bi-file-earmark-text"></i></button>
-                        <button class="action-button delete" title="Delete Log" onclick="deleteSettlement('${s.id}')"><i class="bi bi-trash"></i></button>
+                        <button class="action-button" title="View Statement" onclick="viewStatement('${displayId}')"><i class="bi bi-file-earmark-text"></i></button>
+                        <button class="action-button delete" title="Delete Log" onclick="deleteSettlement('${displayId}')"><i class="bi bi-trash"></i></button>
                     </div>
                 </td>
             `;
             tbody.appendChild(tr);
         });
 
-        document.getElementById('showingCountText').textContent = `Showing 1–${settlements.length} of ${settlements.length} exit settlement logs`;
+        const countEl = document.getElementById('showingCountText');
+        if (countEl) countEl.textContent = `Showing 1–${settlements.length} of ${settlements.length} exit settlement logs`;
     }
 
-    function updateKPIs() {
-        const settlements = getSettlements();
+    async function updateKPIs() {
+        const settlements = await getHandoversOrSettlements();
         const completed = settlements.filter(s => ['Full Refund', 'Partial Refund', 'Forfeited'].includes(s.status)).length;
         const pending = settlements.filter(s => ['Pending Audit', 'Pending'].includes(s.status)).length;
 
@@ -1427,6 +1486,10 @@
         if (pendEl) pendEl.textContent = pending;
         if (dedEl) dedEl.textContent = formatPeso(totalDeductions);
         if (refEl) refEl.textContent = formatPeso(totalNetRefunds);
+    }
+
+    async function getHandoversOrSettlements() {
+        return await getSettlements();
     }
 
     function openSettlementModal() { 
@@ -1467,7 +1530,7 @@
         document.getElementById("netRefundDisplay").textContent = formatPeso(netRefund);
     }
 
-    function saveSettlement() {
+    async function saveSettlement() {
         const select = document.getElementById("leaseSelect");
         if (!select.value) {
             alert("Please select an exiting lease/tenant.");
@@ -1477,8 +1540,8 @@
         const selectedOpt = select.options[select.selectedIndex];
         const leaseId = selectedOpt.dataset.lease || select.value;
         const tenantName = selectedOpt.dataset.tenant || 'Maria Santos';
-        const property = selectedOpt.dataset.property || 'Sunrise Residences';
-        const unit = selectedOpt.dataset.unit || 'Sunrise Residences • Unit 101';
+        const property = selectedOpt.dataset.property || 'Sunrise Residences • Tower A';
+        const unit = selectedOpt.dataset.unit || 'Sunrise Residences • Tower A • Unit 101';
 
         const vacateDateInput = document.getElementById("modalVacateDate").value || new Date().toISOString().split('T')[0];
         const baseDeposit = Math.max(0, parseCurrency(document.getElementById("baseDeposit").value));
@@ -1492,8 +1555,10 @@
         const netRefund = Math.max(0, baseDeposit - totalDeductions);
 
         const payMethod = document.getElementById("modalPayMethod").value;
-        const refCode = document.getElementById("modalRefCode").value.trim() || `REF-${Math.floor(100000 + Math.random() * 900000)}`;
+        let refCode = document.getElementById("modalRefCode").value.trim() || `REF-${Math.floor(100000 + Math.random() * 900000)}`;
         const notes = document.getElementById("modalNotes").value.trim();
+
+        if (!refCode.startsWith('#')) refCode = '#' + refCode;
 
         let statusType = 'Partial Refund';
         if (totalDeductions === 0 && baseDeposit > 0) statusType = 'Full Refund';
@@ -1501,34 +1566,54 @@
 
         const newId = `SET-2026-${Math.floor(100 + Math.random() * 900)}`;
 
-        // 1. Create and Save Settlement Record
+        const payload = {
+            settlement_id: newId,
+            lease_id: leaseId,
+            tenant_name: tenantName,
+            property_name: property,
+            unit_no: unit,
+            vacate_date: vacateDateInput,
+            initial_deposit: baseDeposit,
+            deductions: totalDeductions,
+            net_refund: netRefund,
+            status: statusType,
+            payment_method: payMethod,
+            reference_code: refCode,
+            notes: notes || 'Exit clearance finalized and deposit disbursed.'
+        };
+
+        // Live API Dispatch
+        try {
+            await fetch(SETTLEMENTS_API_URL, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify(payload)
+            });
+        } catch (e) {
+            console.warn("Backend save bypassed, keeping locally.", e);
+        }
+
         const newSettlement = {
             id: newId,
             settlement_id: newId,
             leaseId: leaseId,
-            lease_id: leaseId,
             tenantName: tenantName,
             tenant_name: tenantName,
             tenant_email: 'maria.santos@tenant.ph',
             property: property,
-            property_name: property,
             unit: unit,
-            unit_no: unit,
             vacateDate: vacateDateInput,
-            vacate_date: vacateDateInput,
             initialDeposit: baseDeposit,
-            initial_deposit: baseDeposit,
             deductions: totalDeductions,
             netRefund: netRefund,
-            net_refund: netRefund,
             status: statusType,
             paymentMethod: payMethod,
             referenceCode: refCode,
-            notes: notes || 'Exit clearance finalized and deposit disbursed.',
-            created_at: new Date().toISOString()
+            notes: notes || 'Exit clearance finalized and deposit disbursed.'
         };
 
-        let list = getSettlements();
+        let list = await getSettlements();
+        list = list.filter(s => (s.id || s.settlement_id) !== newId);
         list.unshift(newSettlement);
         saveSettlements(list);
 
@@ -1536,7 +1621,7 @@
         if (netRefund > 0) {
             let txns = getTransactions();
             txns.unshift({
-                refCode: refCode.startsWith('#') ? refCode : '#' + refCode,
+                refCode: refCode,
                 txnId: `TXN-2026-OUT-${Math.floor(100 + Math.random() * 900)}`,
                 payer: tenantName,
                 property: property,
@@ -1554,7 +1639,7 @@
         }
 
         // 3. Mark Lease as ENDED
-        let leases = getLeases();
+        let leases = await getLeases();
         leases = leases.map(l => {
             const currentLeaseId = l.id || l.lease_id;
             if (currentLeaseId === leaseId) {
@@ -1565,17 +1650,12 @@
         saveLeases(leases);
 
         // 4. Revert Unit Status back to VACANT
-        let units = getUnits();
+        let units = await getUnits();
         units = units.map(u => {
             const unitIdentifier = (u.unit_no || u.unitNo || u.unit_number || u.id || '').toString().toLowerCase();
             const targetUnit = unit.toString().toLowerCase();
-            const unitProp = (u.property_name || u.property || '').toString().toLowerCase();
-            const targetProp = property.toString().toLowerCase();
 
-            if (
-                (unitIdentifier && targetUnit.includes(unitIdentifier)) ||
-                (`${unitProp} • ${unitIdentifier}`.includes(targetUnit))
-            ) {
+            if (targetUnit.includes(unitIdentifier)) {
                 return { ...u, status: 'VACANT', tenant: null, tenantName: null, tenant_name: null };
             }
             return u;
@@ -1589,20 +1669,21 @@
             pov: 'client',
             category: 'payment',
             status: 'unread',
+            is_read: false,
             title: 'Move-Out Security Deposit Refund Disbursed',
             time: 'Just now',
             description: `Exit settlement ${newId} finalized for ${unit}. Deposit held: ${formatPeso(baseDeposit)} | Deductions: ${formatPeso(totalDeductions)} | Net Refund: <strong>${formatPeso(netRefund)}</strong> disbursed via ${payMethod}.`,
             property: unit.includes('•') ? unit : `${property} • ${unit}`,
             tag: `Ref ${refCode}`,
-            tagColor: 'var(--success)',
+            tagColor: 'var(--success, #059669)',
             actionUrl: 'client-billing.html',
             actionText: 'View Settlement Details'
         });
         saveNotifications(notifications);
 
         // 6. Refresh UI and Reset Inputs
-        renderSettlementTable();
-        updateKPIs();
+        await renderSettlementTable();
+        await updateKPIs();
         closeModal('settlementModal');
 
         document.getElementById("leaseSelect").value = '';
@@ -1615,22 +1696,35 @@
         alert(`Move-out settlement certificate (${newId}) recorded successfully for ${tenantName}!`);
     }
 
-    function deleteSettlement(id) {
-        if (!confirm("Are you sure you want to delete this move-out settlement log?")) return;
-        let list = getSettlements().filter(s => (s.id || s.settlement_id) !== id);
-        saveSettlements(list);
-        renderSettlementTable();
-        updateKPIs();
+    async function deleteHandover(id) {
+        await deleteSettlement(id);
     }
 
-    function viewStatement(id) {
-        const list = getSettlements();
-        const item = list.find(s => (s.id || s.settlement_id) === id);
+    async function deleteSettlement(id) {
+        if (!confirm("Are you sure you want to delete this move-out settlement log?")) return;
+        
+        try {
+            await fetch(`${SETTLEMENTS_API_URL}${id}/`, {
+                method: 'DELETE',
+                headers: getAuthHeaders()
+            });
+        } catch (e) {}
+
+        let list = await getSettlements();
+        list = list.filter(s => String(s.id || s.settlement_id) !== String(id));
+        saveSettlements(list);
+        await renderSettlementTable();
+        await updateKPIs();
+    }
+
+    async function viewStatement(id) {
+        const list = await getSettlements();
+        const item = list.find(s => String(s.id || s.settlement_id) === String(id));
         if (item) {
-            alert(`ARGO Move-Out Settlement Certificate — ${item.id || item.settlement_id}\n\n` +
+            alert(`ARGO Move-Out Settlement Certificate — ${item.settlement_id || item.id}\n\n` +
                   `Tenant: ${item.tenantName || item.tenant_name || 'Maria Santos'}\n` +
                   `Lease ID: ${item.leaseId || item.lease_id || 'LSE-2026-0101'}\n` +
-                  `Property: ${item.property || item.property_name || 'Sunrise Residences'} (${item.unit || item.unit_no || 'Unit 101'})\n` +
+                  `Property: ${item.property || 'Sunrise Residences • Tower A'} (${item.unit || 'Unit 101'})\n` +
                   `Vacate Date: ${item.vacateDate || item.vacate_date || 'N/A'}\n` +
                   `Initial Deposit: ${formatPeso(item.initialDeposit || item.initial_deposit)}\n` +
                   `Total Deductions: ${formatPeso(item.deductions)}\n` +
@@ -1667,7 +1761,7 @@
             const rowStatus = row.dataset.status || "";
 
             const matchesSearch = text.includes(searchValue);
-            const matchesProperty = propertyValue === "" || rowProperty === propertyValue;
+            const matchesProperty = propertyValue === "" || rowProperty.includes(propertyValue);
             const matchesStatus = statusValue === "" || rowStatus === statusValue;
 
             if (matchesSearch && matchesProperty && matchesStatus) {

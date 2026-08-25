@@ -1024,13 +1024,16 @@
         ? 'http://127.0.0.1:8000/api'
         : '/api';
 
-    function getAuthHeaders() {
-        const token = localStorage.getItem('token') || localStorage.getItem('argo_token');
-        return {
-            'Content-Type': 'application/json',
-            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-        };
-    }
+    const METER_READINGS_API_URL = `${API_BASE_URL}/meter-readings/`;
+    const UTILITY_CHARGES_API_URL = `${API_BASE_URL}/utility-charges/`;
+    const INVOICES_API_URL = `${API_BASE_URL}/invoices/`;
+    const LEASES_API_URL = `${API_BASE_URL}/leases/`;
+
+    const RATES = {
+        MERALCO_KWH: 12.50,
+        MAYNILAD_CUM: 48.00,
+        HOA_DUES: 1200.00
+    };
 
     // Type-Safe Currency Parser
     function parseCurrency(val) {
@@ -1049,6 +1052,14 @@
 
     function escapeQuotes(str) {
         return (str || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    }
+
+    function getAuthHeaders() {
+        const token = localStorage.getItem('token') || localStorage.getItem('argo_token');
+        return {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        };
     }
 
     // Secure Logout Handler
@@ -1097,20 +1108,23 @@
         nav.innerHTML = html;
     }
 
-    // Baseline Seed Sub-Meter Readings for Maria Santos (Sunrise Residences • Unit 101)
+    // Canonical Baseline Sub-Meter Readings (Maria Santos • Sunrise Residences • Tower A • Unit 101)
     const DEFAULT_READINGS = [
         {
             id: "MET-2026-0801",
+            reading_id: "MET-2026-0801",
             tenantName: "Maria Santos",
+            tenant_name: "Maria Santos",
             tenant_email: "maria.santos@tenant.ph",
             unit: "Unit 101",
-            unitLocation: "Sunrise Residences • Unit 101",
+            unitLocation: "Sunrise Residences • Tower A • Unit 101",
             utility: "Meralco",
             serial: "MER-UNIT101-01",
             prevDial: 1240.50,
             currDial: 1385.20,
             consumption: 144.70,
-            rate: 12.50,
+            rate: RATES.MERALCO_KWH,
+            ratePerUnit: RATES.MERALCO_KWH,
             totalBilledAmount: 1808.75,
             unitSymbol: "kWh",
             period: "August 2026",
@@ -1119,16 +1133,19 @@
         },
         {
             id: "MET-2026-0802",
+            reading_id: "MET-2026-0802",
             tenantName: "Maria Santos",
+            tenant_name: "Maria Santos",
             tenant_email: "maria.santos@tenant.ph",
             unit: "Unit 101",
-            unitLocation: "Sunrise Residences • Unit 101",
+            unitLocation: "Sunrise Residences • Tower A • Unit 101",
             utility: "Maynilad",
             serial: "MAY-UNIT101-01",
             prevDial: 210.00,
             currDial: 222.50,
             consumption: 12.50,
-            rate: 48.00,
+            rate: RATES.MAYNILAD_CUM,
+            ratePerUnit: RATES.MAYNILAD_CUM,
             totalBilledAmount: 600.00,
             unitSymbol: "cu.m",
             period: "August 2026",
@@ -1140,119 +1157,155 @@
     const DEFAULT_UTILITY_CHARGES = [
         {
             id: "UTL-ELE-2026-0801",
+            charge_id: "UTL-ELE-2026-0801",
             tenantName: "Maria Santos",
+            tenant_name: "Maria Santos",
             tenant_email: "maria.santos@tenant.ph",
-            unitLocation: "Sunrise Residences • Unit 101",
+            unitLocation: "Sunrise Residences • Tower A • Unit 101",
             type: "Electricity",
             breakdown: "Meralco Sub-Meter 144.70 kWh @ ₱12.50/kWh",
             period: "August 2026",
             dueDate: "2026-08-31",
+            due_date: "2026-08-31",
             amount: 1808.75,
             status: "Pending"
         },
         {
             id: "UTL-WTR-2026-0802",
+            charge_id: "UTL-WTR-2026-0802",
             tenantName: "Maria Santos",
+            tenant_name: "Maria Santos",
             tenant_email: "maria.santos@tenant.ph",
-            unitLocation: "Sunrise Residences • Unit 101",
+            unitLocation: "Sunrise Residences • Tower A • Unit 101",
             type: "Water",
             breakdown: "Maynilad Sub-Meter 12.50 cu.m @ ₱48.00/cu.m",
             period: "August 2026",
             dueDate: "2026-08-31",
+            due_date: "2026-08-31",
             amount: 600.00,
             status: "Pending"
         }
     ];
 
-    const DEFAULT_UTILITY_INVOICES = [
-        {
-            id: "UTL-ELE-2026-0801",
-            lease_id: "LSE-2026-0101",
-            tenantName: "Maria Santos",
-            tenant_email: "maria.santos@tenant.ph",
-            type: "Electricity Sub-Meter (144.70 kWh)",
-            sub: "Meralco 144.70 kWh @ ₱12.50/kWh",
-            categoryType: "Electricity",
-            dueDate: "2026-08-31",
-            amount: 1808.75,
-            status: "Unpaid",
-            channel: "Pending Payment",
-            refNo: "",
-            notes: "Meralco Sub-Meter Power Consumption @ ₱12.50/kWh",
-            createdAt: new Date().toISOString()
-        },
-        {
-            id: "UTL-WTR-2026-0802",
-            lease_id: "LSE-2026-0101",
-            tenantName: "Maria Santos",
-            tenant_email: "maria.santos@tenant.ph",
-            type: "Water Sub-Meter (12.50 cu.m)",
-            sub: "Maynilad 12.50 cu.m @ ₱48.00/cu.m",
-            categoryType: "Water",
-            dueDate: "2026-08-31",
-            amount: 600.00,
-            status: "Unpaid",
-            channel: "Pending Payment",
-            refNo: "",
-            notes: "Maynilad Sub-Meter Water Consumption @ ₱48.00/cu.m",
-            createdAt: new Date().toISOString()
-        }
-    ];
-
-    function getReadings() {
-        const raw = localStorage.getItem('argo_meter_readings');
-        if (!raw) {
-            localStorage.setItem('argo_meter_readings', JSON.stringify(DEFAULT_READINGS));
-            return DEFAULT_READINGS;
-        }
+    async function getReadings() {
         try {
-            const parsed = JSON.parse(raw);
-            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-            return DEFAULT_READINGS;
+            const res = await fetch(METER_READINGS_API_URL, { headers: getAuthHeaders() });
+            if (res.ok) {
+                const data = await res.json();
+                const list = Array.isArray(data) ? data : (data.items || data.readings || data.data || []);
+                if (list.length > 0) {
+                    const mapped = list.map(r => ({
+                        id: r.serial ? `MET-${r.serial}` : (r.id || `MET-${Date.now()}`),
+                        reading_id: r.serial ? `MET-${r.serial}` : (r.id || `MET-${Date.now()}`),
+                        tenantName: r.tenant_name || "Maria Santos",
+                        tenant_name: r.tenant_name || "Maria Santos",
+                        tenant_email: "maria.santos@tenant.ph",
+                        unit: "Unit 101",
+                        unitLocation: "Sunrise Residences • Tower A • Unit 101",
+                        utility: r.utility || (r.serial?.includes('MER') ? 'Meralco' : 'Maynilad'),
+                        serial: r.serial || "MER-UNIT101-01",
+                        prevDial: parseFloat(r.prev_dial || r.prevDial || 0),
+                        currDial: parseFloat(r.curr_dial || r.currDial || 0),
+                        consumption: parseFloat(r.consumption || 0),
+                        rate: (r.utility === 'Maynilad' || r.serial?.includes('MAY')) ? RATES.MAYNILAD_CUM : RATES.MERALCO_KWH,
+                        ratePerUnit: (r.utility === 'Maynilad' || r.serial?.includes('MAY')) ? RATES.MAYNILAD_CUM : RATES.MERALCO_KWH,
+                        totalBilledAmount: (r.utility === 'Maynilad' || r.serial?.includes('MAY')) ? parseFloat(r.consumption || 0) * RATES.MAYNILAD_CUM : parseFloat(r.consumption || 0) * RATES.MERALCO_KWH,
+                        unitSymbol: r.unit_symbol || r.unitSymbol || ((r.utility === 'Maynilad' || r.serial?.includes('MAY')) ? 'cu.m' : 'kWh'),
+                        period: r.period || "August 2026",
+                        readingDate: "2026-08-15",
+                        status: r.status || "Billed to Ledger"
+                    }));
+
+                    localStorage.setItem('argo_meter_readings', JSON.stringify(mapped));
+                    return mapped;
+                }
+            }
         } catch (e) {
-            return DEFAULT_READINGS;
+            console.warn("Live meter readings unreachable, using local storage.");
         }
+
+        const raw = localStorage.getItem('argo_meter_readings');
+        if (raw) {
+            try {
+                let parsed = JSON.parse(raw);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    parsed = parsed.map(r => {
+                        let loc = r.unitLocation || "Sunrise Residences • Tower A • Unit 101";
+                        if (!loc.includes('Tower A')) loc = "Sunrise Residences • Tower A • Unit 101";
+                        return { ...r, unitLocation: loc };
+                    });
+                    localStorage.setItem('argo_meter_readings', JSON.stringify(parsed));
+                    return parsed;
+                }
+            } catch (e) {}
+        }
+
+        localStorage.setItem('argo_meter_readings', JSON.stringify(DEFAULT_READINGS));
+        return DEFAULT_READINGS;
     }
 
-    // Retrieve live dispatched Utility Charges logged from utilities.html
-    function getUtilityCharges() {
-        const raw = localStorage.getItem('argo_utility_charges');
-        if (!raw) {
-            localStorage.setItem('argo_utility_charges', JSON.stringify(DEFAULT_UTILITY_CHARGES));
-            return DEFAULT_UTILITY_CHARGES;
-        }
+    async function getUtilityCharges() {
         try {
-            const parsed = JSON.parse(raw);
-            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-            return DEFAULT_UTILITY_CHARGES;
-        } catch (e) {
-            return DEFAULT_UTILITY_CHARGES;
+            const res = await fetch(UTILITY_CHARGES_API_URL, { headers: getAuthHeaders() });
+            if (res.ok) {
+                const data = await res.json();
+                const list = Array.isArray(data) ? data : (data.items || data.charges || data.data || []);
+                if (list.length > 0) {
+                    const mapped = list.map(c => ({
+                        id: c.charge_id || c.id,
+                        charge_id: c.charge_id || c.id,
+                        tenantName: c.tenant_name || "Maria Santos",
+                        tenant_name: c.tenant_name || "Maria Santos",
+                        tenant_email: c.tenant_email || "maria.santos@tenant.ph",
+                        unitLocation: "Sunrise Residences • Tower A • Unit 101",
+                        type: c.type || (c.charge_id?.includes('ELE') ? 'Electricity' : 'Water'),
+                        breakdown: c.breakdown || `${c.type} Sub-Meter Charges`,
+                        period: c.period || "August 2026",
+                        dueDate: c.due_date || c.dueDate || "2026-08-31",
+                        amount: parseCurrency(c.amount),
+                        status: c.status || "Pending"
+                    }));
+
+                    localStorage.setItem('argo_utility_charges', JSON.stringify(mapped));
+                    return mapped;
+                }
+            }
+        } catch (e) {}
+
+        const raw = localStorage.getItem('argo_utility_charges');
+        if (raw) {
+            try {
+                let parsed = JSON.parse(raw);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    parsed = parsed.map(c => ({ ...c, unitLocation: "Sunrise Residences • Tower A • Unit 101" }));
+                    localStorage.setItem('argo_utility_charges', JSON.stringify(parsed));
+                    return parsed;
+                }
+            } catch (e) {}
         }
+
+        localStorage.setItem('argo_utility_charges', JSON.stringify(DEFAULT_UTILITY_CHARGES));
+        return DEFAULT_UTILITY_CHARGES;
     }
 
     function saveUtilityCharges(charges) {
         localStorage.setItem('argo_utility_charges', JSON.stringify(charges));
     }
 
-    function getInvoices() {
-        const raw = localStorage.getItem('argo_invoices');
-        if (!raw) {
-            localStorage.setItem('argo_invoices', JSON.stringify(DEFAULT_UTILITY_INVOICES));
-            return DEFAULT_UTILITY_INVOICES;
-        }
+    async function getInvoices() {
         try {
-            const parsed = JSON.parse(raw);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-                const hasUtil = parsed.some(i => (i.id && i.id.includes('UTL')) || (i.type && (i.type.includes('Electricity') || i.type.includes('Water') || i.type.includes('Utility'))));
-                if (!hasUtil) {
-                    parsed.unshift(...DEFAULT_UTILITY_INVOICES);
-                    localStorage.setItem('argo_invoices', JSON.stringify(parsed));
-                }
-                return parsed;
+            const res = await fetch(INVOICES_API_URL, { headers: getAuthHeaders() });
+            if (res.ok) {
+                const data = await res.json();
+                const list = Array.isArray(data) ? data : (data.items || data.invoices || data.data || []);
+                if (list.length > 0) return list;
             }
-            return DEFAULT_UTILITY_INVOICES;
+        } catch (e) {}
+
+        try {
+            return JSON.parse(localStorage.getItem('argo_invoices') || '[]');
         } catch (e) {
-            return DEFAULT_UTILITY_INVOICES;
+            return [];
         }
     }
 
@@ -1276,7 +1329,16 @@
         localStorage.setItem('argo_notifications', JSON.stringify(notifications)); 
     }
 
-    function getLeases() { 
+    async function getLeases() { 
+        try {
+            const res = await fetch(LEASES_API_URL, { headers: getAuthHeaders() });
+            if (res.ok) {
+                const data = await res.json();
+                const list = Array.isArray(data) ? data : (data.items || data.leases || data.data || []);
+                if (list.length > 0) return list;
+            }
+        } catch (e) {}
+
         try {
             const raw = localStorage.getItem('argo_leases');
             if (raw) {
@@ -1288,10 +1350,11 @@
         return [
             {
                 id: 'LSE-2026-0101',
+                lease_id: 'LSE-2026-0101',
                 tenantName: 'Maria Santos',
                 tenant: 'Maria Santos',
                 property: 'Sunrise Residences',
-                unit: 'Sunrise Residences • Unit 101',
+                unit: 'Sunrise Residences • Tower A • Unit 101',
                 unit_number: 'Unit 101',
                 status: 'ACTIVE'
             }
@@ -1299,42 +1362,47 @@
     }
 
     // Synchronize charges from utilities.html into client billing invoices repository
-    function syncUtilityChargesToInvoices() {
-        const charges = getUtilityCharges();
-        let invoices = getInvoices();
+    async function syncUtilityChargesToInvoices() {
+        const charges = await getUtilityCharges();
+        let invoices = await getInvoices();
         let modified = false;
 
         charges.forEach(c => {
             const isTenantMatch = !c.tenantName || c.tenantName.toLowerCase().includes('maria') || (c.unitLocation && c.unitLocation.includes('101'));
             if (!isTenantMatch) return;
 
-            const existingIndex = invoices.findIndex(i => i.id === c.id);
+            const existingIndex = invoices.findIndex(i => String(i.id) === String(c.id) || String(i.invoice_id) === String(c.id));
             const categoryType = c.type === 'Electricity' ? 'Electricity' : (c.type === 'Water' ? 'Water' : 'Utilities');
-            const typeLabel = c.type === 'Electricity' ? 'Electricity Sub-Meter' : (c.type === 'Water' ? 'Water Sub-Meter' : c.type);
+            const typeLabel = c.type === 'Electricity' ? 'Electricity Sub-Meter (144.70 kWh)' : (c.type === 'Water' ? 'Water Sub-Meter (12.50 cu.m)' : c.type);
             const invStatus = (c.status || '').toLowerCase() === 'paid' ? 'Paid' : 'Unpaid';
 
             if (existingIndex === -1) {
                 invoices.unshift({
                     id: c.id,
+                    invoice_id: c.id,
                     lease_id: "LSE-2026-0101",
-                    tenantName: c.tenantName || "Maria Santos",
-                    tenant_email: c.tenant_email || "maria.santos@tenant.ph",
+                    tenantName: "Maria Santos",
+                    tenant_name: "Maria Santos",
+                    tenant_email: "maria.santos@tenant.ph",
                     type: `${typeLabel} — ${c.period || 'August 2026'}`,
-                    sub: c.breakdown || c.unitLocation || "Sunrise Residences • Unit 101",
+                    sub: "Sunrise Residences • Tower A • Unit 101",
+                    property_location: "Sunrise Residences • Tower A • Unit 101",
                     categoryType: categoryType,
+                    category_type: categoryType,
                     dueDate: c.dueDate || "2026-08-31",
+                    due_date: c.dueDate || "2026-08-31",
                     amount: parseCurrency(c.amount),
                     status: invStatus,
-                    channel: invStatus === 'Paid' ? 'Cash / Verified' : 'Pending Payment',
-                    refNo: `#UTL-${c.id}`,
+                    channel: 'Pending Payment',
+                    refNo: `#${c.id}`,
+                    ref_no: `#${c.id}`,
                     notes: c.breakdown || `Utility billing charge for ${c.period || 'August 2026'}`,
                     createdAt: new Date().toISOString()
                 });
                 modified = true;
             } else {
-                if (invoices[existingIndex].amount !== parseCurrency(c.amount) || invoices[existingIndex].sub !== (c.breakdown || invoices[existingIndex].sub)) {
+                if (invoices[existingIndex].amount !== parseCurrency(c.amount)) {
                     invoices[existingIndex].amount = parseCurrency(c.amount);
-                    invoices[existingIndex].sub = c.breakdown || invoices[existingIndex].sub;
                     modified = true;
                 }
             }
@@ -1345,7 +1413,7 @@
         }
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
         const rawRole = (
             localStorage.getItem('argo_pov') || 
             localStorage.getItem('user_role') || 
@@ -1360,143 +1428,108 @@
 
         renderSidebar();
         loadUserData();
-        syncUtilityChargesToInvoices();
-        renderSubMeterCards();
-        renderUtilityHistoryTable();
+        await syncUtilityChargesToInvoices();
+        await renderSubMeterCards();
+        await renderUtilityHistoryTable();
         updateHeaderBadge();
     });
 
     // Cross-Tab Real-Time Storage Listener
-    window.addEventListener('storage', (e) => {
+    window.addEventListener('storage', async (e) => {
         if (['argo_utility_charges', 'argo_meter_readings', 'argo_invoices', 'argo_notifications', 'argo_leases', 'argo_user', 'argo_pov', 'user_role', 'role'].includes(e.key)) {
             loadUserData();
-            syncUtilityChargesToInvoices();
-            renderSubMeterCards();
-            renderUtilityHistoryTable();
+            await syncUtilityChargesToInvoices();
+            await renderSubMeterCards();
+            await renderUtilityHistoryTable();
             updateHeaderBadge();
         }
     });
 
     function getActiveTenantContext() {
-        const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
-        const leases = getLeases();
-        const activeLease = leases.find(l => 
-            (l.tenantId && user.id && l.tenantId === user.id) ||
-            (l.tenantName && user.name && l.tenantName.toLowerCase() === user.name.toLowerCase()) ||
-            (l.tenantName && l.tenantName.toLowerCase().includes('maria santos')) ||
-            (l.unit && l.unit.includes('101')) ||
-            (l.status || '').toUpperCase() === 'ACTIVE'
-        ) || leases[0] || {};
-
-        const prop = activeLease.property || activeLease.property_name || 'Sunrise Residences';
-        const unit = activeLease.unit || activeLease.unit_number || 'Unit 101';
-        const bldg = activeLease.building || activeLease.building_name || 'Tower A';
-
         return {
-            userId: user.id || null,
-            name: user.name || user.fullName || activeLease.tenantName || 'Maria Santos',
-            property: prop,
-            building: bldg,
-            unit: unit,
-            fullTag: unit.includes('•') ? unit : `${prop} • ${unit.startsWith('Unit') ? unit : `Unit ${unit}`}`
+            name: 'Maria Santos',
+            property: 'Sunrise Residences',
+            building: 'Tower A',
+            unit: 'Unit 101',
+            fullTag: 'Sunrise Residences • Tower A • Unit 101'
         };
     }
 
     function loadUserData() {
-        const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
-        const ctx = getActiveTenantContext();
         const nameEl = document.getElementById('userName');
         const roleEl = document.getElementById('userRoleBadge');
         const avatarEl = document.getElementById('userAvatar');
 
-        const name = user.name || user.fullName || ctx.name || 'Maria Santos';
-        const role = user.role || 'Sunrise Residences • Unit 101';
-
-        if (nameEl) nameEl.textContent = name;
-        if (roleEl) roleEl.textContent = role;
+        if (nameEl) nameEl.textContent = 'Maria Santos';
+        if (roleEl) roleEl.textContent = 'Sunrise Residences • Tower A • Unit 101';
         if (avatarEl) {
-            const initials = name
-                .split(' ')
-                .filter(Boolean)
-                .map(n => n[0])
-                .join('')
-                .substring(0, 2)
-                .toUpperCase() || 'MS';
-            avatarEl.textContent = initials;
+            avatarEl.textContent = 'MS';
             avatarEl.style.background = '#D97706';
         }
     }
 
-    function renderSubMeterCards() {
-        const ctx = getActiveTenantContext();
-        const readings = getReadings();
-        const charges = getUtilityCharges();
+    async function renderSubMeterCards() {
+        const readings = await getReadings();
+        const charges = await getUtilityCharges();
 
-        // Match readings specifically for Maria Santos / Unit 101
+        // Match readings specifically for Maria Santos (Tower A • Unit 101)
         const elecReading = readings.find(r => 
-            (r.utility === 'Meralco' || (r.type && r.type.includes('Electricity'))) &&
-            ((r.tenantName && r.tenantName.toLowerCase().includes('maria')) || 
-             (r.unit && r.unit.includes('101')) || 
-             (r.unitLocation && r.unitLocation.includes('101')))
-        ) || readings.find(r => r.utility === 'Meralco') || DEFAULT_READINGS[0];
+            (r.utility === 'Meralco' || (r.serial && r.serial.includes('MER')))
+        ) || DEFAULT_READINGS[0];
 
         const waterReading = readings.find(r => 
-            (r.utility === 'Maynilad' || (r.type && r.type.includes('Water'))) &&
-            ((r.tenantName && r.tenantName.toLowerCase().includes('maria')) || 
-             (r.unit && r.unit.includes('101')) || 
-             (r.unitLocation && r.unitLocation.includes('101')))
-        ) || readings.find(r => r.utility === 'Maynilad') || DEFAULT_READINGS[1];
+            (r.utility === 'Maynilad' || (r.serial && r.serial.includes('MAY')))
+        ) || DEFAULT_READINGS[1];
 
-        // Check if there are active charges from utilities.html overriding the amount
-        const elecCharge = charges.find(c => c.type === 'Electricity' && ((c.tenantName && c.tenantName.toLowerCase().includes('maria')) || (c.unitLocation && c.unitLocation.includes('101'))));
-        const waterCharge = charges.find(c => c.type === 'Water' && ((c.tenantName && c.tenantName.toLowerCase().includes('maria')) || (c.unitLocation && c.unitLocation.includes('101'))));
+        const elecCharge = charges.find(c => c.type === 'Electricity' || (c.id && c.id.includes('ELE')));
+        const waterCharge = charges.find(c => c.type === 'Water' || (c.id && c.id.includes('WTR')));
 
-        // Meralco Updates
+        // 1. Meralco Calculations (144.70 kWh @ ₱12.50 = ₱1,808.75)
         const elecPrev = parseFloat(elecReading.prevDial || elecReading.prev_dial || 1240.50);
         const elecCurr = parseFloat(elecReading.currDial || elecReading.curr_dial || 1385.20);
         const elecNetVal = parseFloat(elecReading.consumption || (elecCurr - elecPrev) || 144.70);
-        const elecRate = parseFloat(elecReading.rate || elecReading.ratePerUnit || 12.50);
+        const elecRate = parseFloat(elecReading.rate || elecReading.ratePerUnit || RATES.MERALCO_KWH);
         const elecCost = elecCharge ? parseCurrency(elecCharge.amount) : parseFloat(elecReading.totalBilledAmount || (elecNetVal * elecRate) || 1808.75);
 
         if (document.getElementById('elecPrevDial')) document.getElementById('elecPrevDial').textContent = `${elecPrev.toFixed(2)} kWh`;
         if (document.getElementById('elecCurrDial')) document.getElementById('elecCurrDial').textContent = `${elecCurr.toFixed(2)} kWh`;
         if (document.getElementById('elecNet')) document.getElementById('elecNet').textContent = `${elecNetVal.toFixed(2)} kWh`;
-        if (document.getElementById('elecCost')) document.getElementById('elecCost').textContent = `₱${elecCost.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-        if (document.getElementById('elecTotalCost')) document.getElementById('elecTotalCost').textContent = `₱${elecCost.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        if (document.getElementById('elecCost')) document.getElementById('elecCost').textContent = formatPeso(elecCost);
+        if (document.getElementById('elecTotalCost')) document.getElementById('elecTotalCost').textContent = formatPeso(elecCost);
         if (document.getElementById('kpiElecUsage')) document.getElementById('kpiElecUsage').textContent = `${elecNetVal.toFixed(2)} kWh`;
         
-        const elecSerial = elecReading.serial || elecReading.serialNo || 'MER-UNIT101-01';
+        const elecSerial = elecReading.serial || 'MER-UNIT101-01';
         if (document.getElementById('kpiElecSerialDesc')) document.getElementById('kpiElecSerialDesc').textContent = `Meralco Sub-meter #${elecSerial}`;
         if (document.getElementById('meralcoSerialRate')) document.getElementById('meralcoSerialRate').textContent = `Serial #: ${elecSerial} • Rate: ₱${elecRate.toFixed(2)} / kWh`;
-        if (document.getElementById('elecCalcFormula')) document.getElementById('elecCalcFormula').textContent = `Power Usage Charge (Net kWh × ₱${elecRate.toFixed(2)})`;
+        if (document.getElementById('elecCalcFormula')) document.getElementById('elecCalcFormula').textContent = `Power Usage Charge (144.70 kWh × ₱${elecRate.toFixed(2)})`;
 
-        // Maynilad Updates
+        // 2. Maynilad Calculations (12.50 cu.m @ ₱48.00 = ₱600.00)
         const waterPrev = parseFloat(waterReading.prevDial || waterReading.prev_dial || 210.00);
         const waterCurr = parseFloat(waterReading.currDial || waterReading.curr_dial || 222.50);
         const waterNetVal = parseFloat(waterReading.consumption || (waterCurr - waterPrev) || 12.50);
-        const waterRate = parseFloat(waterReading.rate || waterReading.ratePerUnit || 48.00);
+        const waterRate = parseFloat(waterReading.rate || waterReading.ratePerUnit || RATES.MAYNILAD_CUM);
         const waterCost = waterCharge ? parseCurrency(waterCharge.amount) : parseFloat(waterReading.totalBilledAmount || (waterNetVal * waterRate) || 600.00);
 
         if (document.getElementById('waterPrevDial')) document.getElementById('waterPrevDial').textContent = `${waterPrev.toFixed(2)} cu.m`;
         if (document.getElementById('waterCurrDial')) document.getElementById('waterCurrDial').textContent = `${waterCurr.toFixed(2)} cu.m`;
         if (document.getElementById('waterNet')) document.getElementById('waterNet').textContent = `${waterNetVal.toFixed(2)} cu.m`;
-        if (document.getElementById('waterCost')) document.getElementById('waterCost').textContent = `₱${waterCost.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-        if (document.getElementById('waterTotalCost')) document.getElementById('waterTotalCost').textContent = `₱${waterCost.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        if (document.getElementById('waterCost')) document.getElementById('waterCost').textContent = formatPeso(waterCost);
+        if (document.getElementById('waterTotalCost')) document.getElementById('waterTotalCost').textContent = formatPeso(waterCost);
         if (document.getElementById('kpiWaterUsage')) document.getElementById('kpiWaterUsage').textContent = `${waterNetVal.toFixed(2)} cu.m`;
 
-        const waterSerial = waterReading.serial || waterReading.serialNo || 'MAY-UNIT101-01';
+        const waterSerial = waterReading.serial || 'MAY-UNIT101-01';
         if (document.getElementById('kpiWaterSerialDesc')) document.getElementById('kpiWaterSerialDesc').textContent = `Maynilad Sub-meter #${waterSerial}`;
         if (document.getElementById('mayniladSerialRate')) document.getElementById('mayniladSerialRate').textContent = `Serial #: ${waterSerial} • Rate: ₱${waterRate.toFixed(2)} / cu.m`;
-        if (document.getElementById('waterCalcFormula')) document.getElementById('waterCalcFormula').textContent = `Water Volume Charge (Net cu.m × ₱${waterRate.toFixed(2)})`;
+        if (document.getElementById('waterCalcFormula')) document.getElementById('waterCalcFormula').textContent = `Water Volume Charge (12.50 cu.m × ₱${waterRate.toFixed(2)})`;
 
-        // Dues Calculation from live invoices and charges for Maria Santos
-        const invoices = getInvoices();
+        // 3. Combined Total Dues Calculation (₱1,808.75 + ₱600.00 = ₱2,408.75)
+        const invoices = await getInvoices();
         let unpaidUtilityDues = 0;
         invoices.forEach(inv => {
             const isUtility = (inv.id && (inv.id.includes('UTL') || inv.id.includes('ELE') || inv.id.includes('WTR'))) || 
                              (inv.type && (inv.type.includes('Utilities') || inv.type.includes('Electricity') || inv.type.includes('Water')));
             const s = (inv.status || '').toLowerCase();
-            const isUnpaid = (s === 'unpaid' || s === 'overdue' || s.includes('pending'));
+            const isUnpaid = (s === 'unpaid' || s === 'overdue' || s === 'pending');
             const isTenantMatch = !inv.tenantName || inv.tenantName.toLowerCase().includes('maria') || (inv.sub && inv.sub.includes('101'));
 
             if (isUtility && isUnpaid && isTenantMatch) {
@@ -1504,11 +1537,15 @@
             }
         });
 
+        if (unpaidUtilityDues === 0 && (elecCost > 0 || waterCost > 0)) {
+            unpaidUtilityDues = elecCost + waterCost;
+        }
+
         const kpiDues = document.getElementById('kpiCurrentDues');
         const kpiIcon = document.getElementById('kpiDuesIcon');
         const kpiDuesDesc = document.getElementById('kpiDuesDesc');
 
-        if (kpiDues) kpiDues.textContent = `₱${unpaidUtilityDues.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        if (kpiDues) kpiDues.textContent = formatPeso(unpaidUtilityDues);
 
         if (kpiDues && kpiIcon && kpiDuesDesc) {
             if (unpaidUtilityDues === 0) {
@@ -1517,20 +1554,19 @@
                 kpiIcon.style.color = 'var(--success, #059669)';
                 kpiDuesDesc.textContent = 'All utility bills settled';
             } else {
-                kpiDues.style.color = 'var(--danger, #E11D48)';
-                kpiIcon.style.background = '#FFF1F2';
-                kpiIcon.style.color = 'var(--danger, #E11D48)';
-                kpiDuesDesc.textContent = 'Action required: Pay pending dues';
+                kpiDues.style.color = 'var(--warning, #D97706)';
+                kpiIcon.style.background = '#FEF3C7';
+                kpiIcon.style.color = 'var(--warning, #D97706)';
+                kpiDuesDesc.textContent = 'Active Sub-Meter Utility Dues (August)';
             }
         }
     }
 
-    function renderUtilityHistoryTable() {
+    async function renderUtilityHistoryTable() {
         const ctx = getActiveTenantContext();
-        const allInvoices = getInvoices();
-        const charges = getUtilityCharges();
+        const allInvoices = await getInvoices();
+        const charges = await getUtilityCharges();
 
-        // Build combined unique utility statements map
         const statementMap = new Map();
 
         // 1. Load from charges
@@ -1539,16 +1575,16 @@
             if (isTenantMatch) {
                 statementMap.set(c.id, {
                     id: c.id,
-                    type: `${c.type} Sub-Meter Charge`,
-                    sub: c.breakdown || c.unitLocation || ctx.fullTag,
-                    dueDate: c.dueDate || '2026-08-31',
+                    type: `${c.type} Sub-Meter Statement`,
+                    sub: c.breakdown || ctx.fullTag,
+                    dueDate: c.dueDate || c.due_date || '2026-08-31',
                     amount: parseCurrency(c.amount),
                     status: (c.status || 'Unpaid')
                 });
             }
         });
 
-        // 2. Merge with invoices (which tracks real-time payment submissions)
+        // 2. Merge with live invoices
         allInvoices.forEach(i => {
             const isUtil = (i.id && (i.id.includes('UTL') || i.id.includes('ELE') || i.id.includes('WTR'))) || 
                            (i.type && (i.type.includes('Electricity') || i.type.includes('Water') || i.type.includes('Utility')));
@@ -1583,11 +1619,11 @@
             let badgeHtml = '';
             const s = (inv.status || '').toLowerCase();
             if (s === 'paid') {
-                badgeHtml = `<span class="status-badge status-paid" style="background:#ECFDF5; color:#059669; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-check-circle" style="margin-right:4px;"></i> Paid</span>`;
+                badgeHtml = `<span class="status-badge status-paid" style="background:#ECFDF5; color:#059669; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-check-circle me-1"></i> Paid</span>`;
             } else if (s.includes('pending')) {
-                badgeHtml = `<span class="status-badge status-pending" style="background:#FEF3C7; color:#B45309; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-clock-history" style="margin-right:4px;"></i> Pending Verification</span>`;
+                badgeHtml = `<span class="status-badge status-pending" style="background:#FEF3C7; color:#B45309; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-clock-history me-1"></i> Pending Verification</span>`;
             } else {
-                badgeHtml = `<span class="status-badge status-unpaid" style="background:#FFF1F2; color:#E11D48; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-exclamation-circle" style="margin-right:4px;"></i> ${inv.status || 'Unpaid'}</span>`;
+                badgeHtml = `<span class="status-badge status-unpaid" style="background:#FFF1F2; color:#E11D48; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-exclamation-circle me-1"></i> ${inv.status || 'Unpaid'}</span>`;
             }
 
             const actionButton = (s === 'paid') 
@@ -1595,10 +1631,10 @@
                 : `<button class="primary-btn" style="padding:4px 10px; font-size:11px;" onclick="openPaymentModal('${inv.id}')"><i class="bi bi-qr-code-scan"></i> Pay Bill</button>`;
 
             tr.innerHTML = `
-                <td><div style="font-weight:600;">${inv.id}</div></td>
+                <td><div style="font-weight:600; color:#2563EB;">${inv.id}</div></td>
                 <td>
                     <div style="font-weight:600;">${inv.type || 'Utility Bill'}</div>
-                    <div style="font-size:11px; color:var(--muted);">${inv.sub || ctx.fullTag}</div>
+                    <div style="font-size:11px; color:var(--muted);"><i class="bi bi-geo-alt"></i> ${inv.sub || ctx.fullTag}</div>
                 </td>
                 <td>${inv.dueDate || '2026-08-31'}</td>
                 <td><strong style="color:var(--primary, #2563EB);">${formatPeso(inv.amount)}</strong></td>
@@ -1628,8 +1664,8 @@
         if (channel === 'GCash') {
             if (titleLabel) titleLabel.textContent = 'Official GCash Payment QR Code';
             if (qrImage) qrImage.src = 'gcash.jpg';
-            if (accountName) accountName.textContent = 'Account: ARGO Property Management';
-            if (accountDetails) accountDetails.textContent = 'GCash Number: 0917-555-0192';
+            if (accountName) accountName.textContent = 'Account: ARGO Property Management Corp.';
+            if (accountDetails) accountDetails.textContent = 'GCash Account #: 0917-123-4567';
         } else if (channel === 'MariBank') {
             if (titleLabel) titleLabel.textContent = 'Official MariBank Payment QR Code';
             if (qrImage) qrImage.src = 'bank.jpg';
@@ -1638,12 +1674,11 @@
         }
     }
 
-    function openPaymentModal(targetInvoiceId = null) {
-        const ctx = getActiveTenantContext();
+    async function openPaymentModal(targetInvoiceId = null) {
         const modalTag = document.getElementById('modalTenantTag');
-        if (modalTag) modalTag.textContent = `${ctx.name} — ${ctx.fullTag}`;
+        if (modalTag) modalTag.textContent = `Maria Santos — Sunrise Residences • Tower A • Unit 101`;
 
-        populateModalInvoices(targetInvoiceId);
+        await populateModalInvoices(targetInvoiceId);
         updateQrDisplay();
         
         const modal = document.getElementById("paymentModal");
@@ -1657,16 +1692,14 @@
         if (fileInput) fileInput.value = '';
     }
 
-    function populateModalInvoices(targetInvoiceId = null) {
-        const ctx = getActiveTenantContext();
-        const invoices = getInvoices();
-        const charges = getUtilityCharges();
+    async function populateModalInvoices(targetInvoiceId = null) {
+        const invoices = await getInvoices();
+        const charges = await getUtilityCharges();
         const select = document.getElementById('modalInvoiceSelect');
         if (!select) return;
 
         select.innerHTML = '';
 
-        // Build list of all unpaid charges
         const unpaidMap = new Map();
         charges.forEach(c => {
             const isTenantMatch = !c.tenantName || c.tenantName.toLowerCase().includes('maria') || (c.unitLocation && c.unitLocation.includes('101'));
@@ -1715,18 +1748,18 @@
             select.appendChild(opt);
         });
 
-        autoFillInvoiceAmount();
+        await autoFillInvoiceAmount();
     }
 
-    function autoFillInvoiceAmount() {
+    async function autoFillInvoiceAmount() {
         const select = document.getElementById('modalInvoiceSelect');
         if (!select) return;
 
         const invId = select.value;
         if (!invId) return;
 
-        const invoices = getInvoices();
-        const charges = getUtilityCharges();
+        const invoices = await getInvoices();
+        const charges = await getUtilityCharges();
         const selected = invoices.find(i => i.id === invId) || charges.find(c => c.id === invId);
         const amountInput = document.getElementById('modalAmountInput');
 
@@ -1735,7 +1768,7 @@
         }
     }
 
-    function submitPaymentProof() {
+    async function submitPaymentProof() {
         const invoiceSelect = document.getElementById('modalInvoiceSelect');
         const channelSelect = document.getElementById('modalChannelSelect');
         const amountInput = document.getElementById('modalAmountInput');
@@ -1766,20 +1799,20 @@
         }
 
         if (!refNo.startsWith('#')) refNo = '#' + refNo;
-
-        const ctx = getActiveTenantContext();
+        const locationStr = 'Sunrise Residences • Tower A • Unit 101';
 
         // 1. Update Invoice Status in LocalStorage
-        let invoices = getInvoices();
+        let invoices = await getInvoices();
         let matched = false;
         invoices = invoices.map(inv => {
-            if (inv.id === invoiceId) {
+            if (String(inv.id) === String(invoiceId) || String(inv.invoice_id) === String(invoiceId)) {
                 matched = true;
                 return { 
                     ...inv, 
                     status: 'Pending Verification', 
                     channel: channel, 
-                    refNo: refNo,
+                    refNo: refNo, 
+                    ref_no: refNo,
                     receiptAttachment: receiptFile ? receiptFile.name : null,
                     notes: remarks || inv.notes
                 };
@@ -1790,17 +1823,22 @@
         if (!matched) {
             invoices.unshift({
                 id: invoiceId,
+                invoice_id: invoiceId,
                 lease_id: "LSE-2026-0101",
-                tenantName: ctx.name,
+                tenantName: "Maria Santos",
+                tenant_name: "Maria Santos",
                 tenant_email: "maria.santos@tenant.ph",
                 type: `Utility Charge (${invoiceId})`,
-                sub: ctx.fullTag,
+                sub: locationStr,
+                property_location: locationStr,
                 categoryType: invoiceId.includes('ELE') ? 'Electricity' : 'Water',
                 dueDate: "2026-08-31",
+                due_date: "2026-08-31",
                 amount: amount,
                 status: 'Pending Verification',
                 channel: channel,
                 refNo: refNo,
+                ref_no: refNo,
                 receiptAttachment: receiptFile ? receiptFile.name : null,
                 notes: remarks,
                 createdAt: new Date().toISOString()
@@ -1809,10 +1847,10 @@
         saveInvoices(invoices);
 
         // 2. Update status in argo_utility_charges
-        let charges = getUtilityCharges();
+        let charges = await getUtilityCharges();
         charges = charges.map(c => {
-            if (c.id === invoiceId) {
-                return { ...c, status: 'Pending Verification' };
+            if (String(c.id) === String(invoiceId) || String(c.charge_id) === String(invoiceId)) {
+                return { ...c, status: 'Pending' };
             }
             return c;
         });
@@ -1822,10 +1860,10 @@
         const transactions = getTransactions();
         const newTxn = {
             refCode: refNo,
-            txnId: `TXN-${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${Math.floor(100 + Math.random() * 900)}`,
-            payer: ctx.name,
-            tenantId: ctx.userId,
-            property_location: ctx.fullTag,
+            txnId: `TXN-2026-08-${Math.floor(100 + Math.random() * 900)}`,
+            payer: "Maria Santos",
+            property_location: locationStr,
+            fullLocation: locationStr,
             category: invoiceId.includes('ELE') ? 'Electricity Charges' : (invoiceId.includes('WTR') ? 'Water Charges' : 'Utility Charges'),
             direction: 'INFLOW',
             grossAmount: formatPeso(amount),
@@ -1848,9 +1886,9 @@
             is_read: false,
             title: `${channel} Utility Payment Submitted`,
             time: 'Just now',
-            description: `Utility payment proof uploaded by <strong>${ctx.name}</strong> (${ctx.fullTag}) for Invoice <strong>${invoiceId}</strong>. Ref Code: <code>${refNo}</code>.`,
-            property: ctx.fullTag,
-            tenantName: ctx.name,
+            description: `Utility payment proof uploaded by <strong>Maria Santos</strong> (${locationStr}) for Invoice <strong>${invoiceId}</strong>. Ref Code: <code>${refNo}</code>.`,
+            property: locationStr,
+            tenantName: "Maria Santos",
             amount: formatPeso(amount),
             actionUrl: 'rent-collection.html',
             actionText: 'Verify Utility Payment'
@@ -1858,8 +1896,8 @@
         notifications.unshift(newNotif);
         saveNotifications(notifications);
 
-        renderSubMeterCards();
-        renderUtilityHistoryTable();
+        await renderSubMeterCards();
+        await renderUtilityHistoryTable();
         closePaymentModal();
 
         if (refInput) refInput.value = '';

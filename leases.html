@@ -956,15 +956,17 @@
         ? 'http://127.0.0.1:8000/api/units/'
         : '/api/units/';
 
-    // Primary Contract Seed: Maria Santos linked to Unit 101 at Sunrise Residences
+    // Canonical Primary Lease Agreement (Maria Santos • Unit 101)
     const DEFAULT_LEASES = [
         {
             id: "LSE-2026-0101",
+            lease_id: "LSE-2026-0101",
             tenantName: "Maria Santos",
             tenant_name: "Maria Santos",
             tenant_email: "maria.santos@tenant.ph",
             property: "Sunrise Residences",
-            unit: "Sunrise Residences • Unit 101",
+            property_name: "Sunrise Residences",
+            unit: "Sunrise Residences • Tower A • Unit 101",
             unit_number: "Unit 101",
             start_date: "2026-01-01",
             end_date: "2026-12-31",
@@ -974,7 +976,7 @@
             deposit_amount: 30000,
             deposit: "₱30,000.00 (Verified)",
             status: "ACTIVE",
-            created_at: new Date().toISOString()
+            created_at: new Date("2026-01-01").toISOString()
         }
     ];
 
@@ -1066,43 +1068,83 @@
 
     // Shared Storage & API Accessors
     async function getLeases() {
+        const tenants = await getTenantsList();
+        const units = await getUnitsList();
+
         try {
             const response = await fetch(API_BASE_URL, { headers: getAuthHeaders() });
             if (response.ok) {
                 const data = await response.json();
-                if (Array.isArray(data) && data.length > 0) {
-                    localStorage.setItem('argo_leases', JSON.stringify(data));
-                    return data;
+                const list = Array.isArray(data) ? data : (data.items || data.leases || data.data || []);
+                
+                if (list.length > 0) {
+                    // Map live database relationships
+                    const formatted = list.map(l => {
+                        const matchedTenant = tenants.find(t => String(t.id) === String(l.tenant_id)) || {};
+                        const matchedUnit = units.find(u => String(u.id) === String(l.unit_id)) || {};
+                        
+                        const tName = l.tenantName || l.tenant_name || matchedTenant.name || 'Maria Santos';
+                        const uName = matchedUnit.unit_number || matchedUnit.unit_no || l.unit_number || 'Unit 101';
+                        const pName = matchedUnit.property_name || (matchedUnit.property ? matchedUnit.property.name : '') || l.property || 'Sunrise Residences';
+
+                        return {
+                            id: l.lease_id || l.id,
+                            lease_id: l.lease_id || l.id,
+                            tenant_id: l.tenant_id,
+                            unit_id: l.unit_id,
+                            tenantName: tName,
+                            tenant_name: tName,
+                            tenant_email: matchedTenant.email || l.tenant_email || 'maria.santos@tenant.ph',
+                            property: pName,
+                            property_name: pName,
+                            unit: `${pName} • ${uName}`,
+                            unit_number: uName,
+                            start_date: l.start_date || '2026-01-01',
+                            end_date: l.end_date || '2026-12-31',
+                            term: `${l.start_date || '2026-01-01'} – ${l.end_date || '2026-12-31'}`,
+                            rent: parseFloat(l.rent || l.rent_amount || 15000),
+                            rent_amount: parseFloat(l.rent || l.rent_amount || 15000),
+                            deposit_amount: parseFloat(l.deposit || l.deposit_amount || 30000),
+                            deposit: typeof l.deposit === 'string' && l.deposit.includes('₱') ? l.deposit : `₱${parseFloat(l.deposit || 30000).toLocaleString('en-US', { minimumFractionDigits: 2 })} (Verified)`,
+                            status: (l.status || 'ACTIVE').toUpperCase(),
+                            created_at: l.created_at || new Date().toISOString()
+                        };
+                    });
+
+                    // Filter out old test mock noise
+                    const cleaned = formatted.filter(l => !['LSE-2026-3764', 'LSE-2026-9963'].includes(String(l.id)));
+                    localStorage.setItem('argo_leases', JSON.stringify(cleaned));
+                    return cleaned;
                 }
             }
         } catch (e) {
-            console.warn("Live Leases API unavailable, loading from cache.");
+            console.warn("Live Leases API unavailable, loading from sanitized local cache.");
         }
 
         const raw = localStorage.getItem('argo_leases');
-        if (!raw) {
-            localStorage.setItem('argo_leases', JSON.stringify(DEFAULT_LEASES));
-            return DEFAULT_LEASES;
+        if (raw) {
+            try {
+                let parsed = JSON.parse(raw);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    // Filter out rogue test noise
+                    parsed = parsed.filter(l => !['LSE-2026-3764', 'LSE-2026-9963'].includes(String(l.id)));
+                    
+                    const hasMariaLease = parsed.some(l => 
+                        (l.tenantName || l.tenant_name || '').toLowerCase().includes('maria') ||
+                        (l.unit || '').includes('101')
+                    );
+
+                    if (!hasMariaLease) {
+                        parsed.unshift(DEFAULT_LEASES[0]);
+                    }
+                    localStorage.setItem('argo_leases', JSON.stringify(parsed));
+                    return parsed;
+                }
+            } catch (e) {}
         }
 
-        try {
-            const parsed = JSON.parse(raw);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-                const hasMariaLease = parsed.some(l => 
-                    (l.tenantName || l.tenant_name || '').toLowerCase() === 'maria santos' ||
-                    (l.unit || '').includes('101')
-                );
-                if (!hasMariaLease) {
-                    parsed.unshift(DEFAULT_LEASES[0]);
-                    localStorage.setItem('argo_leases', JSON.stringify(parsed));
-                }
-                return parsed;
-            }
-            localStorage.setItem('argo_leases', JSON.stringify(DEFAULT_LEASES));
-            return DEFAULT_LEASES;
-        } catch (e) {
-            return DEFAULT_LEASES;
-        }
+        localStorage.setItem('argo_leases', JSON.stringify(DEFAULT_LEASES));
+        return DEFAULT_LEASES;
     }
 
     function saveLeasesLocally(leases) {
@@ -1126,7 +1168,8 @@
             const res = await fetch(TENANTS_API_URL, { headers: getAuthHeaders() });
             if (res.ok) {
                 const data = await res.json();
-                if (Array.isArray(data) && data.length > 0) return data;
+                const list = Array.isArray(data) ? data : (data.items || data.tenants || data.data || []);
+                if (list.length > 0) return list;
             }
         } catch (e) {}
 
@@ -1142,7 +1185,8 @@
             const res = await fetch(UNITS_API_URL, { headers: getAuthHeaders() });
             if (res.ok) {
                 const data = await res.json();
-                if (Array.isArray(data) && data.length > 0) return data;
+                const list = Array.isArray(data) ? data : (data.items || data.units || data.data || []);
+                if (list.length > 0) return list;
             }
         } catch (e) {}
 
@@ -1178,18 +1222,18 @@
         loadUserData();
         await populateModalDropdowns();
         await renderLeasesTable();
-        updateKPIs();
+        await updateKPIs();
         updateHeaderBadge();
     });
 
     // Real-Time Cross-Tab Listener
     window.addEventListener('storage', async (e) => {
-        if (['argo_leases', 'argo_tenants', 'argo_units', 'argo_invoices', 'argo_notifications', 'argo_user', 'argo_pov'].includes(e.key)) {
+        if (['argo_leases', 'argo_tenants', 'argo_units', 'argo_invoices', 'argo_notifications', 'argo_user', 'argo_pov', 'user_role', 'role'].includes(e.key)) {
             renderSidebar();
             loadUserData();
             await populateModalDropdowns();
             await renderLeasesTable();
-            updateKPIs();
+            await updateKPIs();
             updateHeaderBadge();
         }
     });
@@ -1218,10 +1262,11 @@
             if (tenants.length > 0) {
                 tenants.forEach(t => {
                     const tenantName = t.name || `${t.first_name || ''} ${t.last_name || ''}`.trim() || 'Tenant';
-                    tenantSelect.innerHTML += `<option value="${tenantName}">${tenantName}</option>`;
+                    const tenantId = t.id || '';
+                    tenantSelect.innerHTML += `<option value="${tenantId}" data-name="${tenantName}">${tenantName} (${t.email || 'Verified Occupant'})</option>`;
                 });
             } else {
-                tenantSelect.innerHTML += '<option value="Maria Santos">Maria Santos</option>';
+                tenantSelect.innerHTML += '<option value="maria-santos-id" data-name="Maria Santos">Maria Santos (maria.santos@tenant.ph)</option>';
             }
         }
 
@@ -1229,15 +1274,29 @@
             unitSelect.innerHTML = '<option value="">Select Unit Location...</option>';
             if (units.length > 0) {
                 units.forEach(u => {
+                    const uId = u.id || '';
                     const uName = u.unit_number || u.unit_no || u.unitNo || u.unit_name || `Unit #${u.id}`;
                     const pName = (u.property ? (u.property.name || u.property.property_name) : '') || u.property_name || u.property || 'Sunrise Residences';
-                    const unitStatus = u.status ? ` (${u.status})` : '';
-                    unitSelect.innerHTML += `<option value="${pName} • ${uName}">${pName} • ${uName}${unitStatus}</option>`;
+                    const uRent = u.monthly_rent || u.rent || u.rent_amount || 15000;
+                    const unitStatus = u.status ? ` • ${u.status}` : '';
+                    unitSelect.innerHTML += `<option value="${uId}" data-location="${pName} • ${uName}" data-rent="${uRent}">${pName} • ${uName}${unitStatus}</option>`;
                 });
             } else {
-                unitSelect.innerHTML += '<option value="Sunrise Residences • Unit 101">Sunrise Residences • Unit 101 (Occupied)</option>';
-                unitSelect.innerHTML += '<option value="Sunrise Residences • Unit 102">Sunrise Residences • Unit 102 (Available)</option>';
+                unitSelect.innerHTML += '<option value="unit-101" data-location="Sunrise Residences • Unit 101" data-rent="15000">Sunrise Residences • Unit 101 (Occupied)</option>';
+                unitSelect.innerHTML += '<option value="unit-102" data-location="Sunrise Residences • Unit 102" data-rent="12500">Sunrise Residences • Unit 102 (Available)</option>';
             }
+
+            // Auto-fill rent when unit selection changes
+            unitSelect.addEventListener('change', (e) => {
+                const selectedOpt = unitSelect.options[unitSelect.selectedIndex];
+                if (selectedOpt && selectedOpt.dataset.rent) {
+                    const rentInput = document.getElementById('modalRentAmount');
+                    const depositInput = document.getElementById('modalDepositAmount');
+                    const rentVal = parseFloat(selectedOpt.dataset.rent);
+                    if (rentInput) rentInput.value = rentVal;
+                    if (depositInput) depositInput.value = rentVal * 2; // 2 Months standard security deposit
+                }
+            });
         }
     }
 
@@ -1249,7 +1308,8 @@
 
         if (!leases || leases.length === 0) {
             tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--muted, #6B7280); padding:30px;">No lease agreements found. Click "Draft New Lease" to add one.</td></tr>`;
-            document.getElementById('showingCountText').textContent = `Showing 0 leases`;
+            const countEl = document.getElementById('showingCountText');
+            if (countEl) countEl.textContent = `Showing 0 leases`;
             return;
         }
 
@@ -1260,11 +1320,11 @@
 
             let badgeHtml = '';
             if (status === 'ACTIVE') {
-                badgeHtml = `<span class="status active" style="background:#ECFDF5; color:#059669; padding:4px 8px; border-radius:4px; font-weight:600; font-size:12px;">ACTIVE (Occupied)</span>`;
+                badgeHtml = `<span class="status active" style="background:#ECFDF5; color:#059669; padding:4px 8px; border-radius:4px; font-weight:600; font-size:12px;"><i class="bi bi-check-circle me-1"></i> ACTIVE (Occupied)</span>`;
             } else if (status === 'DRAFT') {
-                badgeHtml = `<span class="status draft" style="background:#FEF3C7; color:#D97706; padding:4px 8px; border-radius:4px; font-weight:600; font-size:12px;">DRAFT (Pending Move-In)</span>`;
+                badgeHtml = `<span class="status draft" style="background:#FEF3C7; color:#D97706; padding:4px 8px; border-radius:4px; font-weight:600; font-size:12px;"><i class="bi bi-clock-history me-1"></i> DRAFT (Pending Move-In)</span>`;
             } else {
-                badgeHtml = `<span class="status ended" style="background:#F3F4F6; color:#6B7280; padding:4px 8px; border-radius:4px; font-weight:600; font-size:12px;">ENDED (Vacated)</span>`;
+                badgeHtml = `<span class="status ended" style="background:#F3F4F6; color:#6B7280; padding:4px 8px; border-radius:4px; font-weight:600; font-size:12px;"><i class="bi bi-box-arrow-right me-1"></i> ENDED (Vacated)</span>`;
             }
 
             let actionsHtml = `
@@ -1274,7 +1334,7 @@
             if (status === 'DRAFT') {
                 actionsHtml += `
                     <button class="primary-btn" style="padding:4px 8px; font-size:11px;" onclick="activateLease('${l.id}')">
-                        <i class="bi bi-box-arrow-in-right"></i> Execute Move-In
+                        <i class="bi bi-box-arrow-in-right"></i> Move-In
                     </button>
                 `;
             } else if (status === 'ACTIVE') {
@@ -1286,17 +1346,17 @@
             }
 
             const displayRent = parseFloat(l.rent || l.rent_amount || 15000).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            const displayDeposit = l.deposit || `₱${parseFloat(l.deposit_amount || 30000).toLocaleString('en-US', { minimumFractionDigits: 2 })} (Verified)`;
+            const displayDeposit = typeof l.deposit === 'string' && l.deposit.includes('₱') ? l.deposit : `₱${parseFloat(l.deposit_amount || 30000).toLocaleString('en-US', { minimumFractionDigits: 2 })} (Verified)`;
 
             tr.innerHTML = `
-                <td><div class="lease-id" style="font-weight:600;">${l.id}</div></td>
+                <td><div class="lease-id" style="font-weight:600;">${l.lease_id || l.id}</div></td>
                 <td>
                     <div class="tenant-name" style="font-weight:600;">${l.tenantName || l.tenant_name || 'Maria Santos'}</div>
                     <div class="property-info" style="font-size:12px; color:#6B7280;">Verified Occupant</div>
                 </td>
                 <td>
                     <div><strong>${l.property || 'Sunrise Residences'}</strong></div>
-                    <div class="property-info" style="font-size:12px; color:#6B7280;">${l.unit || l.unit_number || 'Unit 101'}</div>
+                    <div class="property-info" style="font-size:12px; color:#6B7280;">${l.unit || l.unit_number || 'Sunrise Residences • Tower A • Unit 101'}</div>
                 </td>
                 <td>${l.term || `${l.start_date || '2026-01-01'} – ${l.end_date || '2026-12-31'}`}</td>
                 <td><strong>₱${displayRent}</strong></td>
@@ -1318,19 +1378,22 @@
 
     async function viewLeaseDetails(leaseId) {
         const leases = await getLeases();
-        const l = leases.find(item => String(item.id) === String(leaseId)) || DEFAULT_LEASES[0];
+        const l = leases.find(item => String(item.id) === String(leaseId) || String(item.lease_id) === String(leaseId)) || DEFAULT_LEASES[0];
         if (!l) return;
-        alert(`Lease Agreement: ${l.id}\nTenant: ${l.tenantName || l.tenant_name}\nProperty & Unit: ${l.property} (${l.unit})\nTerm: ${l.term || `${l.start_date} – ${l.end_date}`}\nMonthly Rent: ₱${parseFloat(l.rent || l.rent_amount || 15000).toLocaleString()}\nDeposit Held: ${l.deposit || '₱30,000.00'}\nStatus: ${l.status}`);
+        alert(`Lease Agreement: ${l.lease_id || l.id}\nTenant: ${l.tenantName || l.tenant_name}\nProperty & Location: ${l.unit}\nTerm: ${l.term || `${l.start_date} – ${l.end_date}`}\nMonthly Rent: ₱${parseFloat(l.rent || 15000).toLocaleString('en-US', {minimumFractionDigits: 2})}\nSecurity Deposit: ${l.deposit || '₱30,000.00'}\nStatus: ${l.status}`);
     }
 
-    function updateUnitOccupancyStatus(unitLocation, status) {
+    function updateUnitOccupancyStatus(unitLocation, status, tenantName = null) {
         let units = JSON.parse(localStorage.getItem('argo_units') || '[]');
         units = units.map(u => {
-            const uNo = u.unit_number || u.unit_no || u.unitNo || u.unit_name || u.id || '';
-            const pName = u.property_name || u.property || '';
-            const fullLoc = `${pName} • ${uNo}`;
-            if (fullLoc.includes(unitLocation) || unitLocation.includes(uNo)) {
-                return { ...u, status: status, tenant: status === 'OCCUPIED' ? 'Maria Santos' : null, tenant_name: status === 'OCCUPIED' ? 'Maria Santos' : null };
+            const uNo = u.unit_number || u.unit_no || u.unitNo || '';
+            if (unitLocation.includes(uNo)) {
+                return { 
+                    ...u, 
+                    status: status, 
+                    tenant: status === 'OCCUPIED' ? tenantName : null, 
+                    tenant_name: status === 'OCCUPIED' ? tenantName : null 
+                };
             }
             return u;
         });
@@ -1346,7 +1409,7 @@
                     ...t,
                     status: status,
                     leaseStatus: status === 'ACTIVE' ? 'Active Lease' : 'No Active Lease',
-                    unit: status === 'ACTIVE' ? unitLocation : (t.unit || 'No Current Unit')
+                    unit: status === 'ACTIVE' ? unitLocation : 'No Current Unit'
                 };
             }
             return t;
@@ -1373,16 +1436,28 @@
     }
 
     async function saveLease() {
-        const tenantName = document.getElementById('modalTenantName').value.trim();
-        const unitLocation = document.getElementById('modalUnitLocation').value.trim();
+        const tenantSelect = document.getElementById('modalTenantName');
+        const unitSelect = document.getElementById('modalUnitLocation');
+        
+        const tenantId = tenantSelect ? tenantSelect.value : '';
+        const unitId = unitSelect ? unitSelect.value : '';
+        
+        const tenantName = tenantSelect && tenantSelect.selectedIndex >= 0 
+            ? (tenantSelect.options[tenantSelect.selectedIndex].dataset.name || tenantSelect.options[tenantSelect.selectedIndex].text.split('(')[0].trim()) 
+            : 'Maria Santos';
+
+        const unitLocation = unitSelect && unitSelect.selectedIndex >= 0 
+            ? (unitSelect.options[unitSelect.selectedIndex].dataset.location || unitSelect.options[unitSelect.selectedIndex].text.split('•')[0].trim()) 
+            : 'Sunrise Residences • Unit 101';
+
         const rent = parseFloat(document.getElementById('modalRentAmount').value) || 15000;
         const deposit = parseFloat(document.getElementById('modalDepositAmount').value) || 30000;
-        const status = document.getElementById('modalStatusSelect').value;
+        const status = document.getElementById('modalStatusSelect').value || 'ACTIVE';
         const startDate = document.getElementById('modalStartDate').value || '2026-01-01';
         const endDate = document.getElementById('modalEndDate').value || '2026-12-31';
 
-        if (!tenantName || !unitLocation) {
-            alert('Please select a tenant and unit location.');
+        if (!tenantId || !unitId) {
+            alert('Please select both a tenant and unit location.');
             return;
         }
 
@@ -1391,10 +1466,25 @@
             return;
         }
 
-        const newId = `LSE-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+        const newLeaseId = `LSE-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+        // Database-Compliant Schema Payload
+        const payload = {
+            tenant_id: tenantId,
+            unit_id: unitId,
+            lease_id: newLeaseId,
+            start_date: startDate,
+            end_date: endDate,
+            rent: rent,
+            deposit: deposit,
+            status: status
+        };
 
         const newLease = {
-            id: newId,
+            id: newLeaseId,
+            lease_id: newLeaseId,
+            tenant_id: tenantId,
+            unit_id: unitId,
             tenant_name: tenantName,
             tenantName: tenantName,
             tenant_email: 'maria.santos@tenant.ph',
@@ -1414,13 +1504,17 @@
 
         // Live Backend API Dispatch
         try {
-            await fetch(API_BASE_URL, {
+            const res = await fetch(API_BASE_URL, {
                 method: 'POST',
                 headers: getAuthHeaders(),
-                body: JSON.stringify(newLease)
+                body: JSON.stringify(payload)
             });
+            if (res.ok) {
+                const saved = await res.json().catch(() => null);
+                if (saved && saved.id) newLease.id = saved.id;
+            }
         } catch (e) {
-            console.warn("Backend save failed, cached locally.", e);
+            console.warn("Backend save bypassed, keeping locally.", e);
         }
 
         let leases = await getLeases();
@@ -1428,9 +1522,9 @@
         saveLeasesLocally(leases);
 
         if (status === 'ACTIVE') {
-            updateUnitOccupancyStatus(unitLocation, 'OCCUPIED');
+            updateUnitOccupancyStatus(unitLocation, 'OCCUPIED', tenantName);
             updateTenantOccupancyStatus(tenantName, 'ACTIVE', unitLocation);
-            createRentInvoice(newId, tenantName, unitLocation, rent, endDate);
+            createRentInvoice(newLeaseId, tenantName, unitLocation, rent, endDate);
         }
 
         // Notification Dispatch
@@ -1440,7 +1534,8 @@
             pov: 'admin',
             category: 'asset',
             status: 'unread',
-            title: `New Lease Agreement Executed (${newId})`,
+            is_read: false,
+            title: `New Lease Agreement Executed (${newLeaseId})`,
             time: 'Just now',
             description: `Lease contract registered for <strong>${tenantName}</strong> at <strong>${unitLocation}</strong>. Monthly Rent: <strong>₱${rent.toLocaleString()}</strong>.`,
             property: unitLocation,
@@ -1450,7 +1545,7 @@
         saveNotifications(notifications);
 
         await renderLeasesTable();
-        updateKPIs();
+        await updateKPIs();
         closeModal('leaseModal');
 
         // Reset Form Fields
@@ -1461,7 +1556,7 @@
         document.getElementById('modalStartDate').value = '';
         document.getElementById('modalEndDate').value = '';
 
-        alert(`Lease agreement (${newId}) registered successfully!`);
+        alert(`Lease agreement (${newLeaseId}) registered successfully!`);
     }
 
     async function activateLease(leaseId) {
@@ -1471,10 +1566,10 @@
         let targetUnit = '';
         let targetTenant = '';
         let targetRent = 0;
-        let targetDueDate = 'N/A';
+        let targetDueDate = '2026-08-31';
 
         leases = leases.map(l => {
-            if (String(l.id) === String(leaseId)) {
+            if (String(l.id) === String(leaseId) || String(l.lease_id) === String(leaseId)) {
                 targetUnit = l.unit;
                 targetTenant = l.tenantName || l.tenant_name;
                 targetRent = l.rent || l.rent_amount || 15000;
@@ -1491,13 +1586,13 @@
         saveLeasesLocally(leases);
 
         if (targetUnit) {
-            updateUnitOccupancyStatus(targetUnit, 'OCCUPIED');
+            updateUnitOccupancyStatus(targetUnit, 'OCCUPIED', targetTenant);
             updateTenantOccupancyStatus(targetTenant, 'ACTIVE', targetUnit);
             createRentInvoice(leaseId, targetTenant, targetUnit, targetRent, targetDueDate);
         }
 
         await renderLeasesTable();
-        updateKPIs();
+        await updateKPIs();
     }
 
     function openMoveOutModal(leaseId, tenantName, unitName) {
@@ -1523,7 +1618,7 @@
         let targetTenant = '';
 
         leases = leases.map(l => {
-            if (String(l.id) === String(targetLeaseIdForMoveOut)) {
+            if (String(l.id) === String(targetLeaseIdForMoveOut) || String(l.lease_id) === String(targetLeaseIdForMoveOut)) {
                 targetUnit = l.unit;
                 targetTenant = l.tenantName || l.tenant_name;
                 return {
@@ -1545,7 +1640,7 @@
         }
 
         await renderLeasesTable();
-        updateKPIs();
+        await updateKPIs();
         closeModal('moveOutModal');
         targetLeaseIdForMoveOut = null;
         document.getElementById('moveOutNotes').value = '';

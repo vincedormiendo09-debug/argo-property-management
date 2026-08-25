@@ -955,6 +955,8 @@
         ? 'http://127.0.0.1:8000/api'
         : '/api';
 
+    const TRANSACTIONS_API_URL = `${API_BASE_URL}/transactions/`;
+
     let currentInspectedTxn = null;
 
     // Type-Safe Currency Parser
@@ -986,44 +988,59 @@
         window.location.replace('index.html');
     }
 
-    // Seed Initial Baseline Transactions for Maria Santos & Sunrise Residences
+    // Canonical Baseline Transactions Synchronized with Maria Santos, Unit 101, & Don Ramon Santos
     const DEFAULT_TRANSACTIONS = [
         {
-            refCode: '#GCASH-883192',
-            txnId: 'TXN-2026-08-101',
+            refCode: '#GC-2026-0819',
+            txnId: 'TXN-2026-08-001',
             payer: 'Maria Santos',
             tenant_email: 'maria.santos@tenant.ph',
-            property_location: 'Sunrise Residences • Unit 101',
-            fullLocation: 'Sunrise Residences • Unit 101',
-            category: 'Monthly Base Rent',
+            property_location: 'Sunrise Residences • Tower A • Unit 101',
+            fullLocation: 'Sunrise Residences • Tower A • Unit 101',
+            category: 'Rent Collection',
             direction: 'INFLOW',
             grossAmount: '₱15,000.00',
             amount: 15000.00,
-            channel: 'GCash',
+            channel: 'GCash Express',
             status: 'Verified',
-            timestamp: 'Aug 15, 2026'
+            timestamp: 'Aug 19, 2026'
         },
         {
-            refCode: '#GCASH-992810',
+            refCode: '#UTL-ELE-2026-0801',
             txnId: 'TXN-2026-08-102',
             payer: 'Maria Santos',
             tenant_email: 'maria.santos@tenant.ph',
-            property_location: 'Sunrise Residences • Unit 101',
-            fullLocation: 'Sunrise Residences • Unit 101',
+            property_location: 'Sunrise Residences • Tower A • Unit 101',
+            fullLocation: 'Sunrise Residences • Tower A • Unit 101',
             category: 'Electricity Charges',
             direction: 'INFLOW',
             grossAmount: '₱1,808.75',
             amount: 1808.75,
-            channel: 'GCash',
-            status: 'Verified',
+            channel: 'Pending Payment',
+            status: 'Pending',
+            timestamp: 'Aug 15, 2026'
+        },
+        {
+            refCode: '#UTL-WTR-2026-0802',
+            txnId: 'TXN-2026-08-103',
+            payer: 'Maria Santos',
+            tenant_email: 'maria.santos@tenant.ph',
+            property_location: 'Sunrise Residences • Tower A • Unit 101',
+            fullLocation: 'Sunrise Residences • Tower A • Unit 101',
+            category: 'Water Charges',
+            direction: 'INFLOW',
+            grossAmount: '₱600.00',
+            amount: 600.00,
+            channel: 'Pending Payment',
+            status: 'Pending',
             timestamp: 'Aug 15, 2026'
         },
         {
             refCode: '#BDO-TRF8812',
             txnId: 'TXN-2026-08-881',
             payer: 'ARGO Disburse Engine',
-            property_location: 'Sunrise Residences Portfolio',
-            fullLocation: 'Sunrise Residences Portfolio',
+            property_location: 'Sunrise Residences • Tower A',
+            fullLocation: 'Sunrise Residences • Tower A',
             category: 'Owner Net Operating Yield',
             direction: 'OUTFLOW',
             grossAmount: '₱112,500.00',
@@ -1036,38 +1053,52 @@
 
     async function getTransactions() {
         try {
-            const res = await fetch(`${API_BASE_URL}/transactions/`, { headers: getAuthHeaders() });
+            const res = await fetch(TRANSACTIONS_API_URL, { headers: getAuthHeaders() });
             if (res.ok) {
                 const data = await res.json();
-                if (Array.isArray(data) && data.length > 0) {
-                    localStorage.setItem('argo_transactions', JSON.stringify(data));
-                    return data;
+                const list = Array.isArray(data) ? data : (data.items || data.transactions || data.data || []);
+                if (list.length > 0) {
+                    const mapped = list.map(t => ({
+                        refCode: t.ref_code || t.refCode || '#GC-2026-0819',
+                        txnId: t.txn_id || t.txnId || `TXN-2026-${Math.floor(1000 + Math.random() * 9000)}`,
+                        payer: t.payer || 'Maria Santos',
+                        tenant_email: 'maria.santos@tenant.ph',
+                        property_location: t.property_location || t.fullLocation || 'Sunrise Residences • Tower A • Unit 101',
+                        fullLocation: t.property_location || t.fullLocation || 'Sunrise Residences • Tower A • Unit 101',
+                        category: t.category || 'Monthly Base Rent',
+                        direction: (t.direction || 'INFLOW').toUpperCase(),
+                        grossAmount: t.gross_amount || t.grossAmount || formatPeso(t.gross_amount || t.amount || 15000),
+                        amount: parseCurrency(t.gross_amount || t.amount || 15000),
+                        channel: t.channel || 'GCash Express',
+                        status: t.status || 'Verified',
+                        timestamp: t.timestamp || 'Aug 19, 2026'
+                    }));
+
+                    localStorage.setItem('argo_transactions', JSON.stringify(mapped));
+                    return mapped;
                 }
             }
         } catch (e) {
-            console.warn("Live Transactions API unavailable, loading from local ledger cache.");
+            console.warn("Live Transactions API unavailable, reading from local ledger cache.");
         }
 
-        const data = localStorage.getItem('argo_transactions');
-        if (!data) {
-            localStorage.setItem('argo_transactions', JSON.stringify(DEFAULT_TRANSACTIONS));
-            return DEFAULT_TRANSACTIONS;
-        }
-        try {
-            const parsed = JSON.parse(data);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-                const hasMariaTxn = parsed.some(t => (t.payer || '').toLowerCase().includes('maria santos'));
-                if (!hasMariaTxn) {
-                    parsed.unshift(...DEFAULT_TRANSACTIONS.slice(0, 2));
-                    localStorage.setItem('argo_transactions', JSON.stringify(parsed));
+        const raw = localStorage.getItem('argo_transactions');
+        if (raw) {
+            try {
+                let parsed = JSON.parse(raw);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    const hasMariaTxn = parsed.some(t => (t.refCode || '').includes('GC-2026-0819') || (t.payer || '').toLowerCase().includes('maria santos'));
+                    if (!hasMariaTxn) {
+                        parsed.unshift(DEFAULT_TRANSACTIONS[0]);
+                        localStorage.setItem('argo_transactions', JSON.stringify(parsed));
+                    }
+                    return parsed;
                 }
-                return parsed;
-            }
-            localStorage.setItem('argo_transactions', JSON.stringify(DEFAULT_TRANSACTIONS));
-            return DEFAULT_TRANSACTIONS;
-        } catch (e) {
-            return DEFAULT_TRANSACTIONS;
+            } catch (e) {}
         }
+
+        localStorage.setItem('argo_transactions', JSON.stringify(DEFAULT_TRANSACTIONS));
+        return DEFAULT_TRANSACTIONS;
     }
 
     function saveTransactions(transactions) {
@@ -1171,7 +1202,7 @@
             if (pageTitle) pageTitle.textContent = 'My Payment Transactions & Proofs';
             if (pageDesc) pageDesc.textContent = 'View your submitted rent and utility payment receipts, reference hash codes, and clearance statuses.';
             if (tableHeaderTitle) tableHeaderTitle.textContent = 'Personal Payment History';
-            if (tableSubtitle) tableSubtitle.textContent = 'Verified payments for Unit 101';
+            if (tableSubtitle) tableSubtitle.textContent = 'Verified payments for Sunrise Residences • Tower A • Unit 101';
 
             if (nav) {
                 nav.innerHTML = `
@@ -1496,11 +1527,12 @@
                 statusBadge = `<span class="status-badge status-disbursed" style="background:#EFF6FF; color:#2563EB; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-box-arrow-up-right" style="margin-right:4px;"></i> ${status}</span>`;
             }
 
+            const locTag = t.fullLocation || t.property_location || 'Sunrise Residences • Tower A • Unit 101';
             const refColor = isOutflow ? '#6D28D9' : (s.includes('pending') ? 'var(--warning, #D97706)' : 'var(--primary, #2563EB)');
             const amountColor = isOutflow ? 'var(--danger, #E11D48)' : (s.includes('pending') ? 'var(--warning, #D97706)' : 'var(--success, #059669)');
 
             let actionsHtml = `
-                <button class="action-button" title="Inspect Audit Trail" onclick="inspectTxnAudit('${escapeQuotes(t.refCode)}', '${escapeQuotes(t.txnId)}', '${escapeQuotes(t.payer)}', '${escapeQuotes(t.fullLocation || t.property_location || 'Sunrise Residences • Unit 101')}', '${escapeQuotes(t.category || 'Rent Payment')}', '${t.direction || 'INFLOW'}', '${escapeQuotes(grossFormatted)}', '${escapeQuotes(channel)}', '${escapeQuotes(status)}', '${escapeQuotes(t.timestamp)}')"><i class="bi bi-eye"></i></button>
+                <button class="action-button" title="Inspect Audit Trail" onclick="inspectTxnAudit('${escapeQuotes(t.refCode)}', '${escapeQuotes(t.txnId)}', '${escapeQuotes(t.payer)}', '${escapeQuotes(locTag)}', '${escapeQuotes(t.category || 'Rent Collection')}', '${t.direction || 'INFLOW'}', '${escapeQuotes(grossFormatted)}', '${escapeQuotes(channel)}', '${escapeQuotes(status)}', '${escapeQuotes(t.timestamp)}')"><i class="bi bi-eye"></i></button>
             `;
 
             if (!['client', 'tenant', 'owner', 'property_owner'].includes(rawRole) && s.includes('pending')) {
@@ -1514,10 +1546,10 @@
                 <td style="font-family:monospace; color:var(--muted); font-size:12px;">${t.txnId}</td>
                 <td>
                     <strong>${t.payer || 'Maria Santos'}</strong>
-                    <div style="font-size:11px; color:var(--muted);">${t.fullLocation || t.property_location || 'Sunrise Residences • Unit 101'}</div>
+                    <div style="font-size:11px; color:var(--muted);"><i class="bi bi-geo-alt"></i> ${locTag}</div>
                 </td>
                 <td>
-                    <div>${t.category || 'Monthly Base Rent'}</div>
+                    <div>${t.category || 'Rent Collection'}</div>
                     <div style="margin-top:2px;">${directionBadge}</div>
                 </td>
                 <td><strong style="color:${amountColor}; font-size:13px;">${grossFormatted}</strong></td>
@@ -1569,10 +1601,11 @@
             pov: 'client',
             category: 'payment',
             status: 'unread',
+            is_read: false,
             title: 'Transaction Verified in Master Ledger',
             time: 'Just now',
             description: `Payment ${refCode} has been verified and permanently recorded into the multi-tenant ledger.`,
-            property: matchedTxn ? (matchedTxn.fullLocation || matchedTxn.property_location) : 'Sunrise Residences • Unit 101',
+            property: matchedTxn ? (matchedTxn.fullLocation || matchedTxn.property_location) : 'Sunrise Residences • Tower A • Unit 101',
             actionUrl: 'transaction.html',
             actionText: 'View Ledger Entry'
         });
@@ -1628,7 +1661,7 @@
             document.getElementById('kpiValue3').textContent = `${pendingCount} Pending`;
             document.getElementById('kpiDesc3').textContent = 'Verification in progress';
 
-            document.getElementById('kpiValue4').textContent = 'Unit 101';
+            document.getElementById('kpiValue4').textContent = 'Tower A • Unit 101';
             document.getElementById('kpiDesc4').textContent = 'Sunrise Residences';
             return;
 
@@ -1814,7 +1847,7 @@ This official electronic receipt confirms full settlement in the ARGO Master Mul
 
         let csv = 'Gateway Ref Code,Internal TXN ID,Payer,Location,Category,Direction,Gross Amount,Channel,Timestamp,Status\n';
         transactions.forEach(t => {
-            csv += `"${t.refCode}","${t.txnId}","${t.payer || 'Maria Santos'}","${t.fullLocation || t.property_location || 'Sunrise Residences • Unit 101'}","${t.category}","${t.direction}","${t.grossAmount || formatPeso(t.amount)}","${t.channel}","${t.timestamp}","${t.status}"\n`;
+            csv += `"${t.refCode}","${t.txnId}","${t.payer || 'Maria Santos'}","${t.fullLocation || t.property_location || 'Sunrise Residences • Tower A • Unit 101'}","${t.category}","${t.direction}","${t.grossAmount || formatPeso(t.amount)}","${t.channel}","${t.timestamp}","${t.status}"\n`;
         });
 
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });

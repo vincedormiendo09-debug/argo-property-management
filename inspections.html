@@ -809,10 +809,14 @@
         </div>
     </div>
 
-    <script>
+   <script>
     const API_BASE_URL = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
         ? 'http://127.0.0.1:8000/api'
         : '/api';
+
+    const INSPECTIONS_API_URL = `${API_BASE_URL}/inspections/`;
+    const UNITS_API_URL = `${API_BASE_URL}/units/`;
+    const LEASES_API_URL = `${API_BASE_URL}/leases/`;
 
     function getAuthHeaders() {
         const token = localStorage.getItem('token') || localStorage.getItem('argo_token');
@@ -828,75 +832,115 @@
         window.location.replace('index.html');
     }
 
-    // Default Seed Inspections linked to Maria Santos & Unit 101 Move-In Handover
+    // Canonical Inspection Logs: Move-In Handover (INS-2026-001) for Maria Santos in Tower A • Unit 101
     const DEFAULT_INSPECTIONS = [
         {
             id: 'INS-2026-001',
+            inspection_id: 'INS-2026-001',
             unitName: 'Unit 101',
-            propertyInfo: 'Sunrise Residences',
+            unit_name: 'Unit 101',
+            propertyInfo: 'Sunrise Residences • Tower A',
+            property_info: 'Sunrise Residences • Tower A',
             tenant: 'Maria Santos',
             tenant_email: 'maria.santos@tenant.ph',
             type: 'Move-in',
             date: '2026-01-01',
             inspector: 'Property Admin',
             status: 'Completed',
-            notes: 'Unit 101 move-in handover checklist completed, key inventory acknowledged, and signed by Maria Santos.'
+            notes: 'Unit 101 move-in handover audit completed. Key inventory acknowledged, sub-meter baselines signed off by Maria Santos.'
         },
         {
             id: 'INS-2026-002',
+            inspection_id: 'INS-2026-002',
             unitName: 'Unit 101',
-            propertyInfo: 'Sunrise Residences',
+            unit_name: 'Unit 101',
+            propertyInfo: 'Sunrise Residences • Tower A',
             tenant: 'Maria Santos',
             tenant_email: 'maria.santos@tenant.ph',
             type: 'Routine',
             date: '2026-08-20',
-            inspector: 'Juan Dela Cruz',
+            inspector: 'Juan Dela Cruz (PM)',
             status: 'Scheduled',
-            notes: 'Quarterly routine electrical sub-meter, water fixtures, and living area condition check.'
+            notes: 'Quarterly routine electrical sub-meter check, water fixtures pressure test, and living area condition review.'
         }
     ];
 
     async function getInspections() {
         try {
-            const response = await fetch(`${API_BASE_URL}/inspections/`, { headers: getAuthHeaders() });
+            const response = await fetch(INSPECTIONS_API_URL, { headers: getAuthHeaders() });
             if (response.ok) {
                 const data = await response.json();
-                if (Array.isArray(data) && data.length > 0) {
-                    localStorage.setItem('argo_inspections', JSON.stringify(data));
-                    return data;
+                const list = Array.isArray(data) ? data : (data.items || data.inspections || data.data || []);
+                if (list.length > 0) {
+                    const mapped = list.map(i => ({
+                        id: i.inspection_id || i.id || `INS-${Date.now()}`,
+                        inspection_id: i.inspection_id || i.id,
+                        unitName: i.unit_name || i.unitName || 'Unit 101',
+                        unit_name: i.unit_name || i.unitName || 'Unit 101',
+                        propertyInfo: i.property_info || i.propertyInfo || 'Sunrise Residences • Tower A',
+                        property_info: i.property_info || i.propertyInfo || 'Sunrise Residences • Tower A',
+                        tenant: i.tenant || 'Maria Santos',
+                        tenant_email: i.tenant_email || 'maria.santos@tenant.ph',
+                        type: i.type || 'Routine',
+                        date: i.date || '2026-01-01',
+                        inspector: i.inspector || 'Property Admin',
+                        status: i.status || 'Scheduled',
+                        notes: i.notes || ''
+                    }));
+
+                    localStorage.setItem('argo_inspections', JSON.stringify(mapped));
+                    return mapped;
                 }
             }
         } catch (e) {
             console.warn("Live Inspections API unavailable, loading from local cache.");
         }
 
-        const data = localStorage.getItem('argo_inspections');
-        if (!data) {
-            localStorage.setItem('argo_inspections', JSON.stringify(DEFAULT_INSPECTIONS));
-            return DEFAULT_INSPECTIONS;
-        }
-        try {
-            const parsed = JSON.parse(data);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-                const hasMariaInspection = parsed.some(i => (i.tenant || '').toLowerCase().includes('maria santos') || (i.unitName || '').includes('101'));
-                if (!hasMariaInspection) {
-                    parsed.unshift(...DEFAULT_INSPECTIONS);
-                    localStorage.setItem('argo_inspections', JSON.stringify(parsed));
+        const raw = localStorage.getItem('argo_inspections');
+        if (raw) {
+            try {
+                let parsed = JSON.parse(raw);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    parsed = parsed.map(i => {
+                        let prop = i.propertyInfo || i.property_info || '';
+                        if (!prop.includes('Tower A')) {
+                            prop = 'Sunrise Residences • Tower A';
+                        }
+                        return {
+                            ...i,
+                            propertyInfo: prop,
+                            property_info: prop
+                        };
+                    });
+
+                    const hasMariaInspection = parsed.some(i => (i.tenant || '').toLowerCase().includes('maria') || (i.id || '').includes('INS-2026-001'));
+                    if (!hasMariaInspection) {
+                        parsed.unshift(DEFAULT_INSPECTIONS[0]);
+                        localStorage.setItem('argo_inspections', JSON.stringify(parsed));
+                    }
+                    return parsed;
                 }
-                return parsed;
-            }
-            localStorage.setItem('argo_inspections', JSON.stringify(DEFAULT_INSPECTIONS));
-            return DEFAULT_INSPECTIONS;
-        } catch (e) {
-            return DEFAULT_INSPECTIONS;
+            } catch (e) {}
         }
+
+        localStorage.setItem('argo_inspections', JSON.stringify(DEFAULT_INSPECTIONS));
+        return DEFAULT_INSPECTIONS;
     }
 
     function saveInspections(inspections) {
         localStorage.setItem('argo_inspections', JSON.stringify(inspections));
     }
 
-    function getUnits() {
+    async function getUnits() {
+        try {
+            const res = await fetch(UNITS_API_URL, { headers: getAuthHeaders() });
+            if (res.ok) {
+                const data = await res.json();
+                const list = Array.isArray(data) ? data : (data.items || data.units || data.data || []);
+                if (list.length > 0) return list;
+            }
+        } catch (e) {}
+
         try {
             return JSON.parse(localStorage.getItem('argo_units') || '[]');
         } catch (e) {
@@ -904,7 +948,16 @@
         }
     }
 
-    function getLeases() {
+    async function getLeases() {
+        try {
+            const res = await fetch(LEASES_API_URL, { headers: getAuthHeaders() });
+            if (res.ok) {
+                const data = await res.json();
+                const list = Array.isArray(data) ? data : (data.items || data.leases || data.data || []);
+                if (list.length > 0) return list;
+            }
+        } catch (e) {}
+
         try {
             return JSON.parse(localStorage.getItem('argo_leases') || '[]');
         } catch (e) {
@@ -939,7 +992,7 @@
 
         applyRoleContext();
         loadUserData();
-        populateUnitDropdown();
+        await populateUnitDropdown();
         await renderInspectionTable();
         await updateKPIs();
         updateHeaderBadge();
@@ -950,7 +1003,7 @@
         if (['argo_inspections', 'argo_units', 'argo_leases', 'argo_notifications', 'argo_user', 'argo_pov', 'user_role', 'role'].includes(e.key)) {
             applyRoleContext();
             loadUserData();
-            populateUnitDropdown();
+            await populateUnitDropdown();
             await renderInspectionTable();
             await updateKPIs();
             updateHeaderBadge();
@@ -1025,7 +1078,6 @@
                         <i class="bi bi-folder2-open"></i>
                         <span>My Lease & Receipts</span>
                     </a>
-
                     <div class="nav-section-title">SYSTEM</div>
                     <a href="account.html" class="nav-item">
                         <i class="bi bi-gear"></i>
@@ -1079,7 +1131,6 @@
                         <i class="bi bi-receipt-cutoff"></i>
                         <span>Yield Audit Ledger</span>
                     </a>
-
                     <div class="nav-section-title">COMMUNICATION & SYSTEM</div>
                     <a href="notification.html" class="nav-item">
                         <i class="bi bi-bell"></i>
@@ -1118,7 +1169,6 @@
                         <i class="bi bi-grid-1x2"></i>
                         <span>Dashboard</span>
                     </a>
-
                     <div class="nav-section-title">PROPERTY OPERATIONS</div>
                     <a href="properties.html" class="nav-item">
                         <i class="bi bi-buildings"></i>
@@ -1148,7 +1198,6 @@
                         <i class="bi bi-file-earmark-text"></i>
                         <span>Leases</span>
                     </a>
-
                     <div class="nav-section-title">FINANCE & SERVICES</div>
                     <a href="rent-collection.html" class="nav-item">
                         <i class="bi bi-cash-stack"></i>
@@ -1170,7 +1219,6 @@
                         <i class="bi bi-tools"></i>
                         <span>Maintenance</span>
                     </a>
-
                     <div class="nav-section-title">RECORDS & REPORTS</div>
                     <a href="inspections.html" class="nav-item active">
                         <i class="bi bi-clipboard-check"></i>
@@ -1192,7 +1240,6 @@
                         <i class="bi bi-bar-chart"></i>
                         <span>Reports</span>
                     </a>
-
                     <div class="nav-section-title">SYSTEM</div>
                     <a href="settings.html" class="nav-item">
                         <i class="bi bi-gear"></i>
@@ -1220,7 +1267,6 @@
         ).toLowerCase().trim();
 
         const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
-
         const nameEl = document.getElementById('userName');
         const roleEl = document.getElementById('userRoleBadge');
         const avatarEl = document.getElementById('userAvatar');
@@ -1245,15 +1291,15 @@
             if (nameEl) nameEl.textContent = name;
             if (roleEl) roleEl.textContent = role;
             if (avatarEl) {
-                avatarEl.textContent = user.avatar || 'JD';
+                avatarEl.textContent = user.avatar || (name.charAt(0) || 'JD');
                 avatarEl.style.background = user.avatarBg || '#2563EB';
             }
         }
     }
 
-    function populateUnitDropdown() {
-        const units = getUnits();
-        const leases = getLeases();
+    async function populateUnitDropdown() {
+        const units = await getUnits();
+        const leases = await getLeases();
         const modalSelect = document.getElementById('modalUnitSelect');
         if (!modalSelect) return;
 
@@ -1261,19 +1307,14 @@
         
         if (units.length > 0) {
             units.forEach(u => {
-                const uName = u.unit_number || u.unit_no || u.unitNo || u.unit || u.id;
+                const uName = u.unit_number || u.unit_no || u.unitNo || u.unit || `Unit ${u.id}`;
+                const bName = u.building || u.building_name || 'Tower A';
                 const pName = (u.property ? (u.property.name || u.property.property_name) : '') || u.property_name || u.property || 'Sunrise Residences';
-                modalSelect.innerHTML += `<option value="${pName} • ${uName}">${pName} • ${uName}</option>`;
-            });
-        } else if (leases.length > 0) {
-            leases.forEach(l => {
-                const uName = l.unit || l.unit_number || 'Unit 101';
-                const pName = l.property || l.property_name || 'Sunrise Residences';
-                modalSelect.innerHTML += `<option value="${pName} • ${uName}">${pName} • ${uName}</option>`;
+                modalSelect.innerHTML += `<option value="${pName} • ${bName} • ${uName}">${pName} • ${bName} • ${uName}</option>`;
             });
         } else {
-            modalSelect.innerHTML += `<option value="Sunrise Residences • Unit 101">Sunrise Residences • Unit 101</option>`;
-            modalSelect.innerHTML += `<option value="Sunrise Residences • Unit 204">Sunrise Residences • Unit 204</option>`;
+            modalSelect.innerHTML += '<option value="Sunrise Residences • Tower A • Unit 101">Sunrise Residences • Tower A • Unit 101 (Occupied)</option>';
+            modalSelect.innerHTML += '<option value="Sunrise Residences • Tower A • Unit 102">Sunrise Residences • Tower A • Unit 102 (Available)</option>';
         }
     }
 
@@ -1284,16 +1325,6 @@
 
         if (unitVal.includes('101')) {
             tenantInput.value = 'Maria Santos';
-            return;
-        }
-
-        const leases = getLeases();
-        const parts = unitVal.split('•');
-        const unitName = parts[1] ? parts[1].trim() : parts[0].trim();
-
-        const matchedLease = leases.find(l => (l.unit && l.unit.includes(unitName)) || (l.unit_number && l.unit_number.includes(unitName)));
-        if (matchedLease && (matchedLease.tenantName || matchedLease.tenant_name)) {
-            tenantInput.value = matchedLease.tenantName || matchedLease.tenant_name;
         }
     }
 
@@ -1315,7 +1346,7 @@
                 (i.unitName && i.unitName.includes('101'))
             );
             const subEl = document.getElementById('locationSubtitle');
-            if (subEl) subEl.textContent = 'Sunrise Residences • Unit 101';
+            if (subEl) subEl.textContent = 'Sunrise Residences • Tower A • Unit 101';
         } else {
             const subEl = document.getElementById('locationSubtitle');
             if (subEl) subEl.textContent = 'All Properties & Units';
@@ -1345,27 +1376,31 @@
 
             let statusBadge = '';
             const s = (ins.status || '').toLowerCase();
-            if (s === 'completed') statusBadge = `<span class="status completed" style="background:#ECFDF5; color:#059669; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;">Completed</span>`;
-            else if (s === 'scheduled') statusBadge = `<span class="status scheduled" style="background:#EFF6FF; color:#2563EB; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;">Scheduled</span>`;
-            else if (s === 'pending') statusBadge = `<span class="status pending" style="background:#FEF3C7; color:#D97706; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;">Pending</span>`;
+            if (s === 'completed') statusBadge = `<span class="status completed" style="background:#ECFDF5; color:#059669; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-check-circle me-1"></i> Completed</span>`;
+            else if (s === 'scheduled') statusBadge = `<span class="status scheduled" style="background:#EFF6FF; color:#2563EB; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-calendar-check me-1"></i> Scheduled</span>`;
+            else if (s === 'pending') statusBadge = `<span class="status pending" style="background:#FEF3C7; color:#D97706; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-clock me-1"></i> Pending</span>`;
             else statusBadge = `<span class="status cancelled" style="background:#FFF1F2; color:#E11D48; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;">Cancelled</span>`;
 
+            const displayId = ins.inspection_id || ins.id;
+            const unitName = ins.unitName || ins.unit_name || 'Unit 101';
+            const propInfo = ins.propertyInfo || ins.property_info || 'Sunrise Residences • Tower A';
+
             let actionButtons = `
-                <button class="action-btn" title="View Report" onclick="viewInspectionReport('${ins.id}')"><i class="bi bi-eye"></i></button>
+                <button class="action-btn" title="View Report" onclick="viewInspectionReport('${displayId}')"><i class="bi bi-eye"></i></button>
             `;
             if (!['client', 'tenant', 'client_pov'].includes(rawRole)) {
                 actionButtons += `
-                    <button class="action-btn delete" title="Delete" onclick="deleteInspection('${ins.id}')"><i class="bi bi-trash"></i></button>
+                    <button class="action-btn delete" title="Delete" onclick="deleteInspection('${displayId}')"><i class="bi bi-trash"></i></button>
                 `;
             }
 
             tr.innerHTML = `
-                <td><div class="inspection-id" style="font-weight:600;">${ins.id}</div></td>
+                <td><div class="inspection-id" style="font-weight:600; color:#2563EB;">${displayId}</div></td>
                 <td>
-                    <div class="unit-name" style="font-weight:600;">${ins.unitName || 'Unit 101'}</div>
-                    <div class="property-info" style="font-size:11px; color:var(--muted);">${ins.propertyInfo || 'Sunrise Residences'}</div>
+                    <div class="unit-name" style="font-weight:600;">${unitName}</div>
+                    <div class="property-info" style="font-size:11px; color:var(--muted);"><i class="bi bi-geo-alt"></i> ${propInfo}</div>
                 </td>
-                <td>${ins.tenant || 'Maria Santos'}</td>
+                <td><strong>${ins.tenant || 'Maria Santos'}</strong></td>
                 <td><span class="inspection-type ${typeClass}" style="padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;">${ins.type || 'Routine'}</span></td>
                 <td>${ins.date || '2026-01-01'}</td>
                 <td>${ins.inspector || 'Property Manager'}</td>
@@ -1400,14 +1435,14 @@
         }
 
         const parts = unitLoc.split('•');
-        const unitName = parts[1] ? parts[1].trim() : parts[0].trim();
-        const propertyInfo = parts[0] ? parts[0].trim() : 'Sunrise Residences';
+        const unitName = parts[parts.length - 1] ? parts[parts.length - 1].trim() : 'Unit 101';
+        const propertyInfo = parts.slice(0, parts.length - 1).join('•').trim() || 'Sunrise Residences • Tower A';
         const inspectionId = `INS-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`;
 
-        const newIns = {
-            id: inspectionId,
-            unitName: unitName,
-            propertyInfo: propertyInfo,
+        const payload = {
+            inspection_id: inspectionId,
+            unit_name: unitName,
+            property_info: propertyInfo,
             tenant: tenant,
             tenant_email: 'maria.santos@tenant.ph',
             type: type,
@@ -1419,14 +1454,30 @@
 
         // Live API Dispatch
         try {
-            await fetch(`${API_BASE_URL}/inspections/`, {
+            await fetch(INSPECTIONS_API_URL, {
                 method: 'POST',
                 headers: getAuthHeaders(),
-                body: JSON.stringify(newIns)
+                body: JSON.stringify(payload)
             });
         } catch (e) {
-            console.warn("Backend save failed, keeping locally.", e);
+            console.warn("Backend save bypassed, keeping locally.", e);
         }
+
+        const newIns = {
+            id: inspectionId,
+            inspection_id: inspectionId,
+            unitName: unitName,
+            unit_name: unitName,
+            propertyInfo: propertyInfo,
+            property_info: propertyInfo,
+            tenant: tenant,
+            tenant_email: 'maria.santos@tenant.ph',
+            type: type,
+            date: date,
+            inspector: inspector,
+            status: 'Scheduled',
+            notes: notes
+        };
 
         let inspections = await getInspections();
         inspections.unshift(newIns);
@@ -1439,9 +1490,10 @@
             pov: 'client',
             category: 'asset',
             status: 'unread',
+            is_read: false,
             title: `${type} Inspection Scheduled`,
             time: 'Just now',
-            description: `An inspection has been scheduled for <strong>${unitName}</strong> on <strong>${date}</strong> by <strong>${inspector}</strong>.`,
+            description: `An inspection has been scheduled for <strong>${unitName}</strong> (${propertyInfo}) on <strong>${date}</strong> by <strong>${inspector}</strong>.`,
             property: `${propertyInfo} • ${unitName}`,
             actionUrl: 'inspections.html',
             actionText: 'View Inspection'
@@ -1464,14 +1516,14 @@
         if (!confirm("Are you sure you want to delete this inspection record?")) return;
         
         try {
-            await fetch(`${API_BASE_URL}/inspections/${id}`, {
+            await fetch(`${INSPECTIONS_API_URL}${id}/`, {
                 method: 'DELETE',
                 headers: getAuthHeaders()
             });
         } catch (e) {}
 
         let inspections = await getInspections();
-        inspections = inspections.filter(i => String(i.id) !== String(id));
+        inspections = inspections.filter(i => String(i.id) !== String(id) && String(i.inspection_id) !== String(id));
         saveInspections(inspections);
 
         await renderInspectionTable();
@@ -1480,10 +1532,10 @@
 
     async function viewInspectionReport(id) {
         const inspections = await getInspections();
-        const ins = inspections.find(i => String(i.id) === String(id));
+        const ins = inspections.find(i => String(i.id) === String(id) || String(i.inspection_id) === String(id));
         if (!ins) return;
 
-        alert(`ARGO Inspection Report Details\n\nInspection ID: ${ins.id}\nUnit: ${ins.unitName} (${ins.propertyInfo})\nTenant: ${ins.tenant}\nType: ${ins.type}\nDate: ${ins.date}\nInspector: ${ins.inspector}\nStatus: ${ins.status}\nNotes: ${ins.notes || 'Unit condition handover checklist verified and signed.'}`);
+        alert(`ARGO Inspection Report Details\n\nInspection ID: ${ins.inspection_id || ins.id}\nUnit: ${ins.unitName || ins.unit_name} (${ins.propertyInfo || ins.property_info})\nTenant: ${ins.tenant}\nType: ${ins.type}\nDate: ${ins.date}\nInspector: ${ins.inspector}\nStatus: ${ins.status}\nNotes: ${ins.notes || 'Unit condition handover checklist verified and signed.'}`);
     }
 
     async function updateKPIs() {
@@ -1538,8 +1590,8 @@
         if (badge) badge.textContent = notifs.length;
     }
 
-    function openModal() { 
-        populateUnitDropdown();
+    async function openModal() { 
+        await populateUnitDropdown();
         const modal = document.getElementById("inspectionModal"); 
         if (modal) modal.classList.add("show"); 
     }
@@ -1567,6 +1619,7 @@
 
         rows.forEach(row => {
             if (row.cells.length === 1) return;
+
             const text = row.innerText.toLowerCase();
             const rowType = row.dataset.type || "";
             const rowStatus = row.dataset.status || "";
@@ -1584,9 +1637,13 @@
     }
 
     function resetFilters() {
-        if (document.getElementById("searchInput")) document.getElementById("searchInput").value = "";
-        if (document.getElementById("typeFilter")) document.getElementById("typeFilter").value = "";
-        if (document.getElementById("statusFilter")) document.getElementById("statusFilter").value = "";
+        const searchInput = document.getElementById("searchInput");
+        const typeFilter = document.getElementById("typeFilter");
+        const statusFilter = document.getElementById("statusFilter");
+
+        if (searchInput) searchInput.value = "";
+        if (typeFilter) typeFilter.value = "";
+        if (statusFilter) statusFilter.value = "";
         filterTable();
     }
 

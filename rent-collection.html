@@ -984,43 +984,105 @@
         ? 'http://127.0.0.1:8000/api/leases/'
         : '/api/leases/';
 
+    const UTILITY_CHARGES_API_URL = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
+        ? 'http://127.0.0.1:8000/api/utility-charges/'
+        : '/api/utility-charges/';
+
     let currentInspectedInvoiceId = null;
 
-    // Baseline Invoices Synchronized with Maria Santos (Sunrise Residences • Unit 101 • ₱15,000 Rent)
+    // Baseline Invoices Synchronized with Maria Santos (Sunrise Residences • Tower A • Unit 101)
     const DEFAULT_INVOICES = [
         {
             id: "INV-2026-0801",
+            invoice_id: "INV-2026-0801",
             lease_id: "LSE-2026-0101",
             tenantName: "Maria Santos",
+            tenant_name: "Maria Santos",
             tenant_email: "maria.santos@tenant.ph",
-            type: "Monthly Base Rent",
-            sub: "Sunrise Residences • Unit 101",
+            type: "Monthly Base Rent — August 2026",
+            sub: "Sunrise Residences • Tower A • Unit 101",
+            property_location: "Sunrise Residences • Tower A • Unit 101",
             categoryType: "Rent",
+            category_type: "Rent",
             dueDate: "2026-08-31",
+            due_date: "2026-08-31",
             amount: 15000.00,
-            status: "Pending PM Audit",
-            channel: "GCash",
-            refNo: "#GCASH-883192",
+            status: "Paid",
+            channel: "GCash Express",
+            refNo: "#GC-2026-0819",
+            ref_no: "#GC-2026-0819",
             receiptAttachment: "gcash-receipt-august2026.png",
             notes: "August 2026 Regular Rent Settlement",
-            createdAt: new Date().toISOString()
+            createdAt: new Date("2026-08-01").toISOString()
+        },
+        {
+            id: "UTL-ELE-2026-0801",
+            invoice_id: "UTL-ELE-2026-0801",
+            charge_id: "UTL-ELE-2026-0801",
+            lease_id: "LSE-2026-0101",
+            tenantName: "Maria Santos",
+            tenant_name: "Maria Santos",
+            tenant_email: "maria.santos@tenant.ph",
+            type: "Electricity Sub-Meter (144.70 kWh) — August 2026",
+            sub: "Sunrise Residences • Tower A • Unit 101",
+            property_location: "Sunrise Residences • Tower A • Unit 101",
+            categoryType: "Electricity",
+            category_type: "Electricity",
+            dueDate: "2026-08-31",
+            due_date: "2026-08-31",
+            amount: 1808.75,
+            status: "Unpaid",
+            channel: "Pending Payment",
+            refNo: "#UTL-ELE-2026-0801",
+            ref_no: "#UTL-ELE-2026-0801",
+            notes: "Meralco Sub-Meter 144.70 kWh @ ₱12.50/kWh",
+            createdAt: new Date("2026-08-15").toISOString()
+        },
+        {
+            id: "UTL-WTR-2026-0802",
+            invoice_id: "UTL-WTR-2026-0802",
+            charge_id: "UTL-WTR-2026-0802",
+            lease_id: "LSE-2026-0101",
+            tenantName: "Maria Santos",
+            tenant_name: "Maria Santos",
+            tenant_email: "maria.santos@tenant.ph",
+            type: "Water Sub-Meter (12.50 cu.m) — August 2026",
+            sub: "Sunrise Residences • Tower A • Unit 101",
+            property_location: "Sunrise Residences • Tower A • Unit 101",
+            categoryType: "Water",
+            category_type: "Water",
+            dueDate: "2026-08-31",
+            due_date: "2026-08-31",
+            amount: 600.00,
+            status: "Unpaid",
+            channel: "Pending Payment",
+            refNo: "#UTL-WTR-2026-0802",
+            ref_no: "#UTL-WTR-2026-0802",
+            notes: "Maynilad Sub-Meter 12.50 cu.m @ ₱48.00/cu.m",
+            createdAt: new Date("2026-08-15").toISOString()
         },
         {
             id: "INV-2026-0701",
+            invoice_id: "INV-2026-0701",
             lease_id: "LSE-2026-0101",
             tenantName: "Maria Santos",
+            tenant_name: "Maria Santos",
             tenant_email: "maria.santos@tenant.ph",
-            type: "Monthly Base Rent",
-            sub: "Sunrise Residences • Unit 101",
+            type: "Monthly Base Rent — July 2026",
+            sub: "Sunrise Residences • Tower A • Unit 101",
+            property_location: "Sunrise Residences • Tower A • Unit 101",
             categoryType: "Rent",
+            category_type: "Rent",
             dueDate: "2026-07-31",
+            due_date: "2026-07-31",
             amount: 15000.00,
             status: "Paid",
             channel: "GCash (#GCASH-883192)",
             refNo: "#GCASH-883192",
+            ref_no: "#GCASH-883192",
             receiptAttachment: "gcash-receipt-july2026.png",
             notes: "July 2026 Advance Rent Payment",
-            createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+            createdAt: new Date("2026-07-01").toISOString()
         }
     ];
 
@@ -1092,7 +1154,6 @@
                 <a href="#" class="nav-item" onclick="logoutUser(); return false;"><i class="bi bi-box-arrow-right"></i><span>Log Out</span></a>
             `;
         } else {
-            // Admin POV
             nav.innerHTML = `
                 <div class="nav-section-title">OVERVIEW</div>
                 <a href="dashboard.html" class="nav-item"><i class="bi bi-grid-1x2"></i><span>Dashboard</span></a>
@@ -1126,40 +1187,95 @@
 
     // Shared Storage & API Fetchers
     async function getInvoices() {
+        let liveInvoices = [];
         try {
             const response = await fetch(API_BASE_URL, { headers: getAuthHeaders() });
             if (response.ok) {
                 const data = await response.json();
-                if (Array.isArray(data) && data.length > 0) {
-                    localStorage.setItem('argo_invoices', JSON.stringify(data));
-                    return data;
+                const list = Array.isArray(data) ? data : (data.items || data.invoices || data.data || []);
+                if (list.length > 0) {
+                    liveInvoices = list.map(inv => ({
+                        id: inv.invoice_id || inv.id,
+                        invoice_id: inv.invoice_id || inv.id,
+                        lease_id: inv.lease_id,
+                        tenantName: inv.tenant_name || inv.tenantName || "Maria Santos",
+                        tenant_name: inv.tenant_name || inv.tenantName || "Maria Santos",
+                        tenant_email: "maria.santos@tenant.ph",
+                        type: inv.type || "Monthly Base Rent",
+                        sub: inv.sub || inv.property_location || "Sunrise Residences • Tower A • Unit 101",
+                        property_location: inv.sub || inv.property_location || "Sunrise Residences • Tower A • Unit 101",
+                        categoryType: inv.category_type || inv.categoryType || (inv.type?.includes("Elec") ? "Electricity" : (inv.type?.includes("Water") ? "Water" : "Rent")),
+                        dueDate: inv.due_date || inv.dueDate || "2026-08-31",
+                        due_date: inv.due_date || inv.dueDate || "2026-08-31",
+                        amount: parseCurrency(inv.amount),
+                        status: inv.status || "Unpaid",
+                        channel: inv.channel || "GCash Express",
+                        refNo: inv.ref_no || inv.refNo || `#REF-${inv.invoice_id || inv.id}`,
+                        notes: inv.notes || ""
+                    }));
                 }
             }
         } catch (e) {
             console.warn("Live Invoices API unreachable, reading cached records.");
         }
 
+        // Merge and ensure utility invoices are mirrored
         const raw = localStorage.getItem('argo_invoices');
-        if (!raw) {
-            localStorage.setItem('argo_invoices', JSON.stringify(DEFAULT_INVOICES));
-            return DEFAULT_INVOICES;
-        }
+        let localInvoices = raw ? JSON.parse(raw) : [];
 
-        try {
-            const parsed = JSON.parse(raw);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-                const hasMariaBill = parsed.some(i => (i.tenantName || '').toLowerCase().includes('maria santos'));
-                if (!hasMariaBill) {
-                    parsed.unshift(DEFAULT_INVOICES[0]);
-                    localStorage.setItem('argo_invoices', JSON.stringify(parsed));
-                }
-                return parsed;
+        // Check if utility bills are present in local storage
+        const utilityCharges = JSON.parse(localStorage.getItem('argo_utility_charges') || '[]');
+        utilityCharges.forEach(uc => {
+            const exists = localInvoices.some(i => String(i.id) === String(uc.id) || String(i.id) === String(uc.charge_id));
+            if (!exists) {
+                localInvoices.push({
+                    id: uc.charge_id || uc.id,
+                    invoice_id: uc.charge_id || uc.id,
+                    lease_id: "LSE-2026-0101",
+                    tenantName: uc.tenant_name || uc.tenantName || "Maria Santos",
+                    tenant_name: uc.tenant_name || uc.tenantName || "Maria Santos",
+                    tenant_email: "maria.santos@tenant.ph",
+                    type: `${uc.type} Sub-Meter — August 2026`,
+                    sub: uc.unitLocation || "Sunrise Residences • Tower A • Unit 101",
+                    property_location: uc.unitLocation || "Sunrise Residences • Tower A • Unit 101",
+                    categoryType: uc.type,
+                    category_type: uc.type,
+                    dueDate: uc.dueDate || "2026-08-31",
+                    due_date: uc.dueDate || "2026-08-31",
+                    amount: parseCurrency(uc.amount),
+                    status: uc.status === "Paid" ? "Paid" : "Unpaid",
+                    channel: "Pending Payment",
+                    refNo: `#${uc.charge_id || uc.id}`,
+                    ref_no: `#${uc.charge_id || uc.id}`,
+                    notes: uc.breakdown || ""
+                });
             }
-            localStorage.setItem('argo_invoices', JSON.stringify(DEFAULT_INVOICES));
-            return DEFAULT_INVOICES;
-        } catch (e) {
-            return DEFAULT_INVOICES;
-        }
+        });
+
+        let combined = liveInvoices.length > 0 ? liveInvoices : (localInvoices.length > 0 ? localInvoices : DEFAULT_INVOICES);
+
+        // Guarantee canonical entries exist
+        DEFAULT_INVOICES.forEach(defInv => {
+            if (!combined.some(i => String(i.id) === String(defInv.id))) {
+                combined.push(defInv);
+            }
+        });
+
+        // Standardize location strings to full hierarchy
+        combined = combined.map(i => {
+            let sub = i.sub || i.property_location || "Sunrise Residences • Tower A • Unit 101";
+            if (sub === "Sunrise Residences • Unit 101" || sub === "Property • Unit 101") {
+                sub = "Sunrise Residences • Tower A • Unit 101";
+            }
+            return {
+                ...i,
+                sub: sub,
+                property_location: sub
+            };
+        });
+
+        localStorage.setItem('argo_invoices', JSON.stringify(combined));
+        return combined;
     }
 
     function saveInvoicesLocally(invoices) {
@@ -1195,7 +1311,8 @@
             const res = await fetch(LEASES_API_URL, { headers: getAuthHeaders() });
             if (res.ok) {
                 const data = await res.json();
-                if (Array.isArray(data) && data.length > 0) return data;
+                const list = Array.isArray(data) ? data : (data.items || data.leases || data.data || []);
+                if (list.length > 0) return list;
             }
         } catch (e) {}
 
@@ -1208,7 +1325,7 @@
             {
                 id: "LSE-2026-0101",
                 tenantName: "Maria Santos",
-                unit: "Sunrise Residences • Unit 101",
+                unit: "Sunrise Residences • Tower A • Unit 101",
                 rent: 15000,
                 status: "ACTIVE"
             }
@@ -1231,7 +1348,7 @@
 
     // Real-Time Cross-Tab Listener
     window.addEventListener('storage', async (e) => {
-        if (['argo_invoices', 'argo_transactions', 'argo_notifications', 'argo_leases', 'argo_user', 'argo_pov'].includes(e.key)) {
+        if (['argo_invoices', 'argo_utility_charges', 'argo_transactions', 'argo_notifications', 'argo_leases', 'argo_user', 'argo_pov'].includes(e.key)) {
             loadUserData();
             await populateModalDropdowns();
             await renderPaymentTable();
@@ -1264,7 +1381,7 @@
         select.innerHTML = '<option value="">Select Tenant...</option>';
         leases.forEach(l => {
             const tName = l.tenantName || l.tenant_name || 'Maria Santos';
-            const uLoc = l.unit || l.unit_no || 'Sunrise Residences • Unit 101';
+            const uLoc = l.unit || l.unit_number || 'Sunrise Residences • Tower A • Unit 101';
             const rentVal = parseCurrency(l.rent || l.rent_amount || 15000);
             select.innerHTML += `<option value="${tName}|${uLoc}|${l.id}|${rentVal}">${tName} — ${uLoc} (Rent: ${formatPeso(rentVal)})</option>`;
         });
@@ -1301,7 +1418,7 @@
             tr.dataset.status = statusStr.includes('pending') ? 'Pending' : (statusStr === 'paid' ? 'Paid' : 'Unpaid');
             tr.dataset.method = inv.channel || 'GCash';
 
-            const locationTag = inv.sub || inv.property_location || 'Sunrise Residences • Unit 101';
+            const locationTag = inv.sub || inv.property_location || 'Sunrise Residences • Tower A • Unit 101';
             const tenantName = inv.tenantName || inv.tenant_name || 'Maria Santos';
             const displayRef = inv.refNo || inv.ref_no || `#REF-${inv.id}`;
 
@@ -1311,7 +1428,7 @@
             } else if (statusStr.includes('pending')) {
                 badgeHtml = `<span class="status pending" style="background:#FEF3C7; color:#B45309; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-clock-history" style="margin-right:4px;"></i> Pending PM Audit</span>`;
             } else {
-                badgeHtml = `<span class="status overdue" style="background:#FFF1F2; color:#E11D48; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-exclamation-circle" style="margin-right:4px;"></i> ${inv.status || 'Unpaid / Overdue'}</span>`;
+                badgeHtml = `<span class="status overdue" style="background:#FFF1F2; color:#E11D48; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-exclamation-circle" style="margin-right:4px;"></i> ${inv.status || 'Unpaid'}</span>`;
             }
 
             let typePill = '';
@@ -1328,7 +1445,7 @@
                 <button class="action-button" title="Inspect Payment Proof" onclick="inspectPaymentProof('${inv.id}')"><i class="bi bi-eye"></i></button>
             `;
 
-            if (statusStr.includes('pending')) {
+            if (statusStr.includes('pending') || statusStr === 'unpaid') {
                 actionsHtml = `
                     <button class="action-button verify-btn" title="Approve & Verify Payment" style="color:#059669;" onclick="verifyTenantPayment('${inv.id}', '${displayRef}', ${parseCurrency(inv.amount)})"><i class="bi bi-check-circle-fill" style="font-size:16px;"></i></button>
                     <button class="action-button" title="Inspect Payment Proof" onclick="inspectPaymentProof('${inv.id}')"><i class="bi bi-eye"></i></button>
@@ -1369,7 +1486,7 @@
 
         document.getElementById('vInvoiceTitle').textContent = `Payment Inspection — ${inv.id}`;
         document.getElementById('vTenantName').textContent = inv.tenantName || 'Maria Santos';
-        document.getElementById('vLocationTag').innerHTML = `<i class="bi bi-geo-alt"></i> ${inv.sub || 'Sunrise Residences • Unit 101'}`;
+        document.getElementById('vLocationTag').innerHTML = `<i class="bi bi-geo-alt"></i> ${inv.sub || 'Sunrise Residences • Tower A • Unit 101'}`;
         document.getElementById('vAmount').textContent = formatPeso(inv.amount);
         document.getElementById('vInvoiceId').textContent = inv.id;
         document.getElementById('vRefCode').textContent = inv.refNo || `#REF-${inv.id}`;
@@ -1388,7 +1505,7 @@
         const approveBtn = document.getElementById('vApproveBtn');
         const statusStr = (inv.status || '').toLowerCase();
         if (approveBtn) {
-            approveBtn.style.display = statusStr.includes('pending') ? 'inline-flex' : 'none';
+            approveBtn.style.display = (statusStr.includes('pending') || statusStr === 'unpaid') ? 'inline-flex' : 'none';
         }
 
         openModal('viewPaymentModal');
@@ -1410,21 +1527,33 @@
         let invoices = await getInvoices();
         let verifiedRef = refNo;
         let tenantName = 'Maria Santos';
-        let locationTag = 'Sunrise Residences • Unit 101';
+        let locationTag = 'Sunrise Residences • Tower A • Unit 101';
+        let invoiceType = 'Monthly Base Rent';
 
         // 1. Update Invoice Status to Paid
         invoices = invoices.map(inv => {
             if (String(inv.id) === String(invoiceId)) {
                 verifiedRef = inv.refNo || refNo;
                 tenantName = inv.tenantName || 'Maria Santos';
-                locationTag = inv.sub || 'Sunrise Residences • Unit 101';
-                return { ...inv, status: 'Paid' };
+                locationTag = inv.sub || 'Sunrise Residences • Tower A • Unit 101';
+                invoiceType = inv.type || 'Monthly Base Rent';
+                return { ...inv, status: 'Paid', channel: 'GCash Express (Verified)' };
             }
             return inv;
         });
         saveInvoicesLocally(invoices);
 
-        // 2. Update Master Transaction Inflow Ledger
+        // 2. Sync with Utility Charges Table if it's a utility bill
+        let utilityCharges = JSON.parse(localStorage.getItem('argo_utility_charges') || '[]');
+        utilityCharges = utilityCharges.map(uc => {
+            if (String(uc.charge_id) === String(invoiceId) || String(uc.id) === String(invoiceId)) {
+                return { ...uc, status: 'Paid' };
+            }
+            return uc;
+        });
+        localStorage.setItem('argo_utility_charges', JSON.stringify(utilityCharges));
+
+        // 3. Update Master Transaction Inflow Ledger
         let transactions = getTransactions();
         let matchedTxn = false;
 
@@ -1454,7 +1583,7 @@
         }
         saveTransactionsLocally(transactions);
 
-        // 3. Issue and Sync Electronic Receipt to Maria Santos's Client Documents Vault
+        // 4. Issue and Sync Electronic Receipt to Client Documents Vault
         try {
             let clientDocs = JSON.parse(localStorage.getItem('argo_client_documents') || '[]');
             const docId = `DOC-CLI-${Date.now().toString().slice(-4)}`;
@@ -1462,13 +1591,13 @@
             
             clientDocs.unshift({
                 id: docId,
-                title: `Official Rent Payment Receipt (${verifiedRef})`,
+                title: `Official Payment Receipt (${verifiedRef})`,
                 fileType: 'PDF • 850 KB • Electronic Receipt',
                 category: 'Official Receipt',
                 uploadedBy: 'Property Management',
                 uploadDate: today,
                 status: 'Verified',
-                notes: `Cleared monthly base rent payment (${formatPeso(amount)}) for Sunrise Residences • Unit 101.`,
+                notes: `Cleared ${invoiceType} (${formatPeso(amount)}) for ${locationTag}.`,
                 fileUrl: ''
             });
             localStorage.setItem('argo_client_documents', JSON.stringify(clientDocs));
@@ -1476,16 +1605,17 @@
             console.warn("Could not sync client document vault:", e);
         }
 
-        // 4. Push System Notification to Tenant Maria Santos
+        // 5. Push System Notification to Tenant Maria Santos
         let notifications = getNotifications();
         notifications.unshift({
             id: `NOTIF-${Date.now()}`,
             pov: 'client',
             category: 'payment',
             status: 'unread',
-            title: 'Rent Payment Verified & Official Receipt Issued',
+            is_read: false,
+            title: 'Payment Verified & Official Receipt Issued',
             time: 'Just now',
-            description: `Your rent payment of ${formatPeso(amount)} (${verifiedRef}) for Unit 101 has been verified and cleared in the master ledger.`,
+            description: `Your payment of ${formatPeso(amount)} (${verifiedRef}) for ${invoiceType} has been verified and cleared in the master ledger.`,
             property: locationTag,
             tag: 'Status: CLEARED',
             tagColor: 'var(--success, #059669)',
@@ -1499,7 +1629,7 @@
         await updateAdminKPIs();
         updateHeaderBadge();
 
-        alert(`Payment ${verifiedRef} successfully verified! Official receipt issued to Maria Santos's portal.`);
+        alert(`Payment ${verifiedRef} successfully verified! Official receipt issued to ${tenantName}'s portal.`);
     }
 
     async function updateAdminKPIs() {
@@ -1584,17 +1714,23 @@
 
         const newInvoice = {
             id: newInvoiceId,
+            invoice_id: newInvoiceId,
             lease_id: leaseId,
             tenantName: tenantName,
+            tenant_name: tenantName,
             tenant_email: 'maria.santos@tenant.ph',
             type: 'Monthly Base Rent',
             sub: locationTag,
+            property_location: locationTag,
             categoryType: 'Rent',
+            category_type: 'Rent',
             dueDate: today,
+            due_date: today,
             amount: amount,
             status: status,
             channel: method,
             refNo: refNo,
+            ref_no: refNo,
             notes: notes,
             created_at: new Date().toISOString()
         };
@@ -1607,7 +1743,7 @@
                 body: JSON.stringify(newInvoice)
             });
         } catch (e) {
-            console.warn("Backend save failed, keeping locally.", e);
+            console.warn("Backend save bypassed, keeping locally.", e);
         }
 
         let invoices = await getInvoices();

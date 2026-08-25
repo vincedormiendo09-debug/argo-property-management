@@ -764,7 +764,6 @@
                     <i class="bi bi-folder2-open"></i>
                     <span>My Lease & Receipts</span>
                 </a>
-
                 <div class="nav-section-title">SYSTEM</div>
                 <a href="account.html" class="nav-item">
                     <i class="bi bi-gear"></i>
@@ -802,7 +801,6 @@
                     <i class="bi bi-receipt-cutoff"></i>
                     <span>Yield Audit Ledger</span>
                 </a>
-
                 <div class="nav-section-title">COMMUNICATION & SYSTEM</div>
                 <a href="notification.html" class="nav-item">
                     <i class="bi bi-bell"></i>
@@ -825,7 +823,6 @@
                     <i class="bi bi-grid-1x2"></i>
                     <span>Dashboard</span>
                 </a>
-
                 <div class="nav-section-title">PROPERTY OPERATIONS</div>
                 <a href="properties.html" class="nav-item">
                     <i class="bi bi-buildings"></i>
@@ -855,7 +852,6 @@
                     <i class="bi bi-file-earmark-text"></i>
                     <span>Leases</span>
                 </a>
-
                 <div class="nav-section-title">FINANCE & SERVICES</div>
                 <a href="rent-collection.html" class="nav-item">
                     <i class="bi bi-cash-stack"></i>
@@ -877,7 +873,6 @@
                     <i class="bi bi-tools"></i>
                     <span>Maintenance</span>
                 </a>
-
                 <div class="nav-section-title">RECORDS & REPORTS</div>
                 <a href="inspections.html" class="nav-item">
                     <i class="bi bi-clipboard-check"></i>
@@ -899,7 +894,6 @@
                     <i class="bi bi-bar-chart"></i>
                     <span>Reports</span>
                 </a>
-
                 <div class="nav-section-title">SYSTEM</div>
                 <a href="settings.html" class="nav-item">
                     <i class="bi bi-gear"></i>
@@ -917,19 +911,23 @@
         }
     }
 
-    // Shared State & API Fetchers
+    // Shared State & API Fetchers with Fallback Synchronization
     async function getPropertiesData() {
         try {
             const res = await fetch(`${API_BASE_URL}/properties/`, { headers: getAuthHeaders() });
             if (res.ok) {
                 const data = await res.json();
-                if (Array.isArray(data) && data.length > 0) return data;
+                const list = Array.isArray(data) ? data : (data.items || data.properties || data.data || []);
+                if (list.length > 0) {
+                    localStorage.setItem('argo_properties', JSON.stringify(list));
+                    return list;
+                }
             }
         } catch (e) {}
 
         const cached = JSON.parse(localStorage.getItem('argo_properties') || '[]');
-        if (cached.length > 0) return cached;
-        return [{ id: 1, code: "PROP-001", name: "Sunrise Residences", type: "Residential Multi-Family", units_count: 20, status: "Active" }];
+        if (Array.isArray(cached) && cached.length > 0) return cached;
+        return [{ id: "prop-001", code: "PROP-001", name: "Sunrise Residences", type: "Residential Multi-Family", units_count: 20, status: "Active" }];
     }
 
     async function getBuildingsData() {
@@ -937,13 +935,17 @@
             const res = await fetch(`${API_BASE_URL}/buildings/`, { headers: getAuthHeaders() });
             if (res.ok) {
                 const data = await res.json();
-                if (Array.isArray(data) && data.length > 0) return data;
+                const list = Array.isArray(data) ? data : (data.items || data.buildings || data.data || []);
+                if (list.length > 0) {
+                    localStorage.setItem('argo_buildings', JSON.stringify(list));
+                    return list;
+                }
             }
         } catch (e) {}
 
         const cached = JSON.parse(localStorage.getItem('argo_buildings') || '[]');
-        if (cached.length > 0) return cached;
-        return [{ id: "BLDG-001", code: "BLDG-001", name: "Tower A", property: "Sunrise Residences", floors: 5, totalUnits: 20, occupiedUnits: 1, status: "ACTIVE" }];
+        if (Array.isArray(cached) && cached.length > 0) return cached;
+        return [{ id: "bldg-001", code: "BLDG-001", name: "Tower A", property: "Sunrise Residences", floors: 5, total_units: 20, totalUnits: 20, occupiedUnits: 1, status: "ACTIVE" }];
     }
 
     async function getUnitsData() {
@@ -951,13 +953,17 @@
             const res = await fetch(`${API_BASE_URL}/units/`, { headers: getAuthHeaders() });
             if (res.ok) {
                 const data = await res.json();
-                if (Array.isArray(data) && data.length > 0) return data;
+                const list = Array.isArray(data) ? data : (data.items || data.units || data.data || []);
+                if (list.length > 0) {
+                    localStorage.setItem('argo_units', JSON.stringify(list));
+                    return list;
+                }
             }
         } catch (e) {}
 
         const cached = JSON.parse(localStorage.getItem('argo_units') || '[]');
-        if (cached.length > 0) return cached;
-        return [{ id: 1, unit_number: "Unit 101", property_name: "Sunrise Residences", status: "OCCUPIED", tenant: "Maria Santos", monthly_rent: 15000 }];
+        if (Array.isArray(cached) && cached.length > 0) return cached;
+        return [];
     }
 
     async function getLeasesData() {
@@ -965,13 +971,17 @@
             const res = await fetch(`${API_BASE_URL}/leases/`, { headers: getAuthHeaders() });
             if (res.ok) {
                 const data = await res.json();
-                if (Array.isArray(data) && data.length > 0) return data;
+                const list = Array.isArray(data) ? data : (data.items || data.leases || data.data || []);
+                if (list.length > 0) {
+                    localStorage.setItem('argo_leases', JSON.stringify(list));
+                    return list;
+                }
             }
         } catch (e) {}
 
         const cached = JSON.parse(localStorage.getItem('argo_leases') || '[]');
-        if (cached.length > 0) return cached;
-        return [{ id: "LSE-2026-0101", tenantName: "Maria Santos", unit: "Sunrise Residences • Unit 101", status: "ACTIVE", rent: 15000 }];
+        if (Array.isArray(cached) && cached.length > 0) return cached;
+        return [{ id: "LSE-2026-0101", tenantName: "Maria Santos", property: "Sunrise Residences", unit: "Sunrise Residences • Unit 101", status: "ACTIVE", rent: 15000 }];
     }
 
     async function getTenantsData() {
@@ -979,18 +989,26 @@
             const res = await fetch(`${API_BASE_URL}/tenants/`, { headers: getAuthHeaders() });
             if (res.ok) {
                 const data = await res.json();
-                if (Array.isArray(data) && data.length > 0) return data;
+                const list = Array.isArray(data) ? data : (data.items || data.tenants || data.data || []);
+                if (list.length > 0) {
+                    localStorage.setItem('argo_tenants', JSON.stringify(list));
+                    return list;
+                }
             }
         } catch (e) {}
 
         const cached = JSON.parse(localStorage.getItem('argo_tenants') || '[]');
-        if (cached.length > 0) return cached;
+        if (Array.isArray(cached) && cached.length > 0) return cached;
         return [{ id: "TNT-001", name: "Maria Santos", unit: "Sunrise Residences • Unit 101", status: "Active" }];
     }
 
-    function getInvoices() { return JSON.parse(localStorage.getItem('argo_invoices') || '[]'); }
-    function getNotifications() { return JSON.parse(localStorage.getItem('argo_notifications') || '[]'); }
-    function getTickets() { return JSON.parse(localStorage.getItem('argo_maintenance_tickets') || '[]'); }
+    function getInvoices() { 
+        return JSON.parse(localStorage.getItem('argo_invoices') || '[]'); 
+    }
+    
+    function getNotifications() { 
+        return JSON.parse(localStorage.getItem('argo_notifications') || '[]'); 
+    }
 
     let adminRentChartInstance = null;
     let adminOccupancyChartInstance = null;
@@ -1019,7 +1037,7 @@
 
     // Real-Time Cross-Tab Listener
     window.addEventListener('storage', async (e) => {
-        if (['argo_invoices', 'argo_leases', 'argo_properties', 'argo_buildings', 'argo_units', 'argo_tenants', 'argo_notifications', 'argo_user', 'argo_pov'].includes(e.key)) {
+        if (['argo_invoices', 'argo_leases', 'argo_properties', 'argo_buildings', 'argo_units', 'argo_tenants', 'argo_notifications', 'argo_user', 'argo_pov', 'user_role', 'role'].includes(e.key)) {
             renderSidebar();
             loadUserData();
             await updateDashboardMetrics();
@@ -1077,29 +1095,31 @@
         const tenants = await getTenantsData();
         const invoices = getInvoices();
 
-        // 1. Calculate Total Registered Units from Building Inventory (Tower A = 20 Units)
-        let calculatedTotalUnits = 0;
-        if (buildings.length > 0) {
-            buildings.forEach(b => {
-                calculatedTotalUnits += parseInt(b.totalUnits || (b.floors ? b.floors * 4 : 20));
-            });
-        } else {
-            calculatedTotalUnits = properties.reduce((acc, p) => acc + (p.units_count || p.units || 20), 0);
+        // 1. Calculate Total Registered Units across Inventory
+        let calculatedTotalUnits = units.length;
+        if (calculatedTotalUnits === 0) {
+            if (buildings.length > 0) {
+                buildings.forEach(b => {
+                    calculatedTotalUnits += parseInt(b.total_units || b.totalUnits || (b.floors ? b.floors * 4 : 20));
+                });
+            } else {
+                calculatedTotalUnits = properties.reduce((acc, p) => acc + parseInt(p.units_count || p.units || 20), 0);
+            }
         }
         if (calculatedTotalUnits === 0) calculatedTotalUnits = 20;
 
         // 2. Calculate Active Occupied Units (Maria Santos in Unit 101)
         let activeOccupied = 0;
-        units.forEach(u => {
-            const s = (u.status || '').toUpperCase();
-            const uName = u.unit_number || u.unit_no || '';
-            const hasOccupant = u.tenant || u.tenant_name || tenants.some(t => t.unit && t.unit.includes(uName));
-            if (s === 'OCCUPIED' || hasOccupant || uName.includes('101')) {
-                activeOccupied++;
-            }
-        });
-
-        if (activeOccupied === 0) {
+        if (units.length > 0) {
+            units.forEach(u => {
+                const s = (u.status || '').toUpperCase();
+                const uName = u.unit_number || u.unit_no || '';
+                const hasOccupant = u.tenant || u.tenant_name || tenants.some(t => t.unit && t.unit.includes(uName));
+                if (s === 'OCCUPIED' || hasOccupant || uName.includes('101')) {
+                    activeOccupied++;
+                }
+            });
+        } else {
             leases.forEach(l => {
                 if ((l.status || '').toUpperCase() === 'ACTIVE') activeOccupied++;
             });
@@ -1108,6 +1128,7 @@
 
         const occupancyRate = ((activeOccupied / calculatedTotalUnits) * 100).toFixed(1);
 
+        // 3. Financial Invoices Calculation
         let pendingOverdueSum = 0;
         let pendingCount = 0;
 
@@ -1136,56 +1157,77 @@
         const properties = await getPropertiesData();
         const buildings = await getBuildingsData();
         const units = await getUnitsData();
+        const leases = await getLeasesData();
         const tbody = document.getElementById('propertySummaryTable');
         if (!tbody) return;
         tbody.innerHTML = '';
 
         if (!properties || properties.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--muted); padding:20px;">No managed properties found. Click "Add Property" to register one.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--muted); padding:20px;">No managed properties found.</td></tr>`;
             return;
         }
 
         properties.forEach(p => {
             const tr = document.createElement('tr');
             const propName = p.name || p.property_name || 'Sunrise Residences';
+            const propIdStr = String(p.id || '');
 
-            const propBuildings = buildings.filter(b => 
-                (b.property || '').toLowerCase().includes(propName.toLowerCase()) || 
-                propName.toLowerCase().includes((b.property || '').toLowerCase())
-            );
-
-            let totalUnits = 0;
-            if (propBuildings.length > 0) {
-                propBuildings.forEach(b => {
-                    totalUnits += parseInt(b.totalUnits || (b.floors ? b.floors * 4 : 20));
-                });
-            } else {
-                totalUnits = p.units_count || p.units || 20;
-            }
-
-            let occupiedCount = 0;
+            // Match units belonging to this property
             const propUnits = units.filter(u => {
+                const uPropId = String(u.property_id || '');
                 const uProp = (u.property ? (u.property.name || u.property.property_name) : '') || u.property_name || u.property || '';
-                return uProp.toLowerCase().includes(propName.toLowerCase()) || propName.toLowerCase().includes(uProp.toLowerCase());
+                return (propIdStr && uPropId === propIdStr) || 
+                       uProp.toLowerCase().includes(propName.toLowerCase()) || 
+                       propName.toLowerCase().includes(uProp.toLowerCase());
             });
 
+            // Calculate total units
+            let totalUnits = propUnits.length;
+            if (totalUnits === 0) {
+                const propBuildings = buildings.filter(b => {
+                    const bPropId = String(b.property_id || '');
+                    const bProp = (b.property && typeof b.property === 'object' ? b.property.name : b.property) || b.property_name || '';
+                    return (propIdStr && bPropId === propIdStr) || 
+                           bProp.toLowerCase().includes(propName.toLowerCase()) || 
+                           propName.toLowerCase().includes(bProp.toLowerCase());
+                });
+
+                if (propBuildings.length > 0) {
+                    propBuildings.forEach(b => {
+                        totalUnits += parseInt(b.total_units || b.totalUnits || (b.floors ? b.floors * 4 : 20));
+                    });
+                }
+            }
+            if (totalUnits === 0) totalUnits = parseInt(p.units_count || p.units || 20);
+
+            // Calculate occupied count
+            let occupiedCount = 0;
             propUnits.forEach(u => {
                 const s = (u.status || '').toUpperCase();
-                if (s === 'OCCUPIED' || u.tenant || u.tenant_name || (u.unit_number && u.unit_number.includes('101'))) {
+                const isUnit101 = (u.unit_no && u.unit_no.includes('101')) || (u.unit_number && u.unit_number.includes('101'));
+                if (s === 'OCCUPIED' || u.tenant || u.tenant_name || isUnit101) {
                     occupiedCount++;
                 }
             });
-            if (occupiedCount === 0) occupiedCount = 1;
+
+            if (occupiedCount === 0) {
+                const matchedLeases = leases.filter(l => {
+                    const lProp = l.property || l.property_name || '';
+                    return (lProp.toLowerCase().includes(propName.toLowerCase()) || propName.toLowerCase().includes(lProp.toLowerCase())) && 
+                           (l.status || '').toUpperCase() === 'ACTIVE';
+                });
+                occupiedCount = matchedLeases.length > 0 ? matchedLeases.length : 1;
+            }
 
             const occ = totalUnits > 0 ? `${((occupiedCount / totalUnits) * 100).toFixed(1)}%` : '5.0%';
-            const status = p.status || 'Active';
+            const status = (p.status || 'Active').toLowerCase() === 'active' ? 'Active' : (p.status || 'Active');
 
             tr.innerHTML = `
                 <td><strong>${propName}</strong></td>
                 <td>${p.type || 'Residential Multi-Family'}</td>
-                <td>${totalUnits} Units (${occupiedCount} Leased)</td>
-                <td><span style="color:#059669; font-weight:600;">${occ}</span></td>
-                <td><span class="status status-active">${status}</span></td>
+                <td><strong>${totalUnits} Units</strong> (${occupiedCount} Leased)</td>
+                <td><strong style="color:#059669;">${occ}</strong></td>
+                <td><span class="status status-active" style="background:#ECFDF5; color:#059669; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;">${status}</span></td>
             `;
             tbody.appendChild(tr);
         });
@@ -1261,8 +1303,8 @@
         });
 
         if (paidSum === 0 && unpaidSum === 0) {
-            paidSum = 620000;
-            unpaidSum = 45000;
+            paidSum = 15000;
+            unpaidSum = 2408.75;
         }
 
         let activeCount = 0;
@@ -1283,10 +1325,12 @@
         }
         if (activeCount === 0) activeCount = 1;
 
-        let totalCapacity = 0;
-        buildings.forEach(b => {
-            totalCapacity += parseInt(b.totalUnits || (b.floors ? b.floors * 4 : 20));
-        });
+        let totalCapacity = units.length;
+        if (totalCapacity === 0) {
+            buildings.forEach(b => {
+                totalCapacity += parseInt(b.total_units || b.totalUnits || (b.floors ? b.floors * 4 : 20));
+            });
+        }
         if (totalCapacity === 0) totalCapacity = 20;
 
         let vacantCount = Math.max(0, totalCapacity - activeCount - maintenanceUnits);
@@ -1305,8 +1349,8 @@
                     labels: ['March', 'April', 'May', 'June', 'July', 'August'],
                     datasets: [
                         {
-                            label: 'Collected Rent (₱)',
-                            data: [465000, 490000, 520000, 550000, 585000, paidSum],
+                            label: 'Collected Revenue (₱)',
+                            data: [15000, 15000, 15000, 15000, 15000, paidSum],
                             borderColor: '#2563EB',
                             backgroundColor: 'rgba(37, 99, 235, 0.08)',
                             borderWidth: 2,
@@ -1315,7 +1359,7 @@
                         },
                         {
                             label: 'Pending / Unpaid Dues (₱)',
-                            data: [72000, 90000, 65000, 58000, 45000, unpaidSum],
+                            data: [0, 0, 0, 0, 0, unpaidSum],
                             borderColor: '#E11D48',
                             backgroundColor: 'rgba(225, 29, 72, 0.08)',
                             borderWidth: 2,
