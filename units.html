@@ -941,7 +941,7 @@
     const DEFAULT_UNITS = [
         // 1st Floor
         {
-            id: 1,
+            id: "unit-101",
             unit_number: "Unit 101",
             unit_no: "Unit 101",
             property_name: "Sunrise Residences",
@@ -961,7 +961,7 @@
             subtitle: "45.5 sqm · 1 bedroom · Living Area"
         },
         {
-            id: 2,
+            id: "unit-102",
             unit_number: "Unit 102",
             unit_no: "Unit 102",
             property_name: "Sunrise Residences",
@@ -981,7 +981,7 @@
             subtitle: "32.0 sqm · Studio type"
         },
         {
-            id: 3,
+            id: "unit-103",
             unit_number: "Unit 103",
             unit_no: "Unit 103",
             property_name: "Sunrise Residences",
@@ -1001,7 +1001,7 @@
             subtitle: "45.5 sqm · 1 bedroom"
         },
         {
-            id: 4,
+            id: "unit-104",
             unit_number: "Unit 104",
             unit_no: "Unit 104",
             property_name: "Sunrise Residences",
@@ -1023,7 +1023,7 @@
 
         // 2nd Floor
         {
-            id: 5,
+            id: "unit-201",
             unit_number: "Unit 201",
             unit_no: "Unit 201",
             property_name: "Sunrise Residences",
@@ -1043,7 +1043,7 @@
             subtitle: "45.5 sqm · 1 bedroom"
         },
         {
-            id: 6,
+            id: "unit-202",
             unit_number: "Unit 202",
             unit_no: "Unit 202",
             property_name: "Sunrise Residences",
@@ -1063,7 +1063,7 @@
             subtitle: "32.0 sqm · Studio type"
         },
         {
-            id: 7,
+            id: "unit-203",
             unit_number: "Unit 203",
             unit_no: "Unit 203",
             property_name: "Sunrise Residences",
@@ -1083,7 +1083,7 @@
             subtitle: "45.5 sqm · 1 bedroom"
         },
         {
-            id: 8,
+            id: "unit-204",
             unit_number: "Unit 204",
             unit_no: "Unit 204",
             property_name: "Sunrise Residences",
@@ -1105,7 +1105,7 @@
 
         // 3rd Floor
         {
-            id: 9,
+            id: "unit-301",
             unit_number: "Unit 301",
             unit_no: "Unit 301",
             property_name: "Sunrise Residences",
@@ -1125,7 +1125,7 @@
             subtitle: "45.5 sqm · 1 bedroom"
         },
         {
-            id: 10,
+            id: "unit-302",
             unit_number: "Unit 302",
             unit_no: "Unit 302",
             property_name: "Sunrise Residences",
@@ -1145,7 +1145,7 @@
             subtitle: "32.0 sqm · Studio type"
         },
         {
-            id: 11,
+            id: "unit-303",
             unit_number: "Unit 303",
             unit_no: "Unit 303",
             property_name: "Sunrise Residences",
@@ -1165,7 +1165,7 @@
             subtitle: "45.5 sqm · 1 bedroom"
         },
         {
-            id: 12,
+            id: "unit-304",
             unit_number: "Unit 304",
             unit_no: "Unit 304",
             property_name: "Sunrise Residences",
@@ -1187,7 +1187,7 @@
 
         // 4th Floor
         {
-            id: 13,
+            id: "unit-401",
             unit_number: "Unit 401",
             unit_no: "Unit 401",
             property_name: "Sunrise Residences",
@@ -1207,7 +1207,7 @@
             subtitle: "45.5 sqm · 1 bedroom"
         },
         {
-            id: 14,
+            id: "unit-402",
             unit_number: "Unit 402",
             unit_no: "Unit 402",
             property_name: "Sunrise Residences",
@@ -1227,7 +1227,7 @@
             subtitle: "32.0 sqm · Studio type"
         },
         {
-            id: 15,
+            id: "unit-403",
             unit_number: "Unit 403",
             unit_no: "Unit 403",
             property_name: "Sunrise Residences",
@@ -1247,7 +1247,7 @@
             subtitle: "45.5 sqm · 1 bedroom"
         },
         {
-            id: 16,
+            id: "unit-404",
             unit_number: "Unit 404",
             unit_no: "Unit 404",
             property_name: "Sunrise Residences",
@@ -1269,7 +1269,7 @@
 
         // 5th Floor (Penthouse Level)
         {
-            id: 17,
+            id: "unit-501",
             unit_number: "Unit 501",
             unit_no: "Unit 501",
             property_name: "Sunrise Residences",
@@ -1289,7 +1289,7 @@
             subtitle: "45.5 sqm · 1 bedroom · Skyline View"
         },
         {
-            id: 18,
+            id: "unit-502",
             unit_number: "Unit 502",
             unit_no: "Unit 502",
             property_name: "Sunrise Residences",
@@ -1309,7 +1309,7 @@
             subtitle: "32.0 sqm · Studio type"
         },
         {
-            id: 19,
+            id: "unit-503",
             unit_number: "Unit 503",
             unit_no: "Unit 503",
             property_name: "Sunrise Residences",
@@ -1329,7 +1329,7 @@
             subtitle: "45.5 sqm · 1 bedroom"
         },
         {
-            id: 20,
+            id: "unit-504",
             unit_number: "Unit 504",
             unit_no: "Unit 504",
             property_name: "Sunrise Residences",
@@ -1472,8 +1472,13 @@
         try {
             const res = await fetch(PROPERTIES_API_URL, { headers: getAuthHeaders() });
             if (res.ok) {
-                livePropertiesCache = await res.json();
-                if (Array.isArray(livePropertiesCache) && livePropertiesCache.length > 0) return livePropertiesCache;
+                const data = await res.json();
+                const list = Array.isArray(data) ? data : (data.items || data.properties || data.data || []);
+                if (list.length > 0) {
+                    livePropertiesCache = list;
+                    localStorage.setItem('argo_properties', JSON.stringify(list));
+                    return list;
+                }
             }
         } catch (err) {
             console.warn("Could not fetch live properties:", err);
@@ -1481,10 +1486,13 @@
 
         try {
             const localProps = JSON.parse(localStorage.getItem('argo_properties') || '[]');
-            if (localProps.length > 0) return localProps;
+            if (Array.isArray(localProps) && localProps.length > 0) {
+                livePropertiesCache = localProps;
+                return localProps;
+            }
         } catch (e) {}
 
-        return [{ id: 1, name: "Sunrise Residences" }];
+        return [];
     }
 
     async function populatePropertyDropdowns() {
@@ -1497,13 +1505,13 @@
 
         if (props && props.length > 0) {
             props.forEach(p => {
-                const pName = p.name || p.property_name || `Property #${p.id}`;
+                const pId = p.id || p.property_id || p._id;
+                const pName = p.name || p.property_name || 'Sunrise Residences';
                 if (filterSelect) filterSelect.innerHTML += `<option value="${pName}">${pName}</option>`;
-                if (modalSelect) modalSelect.innerHTML += `<option value="${p.id}">${pName}</option>`;
+                if (modalSelect) modalSelect.innerHTML += `<option value="${pId}">${pName}</option>`;
             });
         } else {
             if (filterSelect) filterSelect.innerHTML += `<option value="Sunrise Residences">Sunrise Residences</option>`;
-            if (modalSelect) modalSelect.innerHTML += `<option value="1">Sunrise Residences (Main Property)</option>`;
         }
     }
 
@@ -1512,7 +1520,7 @@
         if (raw) {
             try {
                 const parsed = JSON.parse(raw);
-                if (Array.isArray(parsed)) {
+                if (Array.isArray(parsed) && parsed.length > 0) {
                     return parsed;
                 }
             } catch (e) {}
@@ -1522,9 +1530,10 @@
             const response = await fetch(API_BASE_URL, { headers: getAuthHeaders() });
             if (response.ok) {
                 const data = await response.json();
-                if (Array.isArray(data) && data.length > 0) {
-                    localStorage.setItem('argo_units', JSON.stringify(data));
-                    return data;
+                const list = Array.isArray(data) ? data : (data.items || data.units || data.data || []);
+                if (list.length > 0) {
+                    localStorage.setItem('argo_units', JSON.stringify(list));
+                    return list;
                 }
             }
         } catch (error) {
@@ -1628,7 +1637,7 @@
     async function saveUnit() {
         const unitNo = document.getElementById('modalUnitNo').value.trim();
         const type = document.getElementById('modalUnitType').value;
-        const propertyIdVal = document.getElementById('modalProperty').value;
+        const propertyIdVal = document.getElementById('modalProperty').value.trim();
         const floorVal = document.getElementById('modalFloor').value.trim();
         const rentInput = document.getElementById('modalRent');
         const rent = rentInput ? parseFloat(rentInput.value) || 0 : 0;
@@ -1640,7 +1649,28 @@
             return;
         }
 
-        const propertyId = parseInt(propertyIdVal) || 1;
+        // Resolve valid Property UUID
+        let propertyId = propertyIdVal;
+        if (!propertyId || propertyId === "1") {
+            const props = livePropertiesCache.length > 0 ? livePropertiesCache : JSON.parse(localStorage.getItem('argo_properties') || '[]');
+            if (props.length > 0 && props[0].id) {
+                propertyId = String(props[0].id);
+            }
+        }
+
+        if (!propertyId || propertyId === "1") {
+            // Re-fetch live properties to get real UUID
+            const freshProps = await fetchLiveProperties();
+            if (freshProps.length > 0 && freshProps[0].id) {
+                propertyId = String(freshProps[0].id);
+            }
+        }
+
+        if (!propertyId || propertyId === "1") {
+            alert("Please ensure at least one property exists in the system before adding a unit.");
+            return;
+        }
+
         const floorNumber = parseInt(floorVal.replace(/\D/g, '')) || 1;
 
         const payload = {
@@ -1660,17 +1690,27 @@
         };
 
         try {
-            await fetch(API_BASE_URL, {
+            const response = await fetch(API_BASE_URL, {
                 method: 'POST',
                 headers: getAuthHeaders(),
                 body: JSON.stringify(payload)
             });
+
+            if (!response.ok) {
+                const errData = await response.json().catch(() => null);
+                console.warn("Cloud Database save issue:", errData);
+            } else {
+                const savedUnit = await response.json().catch(() => null);
+                if (savedUnit && savedUnit.id) {
+                    payload.id = savedUnit.id;
+                }
+            }
         } catch (e) {
-            console.warn("Backend save failed, cached locally.");
+            console.warn("Backend save failed, cached locally:", e);
         }
 
         let units = await getUnits();
-        units.unshift({ ...payload, id: Date.now() });
+        units.unshift({ ...payload, id: payload.id || `unit-${Date.now()}` });
         localStorage.setItem('argo_units', JSON.stringify(units));
 
         alert(`Unit "${unitNo}" saved successfully!`);
