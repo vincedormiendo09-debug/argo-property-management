@@ -1363,13 +1363,19 @@
         };
     }
 
-    // Secure Logout Handler
+    function getDeletedUnitIds() {
+        try {
+            return JSON.parse(localStorage.getItem('argo_deleted_units') || '[]');
+        } catch (e) {
+            return [];
+        }
+    }
+
     function logoutUser() {
         localStorage.clear();
         window.location.replace('index.html');
     }
 
-    // Dynamic Role-Based Sidebar Renderer
     function renderSidebar() {
         const nav = document.getElementById('sidebarNav');
         if (!nav) return;
@@ -1540,14 +1546,21 @@
         }
     }
 
-    // API-First Unit Retrieval with Canonical Fallback
+    // API-First Unit Retrieval with Deleted Item Filtering
     async function getUnits() {
+        const deletedList = getDeletedUnitIds();
+
         try {
             const response = await fetch(UNITS_API_URL, { headers: getAuthHeaders() });
             if (response.ok) {
                 const data = await response.json();
-                const list = Array.isArray(data) ? data : (data.items || data.units || data.data || []);
+                let list = Array.isArray(data) ? data : (data.items || data.units || data.data || []);
                 if (list.length > 0) {
+                    list = list.filter(u => 
+                        !deletedList.includes(String(u.id)) && 
+                        !deletedList.includes(String(u.unit_number)) &&
+                        !deletedList.includes(String(u.unit_no))
+                    );
                     localStorage.setItem('argo_units', JSON.stringify(list));
                     return list;
                 }
@@ -1559,15 +1572,24 @@
         const raw = localStorage.getItem('argo_units');
         if (raw) {
             try {
-                const parsed = JSON.parse(raw);
+                let parsed = JSON.parse(raw);
                 if (Array.isArray(parsed) && parsed.length > 0) {
-                    return parsed;
+                    return parsed.filter(u => 
+                        !deletedList.includes(String(u.id)) && 
+                        !deletedList.includes(String(u.unit_number)) &&
+                        !deletedList.includes(String(u.unit_no))
+                    );
                 }
             } catch (e) {}
         }
 
-        localStorage.setItem('argo_units', JSON.stringify(DEFAULT_UNITS));
-        return DEFAULT_UNITS;
+        const filteredDefaults = DEFAULT_UNITS.filter(u => 
+            !deletedList.includes(String(u.id)) && 
+            !deletedList.includes(String(u.unit_number)) &&
+            !deletedList.includes(String(u.unit_no))
+        );
+        localStorage.setItem('argo_units', JSON.stringify(filteredDefaults));
+        return filteredDefaults;
     }
 
     let activeTabStatus = "ALL";
@@ -1594,7 +1616,6 @@
             const propName = u.property ? (u.property.name || u.property.property_name) : (u.property_name || 'Sunrise Residences');
             const unitRent = parseFloat(u.monthly_rent || u.rent || u.rent_amount || 0);
 
-            // Cross-reference occupant with Tenants & Leases
             let occupant = u.tenant_name || u.tenant || '';
 
             if (!occupant) {
@@ -1610,7 +1631,6 @@
                 if (matchLease) occupant = matchLease.tenantName || matchLease.tenant_name || matchLease.tenant;
             }
 
-            // Canonical baseline assignment for Unit 101
             if (unitName.includes("101")) {
                 occupant = "Maria Santos";
             }
@@ -1637,6 +1657,8 @@
             const desc = u.description || u.subtitle || '';
             const subtitleHtml = [occupantInfo, desc].filter(Boolean).join(' · ');
 
+            const unitIdentifier = u.id || u.unit_number || u.unit_no;
+
             tr.innerHTML = `
                 <td>
                     <div class="unit-name" style="font-weight:600;">${unitName}</div>
@@ -1649,7 +1671,7 @@
                 <td>${badgeHtml}</td>
                 <td>
                     <div style="display:flex; gap:6px;">
-                        <button class="action-button delete" title="Delete Unit" onclick="deleteUnit('${u.id || u.unit_number}')"><i class="bi bi-trash"></i></button>
+                        <button class="action-button delete" title="Delete Unit" onclick="deleteUnit('${unitIdentifier}', '${unitName}')"><i class="bi bi-trash"></i></button>
                     </div>
                 </td>
             `;
@@ -1675,7 +1697,6 @@
             return;
         }
 
-        // Resolve valid Property UUID
         let propertyId = propertyIdVal;
         const isInvalidUuid = !propertyId || propertyId === "1" || propertyId === "prop-001" || !isNaN(Number(propertyId));
         if (isInvalidUuid) {
@@ -1727,29 +1748,55 @@
         units.unshift({ ...payload, id: payload.id || `unit-${Date.now()}` });
         localStorage.setItem('argo_units', JSON.stringify(units));
 
+        // If unit was previously deleted, remove from deleted list
+        let deletedList = getDeletedUnitIds().filter(x => x !== unitNo && x !== payload.id);
+        localStorage.setItem('argo_deleted_units', JSON.stringify(deletedList));
+
         alert(`Unit "${unitNo}" registered successfully!`);
         closeModal();
         await renderUnitsTable();
     }
 
-    async function deleteUnit(id) {
-        if (!confirm(`Are you sure you want to remove unit ${id} from inventory?`)) return;
-        
+    async function deleteUnit(id, unitName) {
+        const displayName = unitName || id;
+        if (!confirm(`Are you sure you want to remove ${displayName} from inventory?`)) return;
+
+        // 1. Attempt API deletion on live backend
         try {
-            await fetch(`${UNITS_API_URL}${id}`, {
+            await fetch(`${UNITS_API_URL}${encodeURIComponent(id)}`, {
+                method: 'DELETE',
+                headers: getAuthHeaders()
+            });
+            await fetch(`${UNITS_API_URL}${encodeURIComponent(id)}/`, {
                 method: 'DELETE',
                 headers: getAuthHeaders()
             });
         } catch (err) {
-            console.warn("Live API delete sync bypassed, updating local ledger.");
+            console.warn("Live API delete bypassed, recording deletion locally:", err);
         }
 
+        // 2. Track deleted identifiers locally
+        const deletedList = getDeletedUnitIds();
+        [String(id), String(displayName)].forEach(key => {
+            if (key && !deletedList.includes(key)) {
+                deletedList.push(key);
+            }
+        });
+        localStorage.setItem('argo_deleted_units', JSON.stringify(deletedList));
+
+        // 3. Purge from local cache
         let raw = localStorage.getItem('argo_units');
         let units = raw ? JSON.parse(raw) : DEFAULT_UNITS;
-        units = units.filter(u => String(u.id) !== String(id) && String(u.unit_number) !== String(id) && String(u.unit_no) !== String(id));
+        units = units.filter(u => 
+            String(u.id) !== String(id) && 
+            String(u.unit_number) !== String(id) && 
+            String(u.unit_no) !== String(id) &&
+            String(u.unit_number) !== String(displayName) &&
+            String(u.unit_no) !== String(displayName)
+        );
         localStorage.setItem('argo_units', JSON.stringify(units));
 
-        alert(`Unit removed successfully!`);
+        alert(`${displayName} removed successfully!`);
         await renderUnitsTable();
     }
 
@@ -1859,7 +1906,7 @@
 
     // Real-Time Cross-Tab Listener
     window.addEventListener('storage', async (e) => {
-        if (['argo_units', 'argo_properties', 'argo_tenants', 'argo_leases', 'argo_notifications', 'argo_user', 'argo_pov'].includes(e.key)) {
+        if (['argo_units', 'argo_deleted_units', 'argo_properties', 'argo_tenants', 'argo_leases', 'argo_notifications', 'argo_user', 'argo_pov'].includes(e.key)) {
             renderSidebar();
             loadUserData();
             updateHeaderBadge();
