@@ -929,9 +929,14 @@
     </div>
 
 <script>
-    const API_BASE_URL = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
+    const API_BASE_URL = (
+        window.location.origin.includes('localhost') || 
+        window.location.origin.includes('127.0.0.1')
+    ) 
         ? 'http://127.0.0.1:8000/api'
-        : '/api';
+        : (window.location.origin.includes('github.io'))
+            ? 'https://argo-management-2026.onrender.com/api'
+            : '/api';
 
     const UNITS_API_URL = `${API_BASE_URL}/units/`;
     const PROPERTIES_API_URL = `${API_BASE_URL}/properties/`;
@@ -1514,7 +1519,7 @@
             }
         } catch (e) {}
 
-        return [{ id: "prop-001", code: "PROP-001", name: "Sunrise Residences", type: "Residential Multi-Family" }];
+        return [{ id: "e8e9a66b-0ef1-483f-9325-a61712692117", code: "PROP-001", name: "Sunrise Residences", type: "Residential Multi-Family" }];
     }
 
     async function populatePropertyDropdowns() {
@@ -1527,14 +1532,11 @@
 
         if (props && props.length > 0) {
             props.forEach(p => {
-                const pId = p.id || p.property_id || p._id || 'prop-001';
+                const pId = p.id || p.property_id || p._id || 'e8e9a66b-0ef1-483f-9325-a61712692117';
                 const pName = p.name || p.property_name || 'Sunrise Residences';
                 if (filterSelect) filterSelect.innerHTML += `<option value="${pName}">${pName}</option>`;
                 if (modalSelect) modalSelect.innerHTML += `<option value="${pId}">${pName}</option>`;
             });
-        } else {
-            if (filterSelect) filterSelect.innerHTML += `<option value="Sunrise Residences">Sunrise Residences</option>`;
-            if (modalSelect) modalSelect.innerHTML += `<option value="prop-001">Sunrise Residences</option>`;
         }
     }
 
@@ -1661,7 +1663,7 @@
     async function saveUnit() {
         const unitNo = document.getElementById('modalUnitNo').value.trim();
         const type = document.getElementById('modalUnitType').value;
-        const propertyIdVal = document.getElementById('modalProperty').value.trim();
+        let propertyIdVal = document.getElementById('modalProperty').value.trim();
         const floorVal = document.getElementById('modalFloor').value.trim();
         const rentInput = document.getElementById('modalRent');
         const rent = rentInput ? parseFloat(rentInput.value) || 0 : 0;
@@ -1673,26 +1675,20 @@
             return;
         }
 
-        // Resolve valid Property ID
+        // Resolve valid Property UUID
         let propertyId = propertyIdVal;
-        if (!propertyId || propertyId === "1") {
-            const props = livePropertiesCache.length > 0 ? livePropertiesCache : JSON.parse(localStorage.getItem('argo_properties') || '[]');
+        const isInvalidUuid = !propertyId || propertyId === "1" || propertyId === "prop-001" || !isNaN(Number(propertyId));
+        if (isInvalidUuid) {
+            const props = await fetchLiveProperties();
             if (props.length > 0 && props[0].id) {
                 propertyId = String(props[0].id);
-            }
-        }
-
-        if (!propertyId || propertyId === "1") {
-            const freshProps = await fetchLiveProperties();
-            if (freshProps.length > 0 && freshProps[0].id) {
-                propertyId = String(freshProps[0].id);
             }
         }
 
         const floorNumber = parseInt(floorVal.replace(/\D/g, '')) || 1;
 
         const payload = {
-            property_id: propertyId || 'prop-001',
+            property_id: propertyId,
             unit_number: unitNo,
             unit_no: unitNo,
             unit_type: type,
@@ -1702,7 +1698,7 @@
             monthly_rent: rent,
             rent: rent,
             rent_amount: rent,
-            status: status === 'VACANT' ? 'Available' : status,
+            status: (status === 'VACANT' || status === 'AVAILABLE') ? 'Available' : 'Occupied',
             description: subtitle,
             subtitle: subtitle
         };
@@ -1714,14 +1710,17 @@
                 body: JSON.stringify(payload)
             });
 
-            if (response.ok) {
+            if (!response.ok) {
+                const errData = await response.json().catch(() => null);
+                console.error("Backend error saving unit:", errData);
+            } else {
                 const savedUnit = await response.json().catch(() => null);
                 if (savedUnit && savedUnit.id) {
                     payload.id = savedUnit.id;
                 }
             }
         } catch (e) {
-            console.warn("Backend save failed, cached locally:", e);
+            console.warn("Backend save failed, saved locally:", e);
         }
 
         let units = await getUnits();
