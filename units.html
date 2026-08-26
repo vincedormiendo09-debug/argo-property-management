@@ -930,12 +930,12 @@
 
 <script>
     const API_BASE_URL = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
-        ? 'http://127.0.0.1:8000/api/units/'
-        : '/api/units/';
+        ? 'http://127.0.0.1:8000/api'
+        : '/api';
 
-    const PROPERTIES_API_URL = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
-        ? 'http://127.0.0.1:8000/api/properties/'
-        : '/api/properties/';
+    const UNITS_API_URL = `${API_BASE_URL}/units/`;
+    const PROPERTIES_API_URL = `${API_BASE_URL}/properties/`;
+    const BUILDINGS_API_URL = `${API_BASE_URL}/buildings/`;
 
     // 20-Unit Capacity for Sunrise Residences • Tower A (5 Floors x 4 Units)
     const DEFAULT_UNITS = [
@@ -1450,6 +1450,28 @@
         }
     }
 
+    function loadUserData() {
+        const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+        const nameEl = document.getElementById('userName');
+        const avatarEl = document.getElementById('userAvatar');
+        if (nameEl) nameEl.textContent = user.name || 'Juan Dela Cruz';
+        if (avatarEl) avatarEl.textContent = user.avatar || (user.name ? user.name.charAt(0) : 'JD');
+    }
+
+    function getNotifications() {
+        try {
+            return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
+        } catch (e) {
+            return [];
+        }
+    }
+
+    function updateHeaderBadge() {
+        const notifs = getNotifications().filter(n => (n.pov === 'admin' || !n.pov) && (n.status === 'unread' || n.is_read === false));
+        const badge = document.getElementById('headerNotifBadge');
+        if (badge) badge.textContent = notifs.length;
+    }
+
     function getStoredTenants() {
         try {
             return JSON.parse(localStorage.getItem('argo_tenants') || '[]');
@@ -1492,7 +1514,7 @@
             }
         } catch (e) {}
 
-        return [];
+        return [{ id: "prop-001", code: "PROP-001", name: "Sunrise Residences", type: "Residential Multi-Family" }];
     }
 
     async function populatePropertyDropdowns() {
@@ -1505,29 +1527,21 @@
 
         if (props && props.length > 0) {
             props.forEach(p => {
-                const pId = p.id || p.property_id || p._id;
+                const pId = p.id || p.property_id || p._id || 'prop-001';
                 const pName = p.name || p.property_name || 'Sunrise Residences';
                 if (filterSelect) filterSelect.innerHTML += `<option value="${pName}">${pName}</option>`;
                 if (modalSelect) modalSelect.innerHTML += `<option value="${pId}">${pName}</option>`;
             });
         } else {
             if (filterSelect) filterSelect.innerHTML += `<option value="Sunrise Residences">Sunrise Residences</option>`;
+            if (modalSelect) modalSelect.innerHTML += `<option value="prop-001">Sunrise Residences</option>`;
         }
     }
 
+    // API-First Unit Retrieval with Canonical Fallback
     async function getUnits() {
-        const raw = localStorage.getItem('argo_units');
-        if (raw) {
-            try {
-                const parsed = JSON.parse(raw);
-                if (Array.isArray(parsed) && parsed.length > 0) {
-                    return parsed;
-                }
-            } catch (e) {}
-        }
-
         try {
-            const response = await fetch(API_BASE_URL, { headers: getAuthHeaders() });
+            const response = await fetch(UNITS_API_URL, { headers: getAuthHeaders() });
             if (response.ok) {
                 const data = await response.json();
                 const list = Array.isArray(data) ? data : (data.items || data.units || data.data || []);
@@ -1537,7 +1551,17 @@
                 }
             }
         } catch (error) {
-            console.warn("Using synchronized local unit inventory.");
+            console.warn("Live Units API unreachable, checking local cache.");
+        }
+
+        const raw = localStorage.getItem('argo_units');
+        if (raw) {
+            try {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    return parsed;
+                }
+            } catch (e) {}
         }
 
         localStorage.setItem('argo_units', JSON.stringify(DEFAULT_UNITS));
@@ -1584,7 +1608,7 @@
                 if (matchLease) occupant = matchLease.tenantName || matchLease.tenant_name || matchLease.tenant;
             }
 
-            // Direct mapping for Unit 101 -> Maria Santos
+            // Canonical baseline assignment for Unit 101
             if (unitName.includes("101")) {
                 occupant = "Maria Santos";
             }
@@ -1596,7 +1620,7 @@
 
             tr.dataset.status = status;
             tr.dataset.property = propName;
-            tr.dataset.type = u.unit_type || u.type || 'Apartment';
+            tr.dataset.type = u.unit_type || u.type || '1-Bedroom Apartment';
 
             let badgeHtml = '';
             if (status === 'OCCUPIED') {
@@ -1607,7 +1631,7 @@
                 badgeHtml = `<span class="status-badge" style="background:#FEF3C7; color:#D97706; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;">Maintenance</span>`;
             }
 
-            const occupantInfo = occupant ? `<span style="color:#2563EB; font-weight:600;"><i class="bi bi-person"></i> ${occupant}</span>` : '';
+            const occupantInfo = occupant ? `<span style="color:#2563EB; font-weight:600;"><i class="bi bi-person me-1"></i>${occupant}</span>` : '';
             const desc = u.description || u.subtitle || '';
             const subtitleHtml = [occupantInfo, desc].filter(Boolean).join(' · ');
 
@@ -1623,7 +1647,7 @@
                 <td>${badgeHtml}</td>
                 <td>
                     <div style="display:flex; gap:6px;">
-                        <button class="action-button delete" title="Delete Unit" onclick="deleteUnit('${u.id}')"><i class="bi bi-trash"></i></button>
+                        <button class="action-button delete" title="Delete Unit" onclick="deleteUnit('${u.id || u.unit_number}')"><i class="bi bi-trash"></i></button>
                     </div>
                 </td>
             `;
@@ -1649,7 +1673,7 @@
             return;
         }
 
-        // Resolve valid Property UUID
+        // Resolve valid Property ID
         let propertyId = propertyIdVal;
         if (!propertyId || propertyId === "1") {
             const props = livePropertiesCache.length > 0 ? livePropertiesCache : JSON.parse(localStorage.getItem('argo_properties') || '[]');
@@ -1659,22 +1683,16 @@
         }
 
         if (!propertyId || propertyId === "1") {
-            // Re-fetch live properties to get real UUID
             const freshProps = await fetchLiveProperties();
             if (freshProps.length > 0 && freshProps[0].id) {
                 propertyId = String(freshProps[0].id);
             }
         }
 
-        if (!propertyId || propertyId === "1") {
-            alert("Please ensure at least one property exists in the system before adding a unit.");
-            return;
-        }
-
         const floorNumber = parseInt(floorVal.replace(/\D/g, '')) || 1;
 
         const payload = {
-            property_id: propertyId,
+            property_id: propertyId || 'prop-001',
             unit_number: unitNo,
             unit_no: unitNo,
             unit_type: type,
@@ -1690,16 +1708,13 @@
         };
 
         try {
-            const response = await fetch(API_BASE_URL, {
+            const response = await fetch(UNITS_API_URL, {
                 method: 'POST',
                 headers: getAuthHeaders(),
                 body: JSON.stringify(payload)
             });
 
-            if (!response.ok) {
-                const errData = await response.json().catch(() => null);
-                console.warn("Cloud Database save issue:", errData);
-            } else {
+            if (response.ok) {
                 const savedUnit = await response.json().catch(() => null);
                 if (savedUnit && savedUnit.id) {
                     payload.id = savedUnit.id;
@@ -1713,16 +1728,16 @@
         units.unshift({ ...payload, id: payload.id || `unit-${Date.now()}` });
         localStorage.setItem('argo_units', JSON.stringify(units));
 
-        alert(`Unit "${unitNo}" saved successfully!`);
+        alert(`Unit "${unitNo}" registered successfully!`);
         closeModal();
         await renderUnitsTable();
     }
 
     async function deleteUnit(id) {
-        if (!confirm(`Are you sure you want to delete unit #${id} from inventory?`)) return;
+        if (!confirm(`Are you sure you want to remove unit ${id} from inventory?`)) return;
         
         try {
-            await fetch(`${API_BASE_URL}${id}`, {
+            await fetch(`${UNITS_API_URL}${id}`, {
                 method: 'DELETE',
                 headers: getAuthHeaders()
             });
@@ -1732,10 +1747,10 @@
 
         let raw = localStorage.getItem('argo_units');
         let units = raw ? JSON.parse(raw) : DEFAULT_UNITS;
-        units = units.filter(u => String(u.id) !== String(id));
+        units = units.filter(u => String(u.id) !== String(id) && String(u.unit_number) !== String(id) && String(u.unit_no) !== String(id));
         localStorage.setItem('argo_units', JSON.stringify(units));
 
-        alert(`Unit #${id} removed successfully!`);
+        alert(`Unit removed successfully!`);
         await renderUnitsTable();
     }
 
@@ -1747,7 +1762,7 @@
 
         units.forEach(u => {
             const unitName = u.unit_number || u.unit_no || u.unitNo || '';
-            let isOccupied = u.tenant_name || u.tenant || false;
+            let isOccupied = Boolean(u.tenant_name || u.tenant);
 
             if (!isOccupied) {
                 isOccupied = storedTenants.some(t => t.unit && t.unit.includes(unitName));
@@ -1806,11 +1821,19 @@
             if (row.cells.length === 1) return;
             totalRows++;
             const text = row.innerText.toLowerCase();
-            const rowStatus = row.dataset.status || "";
+            const rowStatus = (row.dataset.status || "").toUpperCase();
             const rowProp = (row.dataset.property || "").toLowerCase();
             const rowType = (row.dataset.type || "").toLowerCase();
 
-            const matchesTab = (activeTabStatus === "ALL" || rowStatus.includes(activeTabStatus) || (activeTabStatus === "VACANT" && rowStatus === "AVAILABLE"));
+            const isAvailableTab = activeTabStatus === "AVAILABLE" || activeTabStatus === "VACANT";
+            const isRowAvailable = rowStatus === "AVAILABLE" || rowStatus === "VACANT";
+
+            const matchesTab = (
+                activeTabStatus === "ALL" || 
+                rowStatus === activeTabStatus ||
+                (isAvailableTab && isRowAvailable)
+            );
+
             const matchesSearch = searchQuery === "" || text.includes(searchQuery);
             const matchesProperty = propertyVal === "" || rowProp.includes(propertyVal);
             const matchesType = typeVal === "" || rowType === typeVal;
@@ -1835,12 +1858,40 @@
         if (firstTab) setTabFilter('ALL', firstTab);
     }
 
+    // Real-Time Cross-Tab Listener
+    window.addEventListener('storage', async (e) => {
+        if (['argo_units', 'argo_properties', 'argo_tenants', 'argo_leases', 'argo_notifications', 'argo_user', 'argo_pov'].includes(e.key)) {
+            renderSidebar();
+            loadUserData();
+            updateHeaderBadge();
+            await populatePropertyDropdowns();
+            await renderUnitsTable();
+        }
+    });
+
     document.addEventListener('DOMContentLoaded', async () => {
         renderSidebar();
         applyRoleLayout();
+        loadUserData();
+        updateHeaderBadge();
         await populatePropertyDropdowns();
         await renderUnitsTable();
     });
+
+    // Profile Dropdown Handler
+    const userProfileBtn = document.getElementById('userProfileBtn');
+    const userDropdown = document.getElementById('userDropdown');
+
+    if (userProfileBtn && userDropdown) {
+        userProfileBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            userDropdown.classList.toggle('show');
+        });
+
+        document.addEventListener('click', () => { 
+            userDropdown.classList.remove('show'); 
+        });
+    }
 </script>
 </body>
 </html>
