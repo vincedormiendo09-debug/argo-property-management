@@ -702,7 +702,7 @@
         </section>
     </main>
 
-    <script>
+<script>
     const API_BASE_URL = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
         ? 'http://127.0.0.1:8000/api'
         : '/api';
@@ -919,14 +919,17 @@
                 const data = await res.json();
                 const list = Array.isArray(data) ? data : (data.items || data.properties || data.data || []);
                 if (list.length > 0) {
-                    localStorage.setItem('argo_properties', JSON.stringify(list));
-                    return list;
+                    const cleaned = list.filter(p => !(p.name || '').toLowerCase().includes('central business'));
+                    localStorage.setItem('argo_properties', JSON.stringify(cleaned));
+                    return cleaned;
                 }
             }
         } catch (e) {}
 
         const cached = JSON.parse(localStorage.getItem('argo_properties') || '[]');
-        if (Array.isArray(cached) && cached.length > 0) return cached;
+        if (Array.isArray(cached) && cached.length > 0) {
+            return cached.filter(p => !(p.name || '').toLowerCase().includes('central business'));
+        }
         return [{ id: "prop-001", code: "PROP-001", name: "Sunrise Residences", type: "Residential Multi-Family", units_count: 20, status: "Active" }];
     }
 
@@ -981,7 +984,7 @@
 
         const cached = JSON.parse(localStorage.getItem('argo_leases') || '[]');
         if (Array.isArray(cached) && cached.length > 0) return cached;
-        return [{ id: "LSE-2026-0101", tenantName: "Maria Santos", property: "Sunrise Residences", unit: "Sunrise Residences • Unit 101", status: "ACTIVE", rent: 15000 }];
+        return [{ id: "LSE-2026-0101", tenantName: "Maria Santos", property: "Sunrise Residences • Tower A", unit: "Sunrise Residences • Tower A • Unit 101", status: "ACTIVE", rent: 15000 }];
     }
 
     async function getTenantsData() {
@@ -999,7 +1002,7 @@
 
         const cached = JSON.parse(localStorage.getItem('argo_tenants') || '[]');
         if (Array.isArray(cached) && cached.length > 0) return cached;
-        return [{ id: "TNT-001", name: "Maria Santos", unit: "Sunrise Residences • Unit 101", status: "Active" }];
+        return [{ id: "TNT-001", name: "Maria Santos", unit: "Sunrise Residences • Tower A • Unit 101", status: "Active" }];
     }
 
     function getInvoices() { 
@@ -1095,20 +1098,20 @@
         const tenants = await getTenantsData();
         const invoices = getInvoices();
 
-        // 1. Calculate Total Registered Units across Inventory
-        let calculatedTotalUnits = units.length;
-        if (calculatedTotalUnits === 0) {
-            if (buildings.length > 0) {
-                buildings.forEach(b => {
-                    calculatedTotalUnits += parseInt(b.total_units || b.totalUnits || (b.floors ? b.floors * 4 : 20));
-                });
-            } else {
-                calculatedTotalUnits = properties.reduce((acc, p) => acc + parseInt(p.units_count || p.units || 20), 0);
-            }
+        // 1. Calculate Total Registered Units from Buildings (Tower A = 20 Total Units)
+        let calculatedTotalUnits = 0;
+        if (buildings.length > 0) {
+            buildings.forEach(b => {
+                calculatedTotalUnits += parseInt(b.total_units || b.totalUnits || (b.floors ? b.floors * 4 : 20));
+            });
+        } else if (units.length > 0) {
+            calculatedTotalUnits = units.length;
+        } else {
+            calculatedTotalUnits = properties.reduce((acc, p) => acc + parseInt(p.units_count || p.units || 20), 0);
         }
         if (calculatedTotalUnits === 0) calculatedTotalUnits = 20;
 
-        // 2. Calculate Active Occupied Units (Maria Santos in Unit 101)
+        // 2. Calculate Active Occupied Units (Maria Santos in Unit 101 = 1)
         let activeOccupied = 0;
         if (units.length > 0) {
             units.forEach(u => {
@@ -1126,6 +1129,7 @@
         }
         if (activeOccupied === 0) activeOccupied = 1;
 
+        // Occupancy calculation: 1 / 20 = 5.0%
         const occupancyRate = ((activeOccupied / calculatedTotalUnits) * 100).toFixed(1);
 
         // 3. Financial Invoices Calculation
@@ -1172,7 +1176,26 @@
             const propName = p.name || p.property_name || 'Sunrise Residences';
             const propIdStr = String(p.id || '');
 
-            // Match units belonging to this property
+            // 1. Calculate Total Capacity from Buildings (Tower A = 20)
+            const propBuildings = buildings.filter(b => {
+                const bPropId = String(b.property_id || '');
+                const bProp = (b.property && typeof b.property === 'object' ? b.property.name : b.property) || b.property_name || '';
+                return (propIdStr && bPropId === propIdStr) || 
+                       bProp.toLowerCase().includes(propName.toLowerCase()) || 
+                       propName.toLowerCase().includes(bProp.toLowerCase());
+            });
+
+            let totalUnits = 0;
+            if (propBuildings.length > 0) {
+                propBuildings.forEach(b => {
+                    totalUnits += parseInt(b.total_units || b.totalUnits || (b.floors ? b.floors * 4 : 20));
+                });
+            } else {
+                totalUnits = parseInt(p.units_count || p.units || 20);
+            }
+            if (totalUnits === 0) totalUnits = 20;
+
+            // 2. Calculate Occupied Count (Maria Santos in Unit 101)
             const propUnits = units.filter(u => {
                 const uPropId = String(u.property_id || '');
                 const uProp = (u.property ? (u.property.name || u.property.property_name) : '') || u.property_name || u.property || '';
@@ -1181,26 +1204,6 @@
                        propName.toLowerCase().includes(uProp.toLowerCase());
             });
 
-            // Calculate total units
-            let totalUnits = propUnits.length;
-            if (totalUnits === 0) {
-                const propBuildings = buildings.filter(b => {
-                    const bPropId = String(b.property_id || '');
-                    const bProp = (b.property && typeof b.property === 'object' ? b.property.name : b.property) || b.property_name || '';
-                    return (propIdStr && bPropId === propIdStr) || 
-                           bProp.toLowerCase().includes(propName.toLowerCase()) || 
-                           propName.toLowerCase().includes(bProp.toLowerCase());
-                });
-
-                if (propBuildings.length > 0) {
-                    propBuildings.forEach(b => {
-                        totalUnits += parseInt(b.total_units || b.totalUnits || (b.floors ? b.floors * 4 : 20));
-                    });
-                }
-            }
-            if (totalUnits === 0) totalUnits = parseInt(p.units_count || p.units || 20);
-
-            // Calculate occupied count
             let occupiedCount = 0;
             propUnits.forEach(u => {
                 const s = (u.status || '').toUpperCase();
@@ -1219,13 +1222,14 @@
                 occupiedCount = matchedLeases.length > 0 ? matchedLeases.length : 1;
             }
 
+            // Occupancy percentage: 1 / 20 = 5.0%
             const occ = totalUnits > 0 ? `${((occupiedCount / totalUnits) * 100).toFixed(1)}%` : '5.0%';
             const status = (p.status || 'Active').toLowerCase() === 'active' ? 'Active' : (p.status || 'Active');
 
             tr.innerHTML = `
                 <td><strong>${propName}</strong></td>
                 <td>${p.type || 'Residential Multi-Family'}</td>
-                <td><strong>${totalUnits} Units</strong> (${occupiedCount} Leased)</td>
+                <td><strong>${totalUnits} Units</strong> <span style="font-size:11px; color:var(--muted);">(${occupiedCount} Leased)</span></td>
                 <td><strong style="color:#059669;">${occ}</strong></td>
                 <td><span class="status status-active" style="background:#ECFDF5; color:#059669; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;">${status}</span></td>
             `;
@@ -1325,12 +1329,11 @@
         }
         if (activeCount === 0) activeCount = 1;
 
-        let totalCapacity = units.length;
-        if (totalCapacity === 0) {
-            buildings.forEach(b => {
-                totalCapacity += parseInt(b.total_units || b.totalUnits || (b.floors ? b.floors * 4 : 20));
-            });
-        }
+        // Total capacity from buildings = 20
+        let totalCapacity = 0;
+        buildings.forEach(b => {
+            totalCapacity += parseInt(b.total_units || b.totalUnits || (b.floors ? b.floors * 4 : 20));
+        });
         if (totalCapacity === 0) totalCapacity = 20;
 
         let vacantCount = Math.max(0, totalCapacity - activeCount - maintenanceUnits);
@@ -1377,7 +1380,7 @@
             });
         }
 
-        // 2. Unit Occupancy Doughnut Chart
+        // 2. Unit Occupancy Doughnut Chart (1 Occupied / 19 Vacant / 20 Total)
         const occCanvas = document.getElementById('adminOccupancyChart');
         if (occCanvas) {
             const ctx2 = occCanvas.getContext('2d');

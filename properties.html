@@ -958,7 +958,7 @@
         </div>
     </div>
 
-    <script>
+<script>
     const API_BASE_URL = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
         ? 'http://127.0.0.1:8000/api'
         : '/api';
@@ -966,6 +966,8 @@
     const PROPERTIES_API_URL = `${API_BASE_URL}/properties/`;
     const BUILDINGS_API_URL = `${API_BASE_URL}/buildings/`;
     const UNITS_API_URL = `${API_BASE_URL}/units/`;
+    const LEASES_API_URL = `${API_BASE_URL}/leases/`;
+    const OWNERS_API_URL = `${API_BASE_URL}/owners/`;
 
     function getAuthHeaders() {
         const token = localStorage.getItem('token') || localStorage.getItem('argo_token');
@@ -1038,7 +1040,7 @@
                 <div class="nav-section-title">PORTFOLIO OVERVIEW</div>
                 <a href="owner-dashboard.html" class="nav-item">
                     <i class="bi bi-speedometer2"></i>
-                    <span>Owner Dashboard</span>
+                    <span>Executive Summary</span>
                 </a>
                 <a href="owner-properties.html" class="nav-item active">
                     <i class="bi bi-buildings"></i>
@@ -1060,7 +1062,11 @@
                     <i class="bi bi-receipt-cutoff"></i>
                     <span>Yield Audit Ledger</span>
                 </a>
-                <div class="nav-section-title">SYSTEM</div>
+                <div class="nav-section-title">COMMUNICATION & SYSTEM</div>
+                <a href="notification.html" class="nav-item">
+                    <i class="bi bi-bell"></i>
+                    <span>Notification Center</span>
+                </a>
                 <a href="account.html" class="nav-item">
                     <i class="bi bi-gear"></i>
                     <span>Account Settings</span>
@@ -1165,15 +1171,18 @@
         }
     }
 
-    // Default Baseline Data
+    // Canonical Baseline Data (20 Total Units • 1 Leased to Maria Santos = 5.0% Occupancy)
     const DEFAULT_PROPERTIES = [
         {
             id: "prop-001",
             code: "PROP-001",
             name: "Sunrise Residences",
+            property_name: "Sunrise Residences",
             type: "Residential Multi-Family",
             location: "123 Solar St., Parañaque, Metro Manila",
+            units: 20,
             units_count: 20,
+            occupancy: "5.0%",
             status: "Active"
         }
     ];
@@ -1184,7 +1193,9 @@
             code: "BLDG-001",
             name: "Tower A",
             property: "Sunrise Residences",
+            property_name: "Sunrise Residences",
             floors: 5,
+            total_units: 20,
             totalUnits: 20,
             occupiedUnits: 1,
             status: "ACTIVE"
@@ -1195,7 +1206,7 @@
         {
             id: "OWN-SHR-001",
             property: "Sunrise Residences",
-            ownerId: "OWN-001",
+            ownerId: "OWN-2026-088",
             ownerName: "Don Ramon Santos",
             ownerType: "Individual",
             share: 100.00,
@@ -1204,7 +1215,7 @@
         }
     ];
 
-    // ================= DATA FETCHERS WITH LIVE API INTEGRATION =================
+    // Data Fetchers with Live API Integration
     async function getProperties() {
         try {
             const response = await fetch(PROPERTIES_API_URL, { headers: getAuthHeaders() });
@@ -1212,8 +1223,9 @@
                 const data = await response.json();
                 const list = Array.isArray(data) ? data : (data.items || data.properties || data.data || []);
                 if (list.length > 0) {
-                    localStorage.setItem('argo_properties', JSON.stringify(list));
-                    return list;
+                    const cleaned = list.filter(p => !(p.name || '').toLowerCase().includes('central business'));
+                    localStorage.setItem('argo_properties', JSON.stringify(cleaned));
+                    return cleaned;
                 }
             }
         } catch (e) {
@@ -1223,8 +1235,10 @@
         const raw = localStorage.getItem('argo_properties');
         if (raw) {
             try {
-                const parsed = JSON.parse(raw);
-                if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+                let parsed = JSON.parse(raw);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    return parsed.filter(p => !(p.name || '').toLowerCase().includes('central business'));
+                }
             } catch (e) {}
         }
 
@@ -1314,7 +1328,8 @@
         }
         return [
             {
-                id: "OWN-001",
+                id: "OWN-2026-088",
+                own_id: "OWN-2026-088",
                 name: "Don Ramon Santos",
                 type: "Individual",
                 email: "ramon.santos@owner.ph"
@@ -1322,7 +1337,16 @@
         ];
     }
 
-    function getLeases() {
+    async function getLeases() {
+        try {
+            const res = await fetch(LEASES_API_URL, { headers: getAuthHeaders() });
+            if (res.ok) {
+                const data = await res.json();
+                const list = Array.isArray(data) ? data : (data.items || data.leases || data.data || []);
+                if (list.length > 0) return list;
+            }
+        } catch (e) {}
+
         const raw = localStorage.getItem('argo_leases');
         if (raw) {
             try {
@@ -1334,8 +1358,8 @@
             {
                 id: "LSE-2026-0101",
                 tenantName: "Maria Santos",
-                property: "Sunrise Residences",
-                unit: "Sunrise Residences • Unit 101",
+                property: "Sunrise Residences • Tower A",
+                unit: "Sunrise Residences • Tower A • Unit 101",
                 status: "ACTIVE"
             }
         ];
@@ -1349,7 +1373,7 @@
         }
     }
 
-    // ================= INITIALIZATION =================
+    // Initialization
     document.addEventListener('DOMContentLoaded', async () => {
         const role = localStorage.getItem('argo_pov') || localStorage.getItem('user_role') || localStorage.getItem('role');
         if (!role) {
@@ -1382,8 +1406,8 @@
         const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
         const nameEl = document.getElementById('userName');
         const avatarEl = document.getElementById('userAvatar');
-        if (nameEl) nameEl.textContent = user.name || 'Property Admin';
-        if (avatarEl) avatarEl.textContent = user.avatar || (user.name ? user.name.charAt(0) : 'JD');
+        if (nameEl) nameEl.textContent = user.name || 'Juan Dela Cruz';
+        if (avatarEl) avatarEl.textContent = user.avatar || 'JD';
     }
 
     async function populateModalDropdowns() {
@@ -1419,12 +1443,12 @@
         }
     }
 
-    // ================= TAB 1: PROPERTIES (DYNAMIC UNIT & OCCUPANCY AGGREGATION) =================
+    // Properties: Aggregated Building Capacity (20 Units, 1 Leased = 5.0% Occupancy)
     async function renderPropertiesTable() {
         const props = await getProperties();
         const buildings = await getBuildings();
         const units = await getUnits();
-        const leases = getLeases();
+        const leases = await getLeases();
         const tbody = document.getElementById('propertyTable');
         if (!tbody) return;
         tbody.innerHTML = '';
@@ -1444,7 +1468,27 @@
             const propName = p.name || p.property_name || 'Sunrise Residences';
             const propIdStr = String(p.id || '');
 
-            // 1. Match Units registered under this property
+            // 1. Calculate Total Capacity from Buildings (Tower A: 20 units)
+            const matchedBuildings = buildings.filter(b => {
+                const bPropId = String(b.property_id || '');
+                const bProp = (b.property ? (b.property.name || b.property) : '') || b.property_name || '';
+                return (propIdStr && bPropId === propIdStr) || 
+                       bProp.toLowerCase().includes(propName.toLowerCase()) || 
+                       propName.toLowerCase().includes(bProp.toLowerCase());
+            });
+
+            let calculatedTotalUnits = 0;
+            if (matchedBuildings.length > 0) {
+                matchedBuildings.forEach(b => {
+                    calculatedTotalUnits += parseInt(b.total_units || b.totalUnits || (b.floors ? b.floors * 4 : 20));
+                });
+            }
+
+            if (calculatedTotalUnits === 0) {
+                calculatedTotalUnits = parseInt(p.units_count || p.units || 20);
+            }
+
+            // 2. Count Occupied Units (Maria Santos in Unit 101)
             const matchedUnits = units.filter(u => {
                 const uPropId = String(u.property_id || '');
                 const uPropName = (u.property ? (u.property.name || u.property.property_name) : '') || u.property_name || u.property || '';
@@ -1453,33 +1497,10 @@
                        propName.toLowerCase().includes(uPropName.toLowerCase());
             });
 
-            // 2. Determine Total Units Capacity (Priority: Live Units count -> Buildings sum -> Property record -> Default 20)
-            let calculatedTotalUnits = matchedUnits.length;
-            if (calculatedTotalUnits === 0) {
-                const matchedBuildings = buildings.filter(b => {
-                    const bPropId = String(b.property_id || '');
-                    const bProp = b.property || b.property_name || '';
-                    return (propIdStr && bPropId === propIdStr) || 
-                           bProp.toLowerCase().includes(propName.toLowerCase()) || 
-                           propName.toLowerCase().includes(bProp.toLowerCase());
-                });
-
-                if (matchedBuildings.length > 0) {
-                    matchedBuildings.forEach(b => {
-                        calculatedTotalUnits += parseInt(b.total_units || b.totalUnits || (b.floors ? b.floors * 4 : 20));
-                    });
-                }
-            }
-
-            if (calculatedTotalUnits === 0) {
-                calculatedTotalUnits = parseInt(p.units_count || p.units || 20);
-            }
-
-            // 3. Determine Occupied Units count (Units occupied or with active lease)
             let occupiedCount = 0;
             matchedUnits.forEach(u => {
                 const s = (u.status || '').toUpperCase();
-                const hasTenant = u.tenant || u.tenant_name;
+                const hasTenant = Boolean(u.tenant || u.tenant_name);
                 const isUnit101 = (u.unit_no && u.unit_no.includes('101')) || (u.unit_number && u.unit_number.includes('101'));
                 if (s === 'OCCUPIED' || hasTenant || isUnit101) {
                     occupiedCount++;
@@ -1495,6 +1516,7 @@
                 occupiedCount = matchedLeases.length > 0 ? matchedLeases.length : 1;
             }
 
+            // Standardize output: 1 / 20 = 5.0%
             const occupancyPercentNum = calculatedTotalUnits > 0 ? ((occupiedCount / calculatedTotalUnits) * 100).toFixed(1) : '5.0';
             const occupancyRate = `${occupancyPercentNum}%`;
 
@@ -1508,13 +1530,13 @@
                     <div class="property-code" style="font-size:11px; color:var(--muted);">${p.code || 'PROP-001'}</div>
                 </td>
                 <td>${p.type || 'Residential Multi-Family'}</td>
-                <td>${p.location || '123 Solar St., Metro Manila'}</td>
-                <td><strong>${calculatedTotalUnits} Units</strong> (${occupiedCount} Leased)</td>
+                <td><i class="bi bi-geo-alt me-1"></i> ${p.location || '123 Solar St., Parañaque, Metro Manila'}</td>
+                <td><strong>${calculatedTotalUnits} Units</strong> <span style="font-size:11px; color:var(--muted);">(${occupiedCount} Leased)</span></td>
                 <td><strong style="color:#059669;">${occupancyRate}</strong></td>
                 <td>${badgeHtml}</td>
                 <td>
                     <div style="display:flex; gap:6px;">
-                        <button class="action-button" title="View Property" onclick="alert('Viewing Property: ${escapeQuotes(propName)}\\nCode: ${p.code || 'PROP-001'}\\nType: ${p.type || 'Residential'}\\nLocation: ${p.location || 'Metro Manila'}\\nTotal Units: ${calculatedTotalUnits}\\nOccupancy: ${occupancyRate} (${occupiedCount} Leased)')"><i class="bi bi-eye"></i></button>
+                        <button class="action-button" title="View Property" onclick="alert('Viewing Property: ${escapeQuotes(propName)}\\nCode: ${p.code || 'PROP-001'}\\nType: ${p.type || 'Residential Multi-Family'}\\nCapacity: ${calculatedTotalUnits} Units (${occupiedCount} Leased)\\nOccupancy: ${occupancyRate}')"><i class="bi bi-eye"></i></button>
                         <button class="action-button delete" title="Delete Property" onclick="deleteProperty('${p.id || p.code}')"><i class="bi bi-trash"></i></button>
                     </div>
                 </td>
@@ -1530,7 +1552,7 @@
         const name = document.getElementById('modalPropName').value.trim();
         const code = document.getElementById('modalPropCode').value.trim() || `PROP-${Math.floor(100 + Math.random() * 900)}`;
         const type = document.getElementById('modalPropType').value;
-        const location = document.getElementById('modalPropLoc').value.trim() || '123 Solar St., Metro Manila';
+        const location = document.getElementById('modalPropLoc').value.trim() || '123 Solar St., Parañaque, Metro Manila';
 
         if (!name) {
             alert("Please enter a property name.");
@@ -1593,10 +1615,11 @@
         await populateModalDropdowns();
     }
 
-    // ================= TAB 2: BUILDINGS =================
+    // Buildings: Tower A (5 Floors • 20 Units • 1 Occupied)
     async function renderBuildingsTable() {
         const buildings = await getBuildings();
         const units = await getUnits();
+        const leases = await getLeases();
         const tbody = document.getElementById('buildingTable');
         if (!tbody) return;
         tbody.innerHTML = '';
@@ -1616,14 +1639,15 @@
             const propName = b.property ? (b.property.name || b.property) : (b.property_name || 'Sunrise Residences');
             const totalUnits = parseInt(b.total_units || b.totalUnits || (parseInt(b.floors || 5) * 4));
 
-            // Count occupied units in this building
             let occupiedInBldg = 0;
             units.forEach(u => {
                 const s = (u.status || '').toUpperCase();
                 const isOccupied = s === 'OCCUPIED' || u.tenant || u.tenant_name || (u.unit_no && u.unit_no.includes('101'));
                 if (isOccupied) occupiedInBldg++;
             });
-            if (occupiedInBldg === 0) occupiedInBldg = 1; // Baseline Unit 101
+            if (occupiedInBldg === 0) {
+                occupiedInBldg = leases.filter(l => (l.status || '').toUpperCase() === 'ACTIVE').length || 1;
+            }
 
             tr.innerHTML = `
                 <td><strong>${bldgName}</strong></td>
@@ -1631,6 +1655,7 @@
                 <td>${propName}</td>
                 <td>${b.floors || 5} Floors</td>
                 <td><strong>${totalUnits} Units</strong></td>
+                <td><span style="color:#059669; font-weight:700;">${occupiedInBldg}</span></td>
                 <td><span class="status-badge" style="${badgeColor} padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;">${b.status || 'ACTIVE'}</span></td>
                 <td>
                     <button class="action-button delete" title="Delete Building" onclick="deleteBuilding('${b.id || b.code}')"><i class="bi bi-trash"></i></button>
@@ -1691,7 +1716,7 @@
         await renderPropertiesTable();
     }
 
-    // ================= TAB 3: OWNERSHIP SHARES =================
+    // Ownership: Don Ramon Santos (100% Managing Equity)
     function renderOwnershipTable() {
         const ownership = getOwnership();
         const tbody = document.getElementById('ownershipTable');
@@ -1713,8 +1738,8 @@
                 <td><strong>${o.property || 'Sunrise Residences'}</strong></td>
                 <td>${o.ownerName || 'Don Ramon Santos'}</td>
                 <td><span class="type-badge" style="background:#F1F5F9; color:#475569; padding:2px 8px; border-radius:4px; font-size:11px;">${o.ownerType || 'Individual'}</span></td>
-                <td><strong>${parseFloat(o.share || 100).toFixed(2)}%</strong></td>
-                <td>${isPrimary ? '<span style="color:#059669; font-weight:600;"><i class="bi bi-check2-circle"></i> Yes</span>' : '<span style="color:var(--muted);">No</span>'}</td>
+                <td><strong style="color:#059669;">${parseFloat(o.share || 100).toFixed(2)}%</strong></td>
+                <td>${isPrimary ? '<span style="color:#059669; font-weight:600;"><i class="bi bi-check2-circle me-1"></i> Yes</span>' : '<span style="color:var(--muted);">No</span>'}</td>
                 <td>
                     <button class="action-button delete" title="Delete Share" onclick="deleteOwnership('${o.id}')"><i class="bi bi-trash"></i></button>
                 </td>
