@@ -11,7 +11,12 @@ from .database import engine, Base, get_db
 from . import models
 from .routers import units, properties, tenants, leases, invoices, maintenance
 
-# Optional dynamic imports for supplementary modules if present in the routers package
+# Dynamic imports for optional/supplementary modules
+try:
+    from .routers import buildings
+except ImportError:
+    buildings = None
+
 try:
     from .routers import auth
 except ImportError:
@@ -62,7 +67,7 @@ async def lifespan(app: FastAPI):
     except Exception as db_err:
         print(f"⚠️ [Database] Connection warning on startup: {db_err}")
 
-    # 2. Auto-create tables if AUTO_CREATE_TABLES=true (fallback when not using Alembic)
+    # 2. Auto-create tables if AUTO_CREATE_TABLES=true
     if os.getenv("AUTO_CREATE_TABLES", "false").lower() in ("true", "1", "t"):
         try:
             Base.metadata.create_all(bind=engine)
@@ -87,7 +92,6 @@ app = FastAPI(
 # ==========================================
 # CORS MIDDLEWARE CONFIGURATION
 # ==========================================
-# Configured for seamless communication between web clients, local dev, and live cloud domains
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -106,7 +110,10 @@ app.include_router(leases.router, prefix="/api/leases", tags=["Leases"])
 app.include_router(invoices.router, prefix="/api/invoices", tags=["Invoices & Rent Collection"])
 app.include_router(maintenance.router, prefix="/api/maintenance", tags=["Maintenance Work Orders"])
 
-# Mount supplementary routers dynamically if they exist in the codebase
+# Mount supplementary routers if present
+if buildings and hasattr(buildings, "router"):
+    app.include_router(buildings.router, prefix="/api/buildings", tags=["Buildings"])
+
 if auth and hasattr(auth, "router"):
     app.include_router(auth.router, prefix="/api/auth", tags=["Authentication & Access"])
 
@@ -135,9 +142,6 @@ if documents and hasattr(documents, "router"):
 @app.get("/api/health", tags=["System Health"])
 @app.get("/health", tags=["System Health"])
 def health_check(db: Session = Depends(get_db)):
-    """
-    Live health check endpoint for container orchestrators (Render, Railway, Docker, AWS, Fly.io).
-    """
     try:
         db.execute(text("SELECT 1"))
         return {
@@ -158,29 +162,34 @@ def health_check(db: Session = Depends(get_db)):
 
 
 # ==========================================
-# 3. MOUNT FRONTEND STATIC DIRECTORY
+# 3. STATIC FILE DIRECTORY RESOLUTION
 # ==========================================
 current_dir = os.path.dirname(os.path.abspath(__file__))
 candidate_paths = [
     os.path.abspath(os.path.join(current_dir, "../../frontend")),  # Root /frontend
     os.path.abspath(os.path.join(current_dir, "../frontend")),     # /backend/frontend
     os.path.abspath(os.path.join(current_dir, "frontend")),        # ./frontend
-    os.path.abspath(os.path.join(current_dir, "../../../frontend")),
+    os.path.abspath(os.path.join(current_dir, "..")),              # Repo root (where HTML files live)
     os.path.abspath(os.path.join(current_dir, "static")),
-    os.path.abspath(os.path.join(current_dir, "../static"))
+    os.path.abspath(os.path.join(current_dir, "../static")),
+    current_dir                                                    # ./
 ]
 
 frontend_path = None
 for path in candidate_paths:
-    if os.path.exists(path):
+    # Look for a known HTML file to ensure we found the actual web root
+    if os.path.exists(os.path.join(path, "dashboard.html")) or os.path.exists(os.path.join(path, "index.html")):
         frontend_path = path
         break
 
 if frontend_path:
     print(f"✅ [StaticFiles] Successfully mounted frontend directory: {frontend_path}")
-    app.mount("/app", StaticFiles(directory=frontend_path, html=True), name="frontend")
+    # Mount under /app for backward compatibility
+    app.mount("/app", StaticFiles(directory=frontend_path, html=True), name="frontend_app")
+    # Mount under root / so /dashboard.html works directly
+    app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend_root")
 else:
-    print("⚠️ [StaticFiles] WARNING: Could not find 'frontend' directory in candidate paths.")
+    print("⚠️ [StaticFiles] WARNING: Could not find HTML files in candidate paths.")
 
 
 # ==========================================
@@ -188,5 +197,5 @@ else:
 # ==========================================
 @app.get("/")
 def read_root():
-    """Auto-redirect root traffic straight to Auth Gateway & Role Router."""
-    return RedirectResponse(url="/app/index.html")
+    """Auto-redirect root traffic straight to login/dashboard."""
+    return RedirectResponse(url="/index.html")
