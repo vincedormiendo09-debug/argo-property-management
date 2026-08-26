@@ -4,6 +4,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select, or_
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 
 from ..database import get_db
 from .. import models, schemas
@@ -64,6 +65,73 @@ def ensure_sandbox_property_and_building(db: Session, org_id: uuid.UUID):
             db.refresh(bldg)
 
     return prop, bldg
+
+
+def find_unit_by_identifier(db: Session, unit_id: str, organization_id: uuid.UUID):
+    """Robustly resolves a unit by UUID, exact unit_no, normalized slug, or substring."""
+    # 1. Try parsing as UUID
+    try:
+        parsed_uuid = uuid.UUID(unit_id)
+        unit = db.scalar(
+            select(models.Unit).where(
+                models.Unit.id == parsed_uuid,
+                models.Unit.organization_id == organization_id
+            )
+        )
+        if unit:
+            return unit
+    except ValueError:
+        pass
+
+    if not hasattr(models.Unit, "unit_no"):
+        return None
+
+    # 2. Exact match on unit_no
+    unit = db.scalar(
+        select(models.Unit).where(
+            models.Unit.unit_no == unit_id,
+            models.Unit.organization_id == organization_id
+        )
+    )
+    if unit:
+        return unit
+
+    # 3. Normalized match (e.g., "unit-101" -> "Unit 101")
+    normalized_name = unit_id.replace("-", " ").title()
+    unit = db.scalar(
+        select(models.Unit).where(
+            models.Unit.unit_no.ilike(normalized_name),
+            models.Unit.organization_id == organization_id
+        )
+    )
+    if unit:
+        return unit
+
+    # 4. Match on unit_number if present
+    if hasattr(models.Unit, "unit_number"):
+        unit = db.scalar(
+            select(models.Unit).where(
+                or_(
+                    models.Unit.unit_number == unit_id,
+                    models.Unit.unit_number.ilike(normalized_name)
+                ),
+                models.Unit.organization_id == organization_id
+            )
+        )
+        if unit:
+            return unit
+
+    # 5. Substring fallback match
+    unit = db.scalar(
+        select(models.Unit).where(
+            models.Unit.unit_no.ilike(f"%{unit_id}%"),
+            models.Unit.organization_id == organization_id
+        )
+    )
+    if unit:
+        return unit
+
+    return None
 
 
 # 1. GET /api/units/ - Read units scoped by organization_id with filter and search
@@ -219,32 +287,12 @@ def get_unit(
     organization_id: uuid.UUID = Query(default=DEFAULT_ORG_ID),
     db: Session = Depends(get_db)
 ):
-    try:
-        parsed_uuid = uuid.UUID(unit_id)
-        stmt = select(models.Unit).where(
-            models.Unit.id == parsed_uuid,
-            models.Unit.organization_id == organization_id
-        )
-    except ValueError:
-        if hasattr(models.Unit, "unit_no"):
-            stmt = select(models.Unit).where(
-                models.Unit.unit_no == unit_id,
-                models.Unit.organization_id == organization_id
-            )
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid unit identifier format."
-            )
-
-    unit = db.scalar(stmt)
-
+    unit = find_unit_by_identifier(db, unit_id, organization_id)
     if not unit:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Unit not found."
         )
-
     return unit
 
 
@@ -257,25 +305,7 @@ def update_unit(
     organization_id: uuid.UUID = Query(default=DEFAULT_ORG_ID),
     db: Session = Depends(get_db)
 ):
-    try:
-        parsed_uuid = uuid.UUID(unit_id)
-        stmt = select(models.Unit).where(
-            models.Unit.id == parsed_uuid,
-            models.Unit.organization_id == organization_id
-        )
-    except ValueError:
-        if hasattr(models.Unit, "unit_no"):
-            stmt = select(models.Unit).where(
-                models.Unit.unit_no == unit_id,
-                models.Unit.organization_id == organization_id
-            )
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid unit identifier format."
-            )
-
-    db_unit = db.scalar(stmt)
+    db_unit = find_unit_by_identifier(db, unit_id, organization_id)
     if not db_unit:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -303,31 +333,27 @@ def delete_unit(
     organization_id: uuid.UUID = Query(default=DEFAULT_ORG_ID),
     db: Session = Depends(get_db)
 ):
-    try:
-        parsed_uuid = uuid.UUID(unit_id)
-        stmt = select(models.Unit).where(
-            models.Unit.id == parsed_uuid,
-            models.Unit.organization_id == organization_id
-        )
-    except ValueError:
-        if hasattr(models.Unit, "unit_no"):
-            stmt = select(models.Unit).where(
-                models.Unit.unit_no == unit_id,
-                models.Unit.organization_id == organization_id
-            )
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid unit identifier format."
-            )
-
-    db_unit = db.scalar(stmt)
+    db_unit = find_unit_by_identifier(db, unit_id, organization_id)
     if not db_unit:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Unit not found."
         )
 
-    db.delete(db_unit)
-    db.commit()
+    try:
+        db.delete(db_unit)
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot delete this unit because it is attached to active leases or financial records."
+        )
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error deleting unit: {str(e)}"
+        )
+
     return None
