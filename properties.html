@@ -647,9 +647,9 @@
 
             <div class="user-dropdown-container">
                 <div class="user-profile" id="userProfileBtn">
-                    <div class="avatar" id="userAvatar">JD</div>
+                    <div class="avatar" id="userAvatar">SA</div>
                     <div class="user-info">
-                        <strong id="userName">Property Admin</strong>
+                        <strong id="userName">System Admin</strong>
                         <span id="userRoleBadge">Property Manager</span>
                     </div>
                     <i class="bi bi-chevron-down" style="font-size:10px; color:#94A3B8;"></i>
@@ -712,6 +712,7 @@
                     <option value="">All Status</option>
                     <option value="Active">Active</option>
                     <option value="Pending">Pending</option>
+                    <option value="Inactive">Inactive</option>
                 </select>
 
                 <button class="secondary-button" onclick="resetPropertyFilters()"><i class="bi bi-arrow-counterclockwise"></i> Reset</button>
@@ -732,7 +733,7 @@
                             </tr>
                         </thead>
                         <tbody id="propertyTable">
-                            <!-- RENDERED DYNAMICALLY FROM LOCALSTORAGE / POSTGRESQL -->
+                            <!-- RENDERED DYNAMICALLY FROM DATABASE -->
                         </tbody>
                     </table>
                 </div>
@@ -764,12 +765,13 @@
                                 <th>PARENT PROPERTY</th>
                                 <th>FLOORS</th>
                                 <th>TOTAL UNITS</th>
+                                <th>OCCUPIED</th>
                                 <th>STATUS</th>
                                 <th>ACTIONS</th>
                             </tr>
                         </thead>
                         <tbody id="buildingTable">
-                            <!-- RENDERED DYNAMICALLY FROM LOCALSTORAGE / POSTGRESQL -->
+                            <!-- RENDERED DYNAMICALLY FROM DATABASE -->
                         </tbody>
                     </table>
                 </div>
@@ -805,7 +807,7 @@
                             </tr>
                         </thead>
                         <tbody id="ownershipTable">
-                            <!-- RENDERED DYNAMICALLY FROM LOCALSTORAGE / POSTGRESQL -->
+                            <!-- RENDERED DYNAMICALLY FROM DATABASE -->
                         </tbody>
                     </table>
                 </div>
@@ -831,7 +833,7 @@
 
             <div class="modal-body">
                 <div class="form-group">
-                    <label>Property Name <span style="color:var(--danger);">*</span></label>
+                    <label>Property Name <span style="color:var(--danger, #EF4444);">*</span></label>
                     <input type="text" id="modalPropName" placeholder="e.g. Sunrise Residences">
                 </div>
                 <div class="form-group">
@@ -841,14 +843,15 @@
                 <div class="form-group">
                     <label>Property Type</label>
                     <select id="modalPropType">
-                        <option value="Residential">Residential</option>
+                        <option value="Residential Multi-Family">Residential Multi-Family</option>
+                        <option value="Residential">Residential Single-Family</option>
                         <option value="Commercial">Commercial</option>
                         <option value="Mixed Use">Mixed Use</option>
                     </select>
                 </div>
                 <div class="form-group">
                     <label>Street Address / Location</label>
-                    <textarea id="modalPropLoc" placeholder="e.g. Metro Manila"></textarea>
+                    <textarea id="modalPropLoc" placeholder="e.g. 123 Solar St., Parañaque, Metro Manila"></textarea>
                 </div>
             </div>
 
@@ -872,18 +875,17 @@
 
             <div class="modal-body">
                 <div class="form-group">
-                    <label>Building Name <span style="color:var(--danger);">*</span></label>
-                    <input type="text" id="modalBldgName" placeholder="e.g. Building A">
+                    <label>Building Name <span style="color:var(--danger, #EF4444);">*</span></label>
+                    <input type="text" id="modalBldgName" placeholder="e.g. Tower A">
                 </div>
                 <div class="form-group">
                     <label>Building Code (Unique)</label>
-                    <input type="text" id="modalBldgCode" placeholder="e.g. BLDG-A">
+                    <input type="text" id="modalBldgCode" placeholder="e.g. BLDG-001">
                 </div>
                 <div class="form-group">
-                    <label>Parent Property <span style="color:var(--danger);">*</span></label>
+                    <label>Parent Property <span style="color:var(--danger, #EF4444);">*</span></label>
                     <select id="modalBldgProperty">
                         <option value="">Select Parent Property...</option>
-                        <!-- DYNAMICALLY POPULATED -->
                     </select>
                 </div>
                 <div class="form-group">
@@ -920,18 +922,16 @@
 
             <div class="modal-body">
                 <div class="form-group">
-                    <label>Select Target Property <span style="color:var(--danger);">*</span></label>
+                    <label>Select Target Property <span style="color:var(--danger, #EF4444);">*</span></label>
                     <select id="modalOwnProperty">
                         <option value="">Select Property...</option>
-                        <!-- DYNAMICALLY POPULATED -->
                     </select>
                 </div>
 
                 <div class="form-group">
-                    <label>Select Owner <span style="color:var(--danger);">*</span></label>
+                    <label>Select Owner <span style="color:var(--danger, #EF4444);">*</span></label>
                     <select id="modalOwnOwner">
                         <option value="">Select Owner...</option>
-                        <!-- DYNAMICALLY POPULATED -->
                     </select>
                 </div>
 
@@ -944,8 +944,8 @@
                     <div class="form-group">
                         <label>Role / Type</label>
                         <select id="modalOwnRole">
-                            <option value="Primary">Primary Managing Owner</option>
-                            <option value="Co-Owner">Co-Owner / Fractional Share</option>
+                            <option value="Primary Managing Owner">Primary Managing Owner</option>
+                            <option value="Co-Owner / Fractional Share">Co-Owner / Fractional Share</option>
                         </select>
                     </div>
                 </div>
@@ -959,9 +959,14 @@
     </div>
 
 <script>
-    const API_BASE_URL = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
+    const API_BASE_URL = (
+        window.location.origin.includes('localhost') || 
+        window.location.origin.includes('127.0.0.1')
+    ) 
         ? 'http://127.0.0.1:8000/api'
-        : '/api';
+        : (window.location.origin.includes('github.io'))
+            ? 'https://argo-management-2026.onrender.com/api'
+            : '/api';
 
     const PROPERTIES_API_URL = `${API_BASE_URL}/properties/`;
     const BUILDINGS_API_URL = `${API_BASE_URL}/buildings/`;
@@ -977,7 +982,6 @@
         };
     }
 
-    // Secure Logout Handler
     function logoutUser() {
         localStorage.clear();
         window.location.replace('index.html');
@@ -1171,198 +1175,12 @@
         }
     }
 
-    // Canonical Baseline Data (20 Total Units • 1 Leased to Maria Santos = 5.0% Occupancy)
-    const DEFAULT_PROPERTIES = [
-        {
-            id: "prop-001",
-            code: "PROP-001",
-            name: "Sunrise Residences",
-            property_name: "Sunrise Residences",
-            type: "Residential Multi-Family",
-            location: "123 Solar St., Parañaque, Metro Manila",
-            units: 20,
-            units_count: 20,
-            occupancy: "5.0%",
-            status: "Active"
-        }
-    ];
-
-    const DEFAULT_BUILDINGS = [
-        {
-            id: "bldg-001",
-            code: "BLDG-001",
-            name: "Tower A",
-            property: "Sunrise Residences",
-            property_name: "Sunrise Residences",
-            floors: 5,
-            total_units: 20,
-            totalUnits: 20,
-            occupiedUnits: 1,
-            status: "ACTIVE"
-        }
-    ];
-
-    const DEFAULT_OWNERSHIP = [
-        {
-            id: "OWN-SHR-001",
-            property: "Sunrise Residences",
-            ownerId: "OWN-2026-088",
-            ownerName: "Don Ramon Santos",
-            ownerType: "Individual",
-            share: 100.00,
-            role: "Primary Managing Owner",
-            isPrimary: true
-        }
-    ];
-
-    // Data Fetchers with Live API Integration
-    async function getProperties() {
-        try {
-            const response = await fetch(PROPERTIES_API_URL, { headers: getAuthHeaders() });
-            if (response.ok) {
-                const data = await response.json();
-                const list = Array.isArray(data) ? data : (data.items || data.properties || data.data || []);
-                if (list.length > 0) {
-                    const cleaned = list.filter(p => !(p.name || '').toLowerCase().includes('central business'));
-                    localStorage.setItem('argo_properties', JSON.stringify(cleaned));
-                    return cleaned;
-                }
-            }
-        } catch (e) {
-            console.warn("Live Properties API unreachable, checking local cache.");
-        }
-
-        const raw = localStorage.getItem('argo_properties');
-        if (raw) {
-            try {
-                let parsed = JSON.parse(raw);
-                if (Array.isArray(parsed) && parsed.length > 0) {
-                    return parsed.filter(p => !(p.name || '').toLowerCase().includes('central business'));
-                }
-            } catch (e) {}
-        }
-
-        localStorage.setItem('argo_properties', JSON.stringify(DEFAULT_PROPERTIES));
-        return DEFAULT_PROPERTIES;
-    }
-
-    function saveProperties(props) {
-        localStorage.setItem('argo_properties', JSON.stringify(props));
-    }
-
-    async function getBuildings() {
-        try {
-            const response = await fetch(BUILDINGS_API_URL, { headers: getAuthHeaders() });
-            if (response.ok) {
-                const data = await response.json();
-                const list = Array.isArray(data) ? data : (data.items || data.buildings || data.data || []);
-                if (list.length > 0) {
-                    localStorage.setItem('argo_buildings', JSON.stringify(list));
-                    return list;
-                }
-            }
-        } catch (e) {}
-
-        const raw = localStorage.getItem('argo_buildings');
-        if (raw) {
-            try {
-                const parsed = JSON.parse(raw);
-                if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-            } catch (e) {}
-        }
-
-        localStorage.setItem('argo_buildings', JSON.stringify(DEFAULT_BUILDINGS));
-        return DEFAULT_BUILDINGS;
-    }
-
-    function saveBuildings(buildings) {
-        localStorage.setItem('argo_buildings', JSON.stringify(buildings));
-    }
-
-    async function getUnits() {
-        try {
-            const response = await fetch(UNITS_API_URL, { headers: getAuthHeaders() });
-            if (response.ok) {
-                const data = await response.json();
-                const list = Array.isArray(data) ? data : (data.items || data.units || data.data || []);
-                if (list.length > 0) {
-                    localStorage.setItem('argo_units', JSON.stringify(list));
-                    return list;
-                }
-            }
-        } catch (e) {}
-
-        const raw = localStorage.getItem('argo_units');
-        if (raw) {
-            try {
-                const parsed = JSON.parse(raw);
-                if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-            } catch (e) {}
-        }
-        return [];
-    }
-
-    function getOwnership() {
-        const raw = localStorage.getItem('argo_ownership');
-        if (raw) {
-            try {
-                const parsed = JSON.parse(raw);
-                if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-            } catch (e) {}
-        }
-        localStorage.setItem('argo_ownership', JSON.stringify(DEFAULT_OWNERSHIP));
-        return DEFAULT_OWNERSHIP;
-    }
-
-    function saveOwnership(list) {
-        localStorage.setItem('argo_ownership', JSON.stringify(list));
-    }
-
-    function getOwners() {
-        const raw = localStorage.getItem('argo_owners');
-        if (raw) {
-            try {
-                const parsed = JSON.parse(raw);
-                if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-            } catch (e) {}
-        }
-        return [
-            {
-                id: "OWN-2026-088",
-                own_id: "OWN-2026-088",
-                name: "Don Ramon Santos",
-                type: "Individual",
-                email: "ramon.santos@owner.ph"
-            }
-        ];
-    }
-
-    async function getLeases() {
-        try {
-            const res = await fetch(LEASES_API_URL, { headers: getAuthHeaders() });
-            if (res.ok) {
-                const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.leases || data.data || []);
-                if (list.length > 0) return list;
-            }
-        } catch (e) {}
-
-        const raw = localStorage.getItem('argo_leases');
-        if (raw) {
-            try {
-                const parsed = JSON.parse(raw);
-                if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-            } catch (e) {}
-        }
-        return [
-            {
-                id: "LSE-2026-0101",
-                tenantName: "Maria Santos",
-                property: "Sunrise Residences • Tower A",
-                unit: "Sunrise Residences • Tower A • Unit 101",
-                status: "ACTIVE"
-            }
-        ];
+    function loadUserData() {
+        const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+        const nameEl = document.getElementById('userName');
+        const avatarEl = document.getElementById('userAvatar');
+        if (nameEl) nameEl.textContent = user.name || 'System Admin';
+        if (avatarEl) avatarEl.textContent = user.avatar || (user.name ? user.name.charAt(0) : 'SA');
     }
 
     function getNotifications() {
@@ -1373,54 +1191,156 @@
         }
     }
 
-    // Initialization
-    document.addEventListener('DOMContentLoaded', async () => {
-        const role = localStorage.getItem('argo_pov') || localStorage.getItem('user_role') || localStorage.getItem('role');
-        if (!role) {
-            window.location.replace('index.html');
-            return;
-        }
-        renderSidebar();
-        loadUserData();
-        await renderPropertiesTable();
-        await renderBuildingsTable();
-        renderOwnershipTable();
-        await populateModalDropdowns();
-        updateHeaderBadge();
-    });
-
-    // Real-Time Cross-Tab Listener
-    window.addEventListener('storage', async (e) => {
-        if (['argo_properties', 'argo_buildings', 'argo_ownership', 'argo_units', 'argo_leases', 'argo_owners', 'argo_notifications', 'argo_user', 'argo_pov'].includes(e.key)) {
-            renderSidebar();
-            loadUserData();
-            await renderPropertiesTable();
-            await renderBuildingsTable();
-            renderOwnershipTable();
-            await populateModalDropdowns();
-            updateHeaderBadge();
-        }
-    });
-
-    function loadUserData() {
-        const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
-        const nameEl = document.getElementById('userName');
-        const avatarEl = document.getElementById('userAvatar');
-        if (nameEl) nameEl.textContent = user.name || 'Juan Dela Cruz';
-        if (avatarEl) avatarEl.textContent = user.avatar || 'JD';
+    function updateHeaderBadge() {
+        const notifs = getNotifications().filter(n => (n.pov === 'admin' || !n.pov) && (n.status === 'unread' || n.is_read === false));
+        const badge = document.getElementById('headerNotifBadge');
+        if (badge) badge.textContent = notifs.length;
     }
 
+    // Database Fetchers
+    async function getProperties() {
+        try {
+            const response = await fetch(PROPERTIES_API_URL, { headers: getAuthHeaders() });
+            if (response.ok) {
+                const data = await response.json();
+                const list = Array.isArray(data) ? data : (data.items || data.properties || data.data || []);
+                localStorage.setItem('argo_properties', JSON.stringify(list));
+                return list;
+            }
+        } catch (e) {
+            console.warn("Properties API offline, checking local cache:", e);
+        }
+
+        const raw = localStorage.getItem('argo_properties');
+        if (raw) {
+            try {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed)) return parsed;
+            } catch (e) {}
+        }
+        return [];
+    }
+
+    async function getBuildings() {
+        try {
+            const response = await fetch(BUILDINGS_API_URL, { headers: getAuthHeaders() });
+            if (response.ok) {
+                const data = await response.json();
+                const list = Array.isArray(data) ? data : (data.items || data.buildings || data.data || []);
+                localStorage.setItem('argo_buildings', JSON.stringify(list));
+                return list;
+            }
+        } catch (e) {
+            console.warn("Buildings API offline, checking local cache:", e);
+        }
+
+        const raw = localStorage.getItem('argo_buildings');
+        if (raw) {
+            try {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed)) return parsed;
+            } catch (e) {}
+        }
+        return [];
+    }
+
+    async function getUnits() {
+        try {
+            const response = await fetch(UNITS_API_URL, { headers: getAuthHeaders() });
+            if (response.ok) {
+                const data = await response.json();
+                const list = Array.isArray(data) ? data : (data.items || data.units || data.data || []);
+                localStorage.setItem('argo_units', JSON.stringify(list));
+                return list;
+            }
+        } catch (e) {
+            console.warn("Units API offline, checking local cache:", e);
+        }
+
+        const raw = localStorage.getItem('argo_units');
+        if (raw) {
+            try {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed)) return parsed;
+            } catch (e) {}
+        }
+        return [];
+    }
+
+    async function getOwners() {
+        try {
+            const response = await fetch(OWNERS_API_URL, { headers: getAuthHeaders() });
+            if (response.ok) {
+                const data = await response.json();
+                const list = Array.isArray(data) ? data : (data.items || data.owners || data.data || []);
+                localStorage.setItem('argo_owners', JSON.stringify(list));
+                return list;
+            }
+        } catch (e) {
+            console.warn("Owners API offline, checking local cache:", e);
+        }
+
+        const raw = localStorage.getItem('argo_owners');
+        if (raw) {
+            try {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed)) return parsed;
+            } catch (e) {}
+        }
+        return [];
+    }
+
+    async function getLeases() {
+        try {
+            const res = await fetch(LEASES_API_URL, { headers: getAuthHeaders() });
+            if (res.ok) {
+                const data = await res.json();
+                const list = Array.isArray(data) ? data : (data.items || data.leases || data.data || []);
+                localStorage.setItem('argo_leases', JSON.stringify(list));
+                return list;
+            }
+        } catch (e) {
+            console.warn("Leases API offline, checking local cache:", e);
+        }
+
+        const raw = localStorage.getItem('argo_leases');
+        if (raw) {
+            try {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed)) return parsed;
+            } catch (e) {}
+        }
+        return [];
+    }
+
+    function getOwnership() {
+        const raw = localStorage.getItem('argo_ownership');
+        if (raw) {
+            try {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed)) return parsed;
+            } catch (e) {}
+        }
+        return [];
+    }
+
+    function saveOwnershipList(list) {
+        localStorage.setItem('argo_ownership', JSON.stringify(list));
+    }
+
+    // Modal Dropdown Populator
     async function populateModalDropdowns() {
         const props = await getProperties();
-        const owners = getOwners();
+        const owners = await getOwners();
 
         const bldgPropSelect = document.getElementById('modalBldgProperty');
         if (bldgPropSelect) {
             bldgPropSelect.innerHTML = '<option value="">Select Parent Property...</option>';
             props.forEach(p => {
-                const pName = p.name || p.property_name || 'Sunrise Residences';
-                const pCode = p.code || 'PROP-001';
-                bldgPropSelect.innerHTML += `<option value="${pName}">${pName} (${pCode})</option>`;
+                const pId = p.id || p.code;
+                const pName = p.name || p.property_name || 'Property';
+                const pCode = p.code || 'PROP';
+                bldgPropSelect.innerHTML += `<option value="${pId}">${pName} (${pCode})</option>`;
             });
         }
 
@@ -1428,9 +1348,10 @@
         if (ownPropSelect) {
             ownPropSelect.innerHTML = '<option value="">Select Property...</option>';
             props.forEach(p => {
-                const pName = p.name || p.property_name || 'Sunrise Residences';
-                const pCode = p.code || 'PROP-001';
-                ownPropSelect.innerHTML += `<option value="${pName}">${pName} (${pCode})</option>`;
+                const pId = p.id || p.code;
+                const pName = p.name || p.property_name || 'Property';
+                const pCode = p.code || 'PROP';
+                ownPropSelect.innerHTML += `<option value="${pId}">${pName} (${pCode})</option>`;
             });
         }
 
@@ -1438,12 +1359,15 @@
         if (ownOwnerSelect) {
             ownOwnerSelect.innerHTML = '<option value="">Select Owner...</option>';
             owners.forEach(o => {
-                ownOwnerSelect.innerHTML += `<option value="${o.id}">${o.name} (${o.type || 'Individual'})</option>`;
+                const oId = o.id || o.own_id;
+                const oName = o.name || 'Owner';
+                const oType = o.type || 'Individual';
+                ownOwnerSelect.innerHTML += `<option value="${oId}">${oName} (${oType})</option>`;
             });
         }
     }
 
-    // Properties: Aggregated Building Capacity (20 Units, 1 Leased = 5.0% Occupancy)
+    // Tab 1: Render Properties Table
     async function renderPropertiesTable() {
         const props = await getProperties();
         const buildings = await getBuildings();
@@ -1454,7 +1378,7 @@
         tbody.innerHTML = '';
 
         if (!props || props.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--muted); padding:30px;">No managed properties found. Click "New Property" to add one.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--muted, #64748B); padding:30px;">No managed properties found. Click "New Property" to register one.</td></tr>`;
             const countEl = document.getElementById('propertyCountText');
             if (countEl) countEl.textContent = `Showing 0 properties`;
             return;
@@ -1462,47 +1386,45 @@
 
         props.forEach(p => {
             const tr = document.createElement('tr');
+            const propName = p.name || p.property_name || 'Property';
+            const propIdStr = String(p.id || '');
+            const propCode = p.code || 'PROP';
+
             tr.dataset.type = p.type || 'Residential Multi-Family';
             tr.dataset.status = p.status || 'Active';
 
-            const propName = p.name || p.property_name || 'Sunrise Residences';
-            const propIdStr = String(p.id || '');
-
-            // 1. Calculate Total Capacity from Buildings (Tower A: 20 units)
+            // 1. Calculate Total Capacity from Buildings or Unit records
             const matchedBuildings = buildings.filter(b => {
                 const bPropId = String(b.property_id || '');
                 const bProp = (b.property ? (b.property.name || b.property) : '') || b.property_name || '';
                 return (propIdStr && bPropId === propIdStr) || 
-                       bProp.toLowerCase().includes(propName.toLowerCase()) || 
-                       propName.toLowerCase().includes(bProp.toLowerCase());
+                       bProp.toLowerCase() === propName.toLowerCase();
             });
 
-            let calculatedTotalUnits = 0;
+            let totalCapacity = 0;
             if (matchedBuildings.length > 0) {
                 matchedBuildings.forEach(b => {
-                    calculatedTotalUnits += parseInt(b.total_units || b.totalUnits || (b.floors ? b.floors * 4 : 20));
+                    totalCapacity += parseInt(b.total_units || b.totalUnits || (b.floors ? b.floors * 4 : 0));
                 });
             }
 
-            if (calculatedTotalUnits === 0) {
-                calculatedTotalUnits = parseInt(p.units_count || p.units || 20);
-            }
-
-            // 2. Count Occupied Units (Maria Santos in Unit 101)
             const matchedUnits = units.filter(u => {
                 const uPropId = String(u.property_id || '');
                 const uPropName = (u.property ? (u.property.name || u.property.property_name) : '') || u.property_name || u.property || '';
                 return (propIdStr && uPropId === propIdStr) || 
-                       uPropName.toLowerCase().includes(propName.toLowerCase()) || 
-                       propName.toLowerCase().includes(uPropName.toLowerCase());
+                       uPropName.toLowerCase().includes(propName.toLowerCase());
             });
 
+            if (totalCapacity === 0) {
+                totalCapacity = matchedUnits.length > 0 ? matchedUnits.length : parseInt(p.units_count || p.units || 0);
+            }
+
+            // 2. Calculate Occupied Units
             let occupiedCount = 0;
             matchedUnits.forEach(u => {
                 const s = (u.status || '').toUpperCase();
                 const hasTenant = Boolean(u.tenant || u.tenant_name);
-                const isUnit101 = (u.unit_no && u.unit_no.includes('101')) || (u.unit_number && u.unit_number.includes('101'));
-                if (s === 'OCCUPIED' || hasTenant || isUnit101) {
+                if (s === 'OCCUPIED' || s === 'LEASED' || hasTenant) {
                     occupiedCount++;
                 }
             });
@@ -1513,12 +1435,11 @@
                     return (lProp.toLowerCase().includes(propName.toLowerCase()) || propName.toLowerCase().includes(lProp.toLowerCase())) && 
                            (l.status || '').toUpperCase() === 'ACTIVE';
                 });
-                occupiedCount = matchedLeases.length > 0 ? matchedLeases.length : 1;
+                occupiedCount = matchedLeases.length;
             }
 
-            // Standardize output: 1 / 20 = 5.0%
-            const occupancyPercentNum = calculatedTotalUnits > 0 ? ((occupiedCount / calculatedTotalUnits) * 100).toFixed(1) : '5.0';
-            const occupancyRate = `${occupancyPercentNum}%`;
+            const occupancyPercent = totalCapacity > 0 ? ((occupiedCount / totalCapacity) * 100).toFixed(1) : '0.0';
+            const occupancyRate = `${occupancyPercent}%`;
 
             const badgeHtml = (p.status || 'Active').toLowerCase() === 'active'
                 ? '<span class="status status-active" style="background:#ECFDF5; color:#059669; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;">Active</span>' 
@@ -1527,17 +1448,16 @@
             tr.innerHTML = `
                 <td>
                     <div class="property-name" style="font-weight:600;">${propName}</div>
-                    <div class="property-code" style="font-size:11px; color:var(--muted);">${p.code || 'PROP-001'}</div>
+                    <div class="property-code" style="font-size:11px; color:var(--muted, #64748B);">${propCode}</div>
                 </td>
                 <td>${p.type || 'Residential Multi-Family'}</td>
-                <td><i class="bi bi-geo-alt me-1"></i> ${p.location || '123 Solar St., Parañaque, Metro Manila'}</td>
-                <td><strong>${calculatedTotalUnits} Units</strong> <span style="font-size:11px; color:var(--muted);">(${occupiedCount} Leased)</span></td>
+                <td><i class="bi bi-geo-alt me-1"></i> ${p.location || 'Parañaque, Metro Manila'}</td>
+                <td><strong>${totalCapacity} Units</strong> <span style="font-size:11px; color:var(--muted, #64748B);">(${occupiedCount} Leased)</span></td>
                 <td><strong style="color:#059669;">${occupancyRate}</strong></td>
                 <td>${badgeHtml}</td>
                 <td>
                     <div style="display:flex; gap:6px;">
-                        <button class="action-button" title="View Property" onclick="alert('Viewing Property: ${escapeQuotes(propName)}\\nCode: ${p.code || 'PROP-001'}\\nType: ${p.type || 'Residential Multi-Family'}\\nCapacity: ${calculatedTotalUnits} Units (${occupiedCount} Leased)\\nOccupancy: ${occupancyRate}')"><i class="bi bi-eye"></i></button>
-                        <button class="action-button delete" title="Delete Property" onclick="deleteProperty('${p.id || p.code}')"><i class="bi bi-trash"></i></button>
+                        <button class="action-button delete" title="Delete Property" onclick="deleteProperty('${p.id || propCode}', '${propName}')"><i class="bi bi-trash"></i></button>
                     </div>
                 </td>
             `;
@@ -1552,19 +1472,20 @@
         const name = document.getElementById('modalPropName').value.trim();
         const code = document.getElementById('modalPropCode').value.trim() || `PROP-${Math.floor(100 + Math.random() * 900)}`;
         const type = document.getElementById('modalPropType').value;
-        const location = document.getElementById('modalPropLoc').value.trim() || '123 Solar St., Parañaque, Metro Manila';
+        const location = document.getElementById('modalPropLoc').value.trim() || 'Parañaque, Metro Manila';
 
         if (!name) {
             alert("Please enter a property name.");
             return;
         }
 
-        const newProp = {
+        const payload = {
             code: code,
             name: name,
+            property_name: name,
             type: type,
             location: location,
-            units_count: 20,
+            units_count: 0,
             status: "Active"
         };
 
@@ -1572,52 +1493,59 @@
             const res = await fetch(PROPERTIES_API_URL, {
                 method: 'POST',
                 headers: getAuthHeaders(),
-                body: JSON.stringify(newProp)
+                body: JSON.stringify(payload)
             });
-            if (res.ok) {
-                const saved = await res.json().catch(() => null);
-                if (saved && saved.id) newProp.id = saved.id;
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                alert(`Error saving property: ${errData.detail || 'Could not save to database'}`);
+                return;
             }
         } catch (e) {
-            console.warn("Backend save failed, cached locally.", e);
+            console.error("Network error while creating property:", e);
+            alert("Network connection error. Check server connection.");
+            return;
         }
 
-        let props = await getProperties();
-        props.unshift({ ...newProp, id: newProp.id || `prop-${Date.now()}` });
-        saveProperties(props);
-
-        await renderPropertiesTable();
-        await populateModalDropdowns();
+        alert(`Property "${name}" registered successfully!`);
         closeModal('propertyModal');
-
         document.getElementById('modalPropName').value = '';
         document.getElementById('modalPropCode').value = '';
         document.getElementById('modalPropLoc').value = '';
 
-        alert(`Property asset "${name}" registered successfully!`);
-    }
-
-    async function deleteProperty(id) {
-        if (!confirm("Are you sure you want to delete this property asset?")) return;
-        
-        try {
-            await fetch(`${PROPERTIES_API_URL}${id}`, {
-                method: 'DELETE',
-                headers: getAuthHeaders()
-            });
-        } catch (e) {}
-
-        let props = await getProperties();
-        props = props.filter(p => String(p.id) !== String(id) && String(p.code) !== String(id));
-        saveProperties(props);
-
         await renderPropertiesTable();
         await populateModalDropdowns();
     }
 
-    // Buildings: Tower A (5 Floors • 20 Units • 1 Occupied)
+    async function deleteProperty(id, name) {
+        const displayName = name || id;
+        if (!confirm(`Are you sure you want to permanently delete "${displayName}" and its assets from the database?`)) return;
+
+        try {
+            const res = await fetch(`${PROPERTIES_API_URL}${encodeURIComponent(id)}`, {
+                method: 'DELETE',
+                headers: getAuthHeaders()
+            });
+
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                alert(`Cannot delete property: ${errData.detail || 'Property has active buildings, units, or leases attached.'}`);
+                return;
+            }
+        } catch (e) {
+            console.error("Delete request failed:", e);
+            alert("Network error occurred while deleting property.");
+            return;
+        }
+
+        alert(`Property "${displayName}" deleted successfully!`);
+        await renderPropertiesTable();
+        await populateModalDropdowns();
+    }
+
+    // Tab 2: Render Buildings Table
     async function renderBuildingsTable() {
         const buildings = await getBuildings();
+        const props = await getProperties();
         const units = await getUnits();
         const leases = await getLeases();
         const tbody = document.getElementById('buildingTable');
@@ -1625,7 +1553,7 @@
         tbody.innerHTML = '';
 
         if (!buildings || buildings.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--muted); padding:20px;">No buildings recorded. Click "New Building" to register one.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--muted, #64748B); padding:20px;">No buildings recorded. Click "New Building" to register one.</td></tr>`;
             const countEl = document.getElementById('buildingCountText');
             if (countEl) countEl.textContent = `Showing 0 buildings`;
             return;
@@ -1635,30 +1563,45 @@
             const tr = document.createElement('tr');
             const status = (b.status || 'ACTIVE').toUpperCase();
             const badgeColor = status === 'ACTIVE' ? 'color:#059669; background:#ECFDF5;' : 'color:#D97706; background:#FEF3C7;';
-            const bldgName = b.name || 'Tower A';
-            const propName = b.property ? (b.property.name || b.property) : (b.property_name || 'Sunrise Residences');
-            const totalUnits = parseInt(b.total_units || b.totalUnits || (parseInt(b.floors || 5) * 4));
+            const bldgName = b.name || 'Building';
+            const bldgId = b.id || b.code;
+
+            // Match parent property name
+            let parentPropName = b.property_name || '';
+            if (!parentPropName && b.property_id) {
+                const matchedProp = props.find(p => String(p.id) === String(b.property_id));
+                if (matchedProp) parentPropName = matchedProp.name;
+            }
+            if (!parentPropName) parentPropName = 'Unassigned';
+
+            const floors = parseInt(b.floors || 1);
+            const totalUnits = parseInt(b.total_units || b.totalUnits || (floors * 4));
+
+            // Count Occupied in Building
+            const bldgUnits = units.filter(u => {
+                const uBldgId = String(u.building_id || '');
+                const uBldgName = u.building || u.building_name || '';
+                return (uBldgId && uBldgId === String(b.id)) || uBldgName.toLowerCase() === bldgName.toLowerCase();
+            });
 
             let occupiedInBldg = 0;
-            units.forEach(u => {
+            bldgUnits.forEach(u => {
                 const s = (u.status || '').toUpperCase();
-                const isOccupied = s === 'OCCUPIED' || u.tenant || u.tenant_name || (u.unit_no && u.unit_no.includes('101'));
-                if (isOccupied) occupiedInBldg++;
+                if (s === 'OCCUPIED' || s === 'LEASED' || u.tenant || u.tenant_name) {
+                    occupiedInBldg++;
+                }
             });
-            if (occupiedInBldg === 0) {
-                occupiedInBldg = leases.filter(l => (l.status || '').toUpperCase() === 'ACTIVE').length || 1;
-            }
 
             tr.innerHTML = `
                 <td><strong>${bldgName}</strong></td>
-                <td><code>${b.code || 'BLDG-001'}</code></td>
-                <td>${propName}</td>
-                <td>${b.floors || 5} Floors</td>
+                <td><code>${b.code || 'BLDG'}</code></td>
+                <td>${parentPropName}</td>
+                <td>${floors} Floors</td>
                 <td><strong>${totalUnits} Units</strong></td>
                 <td><span style="color:#059669; font-weight:700;">${occupiedInBldg}</span></td>
-                <td><span class="status-badge" style="${badgeColor} padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;">${b.status || 'ACTIVE'}</span></td>
+                <td><span class="status-badge" style="${badgeColor} padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;">${status}</span></td>
                 <td>
-                    <button class="action-button delete" title="Delete Building" onclick="deleteBuilding('${b.id || b.code}')"><i class="bi bi-trash"></i></button>
+                    <button class="action-button delete" title="Delete Building" onclick="deleteBuilding('${bldgId}', '${bldgName}')"><i class="bi bi-trash"></i></button>
                 </td>
             `;
             tbody.appendChild(tr);
@@ -1671,60 +1614,88 @@
     async function saveBuilding() {
         const name = document.getElementById('modalBldgName').value.trim();
         const code = document.getElementById('modalBldgCode').value.trim() || `BLDG-${Math.floor(100 + Math.random() * 900)}`;
-        const property = document.getElementById('modalBldgProperty').value;
-        const floors = parseInt(document.getElementById('modalBldgFloors').value) || 5;
+        const propertyId = document.getElementById('modalBldgProperty').value;
+        const floors = parseInt(document.getElementById('modalBldgFloors').value) || 1;
         const status = document.getElementById('modalBldgStatus').value || 'ACTIVE';
 
-        if (!name || !property) {
+        if (!name || !propertyId) {
             alert("Please fill in both the Building Name and Parent Property.");
             return;
         }
 
-        const newBldg = {
-            id: `bldg-${Date.now()}`,
+        const payload = {
+            property_id: propertyId,
             name: name,
             code: code,
-            property: property,
             floors: floors,
-            totalUnits: floors * 4,
-            occupiedUnits: 0,
+            total_units: floors * 4,
             status: status
         };
 
-        let buildings = await getBuildings();
-        buildings.unshift(newBldg);
-        saveBuildings(buildings);
+        try {
+            const res = await fetch(BUILDINGS_API_URL, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify(payload)
+            });
 
-        await renderBuildingsTable();
-        await renderPropertiesTable();
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                alert(`Error saving building: ${errData.detail || 'Could not save to database'}`);
+                return;
+            }
+        } catch (e) {
+            console.error("Network error while creating building:", e);
+            alert("Network connection error.");
+            return;
+        }
+
+        alert(`Building structure "${name}" saved successfully!`);
         closeModal('buildingModal');
-
         document.getElementById('modalBldgName').value = '';
         document.getElementById('modalBldgCode').value = '';
         document.getElementById('modalBldgProperty').value = '';
         document.getElementById('modalBldgFloors').value = '5';
 
-        alert(`Building structure "${name}" saved successfully!`);
-    }
-
-    async function deleteBuilding(id) {
-        if (!confirm("Are you sure you want to remove this building?")) return;
-        let buildings = await getBuildings();
-        buildings = buildings.filter(b => String(b.id) !== String(id) && String(b.code) !== String(id));
-        saveBuildings(buildings);
         await renderBuildingsTable();
         await renderPropertiesTable();
     }
 
-    // Ownership: Don Ramon Santos (100% Managing Equity)
-    function renderOwnershipTable() {
+    async function deleteBuilding(id, name) {
+        const displayName = name || id;
+        if (!confirm(`Are you sure you want to remove building "${displayName}"?`)) return;
+
+        try {
+            const res = await fetch(`${BUILDINGS_API_URL}${encodeURIComponent(id)}`, {
+                method: 'DELETE',
+                headers: getAuthHeaders()
+            });
+
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                alert(`Cannot delete building: ${errData.detail || 'Building contains registered units.'}`);
+                return;
+            }
+        } catch (e) {
+            console.error("Delete request failed:", e);
+            alert("Network error occurred.");
+            return;
+        }
+
+        alert(`Building "${displayName}" removed successfully!`);
+        await renderBuildingsTable();
+        await renderPropertiesTable();
+    }
+
+    // Tab 3: Render Ownership Shares
+    async function renderOwnershipTable() {
         const ownership = getOwnership();
         const tbody = document.getElementById('ownershipTable');
         if (!tbody) return;
         tbody.innerHTML = '';
 
         if (!ownership || ownership.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--muted); padding:20px;">No ownership shares assigned. Click "Add Owner Share" to assign.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--muted, #64748B); padding:20px;">No ownership shares assigned. Click "Add Owner Share" to assign equity.</td></tr>`;
             const countEl = document.getElementById('ownershipCountText');
             if (countEl) countEl.textContent = `Showing 0 ownership shares`;
             return;
@@ -1735,11 +1706,11 @@
             const isPrimary = (o.role || '').toLowerCase().includes('primary') || o.isPrimary;
 
             tr.innerHTML = `
-                <td><strong>${o.property || 'Sunrise Residences'}</strong></td>
-                <td>${o.ownerName || 'Don Ramon Santos'}</td>
+                <td><strong>${o.propertyName || o.property || 'Property'}</strong></td>
+                <td>${o.ownerName || 'Owner'}</td>
                 <td><span class="type-badge" style="background:#F1F5F9; color:#475569; padding:2px 8px; border-radius:4px; font-size:11px;">${o.ownerType || 'Individual'}</span></td>
                 <td><strong style="color:#059669;">${parseFloat(o.share || 100).toFixed(2)}%</strong></td>
-                <td>${isPrimary ? '<span style="color:#059669; font-weight:600;"><i class="bi bi-check2-circle me-1"></i> Yes</span>' : '<span style="color:var(--muted);">No</span>'}</td>
+                <td>${isPrimary ? '<span style="color:#059669; font-weight:600;"><i class="bi bi-check2-circle me-1"></i> Yes</span>' : '<span style="color:var(--muted, #64748B);">No</span>'}</td>
                 <td>
                     <button class="action-button delete" title="Delete Share" onclick="deleteOwnership('${o.id}')"><i class="bi bi-trash"></i></button>
                 </td>
@@ -1751,13 +1722,13 @@
         if (countEl) countEl.textContent = `Showing 1–${ownership.length} of ${ownership.length} ownership shares`;
     }
 
-    function saveOwnership() {
-        const property = document.getElementById('modalOwnProperty').value;
+    async function saveOwnership() {
+        const propertyId = document.getElementById('modalOwnProperty').value;
         const ownerId = document.getElementById('modalOwnOwner').value;
         const share = parseFloat(document.getElementById('modalOwnShare').value);
         const role = document.getElementById('modalOwnRole').value;
 
-        if (!property || !ownerId) {
+        if (!propertyId || !ownerId) {
             alert("Please select both a property and an owner.");
             return;
         }
@@ -1767,12 +1738,16 @@
             return;
         }
 
-        const owners = getOwners();
-        const matchedOwner = owners.find(o => String(o.id) === String(ownerId)) || { name: 'Don Ramon Santos', type: 'Individual' };
+        const props = await getProperties();
+        const owners = await getOwners();
+
+        const matchedProp = props.find(p => String(p.id) === String(propertyId)) || { name: 'Property' };
+        const matchedOwner = owners.find(o => String(o.id) === String(ownerId) || String(o.own_id) === String(ownerId)) || { name: 'Owner', type: 'Individual' };
 
         const newRecord = {
             id: `OWN-SHR-${Date.now().toString().slice(-4)}`,
-            property: property,
+            propertyId: propertyId,
+            propertyName: matchedProp.name,
             ownerId: ownerId,
             ownerName: matchedOwner.name,
             ownerType: matchedOwner.type || 'Individual',
@@ -1783,9 +1758,9 @@
 
         let ownership = getOwnership();
         ownership.unshift(newRecord);
-        saveOwnership(ownership);
+        saveOwnershipList(ownership);
 
-        renderOwnershipTable();
+        await renderOwnershipTable();
         closeModal('ownershipModal');
 
         document.getElementById('modalOwnProperty').value = '';
@@ -1797,22 +1772,12 @@
 
     function deleteOwnership(id) {
         if (!confirm("Are you sure you want to remove this ownership assignment?")) return;
-        let ownership = getOwnership();
-        ownership = ownership.filter(o => String(o.id) !== String(id));
-        saveOwnership(ownership);
+        let ownership = getOwnership().filter(o => String(o.id) !== String(id));
+        saveOwnershipList(ownership);
         renderOwnershipTable();
     }
 
-    function escapeQuotes(str) {
-        return (str || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-    }
-
-    function updateHeaderBadge() {
-        const notifs = getNotifications().filter(n => (n.pov === 'admin' || !n.pov) && (n.status === 'unread' || n.is_read === false));
-        const badge = document.getElementById('headerNotifBadge');
-        if (badge) badge.textContent = notifs.length;
-    }
-
+    // UI Tab Navigation
     function showTab(tabName, button) {
         const propTab = document.getElementById('propertiesTab');
         const bldgTab = document.getElementById('buildingsTab');
@@ -1914,6 +1879,31 @@
         document.getElementById("propertyStatusFilter").value = "";
         filterPropertiesTable();
     }
+
+    // Real-Time Cross-Tab Listener
+    window.addEventListener('storage', async (e) => {
+        if (['argo_properties', 'argo_buildings', 'argo_ownership', 'argo_units', 'argo_leases', 'argo_owners', 'argo_notifications', 'argo_user', 'argo_pov'].includes(e.key)) {
+            renderSidebar();
+            loadUserData();
+            await renderPropertiesTable();
+            await renderBuildingsTable();
+            await renderOwnershipTable();
+            await populateModalDropdowns();
+            updateHeaderBadge();
+        }
+    });
+
+    // Page Load Initialization
+    document.addEventListener('DOMContentLoaded', async () => {
+        const role = localStorage.getItem('argo_pov') || localStorage.getItem('user_role') || localStorage.getItem('role') || 'admin';
+        renderSidebar();
+        loadUserData();
+        await renderPropertiesTable();
+        await renderBuildingsTable();
+        await renderOwnershipTable();
+        await populateModalDropdowns();
+        updateHeaderBadge();
+    });
 
     // Profile Dropdown Handler
     const userProfileBtn = document.getElementById('userProfileBtn');

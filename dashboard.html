@@ -567,9 +567,9 @@
 
             <div class="user-dropdown-container">
                 <div class="user-profile" id="userProfileBtn">
-                    <div class="avatar" id="userAvatar">JD</div>
+                    <div class="avatar" id="userAvatar">SA</div>
                     <div class="user-info">
-                        <strong id="userName">Juan Dela Cruz</strong>
+                        <strong id="userName">System Admin</strong>
                         <span id="userRoleBadge">Property Manager</span>
                     </div>
                     <i class="bi bi-chevron-down" style="font-size: 10px; color: #94A3B8;"></i>
@@ -634,7 +634,7 @@
 
             <div class="kpi-card">
                 <div class="kpi-top">
-                    <span class="kpi-label">Pending / Overdue Rent</span>
+                    <span class="kpi-label">Pending / Overdue Dues</span>
                     <div class="kpi-icon" style="background:#FFF1F2; color:#E11D48;"><i class="bi bi-exclamation-circle"></i></div>
                 </div>
                 <div class="kpi-value" id="kpiOverdue" style="color:#E11D48;">₱0.00</div>
@@ -649,7 +649,7 @@
                     <h2>Rent Collection Overview</h2>
                     <span>Last 6 months</span>
                 </div>
-                <div class="chart-container">
+                <div class="chart-container" style="position: relative; height: 260px;">
                     <canvas id="adminRentChart"></canvas>
                 </div>
             </div>
@@ -659,7 +659,7 @@
                     <h2>Unit Occupancy Breakdown</h2>
                     <span>Real-time State</span>
                 </div>
-                <div class="chart-container">
+                <div class="chart-container" style="position: relative; height: 260px;">
                     <canvas id="adminOccupancyChart"></canvas>
                 </div>
             </div>
@@ -703,9 +703,22 @@
     </main>
 
 <script>
-    const API_BASE_URL = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
+    const API_BASE_URL = (
+        window.location.origin.includes('localhost') || 
+        window.location.origin.includes('127.0.0.1')
+    ) 
         ? 'http://127.0.0.1:8000/api'
-        : '/api';
+        : (window.location.origin.includes('github.io'))
+            ? 'https://argo-management-2026.onrender.com/api'
+            : '/api';
+
+    const PROPERTIES_API_URL = `${API_BASE_URL}/properties/`;
+    const BUILDINGS_API_URL = `${API_BASE_URL}/buildings/`;
+    const UNITS_API_URL = `${API_BASE_URL}/units/`;
+    const LEASES_API_URL = `${API_BASE_URL}/leases/`;
+    const TENANTS_API_URL = `${API_BASE_URL}/tenants/`;
+    const INVOICES_API_URL = `${API_BASE_URL}/invoices/`;
+    const NOTIFICATIONS_API_URL = `${API_BASE_URL}/notifications/`;
 
     function getAuthHeaders() {
         const token = localStorage.getItem('token') || localStorage.getItem('argo_token');
@@ -715,13 +728,11 @@
         };
     }
 
-    // Secure Logout Handler
     function logoutUser() {
         localStorage.clear();
         window.location.replace('index.html');
     }
 
-    // Dynamic Role-Based Sidebar Renderer
     function renderSidebar() {
         const nav = document.getElementById('sidebarNav');
         if (!nav) return;
@@ -816,7 +827,6 @@
                 </a>
             `;
         } else {
-            // Admin POV
             nav.innerHTML = `
                 <div class="nav-section-title">OVERVIEW</div>
                 <a href="dashboard.html" class="nav-item active">
@@ -911,146 +921,6 @@
         }
     }
 
-    // Shared State & API Fetchers with Fallback Synchronization
-    async function getPropertiesData() {
-        try {
-            const res = await fetch(`${API_BASE_URL}/properties/`, { headers: getAuthHeaders() });
-            if (res.ok) {
-                const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.properties || data.data || []);
-                if (list.length > 0) {
-                    const cleaned = list.filter(p => !(p.name || '').toLowerCase().includes('central business'));
-                    localStorage.setItem('argo_properties', JSON.stringify(cleaned));
-                    return cleaned;
-                }
-            }
-        } catch (e) {}
-
-        const cached = JSON.parse(localStorage.getItem('argo_properties') || '[]');
-        if (Array.isArray(cached) && cached.length > 0) {
-            return cached.filter(p => !(p.name || '').toLowerCase().includes('central business'));
-        }
-        return [{ id: "prop-001", code: "PROP-001", name: "Sunrise Residences", type: "Residential Multi-Family", units_count: 20, status: "Active" }];
-    }
-
-    async function getBuildingsData() {
-        try {
-            const res = await fetch(`${API_BASE_URL}/buildings/`, { headers: getAuthHeaders() });
-            if (res.ok) {
-                const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.buildings || data.data || []);
-                if (list.length > 0) {
-                    localStorage.setItem('argo_buildings', JSON.stringify(list));
-                    return list;
-                }
-            }
-        } catch (e) {}
-
-        const cached = JSON.parse(localStorage.getItem('argo_buildings') || '[]');
-        if (Array.isArray(cached) && cached.length > 0) return cached;
-        return [{ id: "bldg-001", code: "BLDG-001", name: "Tower A", property: "Sunrise Residences", floors: 5, total_units: 20, totalUnits: 20, occupiedUnits: 1, status: "ACTIVE" }];
-    }
-
-    async function getUnitsData() {
-        try {
-            const res = await fetch(`${API_BASE_URL}/units/`, { headers: getAuthHeaders() });
-            if (res.ok) {
-                const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.units || data.data || []);
-                if (list.length > 0) {
-                    localStorage.setItem('argo_units', JSON.stringify(list));
-                    return list;
-                }
-            }
-        } catch (e) {}
-
-        const cached = JSON.parse(localStorage.getItem('argo_units') || '[]');
-        if (Array.isArray(cached) && cached.length > 0) return cached;
-        return [];
-    }
-
-    async function getLeasesData() {
-        try {
-            const res = await fetch(`${API_BASE_URL}/leases/`, { headers: getAuthHeaders() });
-            if (res.ok) {
-                const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.leases || data.data || []);
-                if (list.length > 0) {
-                    localStorage.setItem('argo_leases', JSON.stringify(list));
-                    return list;
-                }
-            }
-        } catch (e) {}
-
-        const cached = JSON.parse(localStorage.getItem('argo_leases') || '[]');
-        if (Array.isArray(cached) && cached.length > 0) return cached;
-        return [{ id: "LSE-2026-0101", tenantName: "Maria Santos", property: "Sunrise Residences • Tower A", unit: "Sunrise Residences • Tower A • Unit 101", status: "ACTIVE", rent: 15000 }];
-    }
-
-    async function getTenantsData() {
-        try {
-            const res = await fetch(`${API_BASE_URL}/tenants/`, { headers: getAuthHeaders() });
-            if (res.ok) {
-                const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.tenants || data.data || []);
-                if (list.length > 0) {
-                    localStorage.setItem('argo_tenants', JSON.stringify(list));
-                    return list;
-                }
-            }
-        } catch (e) {}
-
-        const cached = JSON.parse(localStorage.getItem('argo_tenants') || '[]');
-        if (Array.isArray(cached) && cached.length > 0) return cached;
-        return [{ id: "TNT-001", name: "Maria Santos", unit: "Sunrise Residences • Tower A • Unit 101", status: "Active" }];
-    }
-
-    function getInvoices() { 
-        return JSON.parse(localStorage.getItem('argo_invoices') || '[]'); 
-    }
-    
-    function getNotifications() { 
-        return JSON.parse(localStorage.getItem('argo_notifications') || '[]'); 
-    }
-
-    let adminRentChartInstance = null;
-    let adminOccupancyChartInstance = null;
-
-    document.addEventListener('DOMContentLoaded', async () => {
-        const rawRole = (
-            localStorage.getItem('argo_pov') || 
-            localStorage.getItem('user_role') || 
-            localStorage.getItem('role') || 
-            ''
-        ).toLowerCase().trim();
-
-        if (!rawRole) {
-            window.location.replace('index.html');
-            return;
-        }
-
-        renderSidebar();
-        loadUserData();
-        await updateDashboardMetrics();
-        await renderPropertyTable();
-        await renderCharts();
-        renderLiveActivityFeed();
-        updateHeaderBadge();
-    });
-
-    // Real-Time Cross-Tab Listener
-    window.addEventListener('storage', async (e) => {
-        if (['argo_invoices', 'argo_leases', 'argo_properties', 'argo_buildings', 'argo_units', 'argo_tenants', 'argo_notifications', 'argo_user', 'argo_pov', 'user_role', 'role'].includes(e.key)) {
-            renderSidebar();
-            loadUserData();
-            await updateDashboardMetrics();
-            await renderPropertyTable();
-            await renderCharts();
-            renderLiveActivityFeed();
-            updateHeaderBadge();
-        }
-    });
-
     function loadUserData() {
         const rawRole = (
             localStorage.getItem('argo_pov') || 
@@ -1073,7 +943,7 @@
             }
         } else if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
             if (nameEl) nameEl.textContent = 'Maria Santos';
-            if (roleEl) roleEl.textContent = 'Sunrise Property • Unit 101';
+            if (roleEl) roleEl.textContent = 'Resident Tenant';
             if (avatarEl) {
                 avatarEl.textContent = 'MS';
                 avatarEl.style.background = '#D97706';
@@ -1090,49 +960,160 @@
         }
     }
 
+    // Live Database Fetchers
+    async function getPropertiesData() {
+        try {
+            const res = await fetch(PROPERTIES_API_URL, { headers: getAuthHeaders() });
+            if (res.ok) {
+                const data = await res.json();
+                const list = Array.isArray(data) ? data : (data.items || data.properties || data.data || []);
+                localStorage.setItem('argo_properties', JSON.stringify(list));
+                return list;
+            }
+        } catch (e) {
+            console.warn("Properties API offline, checking cache:", e);
+        }
+        const cached = JSON.parse(localStorage.getItem('argo_properties') || '[]');
+        return Array.isArray(cached) ? cached : [];
+    }
+
+    async function getBuildingsData() {
+        try {
+            const res = await fetch(BUILDINGS_API_URL, { headers: getAuthHeaders() });
+            if (res.ok) {
+                const data = await res.json();
+                const list = Array.isArray(data) ? data : (data.items || data.buildings || data.data || []);
+                localStorage.setItem('argo_buildings', JSON.stringify(list));
+                return list;
+            }
+        } catch (e) {
+            console.warn("Buildings API offline, checking cache:", e);
+        }
+        const cached = JSON.parse(localStorage.getItem('argo_buildings') || '[]');
+        return Array.isArray(cached) ? cached : [];
+    }
+
+    async function getUnitsData() {
+        try {
+            const res = await fetch(UNITS_API_URL, { headers: getAuthHeaders() });
+            if (res.ok) {
+                const data = await res.json();
+                const list = Array.isArray(data) ? data : (data.items || data.units || data.data || []);
+                localStorage.setItem('argo_units', JSON.stringify(list));
+                return list;
+            }
+        } catch (e) {
+            console.warn("Units API offline, checking cache:", e);
+        }
+        const cached = JSON.parse(localStorage.getItem('argo_units') || '[]');
+        return Array.isArray(cached) ? cached : [];
+    }
+
+    async function getLeasesData() {
+        try {
+            const res = await fetch(LEASES_API_URL, { headers: getAuthHeaders() });
+            if (res.ok) {
+                const data = await res.json();
+                const list = Array.isArray(data) ? data : (data.items || data.leases || data.data || []);
+                localStorage.setItem('argo_leases', JSON.stringify(list));
+                return list;
+            }
+        } catch (e) {
+            console.warn("Leases API offline, checking cache:", e);
+        }
+        const cached = JSON.parse(localStorage.getItem('argo_leases') || '[]');
+        return Array.isArray(cached) ? cached : [];
+    }
+
+    async function getTenantsData() {
+        try {
+            const res = await fetch(TENANTS_API_URL, { headers: getAuthHeaders() });
+            if (res.ok) {
+                const data = await res.json();
+                const list = Array.isArray(data) ? data : (data.items || data.tenants || data.data || []);
+                localStorage.setItem('argo_tenants', JSON.stringify(list));
+                return list;
+            }
+        } catch (e) {
+            console.warn("Tenants API offline, checking cache:", e);
+        }
+        const cached = JSON.parse(localStorage.getItem('argo_tenants') || '[]');
+        return Array.isArray(cached) ? cached : [];
+    }
+
+    async function getInvoicesData() {
+        try {
+            const res = await fetch(INVOICES_API_URL, { headers: getAuthHeaders() });
+            if (res.ok) {
+                const data = await res.json();
+                const list = Array.isArray(data) ? data : (data.items || data.invoices || data.data || []);
+                localStorage.setItem('argo_invoices', JSON.stringify(list));
+                return list;
+            }
+        } catch (e) {}
+        const cached = JSON.parse(localStorage.getItem('argo_invoices') || '[]');
+        return Array.isArray(cached) ? cached : [];
+    }
+
+    async function getNotificationsData() {
+        try {
+            const res = await fetch(NOTIFICATIONS_API_URL, { headers: getAuthHeaders() });
+            if (res.ok) {
+                const data = await res.json();
+                const list = Array.isArray(data) ? data : (data.items || data.notifications || data.data || []);
+                localStorage.setItem('argo_notifications', JSON.stringify(list));
+                return list;
+            }
+        } catch (e) {}
+        const cached = JSON.parse(localStorage.getItem('argo_notifications') || '[]');
+        return Array.isArray(cached) ? cached : [];
+    }
+
+    let adminRentChartInstance = null;
+    let adminOccupancyChartInstance = null;
+
+    // Metrics Calculation
     async function updateDashboardMetrics() {
         const properties = await getPropertiesData();
         const buildings = await getBuildingsData();
         const units = await getUnitsData();
         const leases = await getLeasesData();
-        const tenants = await getTenantsData();
-        const invoices = getInvoices();
+        const invoices = await getInvoicesData();
 
-        // 1. Calculate Total Registered Units from Buildings (Tower A = 20 Total Units)
+        // 1. Total Units Calculation
         let calculatedTotalUnits = 0;
-        if (buildings.length > 0) {
-            buildings.forEach(b => {
-                calculatedTotalUnits += parseInt(b.total_units || b.totalUnits || (b.floors ? b.floors * 4 : 20));
-            });
-        } else if (units.length > 0) {
-            calculatedTotalUnits = units.length;
-        } else {
-            calculatedTotalUnits = properties.reduce((acc, p) => acc + parseInt(p.units_count || p.units || 20), 0);
-        }
-        if (calculatedTotalUnits === 0) calculatedTotalUnits = 20;
-
-        // 2. Calculate Active Occupied Units (Maria Santos in Unit 101 = 1)
-        let activeOccupied = 0;
         if (units.length > 0) {
-            units.forEach(u => {
-                const s = (u.status || '').toUpperCase();
-                const uName = u.unit_number || u.unit_no || '';
-                const hasOccupant = u.tenant || u.tenant_name || tenants.some(t => t.unit && t.unit.includes(uName));
-                if (s === 'OCCUPIED' || hasOccupant || uName.includes('101')) {
-                    activeOccupied++;
-                }
+            calculatedTotalUnits = units.length;
+        } else if (buildings.length > 0) {
+            buildings.forEach(b => {
+                calculatedTotalUnits += parseInt(b.total_units || (b.floors ? b.floors * 4 : 0) || 0);
             });
         } else {
+            properties.forEach(p => {
+                calculatedTotalUnits += parseInt(p.units_count || p.units || 0);
+            });
+        }
+
+        // 2. Occupied Units Calculation
+        let activeOccupied = 0;
+        units.forEach(u => {
+            const s = (u.status || '').toUpperCase();
+            if (s === 'OCCUPIED' || s === 'LEASED' || u.tenant_name || u.tenant) {
+                activeOccupied++;
+            }
+        });
+
+        if (activeOccupied === 0 && units.length === 0) {
             leases.forEach(l => {
                 if ((l.status || '').toUpperCase() === 'ACTIVE') activeOccupied++;
             });
         }
-        if (activeOccupied === 0) activeOccupied = 1;
 
-        // Occupancy calculation: 1 / 20 = 5.0%
-        const occupancyRate = ((activeOccupied / calculatedTotalUnits) * 100).toFixed(1);
+        const occupancyPercent = calculatedTotalUnits > 0 
+            ? ((activeOccupied / calculatedTotalUnits) * 100).toFixed(1) 
+            : '0.0';
 
-        // 3. Financial Invoices Calculation
+        // 3. Pending & Overdue Invoices
         let pendingOverdueSum = 0;
         let pendingCount = 0;
 
@@ -1150,9 +1131,9 @@
         const overdueEl = document.getElementById('kpiOverdue');
         const overdueSubEl = document.getElementById('kpiOverdueSub');
 
-        if (propEl) propEl.textContent = properties.length || 1;
+        if (propEl) propEl.textContent = properties.length;
         if (unitEl) unitEl.textContent = calculatedTotalUnits;
-        if (occEl) occEl.textContent = `${occupancyRate}%`;
+        if (occEl) occEl.textContent = `${occupancyPercent}%`;
         if (overdueEl) overdueEl.textContent = `₱${pendingOverdueSum.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
         if (overdueSubEl) overdueSubEl.innerHTML = `<span class="danger">${pendingCount} item(s)</span> pending verification / unpaid`;
     }
@@ -1167,90 +1148,84 @@
         tbody.innerHTML = '';
 
         if (!properties || properties.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--muted); padding:20px;">No managed properties found.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--muted, #64748B); padding:20px;">No managed properties found in database.</td></tr>`;
             return;
         }
 
         properties.forEach(p => {
             const tr = document.createElement('tr');
-            const propName = p.name || p.property_name || 'Sunrise Residences';
+            const propName = p.name || p.property_name || 'Property';
             const propIdStr = String(p.id || '');
 
-            // 1. Calculate Total Capacity from Buildings (Tower A = 20)
+            // Calculate Property Capacity
             const propBuildings = buildings.filter(b => {
                 const bPropId = String(b.property_id || '');
                 const bProp = (b.property && typeof b.property === 'object' ? b.property.name : b.property) || b.property_name || '';
-                return (propIdStr && bPropId === propIdStr) || 
-                       bProp.toLowerCase().includes(propName.toLowerCase()) || 
-                       propName.toLowerCase().includes(bProp.toLowerCase());
+                return (propIdStr && bPropId === propIdStr) || bProp.toLowerCase() === propName.toLowerCase();
             });
 
             let totalUnits = 0;
             if (propBuildings.length > 0) {
                 propBuildings.forEach(b => {
-                    totalUnits += parseInt(b.total_units || b.totalUnits || (b.floors ? b.floors * 4 : 20));
+                    totalUnits += parseInt(b.total_units || (b.floors ? b.floors * 4 : 0) || 0);
                 });
             } else {
-                totalUnits = parseInt(p.units_count || p.units || 20);
+                totalUnits = parseInt(p.units_count || p.units || 0);
             }
-            if (totalUnits === 0) totalUnits = 20;
 
-            // 2. Calculate Occupied Count (Maria Santos in Unit 101)
             const propUnits = units.filter(u => {
                 const uPropId = String(u.property_id || '');
                 const uProp = (u.property ? (u.property.name || u.property.property_name) : '') || u.property_name || u.property || '';
-                return (propIdStr && uPropId === propIdStr) || 
-                       uProp.toLowerCase().includes(propName.toLowerCase()) || 
-                       propName.toLowerCase().includes(uProp.toLowerCase());
+                return (propIdStr && uPropId === propIdStr) || uProp.toLowerCase().includes(propName.toLowerCase());
             });
 
+            if (totalUnits === 0 && propUnits.length > 0) {
+                totalUnits = propUnits.length;
+            }
+
+            // Calculate Occupied
             let occupiedCount = 0;
             propUnits.forEach(u => {
                 const s = (u.status || '').toUpperCase();
-                const isUnit101 = (u.unit_no && u.unit_no.includes('101')) || (u.unit_number && u.unit_number.includes('101'));
-                if (s === 'OCCUPIED' || u.tenant || u.tenant_name || isUnit101) {
+                if (s === 'OCCUPIED' || s === 'LEASED' || u.tenant || u.tenant_name) {
                     occupiedCount++;
                 }
             });
 
-            if (occupiedCount === 0) {
+            if (occupiedCount === 0 && propUnits.length === 0) {
                 const matchedLeases = leases.filter(l => {
                     const lProp = l.property || l.property_name || '';
                     return (lProp.toLowerCase().includes(propName.toLowerCase()) || propName.toLowerCase().includes(lProp.toLowerCase())) && 
                            (l.status || '').toUpperCase() === 'ACTIVE';
                 });
-                occupiedCount = matchedLeases.length > 0 ? matchedLeases.length : 1;
+                occupiedCount = matchedLeases.length;
             }
 
-            // Occupancy percentage: 1 / 20 = 5.0%
-            const occ = totalUnits > 0 ? `${((occupiedCount / totalUnits) * 100).toFixed(1)}%` : '5.0%';
-            const status = (p.status || 'Active').toLowerCase() === 'active' ? 'Active' : (p.status || 'Active');
+            const occRate = totalUnits > 0 ? `${((occupiedCount / totalUnits) * 100).toFixed(1)}%` : '0.0%';
+            const status = (p.status || 'Active').toLowerCase() === 'active' ? 'Active' : 'Pending';
 
             tr.innerHTML = `
                 <td><strong>${propName}</strong></td>
                 <td>${p.type || 'Residential Multi-Family'}</td>
-                <td><strong>${totalUnits} Units</strong> <span style="font-size:11px; color:var(--muted);">(${occupiedCount} Leased)</span></td>
-                <td><strong style="color:#059669;">${occ}</strong></td>
+                <td><strong>${totalUnits} Units</strong> <span style="font-size:11px; color:var(--muted, #64748B);">(${occupiedCount} Leased)</span></td>
+                <td><strong style="color:#059669;">${occRate}</strong></td>
                 <td><span class="status status-active" style="background:#ECFDF5; color:#059669; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;">${status}</span></td>
             `;
             tbody.appendChild(tr);
         });
     }
 
-    function renderLiveActivityFeed() {
-        const notifications = getNotifications().filter(n => n.pov === 'admin' || n.pov === 'all').slice(0, 4);
+    async function renderLiveActivityFeed() {
+        const notifications = (await getNotificationsData()).filter(n => n.pov === 'admin' || n.pov === 'all' || !n.pov).slice(0, 4);
         const container = document.getElementById('liveActivityFeed');
         if (!container) return;
         container.innerHTML = '';
 
         if (notifications.length === 0) {
             container.innerHTML = `
-                <div class="activity-item">
-                    <div class="activity-icon" style="background:#ECFDF5; color:#059669;"><i class="bi bi-check-circle"></i></div>
-                    <div class="activity-content">
-                        <p><strong>Maria Santos Leased Unit 101</strong></p>
-                        <span>Active lease at Sunrise Residences • Tower A</span>
-                    </div>
+                <div style="padding: 24px; text-align: center; color: var(--muted, #64748B); font-size: 13px;">
+                    <i class="bi bi-clock-history" style="font-size: 20px; display: block; margin-bottom: 6px;"></i>
+                    No recent system activities recorded.
                 </div>
             `;
             return;
@@ -1267,7 +1242,7 @@
                 iconBi = 'bi-tools';
                 iconStyle = 'background:#FFF1F2; color:#E11D48;';
             } else if (n.category === 'asset') {
-                iconBi = 'bi-folder2-open';
+                iconBi = 'bi-buildings';
                 iconStyle = 'background:#FEF3C7; color:#D97706;';
             }
 
@@ -1276,7 +1251,7 @@
             item.innerHTML = `
                 <div class="activity-icon" style="${iconStyle}"><i class="bi ${iconBi}"></i></div>
                 <div class="activity-content">
-                    <p><strong>${n.title}</strong></p>
+                    <p><strong>${n.title || 'System Notification'}</strong></p>
                     <span>${n.time || 'Recently'}</span>
                 </div>
             `;
@@ -1284,18 +1259,17 @@
         });
     }
 
-    function updateHeaderBadge() {
-        const notifs = getNotifications().filter(n => (n.pov === 'admin' || n.pov === 'all') && (n.status === 'unread' || n.is_read === false));
+    async function updateHeaderBadge() {
+        const notifs = (await getNotificationsData()).filter(n => (n.pov === 'admin' || !n.pov) && (n.status === 'unread' || n.is_read === false));
         const badge = document.getElementById('headerNotifBadge');
         if (badge) badge.textContent = notifs.length;
     }
 
     async function renderCharts() {
-        const invoices = getInvoices();
+        const invoices = await getInvoicesData();
+        const units = await getUnitsData();
         const leases = await getLeasesData();
         const buildings = await getBuildingsData();
-        const units = await getUnitsData();
-        const tenants = await getTenantsData();
 
         let paidSum = 0;
         let unpaidSum = 0;
@@ -1306,41 +1280,9 @@
             else unpaidSum += amt;
         });
 
-        if (paidSum === 0 && unpaidSum === 0) {
-            paidSum = 15000;
-            unpaidSum = 2408.75;
-        }
-
-        let activeCount = 0;
-        let maintenanceUnits = 0;
-
-        units.forEach(u => {
-            const s = (u.status || '').toUpperCase();
-            const uName = u.unit_number || u.unit_no || '';
-            const hasOccupant = u.tenant || u.tenant_name || tenants.some(t => t.unit && t.unit.includes(uName));
-            if (s === 'OCCUPIED' || hasOccupant || uName.includes('101')) activeCount++;
-            else if (s.includes('MAINTENANCE')) maintenanceUnits++;
-        });
-
-        if (activeCount === 0) {
-            leases.forEach(l => { 
-                if ((l.status || '').toUpperCase() === 'ACTIVE') activeCount++; 
-            });
-        }
-        if (activeCount === 0) activeCount = 1;
-
-        // Total capacity from buildings = 20
-        let totalCapacity = 0;
-        buildings.forEach(b => {
-            totalCapacity += parseInt(b.total_units || b.totalUnits || (b.floors ? b.floors * 4 : 20));
-        });
-        if (totalCapacity === 0) totalCapacity = 20;
-
-        let vacantCount = Math.max(0, totalCapacity - activeCount - maintenanceUnits);
-
         // 1. Rent Collection Line Chart
         const rentCanvas = document.getElementById('adminRentChart');
-        if (rentCanvas) {
+        if (rentCanvas && typeof Chart !== 'undefined') {
             const ctx1 = rentCanvas.getContext('2d');
             if (adminRentChartInstance) {
                 adminRentChartInstance.destroy();
@@ -1353,7 +1295,7 @@
                     datasets: [
                         {
                             label: 'Collected Revenue (₱)',
-                            data: [15000, 15000, 15000, 15000, 15000, paidSum],
+                            data: [0, 0, 0, 0, 0, paidSum],
                             borderColor: '#2563EB',
                             backgroundColor: 'rgba(37, 99, 235, 0.08)',
                             borderWidth: 2,
@@ -1361,7 +1303,7 @@
                             fill: true
                         },
                         {
-                            label: 'Pending / Unpaid Dues (₱)',
+                            label: 'Pending Dues (₱)',
                             data: [0, 0, 0, 0, 0, unpaidSum],
                             borderColor: '#E11D48',
                             backgroundColor: 'rgba(225, 29, 72, 0.08)',
@@ -1380,33 +1322,89 @@
             });
         }
 
-        // 2. Unit Occupancy Doughnut Chart (1 Occupied / 19 Vacant / 20 Total)
+        // 2. Unit Occupancy Doughnut Chart
+        let occupiedUnitsCount = 0;
+        let maintenanceUnitsCount = 0;
+
+        units.forEach(u => {
+            const s = (u.status || '').toUpperCase();
+            if (s === 'OCCUPIED' || s === 'LEASED' || u.tenant || u.tenant_name) {
+                occupiedUnitsCount++;
+            } else if (s.includes('MAINTENANCE')) {
+                maintenanceUnitsCount++;
+            }
+        });
+
+        if (occupiedUnitsCount === 0 && units.length === 0) {
+            leases.forEach(l => {
+                if ((l.status || '').toUpperCase() === 'ACTIVE') occupiedUnitsCount++;
+            });
+        }
+
+        let totalCapacity = units.length;
+        if (totalCapacity === 0) {
+            buildings.forEach(b => {
+                totalCapacity += parseInt(b.total_units || (b.floors ? b.floors * 4 : 0) || 0);
+            });
+        }
+
+        let vacantUnitsCount = Math.max(0, totalCapacity - occupiedUnitsCount - maintenanceUnitsCount);
+
         const occCanvas = document.getElementById('adminOccupancyChart');
-        if (occCanvas) {
+        if (occCanvas && typeof Chart !== 'undefined') {
             const ctx2 = occCanvas.getContext('2d');
             if (adminOccupancyChartInstance) {
                 adminOccupancyChartInstance.destroy();
             }
 
+            const chartData = (occupiedUnitsCount === 0 && vacantUnitsCount === 0 && maintenanceUnitsCount === 0)
+                ? [0, 0, 0]
+                : [occupiedUnitsCount, vacantUnitsCount, maintenanceUnitsCount];
+
             adminOccupancyChartInstance = new Chart(ctx2, {
                 type: 'doughnut',
                 data: {
-                    labels: ['Occupied Units (Maria Santos)', 'Vacant Ready Units', 'Under Maintenance'],
+                    labels: ['Occupied (Leased)', 'Available (Vacant)', 'Maintenance'],
                     datasets: [{
-                        data: [activeCount, vacantCount, maintenanceUnits],
-                        backgroundColor: ['#059669', '#D97706', '#E11D48'],
+                        data: chartData,
+                        backgroundColor: ['#059669', '#2563EB', '#E11D48'],
                         borderWidth: 0
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    cutout: '65%',
+                    cutout: '70%',
                     plugins: { legend: { position: 'bottom' } }
                 }
             });
         }
     }
+
+    // Real-Time Cross-Tab Listener
+    window.addEventListener('storage', async (e) => {
+        if (['argo_invoices', 'argo_leases', 'argo_properties', 'argo_buildings', 'argo_units', 'argo_tenants', 'argo_notifications', 'argo_user', 'argo_pov'].includes(e.key)) {
+            renderSidebar();
+            loadUserData();
+            await updateDashboardMetrics();
+            await renderPropertyTable();
+            await renderCharts();
+            await renderLiveActivityFeed();
+            await updateHeaderBadge();
+        }
+    });
+
+    // Page Load Initialization
+    document.addEventListener('DOMContentLoaded', async () => {
+        const role = localStorage.getItem('argo_pov') || localStorage.getItem('user_role') || localStorage.getItem('role') || 'admin';
+        renderSidebar();
+        loadUserData();
+        await updateDashboardMetrics();
+        await renderPropertyTable();
+        await renderCharts();
+        await renderLiveActivityFeed();
+        await updateHeaderBadge();
+    });
 
     // Profile Dropdown Handler
     const userProfileBtn = document.getElementById('userProfileBtn');
