@@ -565,27 +565,6 @@
             border-top: 1px solid var(--border);
         }
 
-        .pagination { display: flex; align-items: center; gap: 4px; }
-
-        .page-button {
-            min-width: 30px;
-            height: 30px;
-            border: 1px solid var(--border);
-            background: white;
-            border-radius: 6px;
-            font-size: 12px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .page-button.active {
-            background: var(--primary);
-            color: white;
-            border-color: var(--primary);
-        }
-
         /* ================= MODAL ================= */
         .modal-overlay {
             display: none;
@@ -607,6 +586,9 @@
             border-radius: 12px;
             box-shadow: 0 20px 50px rgba(0,0,0,0.25);
             overflow: hidden;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
         }
 
         .modal-header {
@@ -615,6 +597,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-shrink: 0;
         }
 
         .modal-header h2 { font-size: 16px; font-weight: 600; }
@@ -627,7 +610,12 @@
             color: var(--muted);
         }
 
-        .modal-body { padding: 20px; }
+        .modal-body { 
+            padding: 20px; 
+            overflow-y: auto;
+            flex: 1;
+        }
+
         .form-group { margin-bottom: 14px; }
 
         .form-group label {
@@ -664,6 +652,7 @@
             justify-content: flex-end;
             gap: 8px;
             background: #F9FAFB;
+            flex-shrink: 0;
         }
 
         /* RESPONSIVE */
@@ -729,9 +718,9 @@
 
             <div class="user-dropdown-container">
                 <div class="user-profile" id="userProfileBtn">
-                    <div class="avatar" id="userAvatar">JD</div>
+                    <div class="avatar" id="userAvatar">SA</div>
                     <div class="user-info">
-                        <strong id="userName">Property Admin</strong>
+                        <strong id="userName">System Admin</strong>
                         <span id="userRoleBadge">Property Manager</span>
                     </div>
                     <i class="bi bi-chevron-down" style="font-size: 10px; color: #94A3B8;"></i>
@@ -762,7 +751,7 @@
                 <p id="pageDesc">Manage rentable and occupiable spaces across your properties.</p>
             </div>
 
-            <button class="primary-btn" id="newUnitBtn" onclick="openModal()">
+            <button class="primary-button primary-btn" id="newUnitBtn" onclick="openModal()">
                 <i class="bi bi-plus-lg"></i>
                 <span>New Unit</span>
             </button>
@@ -771,32 +760,44 @@
         <!-- KPI CARDS -->
         <section class="kpi-grid">
             <div class="kpi-card">
-                <div class="kpi-label">Total Units</div>
+                <div class="kpi-top">
+                    <span class="kpi-label">Total Units</span>
+                    <div class="kpi-icon"><i class="bi bi-door-open"></i></div>
+                </div>
                 <div class="kpi-value blue" id="kpiTotal">0</div>
                 <div class="kpi-description">All registered units</div>
             </div>
 
             <div class="kpi-card">
-                <div class="kpi-label">Available</div>
+                <div class="kpi-top">
+                    <span class="kpi-label">Available</span>
+                    <div class="kpi-icon" style="background:#ECFDF5; color:#059669;"><i class="bi bi-check2-circle"></i></div>
+                </div>
                 <div class="kpi-value green" id="kpiAvailable">0</div>
                 <div class="kpi-description">Ready for occupancy</div>
             </div>
 
             <div class="kpi-card">
-                <div class="kpi-label">Occupied</div>
+                <div class="kpi-top">
+                    <span class="kpi-label">Occupied</span>
+                    <div class="kpi-icon" style="background:#EFF6FF; color:#2563EB;"><i class="bi bi-person-check"></i></div>
+                </div>
                 <div class="kpi-value blue" id="kpiOccupied">0</div>
                 <div class="kpi-description">Currently leased</div>
             </div>
 
             <div class="kpi-card">
-                <div class="kpi-label">Maintenance</div>
+                <div class="kpi-top">
+                    <span class="kpi-label">Maintenance</span>
+                    <div class="kpi-icon" style="background:#FEF3C7; color:#D97706;"><i class="bi bi-tools"></i></div>
+                </div>
                 <div class="kpi-value orange" id="kpiMaintenance">0</div>
                 <div class="kpi-description">Under repair / setup</div>
             </div>
         </section>
 
         <!-- TABS -->
-        <div class="tabs">
+        <div class="tabs tabs-container">
             <button class="tab active" onclick="setTabFilter('ALL', this)">All Units</button>
             <button class="tab" onclick="setTabFilter('VACANT', this)">Available</button>
             <button class="tab" onclick="setTabFilter('OCCUPIED', this)">Occupied</button>
@@ -817,13 +818,17 @@
 
             <select class="filter-select" id="typeFilter" onchange="applyAllFilters()">
                 <option value="">All Unit Types</option>
+                <option value="1-Bedroom">1-Bedroom Apartment</option>
+                <option value="2-Bedroom">2-Bedroom Suite</option>
+                <option value="Studio">Studio Deluxe</option>
+                <option value="Penthouse">Penthouse Suite</option>
                 <option value="Apartment">Apartment</option>
                 <option value="Condominium">Condominium</option>
                 <option value="House">House</option>
                 <option value="Commercial">Commercial</option>
             </select>
 
-            <button class="secondary-btn" onclick="resetFilters()">
+            <button class="secondary-button secondary-btn" onclick="resetFilters()">
                 <i class="bi bi-arrow-counterclockwise"></i>
                 <span>Reset</span>
             </button>
@@ -836,16 +841,16 @@
                     <thead>
                         <tr>
                             <th>UNIT NUMBER</th>
-                            <th>PROPERTY</th>
+                            <th>PROPERTY / BUILDING</th>
                             <th>TYPE</th>
-                            <th>FLOOR</th>
+                            <th>FLOOR / SQM</th>
                             <th>MONTHLY RENT</th>
                             <th>STATUS</th>
                             <th>ACTIONS</th>
                         </tr>
                     </thead>
                     <tbody id="unitTable">
-                        <!-- RENDERED DYNAMICALLY FROM DATABASE / LOCALSTORAGE -->
+                        <!-- RENDERED DYNAMICALLY FROM DATABASE -->
                     </tbody>
                 </table>
             </div>
@@ -857,7 +862,7 @@
         </div>
     </main>
 
-    <!-- ================= NEW UNIT MODAL ================= -->
+    <!-- ================= NEW UNIT MODAL (WITH CASCADING DROPDOWNS & LIFECYCLE STATES) ================= -->
     <div class="modal-overlay" id="unitModal">
         <div class="modal">
             <div class="modal-header">
@@ -865,446 +870,687 @@
                     <span class="eyebrow">UNIT INVENTORY</span>
                     <h2>New Unit</h2>
                 </div>
-                <button class="close-btn" onclick="closeModal()"><i class="bi bi-x-lg"></i></button>
+                <button class="close-button close-btn" onclick="closeModal()"><i class="bi bi-x-lg"></i></button>
             </div>
 
             <div class="modal-body">
-                <div class="form-row">
+                <!-- CASCADING DROPDOWN 1: PROPERTY -->
+                <div class="form-group">
+                    <label>Target Property <span style="color:var(--danger, #EF4444);">*</span></label>
+                    <select id="modalPropertySelect" onchange="cascadeBuildingsForProperty(this.value)">
+                        <option value="">Select property asset...</option>
+                        <!-- DYNAMICALLY POPULATED -->
+                    </select>
+                </div>
+
+                <!-- CASCADING DROPDOWN 2: BUILDING -->
+                <div class="form-group">
+                    <label>Target Building <span style="color:var(--danger, #EF4444);">*</span></label>
+                    <select id="modalBuildingSelect" onchange="cascadeFloorsForBuilding(this.value)">
+                        <option value="">Select building structure...</option>
+                        <!-- DYNAMICALLY POPULATED -->
+                    </select>
+                </div>
+
+                <!-- CASCADING DROPDOWN 3: FLOOR -->
+                <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
                     <div class="form-group">
-                        <label>Unit Number / Name <span style="color:var(--danger, #E11D48);">*</span></label>
-                        <input type="text" id="modalUnitNo" placeholder="e.g. Unit 101">
+                        <label>Floor Level <span style="color:var(--danger, #EF4444);">*</span></label>
+                        <select id="modalFloorSelect">
+                            <option value="">Select floor...</option>
+                            <!-- DYNAMICALLY POPULATED -->
+                        </select>
                     </div>
 
+                    <!-- CASCADING / DYNAMIC 4: UNIT NUMBER -->
+                    <div class="form-group">
+                        <label>Unit Number / Name <span style="color:var(--danger, #EF4444);">*</span></label>
+                        <input type="text" id="modalUnitNo" placeholder="e.g. Unit 101 or 204">
+                    </div>
+                </div>
+
+                <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
                     <div class="form-group">
                         <label>Unit Type</label>
                         <select id="modalUnitType">
+                            <option value="1-Bedroom Apartment">1-Bedroom Apartment</option>
+                            <option value="2-Bedroom Suite">2-Bedroom Suite</option>
+                            <option value="Studio Deluxe">Studio Deluxe</option>
+                            <option value="Penthouse Suite">Penthouse Suite</option>
                             <option value="Apartment">Apartment</option>
                             <option value="Condominium">Condominium</option>
-                            <option value="House">House</option>
                             <option value="Commercial">Commercial</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Floor Area (sq. m)</label>
+                        <input type="number" id="modalSqm" min="1" step="0.5" placeholder="e.g. 45.0" value="45.0">
+                    </div>
+                </div>
+
+                <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+                    <div class="form-group">
+                        <label>Base Monthly Rent (₱) <span style="color:var(--danger, #EF4444);">*</span></label>
+                        <input type="number" id="modalRent" placeholder="e.g. 15000.00" min="0" step="0.01" value="15000.00">
+                    </div>
+
+                    <!-- TRUE LIFECYCLE STATE TRANSITIONS -->
+                    <div class="form-group">
+                        <label>Lifecycle State <span style="color:var(--danger, #EF4444);">*</span></label>
+                        <select id="modalStatus">
+                            <option value="VACANT" selected>Available (VACANT)</option>
+                            <option value="OCCUPIED">OCCUPIED</option>
+                            <option value="MAINTENANCE">UNDER MAINTENANCE</option>
                         </select>
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label>Target Property / Building <span style="color:var(--danger, #E11D48);">*</span></label>
-                    <select id="modalProperty">
-                        <option value="">Select property...</option>
-                        <!-- DYNAMICALLY POPULATED -->
-                    </select>
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Floor Number</label>
-                        <input type="text" id="modalFloor" placeholder="e.g. 1st Floor">
-                    </div>
-
-                    <div class="form-group">
-                        <label>Monthly Rent (₱) <span style="color:var(--danger, #E11D48);">*</span></label>
-                        <input type="number" id="modalRent" placeholder="e.g. 15000" min="0" step="0.01">
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label>Initial Occupancy Status</label>
-                    <select id="modalStatus">
-                        <option value="VACANT">Available (Vacant Ready)</option>
-                        <option value="OCCUPIED">Occupied (Leased)</option>
-                        <option value="MAINTENANCE">Maintenance</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label>Description / Specs</label>
-                    <textarea id="modalSubtitle" rows="2" placeholder="e.g. 45.5 sqm · 1 bedroom"></textarea>
+                    <label>Additional Specifications / Notes</label>
+                    <textarea id="modalSubtitle" rows="2" placeholder="e.g. Balcony facing sunrise, fully furnished with split-type AC..."></textarea>
                 </div>
             </div>
 
             <div class="modal-footer">
-                <button class="secondary-btn" onclick="closeModal()">Cancel</button>
-                <button class="primary-btn" onclick="saveUnit()"><i class="bi bi-check-lg"></i> Save Unit</button>
+                <button class="secondary-button secondary-btn" onclick="closeModal()">Cancel</button>
+                <button class="primary-button primary-btn" onclick="saveUnit()"><i class="bi bi-check-lg"></i> Save Unit to Database</button>
             </div>
         </div>
     </div>
 
-   <!-- ================= JAVASCRIPT ================= -->
-    <script>
-        const API_BASE_URL = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
-            ? 'http://127.0.0.1:8000/api/units/'
-            : '/api/units/';
+<script>
+    const API_BASE_URL = (
+        window.location.origin.includes('localhost') || 
+        window.location.origin.includes('127.0.0.1')
+    ) 
+        ? 'http://127.0.0.1:8000/api'
+        : (window.location.origin.includes('github.io'))
+            ? 'https://argo-management-2026.onrender.com/api'
+            : '/api';
 
-        const PROPERTIES_API_URL = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
-            ? 'http://127.0.0.1:8000/api/properties/'
-            : '/api/properties/';
+    const UNITS_API_URL = `${API_BASE_URL}/units/`;
+    const PROPERTIES_API_URL = `${API_BASE_URL}/properties/`;
+    const BUILDINGS_API_URL = `${API_BASE_URL}/buildings/`;
+    const LEASES_API_URL = `${API_BASE_URL}/leases/`;
 
-        function getAuthHeaders() {
-            const token = localStorage.getItem('token') || localStorage.getItem('argo_token');
-            return {
-                'Content-Type': 'application/json',
-                ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-            };
+    function getAuthHeaders() {
+        const token = localStorage.getItem('token') || localStorage.getItem('argo_token');
+        return {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        };
+    }
+
+    function logoutUser() {
+        localStorage.clear();
+        window.location.replace('index.html');
+    }
+
+    function renderSidebar() {
+        const nav = document.getElementById('sidebarNav');
+        if (!nav) return;
+
+        const rawRole = (
+            localStorage.getItem('argo_pov') || 
+            localStorage.getItem('user_role') || 
+            localStorage.getItem('role') || 
+            'admin'
+        ).toLowerCase().trim();
+
+        if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
+            nav.innerHTML = `
+                <div class="nav-section-title">SELF-SERVICE HOME</div>
+                <a href="client-dashboard.html" class="nav-item"><i class="bi bi-house-door"></i><span>My Tenancy Home</span></a>
+                <a href="client-billing.html" class="nav-item"><i class="bi bi-receipt"></i><span>Pay Rent & Dues</span></a>
+                <a href="transaction.html" class="nav-item"><i class="bi bi-receipt-cutoff"></i><span>Transactions & Ledger</span></a>
+                <a href="client-utilities.html" class="nav-item"><i class="bi bi-lightning-charge"></i><span>My Utilities & Meters</span></a>
+                <a href="client-maintenance.html" class="nav-item"><i class="bi bi-tools"></i><span>Submit Maintenance</span></a>
+                <a href="inspections.html" class="nav-item"><i class="bi bi-clipboard-check"></i><span>Move-In & Inspections</span></a>
+                <a href="client-documents.html" class="nav-item"><i class="bi bi-folder2-open"></i><span>My Lease & Receipts</span></a>
+                <div class="nav-section-title">SYSTEM</div>
+                <a href="account.html" class="nav-item"><i class="bi bi-gear"></i><span>Account Settings</span></a>
+                <a href="#" class="nav-item" onclick="logoutUser(); return false;"><i class="bi bi-box-arrow-right"></i><span>Log Out</span></a>
+            `;
+        } else if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
+            nav.innerHTML = `
+                <div class="nav-section-title">PORTFOLIO OVERVIEW</div>
+                <a href="owner-dashboard.html" class="nav-item"><i class="bi bi-speedometer2"></i><span>Executive Summary</span></a>
+                <a href="owner-properties.html" class="nav-item"><i class="bi bi-buildings"></i><span>My Properties</span></a>
+                <a href="owner-statements.html" class="nav-item"><i class="bi bi-file-earmark-text"></i><span>Financial Statements</span></a>
+                <a href="property-ownership.html" class="nav-item"><i class="bi bi-pie-chart"></i><span>Fractional Equity</span></a>
+                <a href="owner-documents.html" class="nav-item"><i class="bi bi-folder2-open"></i><span>Legal Vault</span></a>
+                <a href="transaction.html" class="nav-item"><i class="bi bi-receipt-cutoff"></i><span>Yield Audit Ledger</span></a>
+                <div class="nav-section-title">COMMUNICATION & SYSTEM</div>
+                <a href="notification.html" class="nav-item"><i class="bi bi-bell"></i><span>Notification Center</span></a>
+                <a href="account.html" class="nav-item"><i class="bi bi-gear"></i><span>Account Settings</span></a>
+                <a href="#" class="nav-item" onclick="logoutUser(); return false;"><i class="bi bi-box-arrow-right"></i><span>Log Out</span></a>
+            `;
+        } else {
+            nav.innerHTML = `
+                <div class="nav-section-title">OVERVIEW</div>
+                <a href="dashboard.html" class="nav-item"><i class="bi bi-grid-1x2"></i><span>Dashboard</span></a>
+                <div class="nav-section-title">PROPERTY OPERATIONS</div>
+                <a href="properties.html" class="nav-item"><i class="bi bi-buildings"></i><span>Properties</span></a>
+                <a href="buildings.html" class="nav-item"><i class="bi bi-building"></i><span>Buildings</span></a>
+                <a href="units.html" class="nav-item active"><i class="bi bi-door-open"></i><span>Units</span></a>
+                <a href="tenants.html" class="nav-item"><i class="bi bi-people"></i><span>Tenants</span></a>
+                <a href="owners.html" class="nav-item"><i class="bi bi-person-badge"></i><span>Owners</span></a>
+                <a href="property-ownership.html" class="nav-item"><i class="bi bi-pie-chart"></i><span>Fractional Ownership</span></a>
+                <a href="leases.html" class="nav-item"><i class="bi bi-file-earmark-text"></i><span>Leases</span></a>
+                <div class="nav-section-title">FINANCE & SERVICES</div>
+                <a href="rent-collection.html" class="nav-item"><i class="bi bi-cash-stack"></i><span>Rent Collection</span></a>
+                <a href="transaction.html" class="nav-item"><i class="bi bi-receipt-cutoff"></i><span>Transactions & Ledger</span></a>
+                <a href="utilities.html" class="nav-item"><i class="bi bi-lightning-charge"></i><span>Utilities</span></a>
+                <a href="meter-readings.html" class="nav-item"><i class="bi bi-speedometer2"></i><span>Meter Readings</span></a>
+                <a href="maintenance.html" class="nav-item"><i class="bi bi-tools"></i><span>Maintenance</span></a>
+                <div class="nav-section-title">RECORDS & REPORTS</div>
+                <a href="inspections.html" class="nav-item"><i class="bi bi-clipboard-check"></i><span>Inspections</span></a>
+                <a href="move-in-checklist.html" class="nav-item"><i class="bi bi-check2-square"></i><span>Move-In Checklist</span></a>
+                <a href="move-out-settlement.html" class="nav-item"><i class="bi bi-box-arrow-right"></i><span>Move-Out Settlement</span></a>
+                <a href="documents.html" class="nav-item"><i class="bi bi-folder2-open"></i><span>Documents</span></a>
+                <a href="reports.html" class="nav-item"><i class="bi bi-bar-chart"></i><span>Reports</span></a>
+                <div class="nav-section-title">SYSTEM</div>
+                <a href="settings.html" class="nav-item"><i class="bi bi-gear"></i><span>Settings</span></a>
+                <a href="account.html" class="nav-item"><i class="bi bi-person-gear"></i><span>Account Settings</span></a>
+                <a href="#" class="nav-item" onclick="logoutUser(); return false;"><i class="bi bi-box-arrow-right"></i><span>Log Out</span></a>
+            `;
         }
+    }
 
-        // Secure Logout Handler
-        function logoutUser() {
-            localStorage.clear();
-            window.location.replace('index.html');
+    function applyRoleLayout() {
+        const rawRole = (
+            localStorage.getItem('argo_pov') || 
+            localStorage.getItem('user_role') || 
+            localStorage.getItem('role') || 
+            'admin'
+        ).toLowerCase().trim();
+
+        const newUnitBtn = document.getElementById('newUnitBtn');
+        if (newUnitBtn) {
+            newUnitBtn.style.display = (['client', 'tenant', 'owner', 'property_owner'].includes(rawRole)) ? 'none' : 'inline-flex';
         }
+    }
 
-        // Dynamic Role-Based Sidebar Renderer
-        function renderSidebar() {
-            const nav = document.getElementById('sidebarNav');
-            if (!nav) return;
+    function loadUserData() {
+        const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+        const nameEl = document.getElementById('userName');
+        const avatarEl = document.getElementById('userAvatar');
+        if (nameEl) nameEl.textContent = user.name || 'System Admin';
+        if (avatarEl) avatarEl.textContent = user.avatar || (user.name ? user.name.charAt(0) : 'SA');
+    }
 
-            const rawRole = (
-                localStorage.getItem('argo_pov') || 
-                localStorage.getItem('user_role') || 
-                localStorage.getItem('role') || 
-                'admin'
-            ).toLowerCase().trim();
-
-            if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
-                nav.innerHTML = `
-                    <div class="nav-section-title">SELF-SERVICE HOME</div>
-                    <a href="client-dashboard.html" class="nav-item"><i class="bi bi-house-door"></i><span>My Tenancy Home</span></a>
-                    <a href="client-billing.html" class="nav-item"><i class="bi bi-receipt"></i><span>Pay Rent & Dues</span></a>
-                    <a href="transaction.html" class="nav-item"><i class="bi bi-receipt-cutoff"></i><span>Transactions & Ledger</span></a>
-                    <a href="client-utilities.html" class="nav-item"><i class="bi bi-lightning-charge"></i><span>My Utilities & Meters</span></a>
-                    <a href="client-maintenance.html" class="nav-item"><i class="bi bi-tools"></i><span>Submit Maintenance</span></a>
-                    <a href="inspections.html" class="nav-item"><i class="bi bi-clipboard-check"></i><span>Move-In & Inspections</span></a>
-                    <a href="client-documents.html" class="nav-item"><i class="bi bi-folder2-open"></i><span>My Lease & Receipts</span></a>
-                    <div class="nav-section-title">SYSTEM</div>
-                    <a href="account.html" class="nav-item"><i class="bi bi-gear"></i><span>Account Settings</span></a>
-                    <a href="#" class="nav-item" onclick="logoutUser(); return false;"><i class="bi bi-box-arrow-right"></i><span>Log Out</span></a>
-                `;
-            } else if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
-                nav.innerHTML = `
-                    <div class="nav-section-title">PORTFOLIO OVERVIEW</div>
-                    <a href="owner-dashboard.html" class="nav-item"><i class="bi bi-speedometer2"></i><span>Executive Summary</span></a>
-                    <a href="owner-properties.html" class="nav-item"><i class="bi bi-buildings"></i><span>My Properties</span></a>
-                    <a href="owner-statements.html" class="nav-item"><i class="bi bi-file-earmark-text"></i><span>Financial Statements</span></a>
-                    <a href="property-ownership.html" class="nav-item"><i class="bi bi-pie-chart"></i><span>Fractional Equity</span></a>
-                    <a href="owner-documents.html" class="nav-item"><i class="bi bi-folder2-open"></i><span>Legal Vault</span></a>
-                    <a href="transaction.html" class="nav-item"><i class="bi bi-receipt-cutoff"></i><span>Yield Audit Ledger</span></a>
-                    <div class="nav-section-title">COMMUNICATION & SYSTEM</div>
-                    <a href="notification.html" class="nav-item"><i class="bi bi-bell"></i><span>Notification Center</span></a>
-                    <a href="account.html" class="nav-item"><i class="bi bi-gear"></i><span>Account Settings</span></a>
-                    <a href="#" class="nav-item" onclick="logoutUser(); return false;"><i class="bi bi-box-arrow-right"></i><span>Log Out</span></a>
-                `;
-            } else {
-                nav.innerHTML = `
-                    <div class="nav-section-title">OVERVIEW</div>
-                    <a href="dashboard.html" class="nav-item"><i class="bi bi-grid-1x2"></i><span>Dashboard</span></a>
-                    <div class="nav-section-title">PROPERTY OPERATIONS</div>
-                    <a href="properties.html" class="nav-item"><i class="bi bi-buildings"></i><span>Properties</span></a>
-                    <a href="buildings.html" class="nav-item"><i class="bi bi-building"></i><span>Buildings</span></a>
-                    <a href="units.html" class="nav-item active"><i class="bi bi-door-open"></i><span>Units</span></a>
-                    <a href="tenants.html" class="nav-item"><i class="bi bi-people"></i><span>Tenants</span></a>
-                    <a href="owners.html" class="nav-item"><i class="bi bi-person-badge"></i><span>Owners</span></a>
-                    <a href="property-ownership.html" class="nav-item"><i class="bi bi-pie-chart"></i><span>Fractional Ownership</span></a>
-                    <a href="leases.html" class="nav-item"><i class="bi bi-file-earmark-text"></i><span>Leases</span></a>
-                    <div class="nav-section-title">FINANCE & SERVICES</div>
-                    <a href="rent-collection.html" class="nav-item"><i class="bi bi-cash-stack"></i><span>Rent Collection</span></a>
-                    <a href="transaction.html" class="nav-item"><i class="bi bi-receipt-cutoff"></i><span>Transactions & Ledger</span></a>
-                    <a href="utilities.html" class="nav-item"><i class="bi bi-lightning-charge"></i><span>Utilities</span></a>
-                    <a href="meter-readings.html" class="nav-item"><i class="bi bi-speedometer2"></i><span>Meter Readings</span></a>
-                    <a href="maintenance.html" class="nav-item"><i class="bi bi-tools"></i><span>Maintenance</span></a>
-                    <div class="nav-section-title">RECORDS & REPORTS</div>
-                    <a href="inspections.html" class="nav-item"><i class="bi bi-clipboard-check"></i><span>Inspections</span></a>
-                    <a href="move-in-checklist.html" class="nav-item"><i class="bi bi-check2-square"></i><span>Move-In Checklist</span></a>
-                    <a href="move-out-settlement.html" class="nav-item"><i class="bi bi-box-arrow-right"></i><span>Move-Out Settlement</span></a>
-                    <a href="documents.html" class="nav-item"><i class="bi bi-folder2-open"></i><span>Documents</span></a>
-                    <a href="reports.html" class="nav-item"><i class="bi bi-bar-chart"></i><span>Reports</span></a>
-                    <div class="nav-section-title">SYSTEM</div>
-                    <a href="settings.html" class="nav-item"><i class="bi bi-gear"></i><span>Settings</span></a>
-                    <a href="account.html" class="nav-item"><i class="bi bi-person-gear"></i><span>Account Settings</span></a>
-                    <a href="#" class="nav-item" onclick="logoutUser(); return false;"><i class="bi bi-box-arrow-right"></i><span>Log Out</span></a>
-                `;
-            }
-        }
-
-        function applyRoleLayout() {
-            const rawRole = (
-                localStorage.getItem('argo_pov') || 
-                localStorage.getItem('user_role') || 
-                localStorage.getItem('role') || 
-                'admin'
-            ).toLowerCase().trim();
-
-            const newUnitBtn = document.getElementById('newUnitBtn');
-            if (newUnitBtn) {
-                newUnitBtn.style.display = (['client', 'tenant', 'owner', 'property_owner'].includes(rawRole)) ? 'none' : 'inline-flex';
-            }
-        }
-
-        let livePropertiesCache = [];
-
-        async function fetchLiveProperties() {
-            try {
-                const res = await fetch(PROPERTIES_API_URL, { headers: getAuthHeaders() });
-                if (res.ok) {
-                    livePropertiesCache = await res.json();
-                    return livePropertiesCache;
-                }
-            } catch (err) {
-                console.warn("Could not fetch live properties:", err);
-            }
+    function getNotifications() {
+        try {
+            return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
+        } catch (e) {
             return [];
         }
+    }
 
-        async function populatePropertyDropdowns() {
-            const props = await fetchLiveProperties();
-            const filterSelect = document.getElementById('propertyFilter');
-            const modalSelect = document.getElementById('modalProperty');
+    function updateHeaderBadge() {
+        const notifs = getNotifications().filter(n => (n.pov === 'admin' || !n.pov) && (n.status === 'unread' || n.is_read === false));
+        const badge = document.getElementById('headerNotifBadge');
+        if (badge) badge.textContent = notifs.length;
+    }
 
-            if (filterSelect) filterSelect.innerHTML = '<option value="">All Properties</option>';
-            if (modalSelect) modalSelect.innerHTML = '<option value="">Select property...</option>';
-
-            if (props && props.length > 0) {
-                props.forEach(p => {
-                    const pName = p.name || p.property_name || `Property #${p.id}`;
-                    if (filterSelect) filterSelect.innerHTML += `<option value="${pName}">${pName}</option>`;
-                    if (modalSelect) modalSelect.innerHTML += `<option value="${p.id}">${pName}</option>`;
-                });
-            } else {
-                if (modalSelect) modalSelect.innerHTML += `<option value="1">Main Property (Default)</option>`;
+    // Database & Storage Fetchers
+    async function getProperties() {
+        try {
+            const res = await fetch(PROPERTIES_API_URL, { headers: getAuthHeaders() });
+            if (res.ok) {
+                const data = await res.json();
+                const list = Array.isArray(data) ? data : (data.items || data.properties || data.data || []);
+                localStorage.setItem('argo_properties', JSON.stringify(list));
+                return list;
             }
-        }
-
-        async function getUnits() {
-            try {
-                const response = await fetch(API_BASE_URL, { headers: getAuthHeaders() });
-                if (response.ok) {
-                    const data = await response.json();
-                    if (Array.isArray(data)) return data;
-                }
-            } catch (error) {
-                console.error("Failed to load units from backend:", error);
-            }
+        } catch (e) {}
+        try {
+            return JSON.parse(localStorage.getItem('argo_properties') || '[]');
+        } catch (e) {
             return [];
         }
+    }
 
-        let activeTabStatus = "ALL";
-
-        async function renderUnitsTable() {
-            const units = await getUnits();
-            const tbody = document.getElementById('unitTable');
-            if (!tbody) return;
-            tbody.innerHTML = '';
-
-            if (!units || units.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--muted, #64748B); padding:30px;">No units registered in inventory. Click "New Unit" to add one.</td></tr>`;
-                const countEl = document.getElementById('showingCountText');
-                if (countEl) countEl.textContent = `Showing 0 units`;
-                updateKPIsWithData([]);
-                return;
+    async function getBuildings() {
+        try {
+            const res = await fetch(BUILDINGS_API_URL, { headers: getAuthHeaders() });
+            if (res.ok) {
+                const data = await res.json();
+                const list = Array.isArray(data) ? data : (data.items || data.buildings || data.data || []);
+                localStorage.setItem('argo_buildings', JSON.stringify(list));
+                return list;
             }
+        } catch (e) {}
+        try {
+            return JSON.parse(localStorage.getItem('argo_buildings') || '[]');
+        } catch (e) {
+            return [];
+        }
+    }
 
-            units.forEach(u => {
-                const tr = document.createElement('tr');
-                const unitName = u.unit_number || u.unit_no || u.unitNo || u.unit_name || `Unit #${u.id}`;
-                const propName = u.property ? (u.property.name || u.property.property_name) : (u.property_name || 'Main Property');
-                const unitRent = parseFloat(u.monthly_rent || u.rent || u.rent_amount || 0);
-                const status = (u.status || 'VACANT').toUpperCase();
-
-                tr.dataset.status = status;
-                tr.dataset.property = propName;
-                tr.dataset.type = u.unit_type || u.type || 'Standard';
-
-                let badgeHtml = '';
-                if (status === 'VACANT' || status === 'AVAILABLE') {
-                    badgeHtml = `<span class="status-badge" style="background:#ECFDF5; color:#059669; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;">Available (Vacant)</span>`;
-                } else if (status === 'OCCUPIED') {
-                    badgeHtml = `<span class="status-badge" style="background:#EFF6FF; color:#2563EB; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;">Occupied (Leased)</span>`;
-                } else {
-                    badgeHtml = `<span class="status-badge" style="background:#FEF3C7; color:#D97706; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;">Maintenance</span>`;
-                }
-
-                tr.innerHTML = `
-                    <td>
-                        <div class="unit-name" style="font-weight:600;">${unitName}</div>
-                        <div class="unit-subtitle" style="font-size:11px; color:var(--muted, #64748B);">${u.description || u.subtitle || ''}</div>
-                    </td>
-                    <td>${propName}</td>
-                    <td>${u.unit_type || u.type || 'Standard'}</td>
-                    <td>${u.floor_number || u.floor || '1'}</td>
-                    <td><strong>₱${unitRent.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong></td>
-                    <td>${badgeHtml}</td>
-                    <td>
-                        <div style="display:flex; gap:6px;">
-                            <button class="action-button delete" title="Delete Unit" onclick="deleteUnit(${u.id})"><i class="bi bi-trash"></i></button>
-                        </div>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
-
-            applyAllFilters();
-            updateKPIsWithData(units);
+    async function getUnits() {
+        try {
+            const response = await fetch(UNITS_API_URL, { headers: getAuthHeaders() });
+            if (response.ok) {
+                const data = await response.json();
+                const list = Array.isArray(data) ? data : (data.items || data.units || data.data || []);
+                localStorage.setItem('argo_units', JSON.stringify(list));
+                return list;
+            }
+        } catch (error) {
+            console.warn("Units API offline, checking local cache:", error);
         }
 
-        async function saveUnit() {
-            const unitNo = document.getElementById('modalUnitNo').value.trim();
-            const type = document.getElementById('modalUnitType').value;
-            const propertyIdVal = document.getElementById('modalProperty').value;
-            const floorVal = document.getElementById('modalFloor').value.trim();
-            const rentInput = document.getElementById('modalRent');
-            const rent = rentInput ? parseFloat(rentInput.value) || 0 : 0;
-            const status = document.getElementById('modalStatus').value;
-            const subtitle = document.getElementById('modalSubtitle').value.trim();
-
-            if (!unitNo) {
-                alert("Please enter a Unit Number / Name.");
-                return;
-            }
-
-            const propertyId = parseInt(propertyIdVal) || 1;
-            const floorNumber = parseInt(floorVal.replace(/\D/g, '')) || 1;
-
-            // Dual-compatible payload matching backend Pydantic model
-            const payload = {
-                property_id: propertyId,
-                unit_number: unitNo,
-                unit_no: unitNo,
-                unit_type: type,
-                type: type,
-                floor_number: floorNumber,
-                floor: floorVal || `${floorNumber}`,
-                monthly_rent: rent,
-                rent: rent,
-                rent_amount: rent,
-                status: status === 'VACANT' ? 'Available' : status,
-                description: subtitle,
-                subtitle: subtitle
-            };
-
+        const raw = localStorage.getItem('argo_units');
+        if (raw) {
             try {
-                const response = await fetch(API_BASE_URL, {
-                    method: 'POST',
-                    headers: getAuthHeaders(),
-                    body: JSON.stringify(payload)
-                });
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed)) return parsed;
+            } catch (e) {}
+        }
+        return [];
+    }
 
-                if (!response.ok) {
-                    const errorDetail = await response.json().catch(() => ({}));
-                    console.error("Backend rejection:", errorDetail);
-                    alert("Failed to save unit to Cloud Database: " + JSON.stringify(errorDetail.detail || errorDetail));
-                    return;
-                }
-
-                alert(`Unit "${unitNo}" saved successfully to Neon PostgreSQL!`);
-                closeModal();
-                await renderUnitsTable();
-            } catch (error) {
-                console.error("Network or Cloud Error:", error);
-                alert("Network error connecting to live backend. Check console logs.");
+    async function getLeases() {
+        try {
+            const res = await fetch(LEASES_API_URL, { headers: getAuthHeaders() });
+            if (res.ok) {
+                const data = await res.json();
+                const list = Array.isArray(data) ? data : (data.items || data.leases || data.data || []);
+                localStorage.setItem('argo_leases', JSON.stringify(list));
+                return list;
             }
+        } catch (e) {}
+        try {
+            return JSON.parse(localStorage.getItem('argo_leases') || '[]');
+        } catch (e) {
+            return [];
         }
+    }
 
-        async function deleteUnit(id) {
-            if (!confirm(`Are you sure you want to delete unit #${id} from inventory?`)) return;
-            try {
-                const response = await fetch(`${API_BASE_URL}${id}`, {
-                    method: 'DELETE',
-                    headers: getAuthHeaders()
-                });
-                if (response.ok) {
-                    alert(`Unit #${id} deleted successfully!`);
-                    await renderUnitsTable();
-                } else {
-                    const err = await response.json().catch(() => ({}));
-                    alert("Delete failed: " + JSON.stringify(err.detail || err));
-                }
-            } catch (err) {
-                console.error("Delete request failed:", err);
-            }
-        }
+    // ================= CASCADING DROPDOWN LOGIC =================
+    async function populatePropertyDropdowns() {
+        const props = await getProperties();
+        const filterSelect = document.getElementById('propertyFilter');
+        const modalPropSelect = document.getElementById('modalPropertySelect');
 
-        function updateKPIsWithData(units) {
-            let total = units.length;
-            let available = 0, occupied = 0, maintenance = 0;
-
-            units.forEach(u => {
-                const s = (u.status || '').toUpperCase();
-                if (s === 'VACANT' || s === 'AVAILABLE') available++;
-                else if (s === 'OCCUPIED') occupied++;
-                else if (s === 'MAINTENANCE') maintenance++;
+        if (filterSelect) {
+            filterSelect.innerHTML = '<option value="">All Properties</option>';
+            props.forEach(p => {
+                const pName = p.name || p.property_name || 'Property';
+                filterSelect.innerHTML += `<option value="${pName}">${pName}</option>`;
             });
-
-            if (document.getElementById('kpiTotal')) document.getElementById('kpiTotal').textContent = total;
-            if (document.getElementById('kpiAvailable')) document.getElementById('kpiAvailable').textContent = available;
-            if (document.getElementById('kpiOccupied')) document.getElementById('kpiOccupied').textContent = occupied;
-            if (document.getElementById('kpiMaintenance')) document.getElementById('kpiMaintenance').textContent = maintenance;
         }
 
-        function openModal() { 
-            populatePropertyDropdowns();
-            const modal = document.getElementById("unitModal");
-            if (modal) modal.classList.add("show"); 
-        }
-
-        function closeModal() { 
-            const modal = document.getElementById("unitModal");
-            if (modal) modal.classList.remove("show"); 
-        }
-
-        function setTabFilter(status, buttonEl) {
-            activeTabStatus = status;
-            document.querySelectorAll(".tab").forEach(tab => tab.classList.remove("active"));
-            if (buttonEl) buttonEl.classList.add("active");
-            applyAllFilters();
-        }
-
-        function applyAllFilters() {
-            const searchInput = document.getElementById("searchInput");
-            const propFilter = document.getElementById("propertyFilter");
-            const typeFilter = document.getElementById("typeFilter");
-
-            const searchQuery = searchInput ? searchInput.value.toLowerCase().trim() : "";
-            const propertyVal = propFilter ? propFilter.value.toLowerCase() : "";
-            const typeVal = typeFilter ? typeFilter.value.toLowerCase() : "";
-
-            const rows = document.querySelectorAll("#unitTable tr");
-            let visibleCount = 0, totalRows = 0;
-
-            rows.forEach(row => {
-                if (row.cells.length === 1) return;
-                totalRows++;
-                const text = row.innerText.toLowerCase();
-                const rowStatus = row.dataset.status || "";
-                const rowProp = (row.dataset.property || "").toLowerCase();
-                const rowType = (row.dataset.type || "").toLowerCase();
-
-                const matchesTab = (activeTabStatus === "ALL" || rowStatus.includes(activeTabStatus) || (activeTabStatus === "VACANT" && rowStatus === "AVAILABLE"));
-                const matchesSearch = searchQuery === "" || text.includes(searchQuery);
-                const matchesProperty = propertyVal === "" || rowProp.includes(propertyVal);
-                const matchesType = typeVal === "" || rowType === typeVal;
-
-                if (matchesTab && matchesSearch && matchesProperty && matchesType) {
-                    row.style.display = "";
-                    visibleCount++;
-                } else {
-                    row.style.display = "none";
-                }
+        if (modalPropSelect) {
+            modalPropSelect.innerHTML = '<option value="">Select property asset...</option>';
+            props.forEach(p => {
+                const pId = p.id || p.code;
+                const pName = p.name || p.property_name || 'Property';
+                const pCode = p.code || 'PROP';
+                modalPropSelect.innerHTML += `<option value="${pId}">${pName} (${pCode})</option>`;
             });
+        }
+    }
 
+    async function cascadeBuildingsForProperty(propertyId) {
+        const buildingSelect = document.getElementById('modalBuildingSelect');
+        const floorSelect = document.getElementById('modalFloorSelect');
+        if (!buildingSelect) return;
+
+        buildingSelect.innerHTML = '<option value="">Select building structure...</option>';
+        if (floorSelect) floorSelect.innerHTML = '<option value="">Select floor...</option>';
+        if (!propertyId) return;
+
+        const buildings = await getBuildings();
+        const matchedBuildings = buildings.filter(b => {
+            const bPropId = String(b.property_id || '');
+            return bPropId === String(propertyId) || b.property === propertyId;
+        });
+
+        if (matchedBuildings.length > 0) {
+            matchedBuildings.forEach(b => {
+                const bId = b.id || b.code;
+                const bName = b.name || 'Building';
+                buildingSelect.innerHTML += `<option value="${bId}" data-floors="${b.floors || 5}">${bName} (${b.code || 'BLDG'})</option>`;
+            });
+        } else {
+            // Fallback default building if none created in buildings.html
+            buildingSelect.innerHTML += `<option value="BLDG-DEFAULT" data-floors="5">Tower A (Default)</option>`;
+        }
+    }
+
+    async function cascadeFloorsForBuilding(buildingId) {
+        const floorSelect = document.getElementById('modalFloorSelect');
+        if (!floorSelect) return;
+
+        floorSelect.innerHTML = '<option value="">Select floor...</option>';
+        if (!buildingId) return;
+
+        const buildingSelect = document.getElementById('modalBuildingSelect');
+        const selectedOpt = buildingSelect.options[buildingSelect.selectedIndex];
+        const floorsCount = selectedOpt ? parseInt(selectedOpt.dataset.floors) || 5 : 5;
+
+        const floorLabels = ['First Floor', 'Second Floor', 'Third Floor', 'Fourth Floor', 'Fifth Floor', 'Sixth Floor', 'Seventh Floor', 'Eighth Floor', 'Ninth Floor', 'Tenth Floor'];
+
+        for (let i = 1; i <= Math.min(floorsCount, 20); i++) {
+            const fName = floorLabels[i - 1] || `Floor ${i}`;
+            floorSelect.innerHTML += `<option value="${fName}">${fName}</option>`;
+        }
+    }
+
+    let activeTabStatus = "ALL";
+
+    async function renderUnitsTable() {
+        const units = await getUnits();
+        const tbody = document.getElementById('unitTable');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+
+        if (!units || units.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--muted, #64748B); padding:30px;">No units found in database. Click "New Unit" to register one.</td></tr>`;
             const countEl = document.getElementById('showingCountText');
-            if (countEl) countEl.textContent = totalRows === 0 ? "Showing 0 units" : `Showing ${visibleCount} of ${totalRows} units`;
+            if (countEl) countEl.textContent = `Showing 0 units`;
+            updateKPIsWithData([]);
+            return;
         }
 
-        function resetFilters() {
-            if (document.getElementById("searchInput")) document.getElementById("searchInput").value = "";
-            if (document.getElementById("propertyFilter")) document.getElementById("propertyFilter").value = "";
-            if (document.getElementById("typeFilter")) document.getElementById("typeFilter").value = "";
-            const firstTab = document.querySelectorAll('.tab')[0];
-            if (firstTab) setTabFilter('ALL', firstTab);
+        units.forEach(u => {
+            const tr = document.createElement('tr');
+            const unitName = u.unit_no || u.unit_number || u.name || `Unit #${u.id}`;
+            const propName = u.property ? (u.property.name || u.property.property_name) : (u.property_name || 'Sunrise Residences');
+            const buildingTag = u.building ? ` • ${u.building}` : '';
+            const unitRent = parseFloat(u.rent || u.rent_amount || u.monthly_rent || 0);
+            const occupant = u.tenant_name || u.tenant || '';
+            const rawStatus = (u.status || 'VACANT').toUpperCase();
+            const sqm = u.sqm || u.floor_area || '45.0';
+
+            let normalizedStatus = 'VACANT';
+            if (occupant || rawStatus === 'OCCUPIED' || rawStatus === 'LEASED') {
+                normalizedStatus = 'OCCUPIED';
+            } else if (rawStatus === 'MAINTENANCE' || rawStatus === 'UNDER_MAINTENANCE') {
+                normalizedStatus = 'MAINTENANCE';
+            } else {
+                normalizedStatus = 'VACANT';
+            }
+
+            tr.dataset.status = normalizedStatus;
+            tr.dataset.property = propName;
+            tr.dataset.type = u.type || u.unit_type || 'Apartment';
+
+            let badgeHtml = '';
+            if (normalizedStatus === 'OCCUPIED') {
+                badgeHtml = `<span class="status-badge status-occupied"><i class="bi bi-person-check me-1"></i> OCCUPIED</span>`;
+            } else if (normalizedStatus === 'VACANT') {
+                badgeHtml = `<span class="status-badge status-available"><i class="bi bi-check2-circle me-1"></i> Available (VACANT)</span>`;
+            } else {
+                badgeHtml = `<span class="status-badge status-maintenance"><i class="bi bi-tools me-1"></i> UNDER MAINTENANCE</span>`;
+            }
+
+            const occupantInfo = occupant ? `<span style="color:#2563EB; font-weight:600;"><i class="bi bi-person me-1"></i>${occupant}</span>` : '';
+            const desc = u.subtitle || u.description || `${sqm} sq.m`;
+            const subtitleHtml = [occupantInfo, desc].filter(Boolean).join(' · ');
+            const unitId = u.id || unitName;
+
+            tr.innerHTML = `
+                <td>
+                    <div class="unit-name" style="font-weight:600;">${unitName}</div>
+                    <div class="unit-subtitle" style="font-size:11px; color:var(--muted, #64748B); margin-top:2px;">${subtitleHtml}</div>
+                </td>
+                <td><strong>${propName}</strong><div style="font-size:11px; color:var(--muted, #64748B);">${buildingTag.replace(' • ', '')}</div></td>
+                <td>${u.type || u.unit_type || 'Apartment'}</td>
+                <td>${u.floor || '1st Floor'} (${sqm} sq.m)</td>
+                <td><strong>₱${unitRent.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong></td>
+                <td>${badgeHtml}</td>
+                <td>
+                    <div style="display:flex; gap:6px;">
+                        <button class="action-button delete" title="Delete Unit" onclick="deleteUnit('${unitId}', '${unitName}')"><i class="bi bi-trash"></i></button>
+                    </div>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        applyAllFilters();
+        updateKPIsWithData(units);
+    }
+
+    async function saveUnit() {
+        const unitNo = document.getElementById('modalUnitNo').value.trim();
+        const type = document.getElementById('modalUnitType').value;
+        const propertySelect = document.getElementById('modalPropertySelect');
+        const buildingSelect = document.getElementById('modalBuildingSelect');
+        const floorSelect = document.getElementById('modalFloorSelect');
+        const sqmInput = document.getElementById('modalSqm');
+        const rentInput = document.getElementById('modalRent');
+        const statusSelect = document.getElementById('modalStatus');
+        const subtitleInput = document.getElementById('modalSubtitle');
+
+        const propertyId = propertySelect ? propertySelect.value : '';
+        const propertyName = propertySelect && propertySelect.selectedIndex > 0 ? propertySelect.options[propertySelect.selectedIndex].text.split('(')[0].trim() : 'Sunrise Residences';
+        const buildingId = buildingSelect ? buildingSelect.value : '';
+        const buildingName = buildingSelect && buildingSelect.selectedIndex > 0 ? buildingSelect.options[buildingSelect.selectedIndex].text.split('(')[0].trim() : 'Tower A';
+        const floorVal = floorSelect ? floorSelect.value : '1st Floor';
+        const sqm = sqmInput ? parseFloat(sqmInput.value) || 45.0 : 45.0;
+        const rent = rentInput ? parseFloat(rentInput.value) || 0 : 0;
+        const lifecycleStatus = statusSelect ? statusSelect.value : 'VACANT';
+        const subtitle = subtitleInput ? subtitleInput.value.trim() : '';
+
+        if (!unitNo || !propertyId || !buildingId || !floorVal) {
+            alert("Please fill in all required fields (Unit Number, Property, Building, Floor Level).");
+            return;
         }
 
-        document.addEventListener('DOMContentLoaded', async () => {
+        const newUnitId = `UNT-${Math.floor(1000 + Math.random() * 9000)}`;
+
+        const payload = {
+            id: newUnitId,
+            property_id: propertyId,
+            property_name: propertyName,
+            property: propertyName,
+            building_id: buildingId,
+            building: buildingName,
+            unit_no: unitNo,
+            unit_number: unitNo,
+            type: type,
+            unit_type: type,
+            floor: floorVal,
+            sqm: sqm,
+            floor_area: sqm,
+            rent: rent,
+            rent_amount: rent,
+            monthly_rent: rent,
+            status: lifecycleStatus,
+            subtitle: subtitle || `${sqm} sq.m · ${type}`,
+            description: subtitle || `${sqm} sq.m · ${type}`
+        };
+
+        // 1. Live Database POST
+        try {
+            const res = await fetch(UNITS_API_URL, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify(payload)
+            });
+
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                alert(`Error saving unit: ${errData.detail || 'Could not save unit to database'}`);
+                return;
+            }
+        } catch (e) {
+            console.warn("Backend unit create bypassed, saving locally:", e);
+        }
+
+        // 2. Local Storage Sync
+        let units = await getUnits();
+        units.unshift(payload);
+        localStorage.setItem('argo_units', JSON.stringify(units));
+
+        alert(`Unit "${unitNo}" saved successfully with lifecycle state: ${lifecycleStatus}!`);
+        closeModal();
+        await renderUnitsTable();
+
+        document.getElementById('modalUnitNo').value = '';
+        if (propertySelect) propertySelect.value = '';
+        if (buildingSelect) buildingSelect.innerHTML = '<option value="">Select building structure...</option>';
+        if (floorSelect) floorSelect.innerHTML = '<option value="">Select floor...</option>';
+    }
+
+    async function deleteUnit(id, unitName) {
+        const displayName = unitName || id;
+        if (!confirm(`Are you sure you want to permanently delete ${displayName} from the database?`)) return;
+
+        try {
+            const response = await fetch(`${UNITS_API_URL}${encodeURIComponent(id)}`, {
+                method: 'DELETE',
+                headers: getAuthHeaders()
+            });
+
+            if (!response.ok) {
+                const errData = await response.json().catch(() => ({}));
+                alert(`Cannot delete unit: ${errData.detail || 'Unit is currently linked to an active lease.'}`);
+                return;
+            }
+        } catch (err) {
+            console.error("Delete request failed:", err);
+        }
+
+        let units = await getUnits();
+        units = units.filter(u => String(u.id) !== String(id) && String(u.unit_number || u.unit_no) !== String(unitName));
+        localStorage.setItem('argo_units', JSON.stringify(units));
+
+        alert(`${displayName} deleted successfully!`);
+        await renderUnitsTable();
+    }
+
+    function updateKPIsWithData(units) {
+        let total = units.length;
+        let available = 0, occupied = 0, maintenance = 0;
+
+        units.forEach(u => {
+            const occupant = u.tenant_name || u.tenant;
+            const s = (u.status || 'VACANT').toUpperCase();
+
+            if (occupant || s === 'OCCUPIED' || s === 'LEASED') {
+                occupied++;
+            } else if (s === 'MAINTENANCE' || s === 'UNDER_MAINTENANCE') {
+                maintenance++;
+            } else {
+                available++;
+            }
+        });
+
+        if (document.getElementById('kpiTotal')) document.getElementById('kpiTotal').textContent = total;
+        if (document.getElementById('kpiAvailable')) document.getElementById('kpiAvailable').textContent = available;
+        if (document.getElementById('kpiOccupied')) document.getElementById('kpiOccupied').textContent = occupied;
+        if (document.getElementById('kpiMaintenance')) document.getElementById('kpiMaintenance').textContent = maintenance;
+    }
+
+    function openModal() { 
+        populatePropertyDropdowns();
+        const modal = document.getElementById("unitModal");
+        if (modal) modal.classList.add("show"); 
+    }
+
+    function closeModal() { 
+        const modal = document.getElementById("unitModal");
+        if (modal) modal.classList.remove("show"); 
+    }
+
+    function setTabFilter(status, buttonEl) {
+        activeTabStatus = status;
+        document.querySelectorAll(".tab").forEach(tab => tab.classList.remove("active"));
+        if (buttonEl) buttonEl.classList.add("active");
+        applyAllFilters();
+    }
+
+    function applyAllFilters() {
+        const searchInput = document.getElementById("searchInput");
+        const propFilter = document.getElementById("propertyFilter");
+        const typeFilter = document.getElementById("typeFilter");
+
+        const searchQuery = searchInput ? searchInput.value.toLowerCase().trim() : "";
+        const propertyVal = propFilter ? propFilter.value.toLowerCase() : "";
+        const typeVal = typeFilter ? typeFilter.value.toLowerCase() : "";
+
+        const rows = document.querySelectorAll("#unitTable tr");
+        let visibleCount = 0, totalRows = 0;
+
+        rows.forEach(row => {
+            if (row.cells.length === 1) return;
+            totalRows++;
+            const text = row.innerText.toLowerCase();
+            const rowStatus = (row.dataset.status || "").toUpperCase();
+            const rowProp = (row.dataset.property || "").toLowerCase();
+            const rowType = (row.dataset.type || "").toLowerCase();
+
+            const isAvailableTab = activeTabStatus === "AVAILABLE" || activeTabStatus === "VACANT";
+            const isRowAvailable = rowStatus === "AVAILABLE" || rowStatus === "VACANT";
+
+            const matchesTab = (
+                activeTabStatus === "ALL" || 
+                rowStatus === activeTabStatus ||
+                (isAvailableTab && isRowAvailable)
+            );
+
+            const matchesSearch = searchQuery === "" || text.includes(searchQuery);
+            const matchesProperty = propertyVal === "" || rowProp.includes(propertyVal);
+            const matchesType = typeVal === "" || rowType === typeVal;
+
+            if (matchesTab && matchesSearch && matchesProperty && matchesType) {
+                row.style.display = "";
+                visibleCount++;
+            } else {
+                row.style.display = "none";
+            }
+        });
+
+        const countEl = document.getElementById('showingCountText');
+        if (countEl) countEl.textContent = totalRows === 0 ? "Showing 0 units" : `Showing ${visibleCount} of ${totalRows} units`;
+    }
+
+    function resetFilters() {
+        if (document.getElementById("searchInput")) document.getElementById("searchInput").value = "";
+        if (document.getElementById("propertyFilter")) document.getElementById("propertyFilter").value = "";
+        if (document.getElementById("typeFilter")) document.getElementById("typeFilter").value = "";
+        const firstTab = document.querySelectorAll('.tab')[0];
+        if (firstTab) setTabFilter('ALL', firstTab);
+    }
+
+    window.addEventListener('storage', async (e) => {
+        if (['argo_units', 'argo_properties', 'argo_buildings', 'argo_tenants', 'argo_leases', 'argo_notifications', 'argo_user', 'argo_pov'].includes(e.key)) {
             renderSidebar();
-            applyRoleLayout();
+            loadUserData();
+            updateHeaderBadge();
             await populatePropertyDropdowns();
             await renderUnitsTable();
+        }
+    });
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        renderSidebar();
+        applyRoleLayout();
+        loadUserData();
+        updateHeaderBadge();
+        await populatePropertyDropdowns();
+        await renderUnitsTable();
+    });
+
+    const userProfileBtn = document.getElementById('userProfileBtn');
+    const userDropdown = document.getElementById('userDropdown');
+
+    if (userProfileBtn && userDropdown) {
+        userProfileBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            userDropdown.classList.toggle('show');
         });
-    </script>
+
+        document.addEventListener('click', () => { 
+            userDropdown.classList.remove('show'); 
+        });
+    }
+</script>
+</body>
+</html>

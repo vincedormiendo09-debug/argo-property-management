@@ -688,7 +688,7 @@
     <!-- ================= SIDEBAR ================= -->
     <aside class="sidebar">
         <div class="sidebar-brand">
-            <div class="brand-logo">A</div>
+            <div class="brand-logo" id="brandLogo">A</div>
             <div>
                 <h2>ARGO</h2>
                 <span id="portalBrandSubtitle">Property Management</span>
@@ -707,9 +707,9 @@
     <!-- ================= TOP HEADER ================= -->
     <header class="top-header">
         <div class="header-left">
-            <div class="admin-badge">
-                <i class="bi bi-shield-lock-fill" style="color: #60A5FA;"></i>
-                <span>Admin Command Center</span>
+            <div id="headerRoleBadgeContainer" class="admin-badge">
+                <i id="headerRoleIcon" class="bi bi-shield-lock-fill" style="color: #60A5FA;"></i>
+                <span id="headerRoleBadgeText">Admin Command Center</span>
             </div>
         </div>
 
@@ -721,9 +721,9 @@
 
             <div class="user-dropdown-container">
                 <div class="user-profile" id="userProfileBtn">
-                    <div class="avatar" id="userAvatar">JD</div>
+                    <div class="avatar" id="userAvatar">SA</div>
                     <div class="user-info">
-                        <strong id="userName">Property Admin</strong>
+                        <strong id="userName">System Admin</strong>
                         <span id="userRoleBadge">Property Manager</span>
                     </div>
                     <i class="bi bi-chevron-down" style="font-size: 10px; color: #94A3B8;"></i>
@@ -754,7 +754,7 @@
                 <p>Verify tenant payment proofs, inspect property location tags, and clear outstanding ledger balances.</p>
             </div>
 
-            <button class="primary-btn" onclick="openModal()">
+            <button class="primary-button primary-btn" onclick="openModal('paymentModal')">
                 <i class="bi bi-plus-lg"></i>
                 <span>Record Manual Payment</span>
             </button>
@@ -777,7 +777,7 @@
                     <div class="kpi-icon" style="background:#ECFDF5; color:#059669;"><i class="bi bi-check-circle"></i></div>
                 </div>
                 <div class="kpi-value" id="kpiCollected" style="color:#059669;">₱0.00</div>
-                <div class="kpi-description" id="kpiRate">Collection rate in progress</div>
+                <div class="kpi-description" id="kpiRate">0% collection rate</div>
             </div>
 
             <div class="kpi-card">
@@ -821,9 +821,9 @@
                 <option value="Cash">Cash</option>
             </select>
 
-            <button class="secondary-btn" onclick="resetFilters()">
+            <button class="secondary-button secondary-btn" onclick="resetFilters()">
                 <i class="bi bi-arrow-counterclockwise"></i>
-                Reset
+                <span>Reset</span>
             </button>
         </div>
 
@@ -844,7 +844,7 @@
                         </tr>
                     </thead>
                     <tbody id="paymentTable">
-                        <!-- RENDERED DYNAMICALLY FROM LOCALSTORAGE / POSTGRESQL -->
+                        <!-- RENDERED DYNAMICALLY FROM DATABASE -->
                     </tbody>
                 </table>
             </div>
@@ -864,21 +864,21 @@
                     <span class="eyebrow">ADMIN RECORDING DESK</span>
                     <h2>Record Rent Payment</h2>
                 </div>
-                <button class="close-btn" onclick="closeModal('paymentModal')"><i class="bi bi-x-lg"></i></button>
+                <button class="close-button close-btn" onclick="closeModal('paymentModal')"><i class="bi bi-x-lg"></i></button>
             </div>
 
             <div class="modal-body">
                 <div class="form-group">
-                    <label>Select Active Lease / Tenant <span style="color:var(--danger, #E11D48);">*</span></label>
+                    <label>Select Active Lease / Tenant <span style="color:var(--danger, #EF4444);">*</span></label>
                     <select id="modalTenantSelect" onchange="autoFillLeaseRent()">
                         <option value="">Select Tenant...</option>
                         <!-- DYNAMICALLY POPULATED -->
                     </select>
                 </div>
 
-                <div class="form-row">
+                <div class="form-row" style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
                     <div class="form-group">
-                        <label>Payment Amount (₱) <span style="color:var(--danger, #E11D48);">*</span></label>
+                        <label>Payment Amount (₱) <span style="color:var(--danger, #EF4444);">*</span></label>
                         <input type="number" id="modalAmountInput" placeholder="e.g. 15000" min="0" step="0.01">
                     </div>
 
@@ -893,16 +893,16 @@
                     </div>
                 </div>
 
-                <div class="form-row">
+                <div class="form-row" style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
                     <div class="form-group">
                         <label>Reference Number / Receipt ID</label>
-                        <input type="text" id="modalRefInput" placeholder="e.g. #CASH-987212 or #GCASH-99120">
+                        <input type="text" id="modalRefInput" placeholder="e.g. #CASH-9872 or #GCASH-9912">
                     </div>
 
                     <div class="form-group">
                         <label>Initial Verification Status</label>
                         <select id="modalStatusSelect">
-                            <option value="Paid" selected>Paid (Verified)</option>
+                            <option value="Paid" selected>Paid (Verified & Clear Balance)</option>
                             <option value="Pending Verification">Pending Verification</option>
                         </select>
                     </div>
@@ -915,8 +915,8 @@
             </div>
 
             <div class="modal-footer">
-                <button class="secondary-btn" onclick="closeModal('paymentModal')">Cancel</button>
-                <button class="primary-btn" onclick="saveManualPayment()"><i class="bi bi-check-lg"></i> Save Payment Record</button>
+                <button class="secondary-button secondary-btn" onclick="closeModal('paymentModal')">Cancel</button>
+                <button class="primary-button primary-btn" onclick="saveManualPayment()"><i class="bi bi-check-lg"></i> Save Payment Record</button>
             </div>
         </div>
     </div>
@@ -929,753 +929,784 @@
                     <span class="eyebrow">AUDIT & PROOF INSPECTION</span>
                     <h2 id="vInvoiceTitle">Payment Verification</h2>
                 </div>
-                <button class="close-btn" onclick="closeModal('viewPaymentModal')"><i class="bi bi-x-lg"></i></button>
+                <button class="close-button close-btn" onclick="closeModal('viewPaymentModal')"><i class="bi bi-x-lg"></i></button>
             </div>
 
             <div class="modal-body">
-                <div style="background:#F8FAFC; border:1px solid var(--border, #E5E7EB); border-radius:8px; padding:14px; margin-bottom:14px; font-size:12px;">
-                    <div style="font-weight:700; font-size:14px; margin-bottom:4px; color:var(--text);" id="vTenantName">Tenant Name</div>
-                    <div style="color:var(--muted); margin-bottom:8px;" id="vLocationTag"><i class="bi bi-geo-alt"></i> Property Location</div>
-                    <div style="font-size:13px; font-weight:700; color:var(--primary);" id="vAmount">₱0.00</div>
+                <div style="background:#F8FAFC; border:1px solid var(--border, #E2E8F0); border-radius:8px; padding:14px; margin-bottom:14px; font-size:12px;">
+                    <div style="font-weight:700; font-size:14px; margin-bottom:4px; color:var(--text, #0F172A);" id="vTenantName">Tenant Name</div>
+                    <div style="color:var(--muted, #64748B); margin-bottom:8px;" id="vLocationTag"><i class="bi bi-geo-alt"></i> Property Location</div>
+                    <div style="font-size:14px; font-weight:700; color:var(--primary, #2563EB);" id="vAmount">₱0.00</div>
                 </div>
 
-                <div style="border-top:1px solid var(--border, #E5E7EB); padding-top:12px;">
-                    <div style="font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; margin-bottom:8px;">TRANSACTION DETAILS</div>
-                    <div style="display:flex; justify-content:space-between; font-size:12px; padding:6px 0; border-bottom:1px dashed var(--border, #E5E7EB);">
+                <div style="border-top:1px solid var(--border, #E2E8F0); padding-top:12px;">
+                    <div style="font-size:11px; font-weight:700; color:var(--muted, #64748B); text-transform:uppercase; margin-bottom:8px;">TRANSACTION DETAILS</div>
+                    <div style="display:flex; justify-content:space-between; font-size:12px; padding:6px 0; border-bottom:1px dashed var(--border, #E2E8F0);">
                         <span>Invoice ID:</span>
                         <strong id="vInvoiceId">INV-000</strong>
                     </div>
-                    <div style="display:flex; justify-content:space-between; font-size:12px; padding:6px 0; border-bottom:1px dashed var(--border, #E5E7EB);">
+                    <div style="display:flex; justify-content:space-between; font-size:12px; padding:6px 0; border-bottom:1px dashed var(--border, #E2E8F0);">
                         <span>Reference Code:</span>
                         <code id="vRefCode">#REF-000</code>
                     </div>
-                    <div style="display:flex; justify-content:space-between; font-size:12px; padding:6px 0; border-bottom:1px dashed var(--border, #E5E7EB);">
+                    <div style="display:flex; justify-content:space-between; font-size:12px; padding:6px 0; border-bottom:1px dashed var(--border, #E2E8F0);">
                         <span>Channel / Method:</span>
                         <strong id="vChannel">GCash</strong>
                     </div>
-                    <div style="display:flex; justify-content:space-between; font-size:12px; padding:6px 0; border-bottom:1px dashed var(--border, #E5E7EB);">
+                    <div style="display:flex; justify-content:space-between; font-size:12px; padding:6px 0; border-bottom:1px dashed var(--border, #E2E8F0);">
                         <span>Current Status:</span>
-                        <strong id="vStatus" style="color:var(--warning);">Pending Verification</strong>
+                        <strong id="vStatus" style="color:var(--warning, #D97706);">Pending Verification</strong>
                     </div>
-                    <div style="display:flex; justify-content:space-between; font-size:12px; padding:6px 0; border-bottom:1px dashed var(--border, #E5E7EB);" id="vAttachmentRow">
+                    <div style="display:flex; justify-content:space-between; font-size:12px; padding:6px 0; border-bottom:1px dashed var(--border, #E2E8F0);" id="vAttachmentRow">
                         <span>Receipt Proof:</span>
-                        <strong id="vAttachment" style="color:var(--primary);">None Attached</strong>
+                        <strong id="vAttachment" style="color:var(--primary, #2563EB);">None Attached</strong>
                     </div>
                     <div style="padding:8px 0; font-size:12px;">
-                        <span style="color:var(--muted); display:block; margin-bottom:2px;">Payer Notes:</span>
-                        <div id="vNotes" style="color:#374151; font-style:italic;">No additional remarks provided.</div>
+                        <span style="color:var(--muted, #64748B); display:block; margin-bottom:2px;">Payer Notes:</span>
+                        <div id="vNotes" style="color:#475569; font-style:italic;">No additional remarks provided.</div>
                     </div>
                 </div>
             </div>
 
             <div class="modal-footer">
-                <button class="secondary-btn" onclick="closeModal('viewPaymentModal')">Close</button>
-                <button class="primary-btn" id="vApproveBtn" onclick="approveFromModal()"><i class="bi bi-check-circle-fill"></i> Approve & Clear Balance</button>
+                <button class="secondary-button secondary-btn" onclick="closeModal('viewPaymentModal')">Close</button>
+                <button class="primary-button primary-btn" id="vApproveBtn" onclick="approveFromModal()"><i class="bi bi-check-circle-fill"></i> Approve & Clear Balance</button>
             </div>
         </div>
     </div>
 
-    <!-- ================= JAVASCRIPT ================= -->
-    <script>
-        let currentInspectedInvoiceId = null;
+<script>
+    const API_BASE_URL = (
+        window.location.origin.includes('localhost') || 
+        window.location.origin.includes('127.0.0.1')
+    ) 
+        ? 'http://127.0.0.1:8000/api'
+        : (window.location.origin.includes('github.io'))
+            ? 'https://argo-management-2026.onrender.com/api'
+            : '/api';
 
-        // Type-Safe Currency Parser
-        function parseCurrency(val) {
-            if (val === undefined || val === null || val === '') return 0;
-            if (typeof val === 'number') return isNaN(val) ? 0 : val;
-            const clean = val.toString().replace(/[^0-9.-]+/g, "");
-            const parsed = parseFloat(clean);
-            return isNaN(parsed) ? 0 : parsed;
+    const INVOICES_API_URL = `${API_BASE_URL}/invoices/`;
+    const LEASES_API_URL = `${API_BASE_URL}/leases/`;
+    const TRANSACTIONS_API_URL = `${API_BASE_URL}/transactions/`;
+    const NOTIFICATIONS_API_URL = `${API_BASE_URL}/notifications/`;
+
+    let currentInspectedInvoiceId = null;
+
+    function parseCurrency(val) {
+        if (val === undefined || val === null || val === '') return 0;
+        if (typeof val === 'number') return isNaN(val) ? 0 : val;
+        const clean = val.toString().replace(/[^0-9.-]+/g, "");
+        const parsed = parseFloat(clean);
+        return isNaN(parsed) ? 0 : parsed;
+    }
+
+    function formatPeso(val) {
+        const num = parseCurrency(val);
+        return '₱' + num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function getAuthHeaders() {
+        const token = localStorage.getItem('token') || localStorage.getItem('argo_token');
+        return {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        };
+    }
+
+    function logoutUser() {
+        localStorage.clear();
+        window.location.replace('index.html');
+    }
+
+    function renderSidebar() {
+        const nav = document.getElementById('sidebarNav');
+        if (!nav) return;
+
+        const rawRole = (
+            localStorage.getItem('argo_pov') || 
+            localStorage.getItem('user_role') || 
+            localStorage.getItem('role') || 
+            'admin'
+        ).toLowerCase().trim();
+
+        if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
+            nav.innerHTML = `
+                <div class="nav-section-title">SELF-SERVICE HOME</div>
+                <a href="client-dashboard.html" class="nav-item"><i class="bi bi-house-door"></i><span>My Tenancy Home</span></a>
+                <a href="client-billing.html" class="nav-item"><i class="bi bi-receipt"></i><span>Pay Rent & Dues</span></a>
+                <a href="transaction.html" class="nav-item"><i class="bi bi-receipt-cutoff"></i><span>Transactions & Ledger</span></a>
+                <a href="client-utilities.html" class="nav-item"><i class="bi bi-lightning-charge"></i><span>My Utilities & Meters</span></a>
+                <a href="client-maintenance.html" class="nav-item"><i class="bi bi-tools"></i><span>Submit Maintenance</span></a>
+                <a href="inspections.html" class="nav-item"><i class="bi bi-clipboard-check"></i><span>Move-In & Inspections</span></a>
+                <a href="client-documents.html" class="nav-item"><i class="bi bi-folder2-open"></i><span>My Lease & Receipts</span></a>
+                <div class="nav-section-title">SYSTEM</div>
+                <a href="account.html" class="nav-item"><i class="bi bi-gear"></i><span>Account Settings</span></a>
+                <a href="#" class="nav-item" onclick="logoutUser(); return false;"><i class="bi bi-box-arrow-right"></i><span>Log Out</span></a>
+            `;
+        } else if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
+            nav.innerHTML = `
+                <div class="nav-section-title">PORTFOLIO OVERVIEW</div>
+                <a href="owner-dashboard.html" class="nav-item"><i class="bi bi-speedometer2"></i><span>Executive Summary</span></a>
+                <a href="owner-properties.html" class="nav-item"><i class="bi bi-buildings"></i><span>My Properties</span></a>
+                <a href="owner-statements.html" class="nav-item"><i class="bi bi-file-earmark-text"></i><span>Financial Statements</span></a>
+                <a href="property-ownership.html" class="nav-item"><i class="bi bi-pie-chart"></i><span>Fractional Equity</span></a>
+                <a href="owner-documents.html" class="nav-item"><i class="bi bi-folder2-open"></i><span>Legal Vault</span></a>
+                <a href="transaction.html" class="nav-item"><i class="bi bi-receipt-cutoff"></i><span>Yield Audit Ledger</span></a>
+                <div class="nav-section-title">COMMUNICATION & SYSTEM</div>
+                <a href="notification.html" class="nav-item"><i class="bi bi-bell"></i><span>Notification Center</span></a>
+                <a href="account.html" class="nav-item"><i class="bi bi-gear"></i><span>Account Settings</span></a>
+                <a href="#" class="nav-item" onclick="logoutUser(); return false;"><i class="bi bi-box-arrow-right"></i><span>Log Out</span></a>
+            `;
+        } else {
+            nav.innerHTML = `
+                <div class="nav-section-title">OVERVIEW</div>
+                <a href="dashboard.html" class="nav-item"><i class="bi bi-grid-1x2"></i><span>Dashboard</span></a>
+                <div class="nav-section-title">PROPERTY OPERATIONS</div>
+                <a href="properties.html" class="nav-item"><i class="bi bi-buildings"></i><span>Properties</span></a>
+                <a href="buildings.html" class="nav-item"><i class="bi bi-building"></i><span>Buildings</span></a>
+                <a href="units.html" class="nav-item"><i class="bi bi-door-open"></i><span>Units</span></a>
+                <a href="tenants.html" class="nav-item"><i class="bi bi-people"></i><span>Tenants</span></a>
+                <a href="owners.html" class="nav-item"><i class="bi bi-person-badge"></i><span>Owners</span></a>
+                <a href="property-ownership.html" class="nav-item"><i class="bi bi-pie-chart"></i><span>Fractional Ownership</span></a>
+                <a href="leases.html" class="nav-item"><i class="bi bi-file-earmark-text"></i><span>Leases</span></a>
+                <div class="nav-section-title">FINANCE & SERVICES</div>
+                <a href="rent-collection.html" class="nav-item active"><i class="bi bi-cash-stack"></i><span>Rent Collection</span></a>
+                <a href="transaction.html" class="nav-item"><i class="bi bi-receipt-cutoff"></i><span>Transactions & Ledger</span></a>
+                <a href="utilities.html" class="nav-item"><i class="bi bi-lightning-charge"></i><span>Utilities</span></a>
+                <a href="meter-readings.html" class="nav-item"><i class="bi bi-speedometer2"></i><span>Meter Readings</span></a>
+                <a href="maintenance.html" class="nav-item"><i class="bi bi-tools"></i><span>Maintenance</span></a>
+                <div class="nav-section-title">RECORDS & REPORTS</div>
+                <a href="inspections.html" class="nav-item"><i class="bi bi-clipboard-check"></i><span>Inspections</span></a>
+                <a href="move-in-checklist.html" class="nav-item"><i class="bi bi-check2-square"></i><span>Move-In Checklist</span></a>
+                <a href="move-out-settlement.html" class="nav-item"><i class="bi bi-box-arrow-right"></i><span>Move-Out Settlement</span></a>
+                <a href="documents.html" class="nav-item"><i class="bi bi-folder2-open"></i><span>Documents</span></a>
+                <a href="reports.html" class="nav-item"><i class="bi bi-bar-chart"></i><span>Reports</span></a>
+                <div class="nav-section-title">SYSTEM</div>
+                <a href="settings.html" class="nav-item"><i class="bi bi-gear"></i><span>Settings</span></a>
+                <a href="account.html" class="nav-item"><i class="bi bi-person-gear"></i><span>Account Settings</span></a>
+                <a href="#" class="nav-item" onclick="logoutUser(); return false;"><i class="bi bi-box-arrow-right"></i><span>Log Out</span></a>
+            `;
         }
+    }
 
-        // Format Currency Helper
-        function formatPeso(val) {
-            const num = parseCurrency(val);
-            return '₱' + num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        }
+    function loadUserData() {
+        const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+        const nameEl = document.getElementById('userName');
+        const roleEl = document.getElementById('userRoleBadge');
+        const avatarEl = document.getElementById('userAvatar');
 
-        // Secure Logout Handler
-        function logoutUser() {
-            localStorage.removeItem('argo_pov');
-            localStorage.removeItem('user_role');
-            localStorage.removeItem('role');
-            localStorage.removeItem('token');
-            localStorage.removeItem('argo_user');
-            window.location.replace('index.html');
-        }
+        if (nameEl) nameEl.textContent = user.name || 'System Admin';
+        if (roleEl) roleEl.textContent = user.role || 'Property Manager';
+        if (avatarEl) avatarEl.textContent = user.avatar || 'SA';
+    }
 
-        function renderSidebar() {
-            const nav = document.getElementById('sidebarNav');
-            if (nav) {
-                const role = localStorage.getItem('argo_pov') || 'admin';
-                if (role === 'client') {
-                    nav.innerHTML = `
-                        <div class="nav-section-title">SELF-SERVICE HOME</div>
-                        <a href="client-dashboard.html" class="nav-item">
-                            <i class="bi bi-house-door"></i>
-                            <span>My Tenancy Home</span>
-                        </a>
-                        <a href="client-billing.html" class="nav-item">
-                            <i class="bi bi-receipt"></i>
-                            <span>Pay Rent & Dues</span>
-                        </a>
-                        <a href="transaction.html" class="nav-item">
-                            <i class="bi bi-receipt-cutoff"></i>
-                            <span>Transactions & Ledger</span>
-                        </a>
-                        <a href="client-utilities.html" class="nav-item">
-                            <i class="bi bi-lightning-charge"></i>
-                            <span>My Utilities & Meters</span>
-                        </a>
-                        <a href="client-maintenance.html" class="nav-item">
-                            <i class="bi bi-tools"></i>
-                            <span>Submit Maintenance</span>
-                        </a>
-                        <a href="inspections.html" class="nav-item">
-                            <i class="bi bi-clipboard-check"></i>
-                            <span>Move-In & Inspections</span>
-                        </a>
-                        <a href="client-documents.html" class="nav-item">
-                            <i class="bi bi-folder2-open"></i>
-                            <span>My Lease & Receipts</span>
-                        </a>
-
-                        <div class="nav-section-title">SYSTEM</div>
-                        <a href="account.html" class="nav-item">
-                            <i class="bi bi-gear"></i>
-                            <span>Account Settings</span>
-                        </a>
-                        <a href="#" class="nav-item" onclick="logoutUser(); return false;">
-                            <i class="bi bi-box-arrow-right"></i>
-                            <span>Log Out</span>
-                        </a>
-                    `;
-                } else if (role === 'owner') {
-                    nav.innerHTML = `
-                        <div class="nav-section-title">PORTFOLIO OVERVIEW</div>
-                        <a href="owner-dashboard.html" class="nav-item">
-                            <i class="bi bi-speedometer2"></i>
-                            <span>Owner Dashboard</span>
-                        </a>
-                        <a href="owner-properties.html" class="nav-item">
-                            <i class="bi bi-buildings"></i>
-                            <span>My Properties</span>
-                        </a>
-                        <a href="owner-statements.html" class="nav-item">
-                            <i class="bi bi-file-earmark-text"></i>
-                            <span>Financial Statements</span>
-                        </a>
-                        <a href="property-ownership.html" class="nav-item">
-                            <i class="bi bi-pie-chart"></i>
-                            <span>Fractional Equity</span>
-                        </a>
-                        <a href="owner-documents.html" class="nav-item">
-                            <i class="bi bi-folder2-open"></i>
-                            <span>Legal Vault</span>
-                        </a>
-                        <a href="transaction.html" class="nav-item">
-                            <i class="bi bi-receipt-cutoff"></i>
-                            <span>Yield Audit Ledger</span>
-                        </a>
-
-                        <div class="nav-section-title">SYSTEM</div>
-                        <a href="account.html" class="nav-item">
-                            <i class="bi bi-gear"></i>
-                            <span>Account Settings</span>
-                        </a>
-                        <a href="#" class="nav-item" onclick="logoutUser(); return false;">
-                            <i class="bi bi-box-arrow-right"></i>
-                            <span>Log Out</span>
-                        </a>
-                    `;
-                } else {
-                    nav.innerHTML = `
-                        <div class="nav-section-title">OVERVIEW</div>
-                        <a href="dashboard.html" class="nav-item">
-                            <i class="bi bi-grid-1x2"></i>
-                            <span>Dashboard</span>
-                        </a>
-
-                        <div class="nav-section-title">PROPERTY OPERATIONS</div>
-                        <a href="properties.html" class="nav-item">
-                            <i class="bi bi-buildings"></i>
-                            <span>Properties</span>
-                        </a>
-                        <a href="buildings.html" class="nav-item">
-                            <i class="bi bi-building"></i>
-                            <span>Buildings</span>
-                        </a>
-                        <a href="units.html" class="nav-item">
-                            <i class="bi bi-door-open"></i>
-                            <span>Units</span>
-                        </a>
-                        <a href="tenants.html" class="nav-item">
-                            <i class="bi bi-people"></i>
-                            <span>Tenants</span>
-                        </a>
-                        <a href="owners.html" class="nav-item">
-                            <i class="bi bi-person-badge"></i>
-                            <span>Owners</span>
-                        </a>
-                        <a href="property-ownership.html" class="nav-item">
-                            <i class="bi bi-pie-chart"></i>
-                            <span>Fractional Ownership</span>
-                        </a>
-                        <a href="leases.html" class="nav-item">
-                            <i class="bi bi-file-earmark-text"></i>
-                            <span>Leases</span>
-                        </a>
-
-                        <div class="nav-section-title">FINANCE & SERVICES</div>
-                        <a href="rent-collection.html" class="nav-item active">
-                            <i class="bi bi-cash-stack"></i>
-                            <span>Rent Collection</span>
-                        </a>
-                        <a href="transaction.html" class="nav-item">
-                            <i class="bi bi-receipt-cutoff"></i>
-                            <span>Transactions & Ledger</span>
-                        </a>
-                        <a href="utilities.html" class="nav-item">
-                            <i class="bi bi-lightning-charge"></i>
-                            <span>Utilities</span>
-                        </a>
-                        <a href="meter-readings.html" class="nav-item">
-                            <i class="bi bi-speedometer2"></i>
-                            <span>Meter Readings</span>
-                        </a>
-                        <a href="maintenance.html" class="nav-item">
-                            <i class="bi bi-tools"></i>
-                            <span>Maintenance</span>
-                        </a>
-
-                        <div class="nav-section-title">RECORDS & REPORTS</div>
-                        <a href="inspections.html" class="nav-item">
-                            <i class="bi bi-clipboard-check"></i>
-                            <span>Inspections</span>
-                        </a>
-                        <a href="move-in-checklist.html" class="nav-item">
-                            <i class="bi bi-check2-square"></i>
-                            <span>Move-In Checklist</span>
-                        </a>
-                        <a href="move-out-settlement.html" class="nav-item">
-                            <i class="bi bi-box-arrow-right"></i>
-                            <span>Move-Out Settlement</span>
-                        </a>
-                        <a href="documents.html" class="nav-item">
-                            <i class="bi bi-folder2-open"></i>
-                            <span>Documents</span>
-                        </a>
-                        <a href="reports.html" class="nav-item">
-                            <i class="bi bi-bar-chart"></i>
-                            <span>Reports</span>
-                        </a>
-
-                        <div class="nav-section-title">SYSTEM</div>
-                        <a href="settings.html" class="nav-item">
-                            <i class="bi bi-gear"></i>
-                            <span>Settings</span>
-                        </a>
-                        <a href="account.html" class="nav-item">
-                            <i class="bi bi-person-gear"></i>
-                            <span>Account Settings</span>
-                        </a>
-                        <a href="#" class="nav-item" onclick="logoutUser(); return false;">
-                            <i class="bi bi-box-arrow-right"></i>
-                            <span>Log Out</span>
-                        </a>
-                    `;
-                }
+    // Database Fetchers
+    async function getLeasesList() {
+        try {
+            const res = await fetch(LEASES_API_URL, { headers: getAuthHeaders() });
+            if (res.ok) {
+                const data = await res.json();
+                const list = Array.isArray(data) ? data : (data.items || data.leases || data.data || []);
+                localStorage.setItem('argo_leases', JSON.stringify(list));
+                return list;
             }
+        } catch (e) {
+            console.warn("Leases API offline, using cache:", e);
         }
 
-        // Shared Storage Accessors
-        function getInvoices() {
-            try {
-                return JSON.parse(localStorage.getItem('argo_invoices') || '[]');
-            } catch (e) {
-                return [];
+        const local = localStorage.getItem('argo_leases');
+        return local ? JSON.parse(local) : [];
+    }
+
+    async function getInvoices() {
+        let liveInvoices = [];
+        try {
+            const response = await fetch(INVOICES_API_URL, { headers: getAuthHeaders() });
+            if (response.ok) {
+                const data = await response.json();
+                const list = Array.isArray(data) ? data : (data.items || data.invoices || data.data || []);
+                liveInvoices = list;
+                localStorage.setItem('argo_invoices', JSON.stringify(list));
             }
+        } catch (e) {
+            console.warn("Invoices API offline, using local cache:", e);
         }
 
-        function saveInvoices(invoices) {
-            localStorage.setItem('argo_invoices', JSON.stringify(invoices));
+        if (liveInvoices.length === 0) {
+            const raw = localStorage.getItem('argo_invoices');
+            liveInvoices = raw ? JSON.parse(raw) : [];
         }
 
-        function getTransactions() {
-            try {
-                return JSON.parse(localStorage.getItem('argo_transactions') || '[]');
-            } catch (e) {
-                return [];
-            }
-        }
+        // ================= AUTOMATED INVOICE GENERATION FROM ACTIVE LEASES =================
+        const leases = await getLeasesList();
+        const activeLeases = leases.filter(l => (l.status || '').toUpperCase() === 'ACTIVE');
+        const currentMonthTag = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+        let newlyGenerated = false;
 
-        function saveTransactions(transactions) {
-            localStorage.setItem('argo_transactions', JSON.stringify(transactions));
-        }
+        activeLeases.forEach(l => {
+            const leaseId = l.lease_id || l.id;
+            const tenantName = l.tenant_name || l.tenantName || 'Tenant';
+            const unitLoc = l.property_name && l.unit_number ? `${l.property_name} • ${l.unit_number}` : (l.unit || 'Assigned Unit');
+            const rentAmt = parseCurrency(l.rent || l.rent_amount || 0);
 
-        function getNotifications() {
-            try {
-                return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
-            } catch (e) {
-                return [];
-            }
-        }
+            // Check if monthly rent invoice already exists for this lease
+            const hasRentInvoice = liveInvoices.some(inv => 
+                (String(inv.lease_id) === String(leaseId) || String(inv.leaseId) === String(leaseId)) &&
+                (inv.type || '').includes(currentMonthTag) &&
+                (inv.category_type || inv.categoryType || 'Rent') === 'Rent'
+            );
 
-        function saveNotifications(notifications) {
-            localStorage.setItem('argo_notifications', JSON.stringify(notifications));
-        }
-
-        function getLeases() {
-            try {
-                return JSON.parse(localStorage.getItem('argo_leases') || '[]');
-            } catch (e) {
-                return [];
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            const role = localStorage.getItem('argo_pov');
-            if (!role) {
-                window.location.replace('index.html');
-                return;
-            }
-            renderSidebar();
-            loadUserData();
-            populateModalDropdowns();
-            renderPaymentTable();
-            updateAdminKPIs();
-            updateHeaderBadge();
-        });
-
-        // Real-Time Cross-Tab Listener
-        window.addEventListener('storage', (e) => {
-            if (['argo_invoices', 'argo_transactions', 'argo_notifications', 'argo_leases', 'argo_user', 'argo_pov'].includes(e.key)) {
-                loadUserData();
-                populateModalDropdowns();
-                renderPaymentTable();
-                updateAdminKPIs();
-                updateHeaderBadge();
+            if (!hasRentInvoice && rentAmt > 0) {
+                const newInv = {
+                    id: `INV-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+                    invoice_id: `INV-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+                    lease_id: leaseId,
+                    tenant_name: tenantName,
+                    tenantName: tenantName,
+                    tenant_email: l.tenant_email || '',
+                    type: `Monthly Base Rent — ${currentMonthTag}`,
+                    property_location: unitLoc,
+                    sub: unitLoc,
+                    category_type: 'Rent',
+                    categoryType: 'Rent',
+                    due_date: l.end_date || new Date().toISOString().split('T')[0],
+                    dueDate: l.end_date || new Date().toISOString().split('T')[0],
+                    amount: rentAmt,
+                    status: 'Unpaid',
+                    channel: 'Pending Payment',
+                    ref_no: `#INV-${leaseId.slice(-4)}`,
+                    refNo: `#INV-${leaseId.slice(-4)}`,
+                    notes: `System-generated billing invoice for active lease ${leaseId}`,
+                    created_at: new Date().toISOString()
+                };
+                liveInvoices.unshift(newInv);
+                newlyGenerated = true;
             }
         });
 
-        function loadUserData() {
-            try {
-                const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
-                const name = user.name || 'Property Admin';
-                document.getElementById('userName').textContent = name;
-                document.getElementById('userRoleBadge').textContent = user.role || 'Property Manager';
-                document.getElementById('userAvatar').textContent = user.avatar || (name.charAt(0) || 'JD');
-            } catch (e) {
-                console.error("Error loading user profile", e);
-            }
+        if (newlyGenerated) {
+            localStorage.setItem('argo_invoices', JSON.stringify(liveInvoices));
         }
 
-        function populateModalDropdowns() {
-            const leases = getLeases();
-            const select = document.getElementById('modalTenantSelect');
-            if (!select) return;
+        return liveInvoices;
+    }
 
-            select.innerHTML = '<option value="">Select Tenant...</option>';
-            leases.forEach(l => {
-                const tName = l.tenantName || l.tenant_name || 'Tenant';
-                const uLoc = l.unit || l.unit_no || 'Unit';
-                const rentVal = parseCurrency(l.rent || l.rent_amount);
-                select.innerHTML += `<option value="${tName}|${uLoc}|${l.id}|${rentVal}">${tName} — ${uLoc} (Rent: ${formatPeso(rentVal)})</option>`;
+    function saveInvoicesLocally(invoices) {
+        localStorage.setItem('argo_invoices', JSON.stringify(invoices));
+    }
+
+    function getTransactions() {
+        try {
+            return JSON.parse(localStorage.getItem('argo_transactions') || '[]');
+        } catch (e) {
+            return [];
+        }
+    }
+
+    function saveTransactionsLocally(transactions) {
+        localStorage.setItem('argo_transactions', JSON.stringify(transactions));
+    }
+
+    function getNotifications() {
+        try {
+            return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
+        } catch (e) {
+            return [];
+        }
+    }
+
+    function saveNotificationsLocally(notifications) {
+        localStorage.setItem('argo_notifications', JSON.stringify(notifications));
+    }
+
+    async function populateModalDropdowns() {
+        const leases = await getLeasesList();
+        const activeLeases = leases.filter(l => (l.status || '').toUpperCase() === 'ACTIVE');
+        const select = document.getElementById('modalTenantSelect');
+        if (!select) return;
+
+        select.innerHTML = '<option value="">Select Tenant / Lease...</option>';
+        if (activeLeases.length > 0) {
+            activeLeases.forEach(l => {
+                const tName = l.tenant_name || l.tenantName || 'Tenant';
+                const uLoc = l.property_name && l.unit_number ? `${l.property_name} • ${l.unit_number}` : (l.unit || 'Assigned Unit');
+                const rentVal = parseCurrency(l.rent || l.rent_amount || 0);
+                const lId = l.lease_id || l.id;
+                select.innerHTML += `<option value="${tName}|${uLoc}|${lId}|${rentVal}|${l.tenant_email || ''}">${tName} — ${uLoc} (Rent: ${formatPeso(rentVal)})</option>`;
             });
+        } else {
+            select.innerHTML += '<option value="" disabled>No active leases found. Create an active lease first.</option>';
+        }
+    }
+
+    function autoFillLeaseRent() {
+        const select = document.getElementById('modalTenantSelect');
+        if (!select || !select.value) return;
+
+        const parts = select.value.split('|');
+        const rentAmt = parseFloat(parts[3]) || 0;
+        const amountInput = document.getElementById('modalAmountInput');
+        if (amountInput && rentAmt > 0) {
+            amountInput.value = rentAmt;
+        }
+    }
+
+    async function renderPaymentTable() {
+        const invoices = await getInvoices();
+        const tbody = document.getElementById('paymentTable');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+
+        if (!invoices || invoices.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--muted, #64748B); padding:30px;">No rental collection records found. Click "Record Manual Payment" to add one.</td></tr>`;
+            document.getElementById('showingCountText').textContent = `Showing 0 payment records`;
+            await updateAdminKPIs();
+            return;
         }
 
-        function autoFillLeaseRent() {
-            const select = document.getElementById('modalTenantSelect');
-            if (!select || !select.value) return;
+        invoices.forEach(inv => {
+            const tr = document.createElement('tr');
+            const statusStr = (inv.status || 'Unpaid').toLowerCase();
 
-            const parts = select.value.split('|');
-            const rentAmt = parseFloat(parts[3]) || 0;
-            const amountInput = document.getElementById('modalAmountInput');
-            if (amountInput && rentAmt > 0) {
-                amountInput.value = rentAmt;
-            }
-        }
+            tr.dataset.status = statusStr.includes('pending') ? 'Pending' : (statusStr === 'paid' ? 'Paid' : 'Unpaid');
+            tr.dataset.method = inv.channel || 'Cash';
 
-        function renderPaymentTable() {
-            const invoices = getInvoices();
-            const tbody = document.getElementById('paymentTable');
-            if (!tbody) return;
-            tbody.innerHTML = '';
+            const locationTag = inv.property_location || inv.sub || 'Property Location';
+            const tenantName = inv.tenant_name || inv.tenantName || 'Tenant';
+            const displayRef = inv.ref_no || inv.refNo || `#REF-${inv.id}`;
 
-            if (invoices.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--muted); padding:30px;">No rental collection records found. Click "Record Manual Payment" to add one.</td></tr>`;
-                document.getElementById('showingCountText').textContent = `Showing 0 payment records`;
-                return;
-            }
-
-            invoices.forEach(inv => {
-                const tr = document.createElement('tr');
-                const statusStr = (inv.status || 'Unpaid').toLowerCase();
-
-                tr.dataset.status = statusStr.includes('pending') ? 'Pending' : (statusStr === 'paid' ? 'Paid' : 'Unpaid');
-                tr.dataset.method = inv.channel || 'GCash';
-
-                const locationTag = inv.sub || 'Property Unit';
-                const tenantName = inv.tenantName || 'Tenant';
-                const displayRef = inv.refNo || `#REF-${inv.id}`;
-
-                let badgeHtml = '';
-                if (statusStr === 'paid') {
-                    badgeHtml = `<span class="status paid" style="background:#ECFDF5; color:#059669; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-check-circle" style="margin-right:4px;"></i> Paid (Verified)</span>`;
-                } else if (statusStr.includes('pending')) {
-                    badgeHtml = `<span class="status pending" style="background:#FEF3C7; color:#B45309; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-clock-history" style="margin-right:4px;"></i> Pending PM Audit</span>`;
-                } else {
-                    badgeHtml = `<span class="status overdue" style="background:#FFF1F2; color:#E11D48; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-exclamation-circle" style="margin-right:4px;"></i> ${inv.status || 'Unpaid / Overdue'}</span>`;
-                }
-
-                let typePill = '';
-                const typeText = (inv.type || '').toLowerCase();
-                if (typeText.includes('electricity') || (inv.id && inv.id.includes('ELE'))) {
-                    typePill = `<span class="type-pill type-elec" style="background:#FEF3C7; color:#92400E; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:600;"><i class="bi bi-lightning-charge"></i> Electricity</span>`;
-                } else if (typeText.includes('water') || (inv.id && inv.id.includes('WTR'))) {
-                    typePill = `<span class="type-pill type-water" style="background:#DBEAFE; color:#1D4ED8; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:600;"><i class="bi bi-droplet"></i> Water</span>`;
-                } else {
-                    typePill = `<span class="type-pill type-rent" style="background:#EFF6FF; color:#2563EB; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:600;"><i class="bi bi-house-door"></i> Base Rent</span>`;
-                }
-
-                let actionsHtml = `
-                    <button class="action-button" title="Inspect Payment Proof" onclick="inspectPaymentProof('${inv.id}')"><i class="bi bi-eye"></i></button>
-                `;
-
-                if (statusStr.includes('pending')) {
-                    actionsHtml = `
-                        <button class="action-button verify-btn" title="Approve & Verify Payment" style="color:#059669;" onclick="verifyTenantPayment('${inv.id}', '${displayRef}', ${parseCurrency(inv.amount)})"><i class="bi bi-check-circle-fill" style="font-size:16px;"></i></button>
-                        <button class="action-button" title="Inspect Payment Proof" onclick="inspectPaymentProof('${inv.id}')"><i class="bi bi-eye"></i></button>
-                    `;
-                }
-
-                tr.innerHTML = `
-                    <td>
-                        <div class="payment-id" style="font-weight:600;">${displayRef}</div>
-                        <div style="font-size:10px; color:var(--muted);">${inv.id}</div>
-                    </td>
-                    <td><div class="tenant-name" style="font-weight:600;">${tenantName}</div></td>
-                    <td>
-                        <div class="property-tag-highlight" style="font-size:12px; font-weight:600;"><i class="bi bi-geo-alt"></i> ${locationTag}</div>
-                        <div style="font-size:11px; color:var(--muted); margin-top:2px;">${typePill} ${inv.type || 'Invoice'}</div>
-                    </td>
-                    <td>${inv.dueDate || inv.due_date || 'N/A'}</td>
-                    <td><div class="amount" style="font-weight:700;">${formatPeso(inv.amount)}</div></td>
-                    <td>${inv.channel || 'GCash'}</td>
-                    <td>${badgeHtml}</td>
-                    <td>
-                        <div style="display:flex; gap:6px;">${actionsHtml}</div>
-                    </td>
-                `;
-
-                tbody.appendChild(tr);
-            });
-
-            document.getElementById('showingCountText').textContent = `Showing 1–${invoices.length} of ${invoices.length} rental payments`;
-        }
-
-        function inspectPaymentProof(invoiceId) {
-            const invoices = getInvoices();
-            const inv = invoices.find(i => i.id === invoiceId);
-            if (!inv) return;
-
-            currentInspectedInvoiceId = invoiceId;
-
-            document.getElementById('vInvoiceTitle').textContent = `Payment Inspection — ${inv.id}`;
-            document.getElementById('vTenantName').textContent = inv.tenantName || 'Tenant';
-            document.getElementById('vLocationTag').innerHTML = `<i class="bi bi-geo-alt"></i> ${inv.sub || 'Property Unit'}`;
-            document.getElementById('vAmount').textContent = formatPeso(inv.amount);
-            document.getElementById('vInvoiceId').textContent = inv.id;
-            document.getElementById('vRefCode').textContent = inv.refNo || `#REF-${inv.id}`;
-            document.getElementById('vChannel').textContent = inv.channel || 'GCash';
-            document.getElementById('vStatus').textContent = inv.status || 'Pending Verification';
-            
-            const attachmentEl = document.getElementById('vAttachment');
-            if (inv.receiptAttachment) {
-                attachmentEl.innerHTML = `<i class="bi bi-paperclip"></i> ${inv.receiptAttachment}`;
+            let badgeHtml = '';
+            if (statusStr === 'paid') {
+                badgeHtml = `<span class="status paid" style="background:#ECFDF5; color:#059669; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-check-circle" style="margin-right:4px;"></i> Paid (Verified)</span>`;
+            } else if (statusStr.includes('pending')) {
+                badgeHtml = `<span class="status pending" style="background:#FEF3C7; color:#B45309; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-clock-history" style="margin-right:4px;"></i> Pending PM Audit</span>`;
             } else {
-                attachmentEl.textContent = 'None Attached';
+                badgeHtml = `<span class="status overdue" style="background:#FFF1F2; color:#E11D48; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-exclamation-circle" style="margin-right:4px;"></i> ${inv.status || 'Unpaid'}</span>`;
             }
 
-            document.getElementById('vNotes').textContent = inv.notes || inv.remarks || 'No additional remarks provided.';
-
-            const approveBtn = document.getElementById('vApproveBtn');
-            const statusStr = (inv.status || '').toLowerCase();
-            if (approveBtn) {
-                approveBtn.style.display = statusStr.includes('pending') ? 'inline-flex' : 'none';
+            let typePill = '';
+            const typeText = (inv.type || '').toLowerCase();
+            if (typeText.includes('elec') || (inv.category_type || '').toLowerCase().includes('elec')) {
+                typePill = `<span class="type-pill type-elec" style="background:#FEF3C7; color:#92400E; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:600;"><i class="bi bi-lightning-charge"></i> Electricity</span>`;
+            } else if (typeText.includes('water') || (inv.category_type || '').toLowerCase().includes('water')) {
+                typePill = `<span class="type-pill type-water" style="background:#DBEAFE; color:#1D4ED8; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:600;"><i class="bi bi-droplet"></i> Water</span>`;
+            } else {
+                typePill = `<span class="type-pill type-rent" style="background:#EFF6FF; color:#2563EB; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:600;"><i class="bi bi-house-door"></i> Base Rent</span>`;
             }
 
-            openModal('viewPaymentModal');
+            let actionsHtml = `
+                <button class="action-button" title="Inspect Payment Proof" onclick="inspectPaymentProof('${inv.id}')"><i class="bi bi-eye"></i></button>
+            `;
+
+            if (statusStr.includes('pending') || statusStr === 'unpaid') {
+                actionsHtml = `
+                    <button class="action-button verify-btn" title="Approve & Verify Payment" style="color:#059669;" onclick="verifyTenantPayment('${inv.id}', '${displayRef}', ${parseCurrency(inv.amount)})"><i class="bi bi-check-circle-fill" style="font-size:16px;"></i></button>
+                    <button class="action-button" title="Inspect Details" onclick="inspectPaymentProof('${inv.id}')"><i class="bi bi-eye"></i></button>
+                `;
+            }
+
+            tr.innerHTML = `
+                <td>
+                    <div class="payment-id" style="font-weight:600;">${displayRef}</div>
+                    <div style="font-size:10px; color:var(--muted, #64748B);">${inv.id}</div>
+                </td>
+                <td><div class="tenant-name" style="font-weight:600;">${tenantName}</div></td>
+                <td>
+                    <div class="property-tag-highlight" style="font-size:12px; font-weight:600;"><i class="bi bi-geo-alt"></i> ${locationTag}</div>
+                    <div style="font-size:11px; color:var(--muted, #64748B); margin-top:2px;">${typePill} ${inv.type || 'Monthly Base Rent'}</div>
+                </td>
+                <td>${inv.due_date || inv.dueDate || '—'}</td>
+                <td><div class="amount" style="font-weight:700;">${formatPeso(inv.amount)}</div></td>
+                <td>${inv.channel || 'Cash'}</td>
+                <td>${badgeHtml}</td>
+                <td>
+                    <div style="display:flex; gap:6px;">${actionsHtml}</div>
+                </td>
+            `;
+
+            tbody.appendChild(tr);
+        });
+
+        document.getElementById('showingCountText').textContent = `Showing 1–${invoices.length} of ${invoices.length} payment records`;
+        await updateAdminKPIs();
+    }
+
+    async function inspectPaymentProof(invoiceId) {
+        const invoices = await getInvoices();
+        const inv = invoices.find(i => String(i.id) === String(invoiceId) || String(i.invoice_id) === String(invoiceId));
+        if (!inv) return;
+
+        currentInspectedInvoiceId = invoiceId;
+
+        document.getElementById('vInvoiceTitle').textContent = `Payment Inspection — ${inv.id}`;
+        document.getElementById('vTenantName').textContent = inv.tenant_name || inv.tenantName || 'Tenant';
+        document.getElementById('vLocationTag').innerHTML = `<i class="bi bi-geo-alt"></i> ${inv.property_location || inv.sub || 'Property Location'}`;
+        document.getElementById('vAmount').textContent = formatPeso(inv.amount);
+        document.getElementById('vInvoiceId').textContent = inv.id;
+        document.getElementById('vRefCode').textContent = inv.ref_no || inv.refNo || `#REF-${inv.id}`;
+        document.getElementById('vChannel').textContent = inv.channel || 'Cash';
+        document.getElementById('vStatus').textContent = inv.status || 'Pending Verification';
+        
+        const attachmentEl = document.getElementById('vAttachment');
+        if (inv.receiptAttachment || inv.receipt_attachment) {
+            attachmentEl.innerHTML = `<i class="bi bi-paperclip"></i> ${inv.receiptAttachment || inv.receipt_attachment}`;
+        } else {
+            attachmentEl.textContent = 'None Attached';
         }
 
-        function approveFromModal() {
-            if (!currentInspectedInvoiceId) return;
-            const invoices = getInvoices();
-            const inv = invoices.find(i => i.id === currentInspectedInvoiceId);
-            if (inv) {
-                closeModal('viewPaymentModal');
-                verifyTenantPayment(inv.id, inv.refNo || `#REF-${inv.id}`, parseCurrency(inv.amount));
-            }
+        document.getElementById('vNotes').textContent = inv.notes || inv.remarks || 'No additional remarks provided.';
+
+        const approveBtn = document.getElementById('vApproveBtn');
+        const statusStr = (inv.status || '').toLowerCase();
+        if (approveBtn) {
+            approveBtn.style.display = (statusStr.includes('pending') || statusStr === 'unpaid') ? 'inline-flex' : 'none';
         }
 
-        function verifyTenantPayment(invoiceId, refNo, amount) {
-            if (!confirm(`Are you sure you want to verify and clear payment ${refNo} for ${formatPeso(amount)}?`)) return;
+        openModal('viewPaymentModal');
+    }
 
-            let invoices = getInvoices();
-            let verifiedRef = refNo;
-            let tenantName = 'Tenant';
-            let locationTag = 'Property Unit';
+    async function approveFromModal() {
+        if (!currentInspectedInvoiceId) return;
+        const invoices = await getInvoices();
+        const inv = invoices.find(i => String(i.id) === String(currentInspectedInvoiceId));
+        if (inv) {
+            closeModal('viewPaymentModal');
+            verifyTenantPayment(inv.id, inv.ref_no || inv.refNo || `#REF-${inv.id}`, parseCurrency(inv.amount));
+        }
+    }
 
-            invoices = invoices.map(inv => {
-                if (inv.id === invoiceId) {
-                    verifiedRef = inv.refNo || refNo;
-                    tenantName = inv.tenantName || 'Tenant';
-                    locationTag = inv.sub || 'Property Unit';
-                    return { ...inv, status: 'Paid' };
-                }
-                return inv;
+    async function verifyTenantPayment(invoiceId, refNo, amount) {
+        if (!confirm(`Are you sure you want to verify and clear payment ${refNo} for ${formatPeso(amount)}?`)) return;
+
+        let invoices = await getInvoices();
+        let verifiedRef = refNo;
+        let tenantName = 'Tenant';
+        let locationTag = 'Property Location';
+        let invoiceType = 'Monthly Base Rent';
+
+        // 1. Update Invoice in Database / Local Storage
+        invoices = invoices.map(inv => {
+            if (String(inv.id) === String(invoiceId) || String(inv.invoice_id) === String(invoiceId)) {
+                verifiedRef = inv.ref_no || inv.refNo || refNo;
+                tenantName = inv.tenant_name || inv.tenantName || 'Tenant';
+                locationTag = inv.property_location || inv.sub || 'Property Location';
+                invoiceType = inv.type || 'Monthly Base Rent';
+                return { ...inv, status: 'Paid', channel: `${inv.channel || 'Cash'} (Verified)` };
+            }
+            return inv;
+        });
+        saveInvoicesLocally(invoices);
+
+        try {
+            await fetch(`${INVOICES_API_URL}${encodeURIComponent(invoiceId)}`, {
+                method: 'PATCH',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({ status: 'Paid' })
             });
-            saveInvoices(invoices);
+        } catch (e) {
+            console.warn("Backend invoice patch bypassed:", e);
+        }
 
-            // Update or Insert Verified Transaction
-            let transactions = getTransactions();
-            let matchedTxn = false;
+        // 2. Post Entry to General Ledger / Transactions
+        let transactions = getTransactions();
+        transactions.unshift({
+            id: `TXN-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+            txn_id: `TXN-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+            ref_code: verifiedRef.startsWith('#') ? verifiedRef : '#' + verifiedRef,
+            payer: tenantName,
+            property_location: locationTag,
+            category: String(invoiceType).includes('Electricity') ? 'Electricity Charges' : (String(invoiceType).includes('Water') ? 'Water Charges' : 'Monthly Base Rent'),
+            direction: 'INFLOW',
+            amount: amount,
+            gross_amount: formatPeso(amount),
+            channel: 'Verified Payment',
+            status: 'Verified',
+            timestamp: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
+        });
+        saveTransactionsLocally(transactions);
 
-            transactions = transactions.map(txn => {
-                if (txn.refCode === verifiedRef || (txn.txnId && txn.txnId.includes(invoiceId))) {
-                    matchedTxn = true;
-                    return { ...txn, status: 'Verified' };
-                }
-                return txn;
+        try {
+            await fetch(`${TRANSACTIONS_API_URL}`, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify(transactions[0])
             });
+        } catch (e) {}
 
-            if (!matchedTxn) {
-                transactions.unshift({
-                    refCode: verifiedRef.startsWith('#') ? verifiedRef : '#' + verifiedRef,
-                    txnId: `TXN-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
-                    payer: tenantName,
-                    property_location: locationTag,
-                    category: invoiceId.includes('ELE') ? 'Electricity Charges' : (invoiceId.includes('WTR') ? 'Water Charges' : 'Monthly Base Rent'),
-                    direction: 'INFLOW',
-                    grossAmount: formatPeso(amount),
-                    amount: amount,
-                    channel: 'Verified Gateway',
-                    status: 'Verified',
-                    timestamp: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
-                });
+        // 3. Issue Receipt to Client Document Vault
+        try {
+            let clientDocs = JSON.parse(localStorage.getItem('argo_client_documents') || '[]');
+            clientDocs.unshift({
+                id: `DOC-CLI-${Date.now().toString().slice(-4)}`,
+                title: `Official Payment Receipt (${verifiedRef})`,
+                fileType: 'PDF • Electronic Receipt',
+                category: 'Official Receipt',
+                uploadedBy: 'Property Management',
+                uploadDate: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
+                status: 'Verified',
+                notes: `Cleared ${invoiceType} (${formatPeso(amount)}) for ${locationTag}.`
+            });
+            localStorage.setItem('argo_client_documents', JSON.stringify(clientDocs));
+        } catch (e) {}
+
+        // 4. Push System Notification to Tenant
+        let notifications = getNotifications();
+        notifications.unshift({
+            id: `NOTIF-${Date.now()}`,
+            pov: 'client',
+            category: 'payment',
+            status: 'unread',
+            is_read: false,
+            title: 'Payment Verified & Official Receipt Issued',
+            time: 'Just now',
+            description: `Your payment of ${formatPeso(amount)} (${verifiedRef}) for ${invoiceType} has been verified and cleared in the master ledger.`,
+            property: locationTag,
+            amount: formatPeso(amount),
+            actionUrl: 'client-billing.html',
+            actionText: 'View Official Receipt'
+        });
+        saveNotificationsLocally(notifications);
+
+        await renderPaymentTable();
+        await updateAdminKPIs();
+        updateHeaderBadge();
+
+        alert(`Payment ${verifiedRef} verified successfully! Inflow recorded in Transactions Ledger.`);
+    }
+
+    async function updateAdminKPIs() {
+        const invoices = await getInvoices();
+
+        let totalExpected = 0;
+        let totalCollected = 0;
+        let totalPending = 0;
+        let totalOverdue = 0;
+
+        invoices.forEach(inv => {
+            const amt = parseCurrency(inv.amount);
+            totalExpected += amt;
+
+            const s = (inv.status || '').toLowerCase();
+            if (s === 'paid') {
+                totalCollected += amt;
+            } else if (s.includes('pending')) {
+                totalPending += amt;
+            } else {
+                totalOverdue += amt;
             }
-            saveTransactions(transactions);
+        });
 
-            // Push Notification to Tenant
-            let notifications = getNotifications();
-            notifications.unshift({
-                id: `NOTIF-${Date.now()}`,
-                pov: 'client',
-                category: 'payment',
-                status: 'unread',
-                title: 'Payment Verified & Official Receipt Issued',
-                time: 'Just now',
-                description: `Your payment of ${formatPeso(amount)} (${verifiedRef}) for Invoice ${invoiceId} has been verified by Property Management.`,
-                property: locationTag,
-                tag: 'Status: CLEARED',
-                tagColor: 'var(--success, #059669)',
-                amount: formatPeso(amount),
-                actionUrl: 'client-billing.html',
-                actionText: 'View Official Receipt'
+        const expEl = document.getElementById('kpiExpected');
+        const colEl = document.getElementById('kpiCollected');
+        const penEl = document.getElementById('kpiPending');
+        const ovrEl = document.getElementById('kpiOverdue');
+        const rateEl = document.getElementById('kpiRate');
+
+        if (expEl) expEl.textContent = formatPeso(totalExpected);
+        if (colEl) colEl.textContent = formatPeso(totalCollected);
+        if (penEl) penEl.textContent = formatPeso(totalPending);
+        if (ovrEl) ovrEl.textContent = formatPeso(totalOverdue);
+
+        const rate = totalExpected > 0 ? Math.round((totalCollected / totalExpected) * 100) : 0;
+        if (rateEl) rateEl.textContent = `${rate}% collection rate`;
+    }
+
+    function updateHeaderBadge() {
+        const notifs = getNotifications().filter(n => (n.pov === 'admin' || !n.pov) && (n.status === 'unread' || n.is_read === false));
+        const badgeEl = document.getElementById('adminNotifBadge');
+        if (badgeEl) badgeEl.textContent = notifs.length;
+    }
+
+    function openModal(modalId = 'paymentModal') { 
+        if (modalId === 'paymentModal') {
+            populateModalDropdowns();
+        }
+        const modal = document.getElementById(modalId);
+        if (modal) modal.classList.add("show"); 
+    }
+
+    function closeModal(modalId = 'paymentModal') { 
+        const modal = document.getElementById(modalId);
+        if (modal) modal.classList.remove("show"); 
+        if (modalId === 'viewPaymentModal') currentInspectedInvoiceId = null;
+    }
+
+    async function saveManualPayment() {
+        const selectVal = document.getElementById('modalTenantSelect').value;
+        if (!selectVal) {
+            alert("Please select an active tenant lease.");
+            return;
+        }
+
+        const tenantVal = selectVal.split('|');
+        const tenantName = tenantVal[0];
+        const locationTag = tenantVal[1];
+        const leaseId = tenantVal[2];
+        const tenantEmail = tenantVal[4] || '';
+        const amount = parseFloat(document.getElementById('modalAmountInput').value) || 0;
+        const method = document.getElementById('modalMethodSelect').value;
+        let refNo = document.getElementById('modalRefInput').value.trim() || `#MANUAL-${Math.floor(1000 + Math.random() * 9000)}`;
+        const status = document.getElementById('modalStatusSelect').value;
+        const notes = document.getElementById('modalNotesInput').value.trim();
+
+        if (amount <= 0) {
+            alert("Please enter a valid payment amount.");
+            return;
+        }
+
+        if (!refNo.startsWith('#')) refNo = '#' + refNo;
+        const newInvoiceId = `INV-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+        const today = new Date().toISOString().split('T')[0];
+
+        const newInvoice = {
+            id: newInvoiceId,
+            invoice_id: newInvoiceId,
+            lease_id: leaseId,
+            tenant_name: tenantName,
+            tenantName: tenantName,
+            tenant_email: tenantEmail,
+            type: 'Monthly Base Rent',
+            property_location: locationTag,
+            sub: locationTag,
+            category_type: 'Rent',
+            categoryType: 'Rent',
+            due_date: today,
+            dueDate: today,
+            amount: amount,
+            status: status,
+            channel: method,
+            ref_no: refNo,
+            refNo: refNo,
+            notes: notes,
+            created_at: new Date().toISOString()
+        };
+
+        try {
+            await fetch(INVOICES_API_URL, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify(newInvoice)
             });
-            saveNotifications(notifications);
-
-            renderPaymentTable();
-            updateAdminKPIs();
-            updateHeaderBadge();
-
-            alert(`Payment ${verifiedRef} successfully verified and balance cleared!`);
+        } catch (e) {
+            console.warn("Backend save bypassed, keeping locally.", e);
         }
 
-        function updateAdminKPIs() {
-            const invoices = getInvoices();
+        let invoices = await getInvoices();
+        invoices.unshift(newInvoice);
+        saveInvoicesLocally(invoices);
 
-            let totalExpected = 0;
-            let totalCollected = 0;
-            let totalPending = 0;
-            let totalOverdue = 0;
-
-            invoices.forEach(inv => {
-                const amt = parseCurrency(inv.amount);
-                totalExpected += amt;
-
-                const s = (inv.status || '').toLowerCase();
-                if (s === 'paid') {
-                    totalCollected += amt;
-                } else if (s.includes('pending')) {
-                    totalPending += amt;
-                } else {
-                    totalOverdue += amt;
-                }
-            });
-
-            document.getElementById('kpiExpected').textContent = formatPeso(totalExpected);
-            document.getElementById('kpiCollected').textContent = formatPeso(totalCollected);
-            document.getElementById('kpiPending').textContent = formatPeso(totalPending);
-            document.getElementById('kpiOverdue').textContent = formatPeso(totalOverdue);
-
-            const rate = totalExpected > 0 ? Math.round((totalCollected / totalExpected) * 100) : 0;
-            document.getElementById('kpiRate').textContent = `${rate}% portfolio collection rate`;
-        }
-
-        function updateHeaderBadge() {
-            const notifs = getNotifications().filter(n => (n.pov === 'admin' || !n.pov) && (n.status === 'unread' || n.is_read === false));
-            const badgeEl = document.getElementById('adminNotifBadge');
-            if (badgeEl) badgeEl.textContent = notifs.length;
-        }
-
-        function openModal(modalId = 'paymentModal') { 
-            const modal = document.getElementById(modalId);
-            if (modal) modal.classList.add("show"); 
-        }
-
-        function closeModal(modalId = 'paymentModal') { 
-            const modal = document.getElementById(modalId);
-            if (modal) modal.classList.remove("show"); 
-            if (modalId === 'viewPaymentModal') currentInspectedInvoiceId = null;
-        }
-
-        function saveManualPayment() {
-            const selectVal = document.getElementById('modalTenantSelect').value;
-            if (!selectVal) {
-                alert("Please select a tenant/lease.");
-                return;
-            }
-
-            const tenantVal = selectVal.split('|');
-            const tenantName = tenantVal[0];
-            const locationTag = tenantVal[1];
-            const leaseId = tenantVal[2] || '';
-            const amount = parseFloat(document.getElementById('modalAmountInput').value) || 0;
-            const method = document.getElementById('modalMethodSelect').value;
-            let refNo = document.getElementById('modalRefInput').value.trim() || `#MANUAL-${Math.floor(1000 + Math.random() * 9000)}`;
-            const status = document.getElementById('modalStatusSelect').value;
-            const notes = document.getElementById('modalNotesInput').value.trim();
-
-            if (amount <= 0) {
-                alert("Please enter a valid payment amount.");
-                return;
-            }
-
-            if (!refNo.startsWith('#')) refNo = '#' + refNo;
-            const newInvoiceId = `INV-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
-            const today = new Date().toISOString().split('T')[0];
-
-            // 1. Add Invoice Record
-            let invoices = getInvoices();
-            invoices.unshift({
-                id: newInvoiceId,
-                lease_id: leaseId,
-                tenantName: tenantName,
-                type: 'Monthly Base Rent',
-                sub: locationTag,
-                categoryType: 'Rent',
-                dueDate: today,
-                amount: amount,
-                status: status,
-                channel: method,
-                refNo: refNo,
-                notes: notes,
-                created_at: new Date().toISOString()
-            });
-            saveInvoices(invoices);
-
-            // 2. Add Inflow Transaction Record
+        if (status === 'Paid') {
             let transactions = getTransactions();
             transactions.unshift({
-                refCode: refNo,
-                txnId: `TXN-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+                id: `TXN-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+                txn_id: `TXN-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+                ref_code: refNo,
                 payer: tenantName,
                 property_location: locationTag,
                 category: 'Monthly Base Rent',
                 direction: 'INFLOW',
-                grossAmount: formatPeso(amount),
+                gross_amount: formatPeso(amount),
                 amount: amount,
                 channel: method,
-                status: status === 'Paid' ? 'Verified' : 'Pending Audit',
+                status: 'Verified',
                 notes: notes,
                 timestamp: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
             });
-            saveTransactions(transactions);
-
-            renderPaymentTable();
-            updateAdminKPIs();
-            closeModal('paymentModal');
-
-            document.getElementById('modalAmountInput').value = '';
-            document.getElementById('modalRefInput').value = '';
-            document.getElementById('modalNotesInput').value = '';
-
-            alert(`Payment recorded successfully for ${tenantName}!`);
+            saveTransactionsLocally(transactions);
         }
 
-        window.onclick = function(event) {
-            if (event.target.classList && event.target.classList.contains('modal-overlay')) {
-                event.target.classList.remove("show");
+        await renderPaymentTable();
+        await updateAdminKPIs();
+        closeModal('paymentModal');
+
+        document.getElementById('modalAmountInput').value = '';
+        document.getElementById('modalRefInput').value = '';
+        document.getElementById('modalNotesInput').value = '';
+
+        alert(`Payment recorded successfully for ${tenantName}!`);
+    }
+
+    window.onclick = function(event) {
+        if (event.target.classList && event.target.classList.contains('modal-overlay')) {
+            event.target.classList.remove("show");
+        }
+    };
+
+    function filterTable() {
+        const searchValue = document.getElementById("searchInput").value.toLowerCase();
+        const statusValue = document.getElementById("statusFilter").value;
+        const methodValue = document.getElementById("methodFilter").value;
+
+        const rows = document.querySelectorAll("#paymentTable tr");
+        let visibleCount = 0;
+        let totalRows = 0;
+
+        rows.forEach(row => {
+            if (row.cells.length === 1) return;
+            totalRows++;
+
+            const text = row.innerText.toLowerCase();
+            const rowStatus = row.dataset.status || "";
+            const rowMethod = row.dataset.method || "";
+
+            const matchesSearch = text.includes(searchValue);
+            const matchesStatus = statusValue === "" || rowStatus.toLowerCase() === statusValue.toLowerCase();
+            const matchesMethod = methodValue === "" || rowMethod.toLowerCase().includes(methodValue.toLowerCase());
+
+            if (matchesSearch && matchesStatus && matchesMethod) {
+                row.style.display = "";
+                visibleCount++;
+            } else {
+                row.style.display = "none";
             }
-        };
+        });
 
-        function filterTable() {
-            const searchValue = document.getElementById("searchInput").value.toLowerCase();
-            const statusValue = document.getElementById("statusFilter").value;
-            const methodValue = document.getElementById("methodFilter").value;
-
-            const rows = document.querySelectorAll("#paymentTable tr");
-            let visibleCount = 0;
-            let totalRows = 0;
-
-            rows.forEach(row => {
-                if (row.cells.length === 1) return;
-                totalRows++;
-
-                const text = row.innerText.toLowerCase();
-                const rowStatus = row.dataset.status || "";
-                const rowMethod = row.dataset.method || "";
-
-                const matchesSearch = text.includes(searchValue);
-                const matchesStatus = statusValue === "" || rowStatus.toLowerCase() === statusValue.toLowerCase();
-                const matchesMethod = methodValue === "" || rowMethod.toLowerCase().includes(methodValue.toLowerCase());
-
-                if (matchesSearch && matchesStatus && matchesMethod) {
-                    row.style.display = "";
-                    visibleCount++;
-                } else {
-                    row.style.display = "none";
-                }
-            });
-
-            const countEl = document.getElementById('showingCountText');
-            if (countEl) {
-                countEl.textContent = totalRows === 0 ? "Showing 0 payment records" : `Showing ${visibleCount} of ${totalRows} payment records`;
-            }
+        const countEl = document.getElementById('showingCountText');
+        if (countEl) {
+            countEl.textContent = totalRows === 0 ? "Showing 0 payment records" : `Showing ${visibleCount} of ${totalRows} payment records`;
         }
+    }
 
-        function resetFilters() {
-            document.getElementById("searchInput").value = "";
-            document.getElementById("statusFilter").value = "";
-            document.getElementById("methodFilter").value = "";
-            filterTable();
+    function resetFilters() {
+        document.getElementById("searchInput").value = "";
+        document.getElementById("statusFilter").value = "";
+        document.getElementById("methodFilter").value = "";
+        filterTable();
+    }
+
+    // Real-Time Cross-Tab Sync
+    window.addEventListener('storage', async (e) => {
+        if (['argo_invoices', 'argo_leases', 'argo_transactions', 'argo_notifications', 'argo_user', 'argo_pov'].includes(e.key)) {
+            renderSidebar();
+            loadUserData();
+            await populateModalDropdowns();
+            await renderPaymentTable();
+            updateHeaderBadge();
         }
+    });
 
-        // Profile Dropdown Handler
-        const userProfileBtn = document.getElementById('userProfileBtn');
-        const userDropdown = document.getElementById('userDropdown');
+    // Page Load Initialization
+    document.addEventListener('DOMContentLoaded', async () => {
+        renderSidebar();
+        loadUserData();
+        await populateModalDropdowns();
+        await renderPaymentTable();
+        updateHeaderBadge();
+    });
 
-        if (userProfileBtn && userDropdown) {
-            userProfileBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                userDropdown.classList.toggle('show');
-            });
+    // Profile Dropdown Handler
+    const userProfileBtn = document.getElementById('userProfileBtn');
+    const userDropdown = document.getElementById('userDropdown');
 
-            document.addEventListener('click', () => { 
-                userDropdown.classList.remove('show'); 
-            });
-        }
-    </script>
+    if (userProfileBtn && userDropdown) {
+        userProfileBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            userDropdown.classList.toggle('show');
+        });
+
+        document.addEventListener('click', () => { 
+            userDropdown.classList.remove('show'); 
+        });
+    }
+</script>
 </body>
-</html>
