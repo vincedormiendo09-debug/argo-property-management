@@ -162,7 +162,7 @@ def read_maintenance_tickets(
     return tickets
 
 
-# 2. POST /api/maintenance/ - Submit a new repair ticket with FK validation
+# 2. POST /api/maintenance/ - Submit a new repair ticket with FK validation & activity feed event
 @router.post("/", response_model=schemas.MaintenanceSchema, status_code=status.HTTP_201_CREATED)
 def create_maintenance_ticket(
     ticket_in: schemas.MaintenanceCreate,
@@ -195,24 +195,24 @@ def create_maintenance_ticket(
     db_ticket = MaintenanceModel(**ticket_data)
     db.add(db_ticket)
 
-    # Automatically notify admins if high priority or urgent
+    # Automatically notify admins and log activity feed event
     if hasattr(models, "Notification"):
         prio_str = str(ticket_data.get("priority", "")).lower()
-        if prio_str in ["high", "urgent", "emergency"]:
-            notif = models.Notification(
-                id=uuid.uuid4(),
-                organization_id=org_id,
-                pov="admin",
-                category="maintenance",
-                status="unread",
-                is_read=False,
-                title="Urgent Maintenance Dispatch Logged",
-                description=f"New urgent repair ticket submitted: '{ticket_data.get('title', ticket_data.get('description', 'Maintenance Request'))}'.",
-                property=getattr(db_ticket, "unit_id", "Property Unit"),
-                tag="Priority: Urgent",
-                urgent=True
-            )
-            db.add(notif)
+        is_urgent = prio_str in ["high", "urgent", "emergency"]
+        notif = models.Notification(
+            id=uuid.uuid4(),
+            organization_id=org_id,
+            pov="admin",
+            category="maintenance",
+            status="unread",
+            is_read=False,
+            title=f"New Maintenance Ticket Logged ({ticket_data.get('ticket_id', 'TCK')})",
+            description=f"Repair request: '{ticket_data.get('title', ticket_data.get('description', 'Maintenance Request'))}' assigned to {ticket_data.get('technician', 'Unassigned')}.",
+            property="Sunrise Residences",
+            tag=f"Priority: {ticket_data.get('priority', 'Medium')}",
+            urgent=is_urgent
+        )
+        db.add(notif)
 
     db.commit()
     db.refresh(db_ticket)
@@ -255,7 +255,7 @@ def get_maintenance_ticket(
     return ticket
 
 
-# 4. PATCH & PUT /api/maintenance/{ticket_id} - Update status, technician, priority, or notes
+# 4. PATCH & PUT /api/maintenance/{ticket_id} - Update status, technician dispatch, repair cost, and trigger activity feed events
 @router.patch("/{ticket_id}", response_model=schemas.MaintenanceSchema)
 @router.put("/{ticket_id}", response_model=schemas.MaintenanceSchema)
 def update_maintenance_ticket(
@@ -290,10 +290,34 @@ def update_maintenance_ticket(
             detail="Maintenance ticket not found."
         )
 
+    old_status = getattr(db_ticket, "status", "")
+    old_tech = getattr(db_ticket, "technician", "")
+
     update_dict = update_data.dict(exclude_unset=True)
     for field, value in update_dict.items():
         if hasattr(db_ticket, field):
             setattr(db_ticket, field, value)
+
+    new_status = getattr(db_ticket, "status", old_status)
+    new_tech = getattr(db_ticket, "technician", old_tech)
+
+    # Immediately trigger activity feed event / notification upon status update or technician dispatch
+    if hasattr(models, "Notification") and (old_status != new_status or old_tech != new_tech):
+        t_id = getattr(db_ticket, "ticket_id", "TCK")
+        notif = models.Notification(
+            id=uuid.uuid4(),
+            organization_id=organization_id,
+            pov="admin",
+            category="maintenance",
+            status="unread",
+            is_read=False,
+            title=f"Maintenance Update ({t_id}): {new_status}",
+            description=f"Ticket status changed to '{new_status}'. Assigned technician: {new_tech}.",
+            property="Sunrise Residences",
+            tag=f"Status: {new_status}",
+            urgent=new_status.lower() in ["urgent", "escalated"]
+        )
+        db.add(notif)
 
     db.commit()
     db.refresh(db_ticket)

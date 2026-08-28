@@ -134,12 +134,13 @@ def find_unit_by_identifier(db: Session, unit_id: str, organization_id: uuid.UUI
     return None
 
 
-# 1. GET /api/units/ - Read units scoped by organization_id with filter and search
+# 1. GET /api/units/ - Read units scoped by organization_id with cascading filters (Property -> Building -> Floor) & Lifecycle States
 @router.get("/", response_model=List[schemas.UnitSchema])
 def read_units(
     organization_id: uuid.UUID = Query(default=DEFAULT_ORG_ID),
     property_id: Optional[uuid.UUID] = Query(default=None),
     building_id: Optional[uuid.UUID] = Query(default=None),
+    floor_filter: Optional[str] = Query(default=None, alias="floor"),
     status_filter: Optional[str] = Query(default=None, alias="status"),
     type_filter: Optional[str] = Query(default=None, alias="type"),
     search: Optional[str] = Query(default=None),
@@ -149,10 +150,13 @@ def read_units(
 
     stmt = select(models.Unit).where(models.Unit.organization_id == organization_id)
     
+    # Cascading filter support
     if property_id:
         stmt = stmt.where(models.Unit.property_id == property_id)
     if building_id and hasattr(models.Unit, "building_id"):
         stmt = stmt.where(models.Unit.building_id == building_id)
+    if floor_filter and hasattr(models.Unit, "floor"):
+        stmt = stmt.where(models.Unit.floor.ilike(f"%{floor_filter}%"))
     if status_filter:
         stmt = stmt.where(models.Unit.status.ilike(f"%{status_filter}%"))
     if type_filter and hasattr(models.Unit, "type"):
@@ -182,38 +186,40 @@ def read_units(
             "organization_id": organization_id,
             "property_id": parent_prop.id,
             "unit_no": "Unit 101",
-            "type": "1BR",
+            "type": "1-Bedroom Apartment",
+            "sqm": 45.0,
             "status": "OCCUPIED"
         }
         if hasattr(models.Unit, "building_id") and parent_bldg:
             unit1_data["building_id"] = parent_bldg.id
         if hasattr(models.Unit, "floor"):
-            unit1_data["floor"] = "1st Floor"
+            unit1_data["floor"] = "First Floor"
         if hasattr(models.Unit, "rent"):
             unit1_data["rent"] = 15000.0
         elif hasattr(models.Unit, "rent_amount"):
             unit1_data["rent_amount"] = 15000.0
         if hasattr(models.Unit, "subtitle"):
-            unit1_data["subtitle"] = "Sunrise Residences • Tower A • Unit 101"
+            unit1_data["subtitle"] = "45.0 sq.m · Balcony facing sunrise"
 
         unit2_data = {
             "id": uuid.uuid4(),
             "organization_id": organization_id,
             "property_id": parent_prop.id,
             "unit_no": "Unit 204",
-            "type": "2BR",
+            "type": "2-Bedroom Suite",
+            "sqm": 68.5,
             "status": "VACANT"
         }
         if hasattr(models.Unit, "building_id") and parent_bldg:
             unit2_data["building_id"] = parent_bldg.id
         if hasattr(models.Unit, "floor"):
-            unit2_data["floor"] = "2nd Floor"
+            unit2_data["floor"] = "Second Floor"
         if hasattr(models.Unit, "rent"):
             unit2_data["rent"] = 22000.0
         elif hasattr(models.Unit, "rent_amount"):
             unit2_data["rent_amount"] = 22000.0
         if hasattr(models.Unit, "subtitle"):
-            unit2_data["subtitle"] = "Sunrise Residences • Tower A • Unit 204"
+            unit2_data["subtitle"] = "68.5 sq.m · Fully furnished"
 
         default_units = [models.Unit(**unit1_data), models.Unit(**unit2_data)]
         db.add_all(default_units)
@@ -223,7 +229,7 @@ def read_units(
     return units
 
 
-# 2. POST /api/units/ - Create a new unit with org + property validation
+# 2. POST /api/units/ - Create a new unit with lifecycle state, sqm, and monthly rent specifications
 @router.post("/", response_model=schemas.UnitSchema, status_code=status.HTTP_201_CREATED)
 def create_unit(unit_in: schemas.UnitCreate, db: Session = Depends(get_db)):
     org_id = getattr(unit_in, "organization_id", DEFAULT_ORG_ID)
@@ -267,6 +273,16 @@ def create_unit(unit_in: schemas.UnitCreate, db: Session = Depends(get_db)):
         unit_data["organization_id"] = org_id
     unit_data["property_id"] = prop_id
 
+    # Normalize lifecycle status representation (VACANT / Available, OCCUPIED, MAINTENANCE)
+    if "status" in unit_data and unit_data["status"]:
+        s = unit_data["status"].upper()
+        if s in ("AVAILABLE", "VACANT"):
+            unit_data["status"] = "VACANT"
+        elif s in ("OCCUPIED", "LEASED"):
+            unit_data["status"] = "OCCUPIED"
+        elif s in ("MAINTENANCE", "UNDER_MAINTENANCE"):
+            unit_data["status"] = "MAINTENANCE"
+
     # Sync rent/rent_amount model field naming
     if "rent" in unit_data and hasattr(models.Unit, "rent_amount") and not hasattr(models.Unit, "rent"):
         unit_data["rent_amount"] = unit_data.pop("rent")
@@ -296,7 +312,7 @@ def get_unit(
     return unit
 
 
-# 4. PUT & PATCH /api/units/{unit_id} - Update unit specifications or occupancy status
+# 4. PUT & PATCH /api/units/{unit_id} - Update unit lifecycle state, rent, and square meters
 @router.put("/{unit_id}", response_model=schemas.UnitSchema)
 @router.patch("/{unit_id}", response_model=schemas.UnitSchema)
 def update_unit(
@@ -313,6 +329,16 @@ def update_unit(
         )
 
     update_data = unit_update.dict(exclude_unset=True)
+
+    if "status" in update_data and update_data["status"]:
+        s = update_data["status"].upper()
+        if s in ("AVAILABLE", "VACANT"):
+            update_data["status"] = "VACANT"
+        elif s in ("OCCUPIED", "LEASED"):
+            update_data["status"] = "OCCUPIED"
+        elif s in ("MAINTENANCE", "UNDER_MAINTENANCE"):
+            update_data["status"] = "MAINTENANCE"
+
     for field, value in update_data.items():
         if hasattr(db_unit, field):
             setattr(db_unit, field, value)

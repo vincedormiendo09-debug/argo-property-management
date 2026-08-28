@@ -100,237 +100,197 @@ def ensure_sandbox_unit_and_tenant(db: Session, org_id: uuid.UUID):
     return unit, tenant
 
 
-# 1. GET /api/leases/ - Read leases scoped by organization_id with filter options
-@router.get("/", response_model=List[schemas.LeaseSchema])
-def read_leases(
+# 1. GET /api/invoices/ - Read invoices and collection records scoped by organization_id with filter options
+@router.get("/", response_model=List[schemas.InvoiceSchema])
+def read_invoices(
     organization_id: uuid.UUID = Query(default=DEFAULT_ORG_ID),
-    unit_id: Optional[uuid.UUID] = Query(default=None),
-    tenant_id: Optional[uuid.UUID] = Query(default=None),
+    lease_id: Optional[uuid.UUID] = Query(default=None),
     status_filter: Optional[str] = Query(default=None, alias="status"),
     search: Optional[str] = Query(default=None),
     db: Session = Depends(get_db)
 ):
     ensure_sandbox_organization(db, organization_id)
 
-    stmt = select(models.Lease).where(models.Lease.organization_id == organization_id)
-    if unit_id:
-        stmt = stmt.where(models.Lease.unit_id == unit_id)
-    if tenant_id:
-        stmt = stmt.where(models.Lease.tenant_id == tenant_id)
+    stmt = select(models.Invoice).where(models.Invoice.organization_id == organization_id)
+    if lease_id:
+        stmt = stmt.where(models.Invoice.lease_id == lease_id)
     if status_filter:
-        stmt = stmt.where(models.Lease.status.ilike(f"%{status_filter}%"))
+        # Support precise collection filters (Paid vs Unpaid/Overdue/Pending)
+        if status_filter.upper() == "PAID":
+            stmt = stmt.where(models.Invoice.status.ilike("paid"))
+        elif status_filter.upper() in ("UNPAID", "OVERDUE", "PENDING"):
+            stmt = stmt.where(or_(
+                models.Invoice.status.ilike("unpaid"),
+                models.Invoice.status.ilike("overdue"),
+                models.Invoice.status.ilike("%pending%")
+            ))
+        else:
+            stmt = stmt.where(models.Invoice.status.ilike(f"%{status_filter}%"))
+
     if search:
         search_terms = []
-        if hasattr(models.Lease, "lease_id"):
-            search_terms.append(models.Lease.lease_id.ilike(f"%{search}%"))
-        if hasattr(models.Lease, "status"):
-            search_terms.append(models.Lease.status.ilike(f"%{search}%"))
+        if hasattr(models.Invoice, "invoice_id"):
+            search_terms.append(models.Invoice.invoice_id.ilike(f"%{search}%"))
+        if hasattr(models.Invoice, "type"):
+            search_terms.append(models.Invoice.type.ilike(f"%{search}%"))
+        if hasattr(models.Invoice, "ref_no"):
+            search_terms.append(models.Invoice.ref_no.ilike(f"%{search}%"))
         if search_terms:
             stmt = stmt.where(or_(*search_terms))
 
-    leases = list(db.scalars(stmt).all())
+    invoices = list(db.scalars(stmt).all())
 
-    # Seed default sandbox lease if DB is empty for this org
-    if not leases and not unit_id and not tenant_id and not search:
+    # Seed default sandbox invoice if DB is empty for this org
+    if not invoices and not lease_id and not search and not status_filter:
         unit, tenant = ensure_sandbox_unit_and_tenant(db, organization_id)
-        default_leases = [
-            models.Lease(
+        default_invoices = [
+            models.Invoice(
                 id=uuid.uuid4(),
                 organization_id=organization_id,
-                lease_id="LSE-2026-001" if hasattr(models.Lease, "lease_id") else None,
-                unit_id=unit.id,
-                tenant_id=tenant.id,
-                start_date=date(2026, 1, 1),
-                end_date=date(2026, 12, 31),
-                rent=15000.0 if hasattr(models.Lease, "rent") else None,
-                deposit=30000.0 if hasattr(models.Lease, "deposit") else None,
-                status="ACTIVE"
+                invoice_id="INV-2026-0801",
+                type="Monthly Base Rent (Unit 101)",
+                sub="Sunrise Residences • Tower A • Unit 101",
+                category_type="Rent",
+                due_date=date(2026, 8, 30),
+                amount=15000.0,
+                status="Paid",
+                channel="GCash Verification (#GC-2026-0819)",
+                ref_no="#GC-2026-0819"
+            ),
+            models.Invoice(
+                id=uuid.uuid4(),
+                organization_id=organization_id,
+                invoice_id="INV-2026-0901",
+                type="Monthly Base Rent (Unit 101)",
+                sub="Sunrise Residences • Tower A • Unit 101",
+                category_type="Rent",
+                due_date=date(2026, 9, 30),
+                amount=15000.0,
+                status="Unpaid",
+                channel="Pending Payment",
+                ref_no=None
             )
         ]
-        db.add_all(default_leases)
+        db.add_all(default_invoices)
         db.commit()
-        leases = list(db.scalars(stmt).all())
+        invoices = list(db.scalars(stmt).all())
 
-    return leases
+    return invoices
 
 
-# 2. POST /api/leases/ - Create a new lease with FK validation & unit occupancy update
-@router.post("/", response_model=schemas.LeaseSchema, status_code=status.HTTP_201_CREATED)
-def create_lease(lease_in: schemas.LeaseCreate, db: Session = Depends(get_db)):
-    org_id = getattr(lease_in, "organization_id", DEFAULT_ORG_ID)
+# 2. POST /api/invoices/ - Create a new billing invoice
+@router.post("/", response_model=schemas.InvoiceSchema, status_code=status.HTTP_201_CREATED)
+def create_invoice(invoice_in: schemas.InvoiceCreate, db: Session = Depends(get_db)):
+    org_id = getattr(invoice_in, "organization_id", DEFAULT_ORG_ID)
     ensure_sandbox_organization(db, org_id)
 
-    # 1. Validate Unit exists under this org
-    unit_stmt = select(models.Unit).where(
-        models.Unit.id == lease_in.unit_id,
-        models.Unit.organization_id == org_id
-    )
-    unit = db.scalar(unit_stmt)
-    if not unit:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Unit with ID '{lease_in.unit_id}' not found in this organization."
-        )
+    invoice_data = invoice_in.dict(exclude_unset=True)
+    if "id" not in invoice_data or not invoice_data["id"]:
+        invoice_data["id"] = uuid.uuid4()
+    if "organization_id" not in invoice_data:
+        invoice_data["organization_id"] = org_id
+    if "invoice_id" not in invoice_data or not invoice_data["invoice_id"]:
+        invoice_data["invoice_id"] = f"INV-{datetime.now().year}-{str(uuid.uuid4())[:4].upper()}"
 
-    # 2. Validate Tenant exists under this org
-    tenant_stmt = select(models.Tenant).where(
-        models.Tenant.id == lease_in.tenant_id,
-        models.Tenant.organization_id == org_id
-    )
-    tenant = db.scalar(tenant_stmt)
-    if not tenant:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Tenant with ID '{lease_in.tenant_id}' not found in this organization."
-        )
-
-    lease_data = lease_in.dict(exclude_unset=True)
-    if "id" not in lease_data or not lease_data["id"]:
-        lease_data["id"] = uuid.uuid4()
-    if "organization_id" not in lease_data:
-        lease_data["organization_id"] = org_id
-    if "lease_id" not in lease_data and hasattr(models.Lease, "lease_id"):
-        lease_data["lease_id"] = f"LSE-{datetime.now().year}-{str(uuid.uuid4())[:6].upper()}"
-
-    db_lease = models.Lease(**lease_data)
-    db.add(db_lease)
-
-    # Update unit status if lease is created as ACTIVE
-    if str(lease_data.get("status", "")).upper() == "ACTIVE":
-        unit.status = "OCCUPIED"
-
+    db_invoice = models.Invoice(**invoice_data)
+    db.add(db_invoice)
     db.commit()
-    db.refresh(db_lease)
-    return db_lease
+    db.refresh(db_invoice)
+    return db_invoice
 
 
-# 3. GET /api/leases/{lease_id} - Fetch single lease by UUID or string code
-@router.get("/{lease_id}", response_model=schemas.LeaseSchema)
-def get_lease(
-    lease_id: str,
+# 3. GET /api/invoices/{invoice_id} - Fetch single invoice record
+@router.get("/{invoice_id}", response_model=schemas.InvoiceSchema)
+def get_invoice(
+    invoice_id: str,
     organization_id: uuid.UUID = Query(default=DEFAULT_ORG_ID),
     db: Session = Depends(get_db)
 ):
     try:
-        parsed_uuid = uuid.UUID(lease_id)
-        stmt = select(models.Lease).where(
-            models.Lease.id == parsed_uuid,
-            models.Lease.organization_id == organization_id
+        parsed_uuid = uuid.UUID(invoice_id)
+        stmt = select(models.Invoice).where(
+            models.Invoice.id == parsed_uuid,
+            models.Invoice.organization_id == organization_id
         )
     except ValueError:
-        if hasattr(models.Lease, "lease_id"):
-            stmt = select(models.Lease).where(
-                models.Lease.lease_id == lease_id,
-                models.Lease.organization_id == organization_id
-            )
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid lease identifier."
-            )
-
-    lease = db.scalar(stmt)
-
-    if not lease:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Lease not found."
+        stmt = select(models.Invoice).where(
+            models.Invoice.invoice_id == invoice_id,
+            models.Invoice.organization_id == organization_id
         )
 
-    return lease
+    invoice = db.scalar(stmt)
+    if not invoice:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Invoice not found."
+        )
+    return invoice
 
 
-# 4. PUT /api/leases/{lease_id} - Update lease status (e.g., Activation / Move-Out)
-@router.put("/{lease_id}", response_model=schemas.LeaseSchema)
-def update_lease(
-    lease_id: str,
-    lease_update: schemas.LeaseUpdate,
+# 4. PUT / PATCH /api/invoices/{invoice_id} - Update invoice payment status (Verified / Paid vs Overdue)
+@router.put("/{invoice_id}", response_model=schemas.InvoiceSchema)
+@router.patch("/{invoice_id}", response_model=schemas.InvoiceSchema)
+def update_invoice(
+    invoice_id: str,
+    invoice_update: schemas.InvoiceUpdate,
     organization_id: uuid.UUID = Query(default=DEFAULT_ORG_ID),
     db: Session = Depends(get_db)
 ):
     try:
-        parsed_uuid = uuid.UUID(lease_id)
-        stmt = select(models.Lease).where(
-            models.Lease.id == parsed_uuid,
-            models.Lease.organization_id == organization_id
+        parsed_uuid = uuid.UUID(invoice_id)
+        stmt = select(models.Invoice).where(
+            models.Invoice.id == parsed_uuid,
+            models.Invoice.organization_id == organization_id
         )
     except ValueError:
-        if hasattr(models.Lease, "lease_id"):
-            stmt = select(models.Lease).where(
-                models.Lease.lease_id == lease_id,
-                models.Lease.organization_id == organization_id
-            )
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid lease identifier."
-            )
-
-    db_lease = db.scalar(stmt)
-    if not db_lease:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Lease not found."
+        stmt = select(models.Invoice).where(
+            models.Invoice.invoice_id == invoice_id,
+            models.Invoice.organization_id == organization_id
         )
 
-    update_data = lease_update.dict(exclude_unset=True)
+    db_invoice = db.scalar(stmt)
+    if not db_invoice:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Invoice not found."
+        )
+
+    update_data = invoice_update.dict(exclude_unset=True)
     for field, value in update_data.items():
-        if hasattr(db_lease, field):
-            setattr(db_lease, field, value)
-
-    # Sync unit status on Move-In (ACTIVE) or Move-Out (ENDED)
-    new_status = str(update_data.get("status", "")).upper()
-    if new_status and db_lease.unit_id:
-        unit = db.scalar(select(models.Unit).where(models.Unit.id == db_lease.unit_id))
-        if unit:
-            if new_status == "ACTIVE":
-                unit.status = "OCCUPIED"
-            elif new_status == "ENDED":
-                unit.status = "VACANT"
+        if hasattr(db_invoice, field):
+            setattr(db_invoice, field, value)
 
     db.commit()
-    db.refresh(db_lease)
-    return db_lease
+    db.refresh(db_invoice)
+    return db_invoice
 
 
-# 5. DELETE /api/leases/{lease_id} - Terminate or delete lease record
-@router.delete("/{lease_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_lease(
-    lease_id: str,
+# 5. DELETE /api/invoices/{invoice_id} - Delete invoice record
+@router.delete("/{invoice_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_invoice(
+    invoice_id: str,
     organization_id: uuid.UUID = Query(default=DEFAULT_ORG_ID),
     db: Session = Depends(get_db)
 ):
     try:
-        parsed_uuid = uuid.UUID(lease_id)
-        stmt = select(models.Lease).where(
-            models.Lease.id == parsed_uuid,
-            models.Lease.organization_id == organization_id
+        parsed_uuid = uuid.UUID(invoice_id)
+        stmt = select(models.Invoice).where(
+            models.Invoice.id == parsed_uuid,
+            models.Invoice.organization_id == organization_id
         )
     except ValueError:
-        if hasattr(models.Lease, "lease_id"):
-            stmt = select(models.Lease).where(
-                models.Lease.lease_id == lease_id,
-                models.Lease.organization_id == organization_id
-            )
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid lease identifier."
-            )
-
-    db_lease = db.scalar(stmt)
-    if not db_lease:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Lease not found."
+        stmt = select(models.Invoice).where(
+            models.Invoice.invoice_id == invoice_id,
+            models.Invoice.organization_id == organization_id
         )
 
-    # Free up unit status upon deleting lease
-    if db_lease.unit_id:
-        unit = db.scalar(select(models.Unit).where(models.Unit.id == db_lease.unit_id))
-        if unit:
-            unit.status = "VACANT"
+    db_invoice = db.scalar(stmt)
+    if not db_invoice:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Invoice not found."
+        )
 
-    db.delete(db_lease)
+    db.delete(db_invoice)
     db.commit()
     return None

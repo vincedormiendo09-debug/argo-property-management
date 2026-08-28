@@ -52,6 +52,11 @@ try:
 except ImportError:
     documents = None
 
+try:
+    from .routers import users
+except ImportError:
+    users = None
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -92,9 +97,26 @@ app = FastAPI(
 # ==========================================
 # CORS MIDDLEWARE CONFIGURATION
 # ==========================================
+origins = [
+    "http://localhost",
+    "http://localhost:8000",
+    "http://127.0.0.1",
+    "http://127.0.0.1:8000",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:5500",
+    "http://127.0.0.1:5500",
+    "https://argo-management-2026.onrender.com"
+]
+
+env_origins = os.getenv("ALLOWED_ORIGINS")
+if env_origins:
+    origins.extend([o.strip() for o in env_origins.split(",")])
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
+    allow_origin_regex=r"https://.*\.github\.io",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -135,6 +157,9 @@ if inspections and hasattr(inspections, "router"):
 if documents and hasattr(documents, "router"):
     app.include_router(documents.router, prefix="/api/documents", tags=["Document Vault"])
 
+if users and hasattr(users, "router"):
+    app.include_router(users.router, prefix="/api/users", tags=["Users & Profiles"])
+
 
 # ==========================================
 # 2. SYSTEM HEALTH & DIAGNOSTIC ENDPOINTS
@@ -172,21 +197,18 @@ candidate_paths = [
     os.path.abspath(os.path.join(current_dir, "..")),              # Repo root (where HTML files live)
     os.path.abspath(os.path.join(current_dir, "static")),
     os.path.abspath(os.path.join(current_dir, "../static")),
-    current_dir                                                    # ./
+    current_dir                                                  # ./
 ]
 
 frontend_path = None
 for path in candidate_paths:
-    # Look for a known HTML file to ensure we found the actual web root
     if os.path.exists(os.path.join(path, "dashboard.html")) or os.path.exists(os.path.join(path, "index.html")):
         frontend_path = path
         break
 
 if frontend_path:
     print(f"✅ [StaticFiles] Successfully mounted frontend directory: {frontend_path}")
-    # Mount under /app for backward compatibility
     app.mount("/app", StaticFiles(directory=frontend_path, html=True), name="frontend_app")
-    # Mount under root / so /dashboard.html works directly
     app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend_root")
 else:
     print("⚠️ [StaticFiles] WARNING: Could not find HTML files in candidate paths.")

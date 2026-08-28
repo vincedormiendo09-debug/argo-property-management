@@ -24,12 +24,41 @@ def ensure_sandbox_organization(db: Session, org_id: uuid.UUID):
 @router.get("/", response_model=List[schemas.DocumentSchema])
 def read_documents(
     organization_id: uuid.UUID = Query(default=DEFAULT_ORG_ID),
+    pov: Optional[str] = Query(default=None),
     type_filter: Optional[str] = Query(default=None, alias="type"),
     search: Optional[str] = Query(default=None),
     db: Session = Depends(get_db)
 ):
     ensure_sandbox_organization(db, organization_id)
     stmt = select(models.Document).where(models.Document.organization_id == organization_id)
+
+    # Role-scoped filtering (pov: admin, owner, client) at the database query level
+    if pov and pov.lower() != "all":
+        raw_pov = pov.lower().strip()
+        normalized_pov = raw_pov
+        if raw_pov in ("tenant", "client_pov"):
+            normalized_pov = "client"
+        elif raw_pov in ("property_owner", "investor"):
+            normalized_pov = "owner"
+        elif raw_pov in ("pm", "property_manager"):
+            normalized_pov = "admin"
+
+        if normalized_pov == "client":
+            # Clients / tenants see lease contracts and tenant-specific records
+            stmt = stmt.where(or_(
+                models.Document.type.ilike("%lease%"),
+                models.Document.type.ilike("%contract%"),
+                models.Document.entity_name.ilike("%santos%")
+            ))
+        elif normalized_pov == "owner":
+            # Owners see title deeds, tax declarations, and equity statements
+            stmt = stmt.where(or_(
+                models.Document.type.ilike("%title%"),
+                models.Document.type.ilike("%tax%"),
+                models.Document.type.ilike("%statement%"),
+                models.Document.entity_name.ilike("%residences%")
+            ))
+        # Admin sees all documents without restriction
 
     if type_filter:
         stmt = stmt.where(models.Document.type.ilike(f"%{type_filter}%"))
@@ -76,6 +105,27 @@ def read_documents(
         ]
         db.add_all(default_docs)
         db.commit()
+        
+        # Re-run query with role filter applied
+        stmt = select(models.Document).where(models.Document.organization_id == organization_id)
+        if pov and pov.lower() != "all":
+            if normalized_pov == "client":
+                stmt = stmt.where(or_(
+                    models.Document.type.ilike("%lease%"),
+                    models.Document.type.ilike("%contract%"),
+                    models.Document.entity_name.ilike("%santos%")
+                ))
+            elif normalized_pov == "owner":
+                stmt = stmt.where(or_(
+                    models.Document.type.ilike("%title%"),
+                    models.Document.type.ilike("%tax%"),
+                    models.Document.type.ilike("%statement%"),
+                    models.Document.entity_name.ilike("%residences%")
+                ))
+        if type_filter:
+            stmt = stmt.where(models.Document.type.ilike(f"%{type_filter}%"))
+        if search:
+            stmt = stmt.where(or_(*search_terms))
         documents = list(db.scalars(stmt).all())
 
     return documents

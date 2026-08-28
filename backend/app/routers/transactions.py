@@ -35,8 +35,27 @@ def read_transactions(
 
     if direction:
         stmt = stmt.where(models.Transaction.direction.ilike(f"%{direction}%"))
+    
     if status_filter:
-        stmt = stmt.where(models.Transaction.status.ilike(f"%{status_filter}%"))
+        # Precisely separate verified/paid/disbursed records from pending/audit/overdue ones
+        s_upper = status_filter.upper()
+        if s_upper in ("PAID", "VERIFIED", "COMPLETED", "DISBURSED"):
+            stmt = stmt.where(or_(
+                models.Transaction.status.ilike("paid"),
+                models.Transaction.status.ilike("verified"),
+                models.Transaction.status.ilike("completed"),
+                models.Transaction.status.ilike("disbursed")
+            ))
+        elif s_upper in ("PENDING", "PENDING AUDIT", "UNPAID", "OVERDUE"):
+            stmt = stmt.where(or_(
+                models.Transaction.status.ilike("pending"),
+                models.Transaction.status.ilike("%pending%"),
+                models.Transaction.status.ilike("unpaid"),
+                models.Transaction.status.ilike("overdue")
+            ))
+        else:
+            stmt = stmt.where(models.Transaction.status.ilike(f"%{status_filter}%"))
+
     if category:
         stmt = stmt.where(models.Transaction.category.ilike(f"%{category}%"))
 

@@ -618,9 +618,9 @@
 
             <div class="user-dropdown-container">
                 <div class="user-profile" id="userProfileBtn">
-                    <div class="avatar" id="userAvatar">JD</div>
+                    <div class="avatar" id="userAvatar">SA</div>
                     <div class="user-info">
-                        <strong id="userName">Property Admin</strong>
+                        <strong id="userName">System Admin</strong>
                         <span id="userRoleBadge">Property Manager</span>
                     </div>
                     <i class="bi bi-chevron-down" style="font-size: 10px; color: #94A3B8;"></i>
@@ -648,10 +648,10 @@
             <div>
                 <div class="eyebrow" id="pageEyebrow">RECORDS & REPORTS</div>
                 <h1>Inspections & Move-In Logs</h1>
-                <p id="pageDesc">Schedule and track property and unit inspections throughout the occupancy lifecycle.</p>
+                <p id="pageDesc">Schedule, conduct, and track property unit condition assessments and handover audits throughout the occupancy lifecycle.</p>
             </div>
 
-            <button class="primary-btn" id="scheduleInspectionBtn" onclick="openModal()">
+            <button class="primary-button primary-btn" id="scheduleInspectionBtn" onclick="openModal()">
                 <i class="bi bi-plus-lg"></i>
                 <span>Schedule Inspection</span>
             </button>
@@ -660,27 +660,39 @@
         <!-- KPI CARDS -->
         <section class="kpi-grid">
             <div class="kpi-card">
-                <div class="kpi-label">Total Inspections</div>
+                <div class="kpi-top">
+                    <span class="kpi-label">Total Inspections</span>
+                    <div class="kpi-icon"><i class="bi bi-clipboard-check"></i></div>
+                </div>
                 <div class="kpi-value" id="kpiTotal">0</div>
-                <div class="kpi-description">All recorded inspections</div>
+                <div class="kpi-description">All recorded audits</div>
             </div>
 
             <div class="kpi-card">
-                <div class="kpi-label">Scheduled</div>
+                <div class="kpi-top">
+                    <span class="kpi-label">Scheduled</span>
+                    <div class="kpi-icon" style="background:#EFF6FF; color:#2563EB;"><i class="bi bi-calendar-check"></i></div>
+                </div>
                 <div class="kpi-value" style="color: #2563EB;" id="kpiScheduled">0</div>
-                <div class="kpi-description">Upcoming inspections</div>
+                <div class="kpi-description">Upcoming audits</div>
             </div>
 
             <div class="kpi-card">
-                <div class="kpi-label">Completed</div>
+                <div class="kpi-top">
+                    <span class="kpi-label">Completed</span>
+                    <div class="kpi-icon" style="background:#ECFDF5; color:#059669;"><i class="bi bi-check2-circle"></i></div>
+                </div>
                 <div class="kpi-value" style="color: #059669;" id="kpiCompleted">0</div>
-                <div class="kpi-description">Successfully completed</div>
+                <div class="kpi-description">Successfully signed off</div>
             </div>
 
             <div class="kpi-card">
-                <div class="kpi-label">Pending Review</div>
+                <div class="kpi-top">
+                    <span class="kpi-label">Pending Review</span>
+                    <div class="kpi-icon" style="background:#FEF3C7; color:#D97706;"><i class="bi bi-clock-history"></i></div>
+                </div>
                 <div class="kpi-value" style="color: #D97706;" id="kpiPending">0</div>
-                <div class="kpi-description">Requires sign-off / follow-up</div>
+                <div class="kpi-description">Requires inspection follow-up</div>
             </div>
         </section>
 
@@ -688,26 +700,26 @@
         <div class="filter-bar">
             <div class="search-box">
                 <i class="bi bi-search"></i>
-                <input type="text" id="searchInput" placeholder="Search inspections, units, or tenants..." onkeyup="filterTable()">
+                <input type="text" id="searchInput" placeholder="Search inspection ID, unit, tenant, or inspector..." onkeyup="filterTable()">
             </div>
 
             <select class="filter-select" id="typeFilter" onchange="filterTable()">
                 <option value="">All Inspection Types</option>
-                <option value="Move-in">Move-in</option>
-                <option value="Routine">Routine</option>
-                <option value="Move-out">Move-out</option>
-                <option value="Maintenance">Maintenance</option>
+                <option value="Move-in">Move-in Audit</option>
+                <option value="Routine">Routine Inspection</option>
+                <option value="Move-out">Move-out Clearance</option>
+                <option value="Maintenance">Maintenance Follow-up</option>
             </select>
 
             <select class="filter-select" id="statusFilter" onchange="filterTable()">
                 <option value="">All Statuses</option>
                 <option value="Scheduled">Scheduled</option>
                 <option value="Completed">Completed</option>
-                <option value="Pending">Pending</option>
+                <option value="Pending">Pending Review</option>
                 <option value="Cancelled">Cancelled</option>
             </select>
 
-            <button class="secondary-btn" onclick="resetFilters()">
+            <button class="secondary-button secondary-btn" onclick="resetFilters()">
                 <i class="bi bi-arrow-counterclockwise"></i>
                 <span>Reset</span>
             </button>
@@ -715,9 +727,9 @@
 
         <!-- TABLE -->
         <div class="table-card">
-            <div class="table-header" style="padding:16px 20px; border-bottom:1px solid var(--border);">
-                <h2 id="tableHeaderTitle">Inspection Records</h2>
-                <span style="font-size:12px; color:var(--muted);" id="locationSubtitle">All Properties</span>
+            <div class="table-header" style="padding:16px 20px; border-bottom:1px solid var(--border, #E2E8F0); display:flex; justify-content:space-between; align-items:center;">
+                <h2 id="tableHeaderTitle" style="font-size:15px; font-weight:700; margin:0;">Inspection Audit Records</h2>
+                <span style="font-size:12px; color:var(--muted, #64748B);" id="locationSubtitle">All Properties & Units</span>
             </div>
 
             <div class="table-wrapper">
@@ -725,17 +737,18 @@
                     <thead>
                         <tr>
                             <th>INSPECTION ID</th>
-                            <th>UNIT</th>
+                            <th>UNIT & PROPERTY</th>
                             <th>TENANT</th>
                             <th>TYPE</th>
-                            <th>SCHEDULED DATE</th>
+                            <th>AUDIT DATE</th>
+                            <th>CONDITION RATING</th>
                             <th>INSPECTOR</th>
                             <th>STATUS</th>
                             <th>ACTIONS</th>
                         </tr>
                     </thead>
                     <tbody id="inspectionTable">
-                        <!-- RENDERED DYNAMICALLY FROM LOCALSTORAGE -->
+                        <!-- RENDERED DYNAMICALLY FROM DATABASE -->
                     </tbody>
                 </table>
             </div>
@@ -747,76 +760,108 @@
         </div>
     </main>
 
-    <!-- ================= SCHEDULE INSPECTION MODAL ================= -->
+    <!-- ================= SCHEDULE / RECORD INSPECTION MODAL ================= -->
     <div class="modal-overlay" id="inspectionModal">
         <div class="modal">
             <div class="modal-header">
                 <div>
                     <span class="eyebrow">QUALITY ASSURANCE</span>
-                    <h2>Schedule Inspection</h2>
+                    <h2>Schedule / Record Inspection</h2>
                 </div>
-                <button class="close-btn" onclick="closeModal()"><i class="bi bi-x-lg"></i></button>
+                <button class="close-button close-btn" onclick="closeModal()"><i class="bi bi-x-lg"></i></button>
             </div>
 
             <div class="modal-body">
                 <div class="form-group">
-                    <label>Target Unit & Property</label>
+                    <label>Target Unit & Property <span style="color:var(--danger, #EF4444);">*</span></label>
                     <select id="modalUnitSelect" onchange="autoFillTenantFromUnit()">
-                        <option value="">Select unit...</option>
+                        <option value="">Select target unit...</option>
                         <!-- DYNAMICALLY POPULATED -->
                     </select>
                 </div>
 
-                <div class="form-row">
+                <div class="form-row" style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
                     <div class="form-group">
                         <label>Inspection Type</label>
                         <select id="modalTypeSelect">
-                            <option value="Move-in">Move-in</option>
-                            <option value="Routine" selected>Routine</option>
-                            <option value="Move-out">Move-out</option>
-                            <option value="Maintenance">Maintenance</option>
+                            <option value="Move-in">Move-in Handover</option>
+                            <option value="Routine" selected>Routine Periodic</option>
+                            <option value="Move-out">Move-out Clearance</option>
+                            <option value="Maintenance">Maintenance Follow-up</option>
                         </select>
                     </div>
 
                     <div class="form-group">
-                        <label>Scheduled Date</label>
+                        <label>Inspection Date <span style="color:var(--danger, #EF4444);">*</span></label>
                         <input type="date" id="modalDateInput">
                     </div>
                 </div>
 
-                <div class="form-row">
+                <div class="form-row" style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
                     <div class="form-group">
                         <label>Assigned Inspector</label>
                         <input type="text" id="modalInspectorInput" placeholder="e.g. Property Admin">
                     </div>
 
                     <div class="form-group">
-                        <label>Tenant Name</label>
-                        <input type="text" id="modalTenantInput" placeholder="e.g. Tenant Name">
+                        <label>Tenant / Occupant Name</label>
+                        <input type="text" id="modalTenantInput" placeholder="Auto-filled or N/A">
+                    </div>
+                </div>
+
+                <div class="form-row" style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                    <div class="form-group">
+                        <label>Overall Unit Condition Tag</label>
+                        <select id="modalConditionSelect">
+                            <option value="Good" selected>Good / Clean / Functional</option>
+                            <option value="Minor Wear">Minor Wear & Tear</option>
+                            <option value="Needs Repair">Needs Repair / Maintenance Staged</option>
+                            <option value="Damaged">Damaged / Penalty Deduction</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Inspection Status</label>
+                        <select id="modalStatusSelect">
+                            <option value="Scheduled" selected>Scheduled</option>
+                            <option value="Completed">Completed / Signed Off</option>
+                            <option value="Pending">Pending Review</option>
+                        </select>
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label>Inspection Notes / Scope</label>
-                    <textarea id="modalNotesInput" rows="2" placeholder="Areas to inspect..."></textarea>
+                    <label>Photo Evidence / Attachment File Name</label>
+                    <input type="text" id="modalPhotoInput" placeholder="e.g. handover-photos-unit101.zip or inspection-proof.png">
+                </div>
+
+                <div class="form-group">
+                    <label>Inspection Notes & Room Checklist Remarks</label>
+                    <textarea id="modalNotesInput" rows="3" placeholder="Key inventory verified, walls and fixtures condition, sub-meter dial status..."></textarea>
                 </div>
             </div>
 
             <div class="modal-footer">
-                <button class="secondary-btn" onclick="closeModal()">Cancel</button>
-                <button class="primary-btn" onclick="saveInspection()"><i class="bi bi-calendar-check"></i> Schedule Inspection</button>
+                <button class="secondary-button secondary-btn" onclick="closeModal()">Cancel</button>
+                <button class="primary-button primary-btn" onclick="saveInspection()"><i class="bi bi-calendar-check"></i> Save Inspection Record</button>
             </div>
         </div>
     </div>
 
-   <script>
-    const API_BASE_URL = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
+<script>
+    const API_BASE_URL = (
+        window.location.origin.includes('localhost') || 
+        window.location.origin.includes('127.0.0.1')
+    ) 
         ? 'http://127.0.0.1:8000/api'
-        : '/api';
+        : (window.location.origin.includes('github.io'))
+            ? 'https://argo-management-2026.onrender.com/api'
+            : '/api';
 
     const INSPECTIONS_API_URL = `${API_BASE_URL}/inspections/`;
     const UNITS_API_URL = `${API_BASE_URL}/units/`;
     const LEASES_API_URL = `${API_BASE_URL}/leases/`;
+    const NOTIFICATIONS_API_URL = `${API_BASE_URL}/notifications/`;
 
     function getAuthHeaders() {
         const token = localStorage.getItem('token') || localStorage.getItem('argo_token');
@@ -826,191 +871,11 @@
         };
     }
 
-    // Secure Logout Handler
     function logoutUser() {
         localStorage.clear();
         window.location.replace('index.html');
     }
 
-    // Canonical Inspection Logs: Move-In Handover (INS-2026-001) for Maria Santos in Tower A • Unit 101
-    const DEFAULT_INSPECTIONS = [
-        {
-            id: 'INS-2026-001',
-            inspection_id: 'INS-2026-001',
-            unitName: 'Unit 101',
-            unit_name: 'Unit 101',
-            propertyInfo: 'Sunrise Residences • Tower A',
-            property_info: 'Sunrise Residences • Tower A',
-            tenant: 'Maria Santos',
-            tenant_email: 'maria.santos@tenant.ph',
-            type: 'Move-in',
-            date: '2026-01-01',
-            inspector: 'Property Admin',
-            status: 'Completed',
-            notes: 'Unit 101 move-in handover audit completed. Key inventory acknowledged, sub-meter baselines signed off by Maria Santos.'
-        },
-        {
-            id: 'INS-2026-002',
-            inspection_id: 'INS-2026-002',
-            unitName: 'Unit 101',
-            unit_name: 'Unit 101',
-            propertyInfo: 'Sunrise Residences • Tower A',
-            tenant: 'Maria Santos',
-            tenant_email: 'maria.santos@tenant.ph',
-            type: 'Routine',
-            date: '2026-08-20',
-            inspector: 'Juan Dela Cruz (PM)',
-            status: 'Scheduled',
-            notes: 'Quarterly routine electrical sub-meter check, water fixtures pressure test, and living area condition review.'
-        }
-    ];
-
-    async function getInspections() {
-        try {
-            const response = await fetch(INSPECTIONS_API_URL, { headers: getAuthHeaders() });
-            if (response.ok) {
-                const data = await response.json();
-                const list = Array.isArray(data) ? data : (data.items || data.inspections || data.data || []);
-                if (list.length > 0) {
-                    const mapped = list.map(i => ({
-                        id: i.inspection_id || i.id || `INS-${Date.now()}`,
-                        inspection_id: i.inspection_id || i.id,
-                        unitName: i.unit_name || i.unitName || 'Unit 101',
-                        unit_name: i.unit_name || i.unitName || 'Unit 101',
-                        propertyInfo: i.property_info || i.propertyInfo || 'Sunrise Residences • Tower A',
-                        property_info: i.property_info || i.propertyInfo || 'Sunrise Residences • Tower A',
-                        tenant: i.tenant || 'Maria Santos',
-                        tenant_email: i.tenant_email || 'maria.santos@tenant.ph',
-                        type: i.type || 'Routine',
-                        date: i.date || '2026-01-01',
-                        inspector: i.inspector || 'Property Admin',
-                        status: i.status || 'Scheduled',
-                        notes: i.notes || ''
-                    }));
-
-                    localStorage.setItem('argo_inspections', JSON.stringify(mapped));
-                    return mapped;
-                }
-            }
-        } catch (e) {
-            console.warn("Live Inspections API unavailable, loading from local cache.");
-        }
-
-        const raw = localStorage.getItem('argo_inspections');
-        if (raw) {
-            try {
-                let parsed = JSON.parse(raw);
-                if (Array.isArray(parsed) && parsed.length > 0) {
-                    parsed = parsed.map(i => {
-                        let prop = i.propertyInfo || i.property_info || '';
-                        if (!prop.includes('Tower A')) {
-                            prop = 'Sunrise Residences • Tower A';
-                        }
-                        return {
-                            ...i,
-                            propertyInfo: prop,
-                            property_info: prop
-                        };
-                    });
-
-                    const hasMariaInspection = parsed.some(i => (i.tenant || '').toLowerCase().includes('maria') || (i.id || '').includes('INS-2026-001'));
-                    if (!hasMariaInspection) {
-                        parsed.unshift(DEFAULT_INSPECTIONS[0]);
-                        localStorage.setItem('argo_inspections', JSON.stringify(parsed));
-                    }
-                    return parsed;
-                }
-            } catch (e) {}
-        }
-
-        localStorage.setItem('argo_inspections', JSON.stringify(DEFAULT_INSPECTIONS));
-        return DEFAULT_INSPECTIONS;
-    }
-
-    function saveInspections(inspections) {
-        localStorage.setItem('argo_inspections', JSON.stringify(inspections));
-    }
-
-    async function getUnits() {
-        try {
-            const res = await fetch(UNITS_API_URL, { headers: getAuthHeaders() });
-            if (res.ok) {
-                const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.units || data.data || []);
-                if (list.length > 0) return list;
-            }
-        } catch (e) {}
-
-        try {
-            return JSON.parse(localStorage.getItem('argo_units') || '[]');
-        } catch (e) {
-            return [];
-        }
-    }
-
-    async function getLeases() {
-        try {
-            const res = await fetch(LEASES_API_URL, { headers: getAuthHeaders() });
-            if (res.ok) {
-                const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.leases || data.data || []);
-                if (list.length > 0) return list;
-            }
-        } catch (e) {}
-
-        try {
-            return JSON.parse(localStorage.getItem('argo_leases') || '[]');
-        } catch (e) {
-            return [];
-        }
-    }
-
-    function getNotifications() {
-        try {
-            return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
-        } catch (e) {
-            return [];
-        }
-    }
-
-    function saveNotifications(notifications) {
-        localStorage.setItem('argo_notifications', JSON.stringify(notifications));
-    }
-
-    document.addEventListener('DOMContentLoaded', async () => {
-        const rawRole = (
-            localStorage.getItem('argo_pov') || 
-            localStorage.getItem('user_role') || 
-            localStorage.getItem('role') || 
-            ''
-        ).toLowerCase().trim();
-
-        if (!rawRole) {
-            window.location.replace('index.html');
-            return;
-        }
-
-        applyRoleContext();
-        loadUserData();
-        await populateUnitDropdown();
-        await renderInspectionTable();
-        await updateKPIs();
-        updateHeaderBadge();
-    });
-
-    // Live Cross-Tab Storage Listener
-    window.addEventListener('storage', async (e) => {
-        if (['argo_inspections', 'argo_units', 'argo_leases', 'argo_notifications', 'argo_user', 'argo_pov', 'user_role', 'role'].includes(e.key)) {
-            applyRoleContext();
-            loadUserData();
-            await populateUnitDropdown();
-            await renderInspectionTable();
-            await updateKPIs();
-            updateHeaderBadge();
-        }
-    });
-
-    // Dynamic Role Adaptation (Admin POV vs Client POV vs Owner POV)
     function applyRoleContext() {
         const rawRole = (
             localStorage.getItem('argo_pov') || 
@@ -1043,50 +908,23 @@
                 headerBadgeContainer.innerHTML = '<i class="bi bi-house-door-fill" style="color: #60A5FA;"></i><span>Tenant Self-Service Portal</span>';
             }
             
-            if (pageEyebrow) pageEyebrow.textContent = 'SELF-SERVICE PORTAL';
+            if (pageEyebrow) pageEyebrow.textContent = 'SELF-SERVICE AUDITS';
             if (pageDesc) pageDesc.textContent = 'View your move-in inspection reports and unit condition checklists.';
             if (scheduleBtn) scheduleBtn.style.display = 'none';
 
             if (nav) {
                 nav.innerHTML = `
                     <div class="nav-section-title">SELF-SERVICE HOME</div>
-                    <a href="client-dashboard.html" class="nav-item">
-                        <i class="bi bi-house-door"></i>
-                        <span>My Tenancy Home</span>
-                    </a>
-                    <a href="client-billing.html" class="nav-item">
-                        <i class="bi bi-receipt"></i>
-                        <span>Pay Rent & Dues</span>
-                    </a>
-                    <a href="transaction.html" class="nav-item">
-                        <i class="bi bi-receipt-cutoff"></i>
-                        <span>Transactions & Ledger</span>
-                    </a>
-                    <a href="client-utilities.html" class="nav-item">
-                        <i class="bi bi-lightning-charge"></i>
-                        <span>My Utilities & Meters</span>
-                    </a>
-                    <a href="client-maintenance.html" class="nav-item">
-                        <i class="bi bi-tools"></i>
-                        <span>Submit Maintenance</span>
-                    </a>
-                    <a href="inspections.html" class="nav-item active">
-                        <i class="bi bi-clipboard-check"></i>
-                        <span>Move-In & Inspections</span>
-                    </a>
-                    <a href="client-documents.html" class="nav-item">
-                        <i class="bi bi-folder2-open"></i>
-                        <span>My Lease & Receipts</span>
-                    </a>
+                    <a href="client-dashboard.html" class="nav-item"><i class="bi bi-house-door"></i><span>My Tenancy Home</span></a>
+                    <a href="client-billing.html" class="nav-item"><i class="bi bi-receipt"></i><span>Pay Rent & Dues</span></a>
+                    <a href="transaction.html" class="nav-item"><i class="bi bi-receipt-cutoff"></i><span>Transactions & Ledger</span></a>
+                    <a href="client-utilities.html" class="nav-item"><i class="bi bi-lightning-charge"></i><span>My Utilities & Meters</span></a>
+                    <a href="client-maintenance.html" class="nav-item"><i class="bi bi-tools"></i><span>Submit Maintenance</span></a>
+                    <a href="inspections.html" class="nav-item active"><i class="bi bi-clipboard-check"></i><span>Move-In & Inspections</span></a>
+                    <a href="client-documents.html" class="nav-item"><i class="bi bi-folder2-open"></i><span>My Lease & Receipts</span></a>
                     <div class="nav-section-title">SYSTEM</div>
-                    <a href="account.html" class="nav-item">
-                        <i class="bi bi-gear"></i>
-                        <span>Account Settings</span>
-                    </a>
-                    <a href="#" class="nav-item" onclick="logoutUser(); return false;">
-                        <i class="bi bi-box-arrow-right"></i>
-                        <span>Log Out</span>
-                    </a>
+                    <a href="account.html" class="nav-item"><i class="bi bi-gear"></i><span>Account Settings</span></a>
+                    <a href="#" class="nav-item" onclick="logoutUser(); return false;"><i class="bi bi-box-arrow-right"></i><span>Log Out</span></a>
                 `;
             }
         } else if (role === 'owner') {
@@ -1101,53 +939,25 @@
             }
 
             if (pageEyebrow) pageEyebrow.textContent = 'QUALITY & AUDIT OVERSIGHT';
-            if (pageDesc) pageDesc.textContent = 'Review comprehensive physical audit reports and inspection logs across your property portfolio.';
+            if (pageDesc) pageDesc.textContent = 'Review physical audit reports and inspection logs across your owned property assets.';
             if (scheduleBtn) scheduleBtn.style.display = 'none';
 
             if (nav) {
                 nav.innerHTML = `
                     <div class="nav-section-title">PORTFOLIO OVERVIEW</div>
-                    <a href="owner-dashboard.html" class="nav-item">
-                        <i class="bi bi-speedometer2"></i>
-                        <span>Executive Summary</span>
-                    </a>
-                    <a href="owner-properties.html" class="nav-item">
-                        <i class="bi bi-buildings"></i>
-                        <span>My Properties</span>
-                    </a>
-                    <a href="owner-statements.html" class="nav-item">
-                        <i class="bi bi-file-earmark-text"></i>
-                        <span>Financial Statements</span>
-                    </a>
-                    <a href="property-ownership.html" class="nav-item">
-                        <i class="bi bi-pie-chart"></i>
-                        <span>Fractional Equity</span>
-                    </a>
-                    <a href="owner-documents.html" class="nav-item">
-                        <i class="bi bi-folder2-open"></i>
-                        <span>Legal Vault</span>
-                    </a>
-                    <a href="transaction.html" class="nav-item">
-                        <i class="bi bi-receipt-cutoff"></i>
-                        <span>Yield Audit Ledger</span>
-                    </a>
+                    <a href="owner-dashboard.html" class="nav-item"><i class="bi bi-speedometer2"></i><span>Executive Summary</span></a>
+                    <a href="owner-properties.html" class="nav-item"><i class="bi bi-buildings"></i><span>My Properties</span></a>
+                    <a href="owner-statements.html" class="nav-item"><i class="bi bi-file-earmark-text"></i><span>Financial Statements</span></a>
+                    <a href="property-ownership.html" class="nav-item"><i class="bi bi-pie-chart"></i><span>Fractional Equity</span></a>
+                    <a href="owner-documents.html" class="nav-item"><i class="bi bi-folder2-open"></i><span>Legal Vault</span></a>
+                    <a href="transaction.html" class="nav-item"><i class="bi bi-receipt-cutoff"></i><span>Yield Audit Ledger</span></a>
                     <div class="nav-section-title">COMMUNICATION & SYSTEM</div>
-                    <a href="notification.html" class="nav-item">
-                        <i class="bi bi-bell"></i>
-                        <span>Notification Center</span>
-                    </a>
-                    <a href="account.html" class="nav-item">
-                        <i class="bi bi-gear"></i>
-                        <span>Account Settings</span>
-                    </a>
-                    <a href="#" class="nav-item" onclick="logoutUser(); return false;">
-                        <i class="bi bi-box-arrow-right"></i>
-                        <span>Log Out</span>
-                    </a>
+                    <a href="notification.html" class="nav-item"><i class="bi bi-bell"></i><span>Notification Center</span></a>
+                    <a href="account.html" class="nav-item"><i class="bi bi-gear"></i><span>Account Settings</span></a>
+                    <a href="#" class="nav-item" onclick="logoutUser(); return false;"><i class="bi bi-box-arrow-right"></i><span>Log Out</span></a>
                 `;
             }
         } else {
-            // Admin POV
             document.documentElement.style.setProperty('--primary', '#2563EB');
             if (brandSub) brandSub.textContent = 'Property Management';
             if (brandLogo) brandLogo.style.background = '#2563EB';
@@ -1165,94 +975,31 @@
             if (nav) {
                 nav.innerHTML = `
                     <div class="nav-section-title">OVERVIEW</div>
-                    <a href="dashboard.html" class="nav-item">
-                        <i class="bi bi-grid-1x2"></i>
-                        <span>Dashboard</span>
-                    </a>
+                    <a href="dashboard.html" class="nav-item"><i class="bi bi-grid-1x2"></i><span>Dashboard</span></a>
                     <div class="nav-section-title">PROPERTY OPERATIONS</div>
-                    <a href="properties.html" class="nav-item">
-                        <i class="bi bi-buildings"></i>
-                        <span>Properties</span>
-                    </a>
-                    <a href="buildings.html" class="nav-item">
-                        <i class="bi bi-building"></i>
-                        <span>Buildings</span>
-                    </a>
-                    <a href="units.html" class="nav-item">
-                        <i class="bi bi-door-open"></i>
-                        <span>Units</span>
-                    </a>
-                    <a href="tenants.html" class="nav-item">
-                        <i class="bi bi-people"></i>
-                        <span>Tenants</span>
-                    </a>
-                    <a href="owners.html" class="nav-item">
-                        <i class="bi bi-person-badge"></i>
-                        <span>Owners</span>
-                    </a>
-                    <a href="property-ownership.html" class="nav-item">
-                        <i class="bi bi-pie-chart"></i>
-                        <span>Fractional Ownership</span>
-                    </a>
-                    <a href="leases.html" class="nav-item">
-                        <i class="bi bi-file-earmark-text"></i>
-                        <span>Leases</span>
-                    </a>
+                    <a href="properties.html" class="nav-item"><i class="bi bi-buildings"></i><span>Properties</span></a>
+                    <a href="buildings.html" class="nav-item"><i class="bi bi-building"></i><span>Buildings</span></a>
+                    <a href="units.html" class="nav-item"><i class="bi bi-door-open"></i><span>Units</span></a>
+                    <a href="tenants.html" class="nav-item"><i class="bi bi-people"></i><span>Tenants</span></a>
+                    <a href="owners.html" class="nav-item"><i class="bi bi-person-badge"></i><span>Owners</span></a>
+                    <a href="property-ownership.html" class="nav-item"><i class="bi bi-pie-chart"></i><span>Fractional Ownership</span></a>
+                    <a href="leases.html" class="nav-item"><i class="bi bi-file-earmark-text"></i><span>Leases</span></a>
                     <div class="nav-section-title">FINANCE & SERVICES</div>
-                    <a href="rent-collection.html" class="nav-item">
-                        <i class="bi bi-cash-stack"></i>
-                        <span>Rent Collection</span>
-                    </a>
-                    <a href="transaction.html" class="nav-item">
-                        <i class="bi bi-receipt-cutoff"></i>
-                        <span>Transactions & Ledger</span>
-                    </a>
-                    <a href="utilities.html" class="nav-item">
-                        <i class="bi bi-lightning-charge"></i>
-                        <span>Utilities</span>
-                    </a>
-                    <a href="meter-readings.html" class="nav-item">
-                        <i class="bi bi-speedometer2"></i>
-                        <span>Meter Readings</span>
-                    </a>
-                    <a href="maintenance.html" class="nav-item">
-                        <i class="bi bi-tools"></i>
-                        <span>Maintenance</span>
-                    </a>
+                    <a href="rent-collection.html" class="nav-item"><i class="bi bi-cash-stack"></i><span>Rent Collection</span></a>
+                    <a href="transaction.html" class="nav-item"><i class="bi bi-receipt-cutoff"></i><span>Transactions & Ledger</span></a>
+                    <a href="utilities.html" class="nav-item"><i class="bi bi-lightning-charge"></i><span>Utilities</span></a>
+                    <a href="meter-readings.html" class="nav-item"><i class="bi bi-speedometer2"></i><span>Meter Readings</span></a>
+                    <a href="maintenance.html" class="nav-item"><i class="bi bi-tools"></i><span>Maintenance</span></a>
                     <div class="nav-section-title">RECORDS & REPORTS</div>
-                    <a href="inspections.html" class="nav-item active">
-                        <i class="bi bi-clipboard-check"></i>
-                        <span>Inspections</span>
-                    </a>
-                    <a href="move-in-checklist.html" class="nav-item">
-                        <i class="bi bi-check2-square"></i>
-                        <span>Move-In Checklist</span>
-                    </a>
-                    <a href="move-out-settlement.html" class="nav-item">
-                        <i class="bi bi-box-arrow-right"></i>
-                        <span>Move-Out Settlement</span>
-                    </a>
-                    <a href="documents.html" class="nav-item">
-                        <i class="bi bi-folder2-open"></i>
-                        <span>Documents</span>
-                    </a>
-                    <a href="reports.html" class="nav-item">
-                        <i class="bi bi-bar-chart"></i>
-                        <span>Reports</span>
-                    </a>
+                    <a href="inspections.html" class="nav-item active"><i class="bi bi-clipboard-check"></i><span>Inspections</span></a>
+                    <a href="move-in-checklist.html" class="nav-item"><i class="bi bi-check2-square"></i><span>Move-In Checklist</span></a>
+                    <a href="move-out-settlement.html" class="nav-item"><i class="bi bi-box-arrow-right"></i><span>Move-Out Settlement</span></a>
+                    <a href="documents.html" class="nav-item"><i class="bi bi-folder2-open"></i><span>Documents</span></a>
+                    <a href="reports.html" class="nav-item"><i class="bi bi-bar-chart"></i><span>Reports</span></a>
                     <div class="nav-section-title">SYSTEM</div>
-                    <a href="settings.html" class="nav-item">
-                        <i class="bi bi-gear"></i>
-                        <span>Settings</span>
-                    </a>
-                    <a href="account.html" class="nav-item">
-                        <i class="bi bi-person-gear"></i>
-                        <span>Account Settings</span>
-                    </a>
-                    <a href="#" class="nav-item" onclick="logoutUser(); return false;">
-                        <i class="bi bi-box-arrow-right"></i>
-                        <span>Log Out</span>
-                    </a>
+                    <a href="settings.html" class="nav-item"><i class="bi bi-gear"></i><span>Settings</span></a>
+                    <a href="account.html" class="nav-item"><i class="bi bi-person-gear"></i><span>Account Settings</span></a>
+                    <a href="#" class="nav-item" onclick="logoutUser(); return false;"><i class="bi bi-box-arrow-right"></i><span>Log Out</span></a>
                 `;
             }
         }
@@ -1272,49 +1019,131 @@
         const avatarEl = document.getElementById('userAvatar');
 
         if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
-            if (nameEl) nameEl.textContent = 'Don Ramon Santos';
+            if (nameEl) nameEl.textContent = user.name || 'Property Owner';
             if (roleEl) roleEl.textContent = 'Property Owner';
             if (avatarEl) {
-                avatarEl.textContent = 'RS';
+                avatarEl.textContent = user.avatar || 'PO';
                 avatarEl.style.background = '#059669';
             }
         } else if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
-            if (nameEl) nameEl.textContent = 'Maria Santos';
-            if (roleEl) roleEl.textContent = 'Sunrise Property • Unit 101';
+            if (nameEl) nameEl.textContent = user.name || 'Resident Tenant';
+            if (roleEl) roleEl.textContent = 'Resident Account';
             if (avatarEl) {
-                avatarEl.textContent = 'MS';
+                avatarEl.textContent = user.avatar || 'MS';
                 avatarEl.style.background = '#D97706';
             }
         } else {
-            const name = user.name || 'Juan Dela Cruz';
+            const name = user.name || 'System Admin';
             const role = user.role || 'Property Manager';
             if (nameEl) nameEl.textContent = name;
             if (roleEl) roleEl.textContent = role;
             if (avatarEl) {
-                avatarEl.textContent = user.avatar || (name.charAt(0) || 'JD');
+                avatarEl.textContent = user.avatar || 'SA';
                 avatarEl.style.background = user.avatarBg || '#2563EB';
             }
         }
     }
 
+    // Database Fetchers
+    async function getInspections() {
+        let liveInspections = [];
+        try {
+            const response = await fetch(INSPECTIONS_API_URL, { headers: getAuthHeaders() });
+            if (response.ok) {
+                const data = await response.json();
+                const list = Array.isArray(data) ? data : (data.items || data.inspections || data.data || []);
+                liveInspections = list;
+                localStorage.setItem('argo_inspections', JSON.stringify(list));
+            }
+        } catch (e) {
+            console.warn("Inspections API offline, using cache:", e);
+        }
+
+        if (liveInspections.length === 0) {
+            const raw = localStorage.getItem('argo_inspections');
+            liveInspections = raw ? JSON.parse(raw) : [];
+        }
+
+        return liveInspections;
+    }
+
+    function saveInspections(inspections) {
+        localStorage.setItem('argo_inspections', JSON.stringify(inspections));
+    }
+
+    async function getUnits() {
+        try {
+            const res = await fetch(UNITS_API_URL, { headers: getAuthHeaders() });
+            if (res.ok) {
+                const data = await res.json();
+                const list = Array.isArray(data) ? data : (data.items || data.units || data.data || []);
+                localStorage.setItem('argo_units', JSON.stringify(list));
+                return list;
+            }
+        } catch (e) {}
+
+        const raw = localStorage.getItem('argo_units');
+        return raw ? JSON.parse(raw) : [];
+    }
+
+    async function getLeases() {
+        try {
+            const res = await fetch(LEASES_API_URL, { headers: getAuthHeaders() });
+            if (res.ok) {
+                const data = await res.json();
+                const list = Array.isArray(data) ? data : (data.items || data.leases || data.data || []);
+                localStorage.setItem('argo_leases', JSON.stringify(list));
+                return list;
+            }
+        } catch (e) {}
+
+        const raw = localStorage.getItem('argo_leases');
+        return raw ? JSON.parse(raw) : [];
+    }
+
+    function getNotifications() {
+        return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
+    }
+
+    function saveNotifications(notifications) {
+        localStorage.setItem('argo_notifications', JSON.stringify(notifications));
+    }
+
     async function populateUnitDropdown() {
         const units = await getUnits();
         const leases = await getLeases();
+        const activeLeases = leases.filter(l => (l.status || '').toUpperCase() === 'ACTIVE');
         const modalSelect = document.getElementById('modalUnitSelect');
         if (!modalSelect) return;
 
-        modalSelect.innerHTML = '<option value="">Select unit...</option>';
+        modalSelect.innerHTML = '<option value="">Select target unit...</option>';
         
-        if (units.length > 0) {
-            units.forEach(u => {
-                const uName = u.unit_number || u.unit_no || u.unitNo || u.unit || `Unit ${u.id}`;
-                const bName = u.building || u.building_name || 'Tower A';
-                const pName = (u.property ? (u.property.name || u.property.property_name) : '') || u.property_name || u.property || 'Sunrise Residences';
-                modalSelect.innerHTML += `<option value="${pName} • ${bName} • ${uName}">${pName} • ${bName} • ${uName}</option>`;
+        if (activeLeases.length > 0) {
+            const leaseGroup = document.createElement('optgroup');
+            leaseGroup.label = 'Active Leased Units';
+            activeLeases.forEach(l => {
+                const uLoc = l.property_name && l.unit_number ? `${l.property_name} • ${l.unit_number}` : (l.unit || 'Unit');
+                const tName = l.tenant_name || l.tenantName || 'Tenant';
+                const opt = document.createElement('option');
+                opt.value = `${uLoc}|${tName}|${l.tenant_email || ''}`;
+                opt.textContent = `${uLoc} (${tName})`;
+                leaseGroup.appendChild(opt);
             });
-        } else {
-            modalSelect.innerHTML += '<option value="Sunrise Residences • Tower A • Unit 101">Sunrise Residences • Tower A • Unit 101 (Occupied)</option>';
-            modalSelect.innerHTML += '<option value="Sunrise Residences • Tower A • Unit 102">Sunrise Residences • Tower A • Unit 102 (Available)</option>';
+            modalSelect.appendChild(leaseGroup);
+        }
+
+        if (units.length > 0) {
+            const vacantGroup = document.createElement('optgroup');
+            vacantGroup.label = 'All Registered Units';
+            units.forEach(u => {
+                const uName = u.unit_no || u.unit_number || `Unit #${u.id}`;
+                const pName = (u.property ? (u.property.name || u.property.property_name) : '') || u.property_name || 'Property';
+                const opt = document.createElement('option');
+                opt.value = `${pName} • ${uName}|N/A|`;
+                opt.textContent = `${pName} • ${uName} (${u.status || 'Available'})`;
+                vacantGroup.appendChild(opt);
+            });
+            modalSelect.appendChild(vacantGroup);
         }
     }
 
@@ -1323,8 +1152,11 @@
         const tenantInput = document.getElementById('modalTenantInput');
         if (!unitVal || !tenantInput) return;
 
-        if (unitVal.includes('101')) {
-            tenantInput.value = 'Maria Santos';
+        const parts = unitVal.split('|');
+        if (parts[1] && parts[1] !== 'N/A') {
+            tenantInput.value = parts[1];
+        } else {
+            tenantInput.value = '';
         }
     }
 
@@ -1338,18 +1170,10 @@
 
         let inspections = await getInspections();
         const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
-        const tenantName = user.name || 'Maria Santos';
+        const loggedInName = (user.name || '').toLowerCase();
 
-        if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
-            inspections = inspections.filter(i => 
-                (i.tenant && i.tenant.toLowerCase().includes(tenantName.toLowerCase())) || 
-                (i.unitName && i.unitName.includes('101'))
-            );
-            const subEl = document.getElementById('locationSubtitle');
-            if (subEl) subEl.textContent = 'Sunrise Residences • Tower A • Unit 101';
-        } else {
-            const subEl = document.getElementById('locationSubtitle');
-            if (subEl) subEl.textContent = 'All Properties & Units';
+        if (['client', 'tenant', 'client_pov'].includes(rawRole) && loggedInName) {
+            inspections = inspections.filter(i => (i.tenant || i.tenant_name || '').toLowerCase().includes(loggedInName));
         }
 
         const tbody = document.getElementById('inspectionTable');
@@ -1357,40 +1181,52 @@
         tbody.innerHTML = '';
 
         if (!inspections || inspections.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--muted); padding:30px;">No inspection records found.</td></tr>`;
-            const countEl = document.getElementById('showingCountText');
-            if (countEl) countEl.textContent = `Showing 0 inspections`;
+            tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:var(--muted, #64748B); padding:30px;">No inspection audit records found. Click "Schedule Inspection" to record an audit.</td></tr>`;
+            document.getElementById('showingCountText').textContent = `Showing 0 inspections`;
+            await updateKPIs();
             return;
         }
 
         inspections.forEach(ins => {
             const tr = document.createElement('tr');
-            tr.dataset.type = ins.type || 'Routine';
-            tr.dataset.status = ins.status || 'Scheduled';
+            const type = ins.type || 'Routine';
+            const status = ins.status || 'Scheduled';
+            const condition = ins.condition || ins.condition_rating || 'Good';
+
+            tr.dataset.type = type;
+            tr.dataset.status = status;
 
             let typeClass = 'routine';
-            const t = (ins.type || '').toLowerCase();
-            if (t === 'move-in') typeClass = 'move-in';
-            else if (t === 'move-out') typeClass = 'move-out';
-            else if (t === 'maintenance') typeClass = 'maintenance-type';
+            const t = type.toLowerCase();
+            if (t.includes('move-in')) typeClass = 'move-in';
+            else if (t.includes('move-out')) typeClass = 'move-out';
+            else if (t.includes('maintenance')) typeClass = 'maintenance-type';
 
             let statusBadge = '';
-            const s = (ins.status || '').toLowerCase();
+            const s = status.toLowerCase();
             if (s === 'completed') statusBadge = `<span class="status completed" style="background:#ECFDF5; color:#059669; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-check-circle me-1"></i> Completed</span>`;
             else if (s === 'scheduled') statusBadge = `<span class="status scheduled" style="background:#EFF6FF; color:#2563EB; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-calendar-check me-1"></i> Scheduled</span>`;
-            else if (s === 'pending') statusBadge = `<span class="status pending" style="background:#FEF3C7; color:#D97706; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-clock me-1"></i> Pending</span>`;
+            else if (s === 'pending') statusBadge = `<span class="status pending" style="background:#FEF3C7; color:#D97706; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-clock me-1"></i> Pending Review</span>`;
             else statusBadge = `<span class="status cancelled" style="background:#FFF1F2; color:#E11D48; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;">Cancelled</span>`;
 
-            const displayId = ins.inspection_id || ins.id;
-            const unitName = ins.unitName || ins.unit_name || 'Unit 101';
-            const propInfo = ins.propertyInfo || ins.property_info || 'Sunrise Residences • Tower A';
+            let conditionBadge = `<span style="background:#ECFDF5; color:#059669; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-shield-check"></i> Good</span>`;
+            if (condition.toLowerCase().includes('repair')) {
+                conditionBadge = `<span style="background:#FEF3C7; color:#D97706; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-tools"></i> Needs Repair</span>`;
+            } else if (condition.toLowerCase().includes('damage')) {
+                conditionBadge = `<span style="background:#FFF1F2; color:#E11D48; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-exclamation-triangle"></i> Damaged</span>`;
+            }
+
+            const displayId = ins.inspection_id || ins.id || 'INS';
+            const unitName = ins.unit_name || ins.unitName || 'Unit';
+            const propInfo = ins.property_info || ins.propertyInfo || 'Property Location';
+            const tenantName = ins.tenant || ins.tenant_name || 'Occupant';
 
             let actionButtons = `
-                <button class="action-btn" title="View Report" onclick="viewInspectionReport('${displayId}')"><i class="bi bi-eye"></i></button>
+                <button class="action-btn" title="View Audit Report" onclick="viewInspectionReport('${displayId}')"><i class="bi bi-eye"></i></button>
             `;
             if (!['client', 'tenant', 'client_pov'].includes(rawRole)) {
                 actionButtons += `
-                    <button class="action-btn delete" title="Delete" onclick="deleteInspection('${displayId}')"><i class="bi bi-trash"></i></button>
+                    <button class="action-btn delete" title="Delete Audit" onclick="deleteInspection('${displayId}')"><i class="bi bi-trash"></i></button>
                 `;
             }
 
@@ -1398,20 +1234,21 @@
                 <td><div class="inspection-id" style="font-weight:600; color:#2563EB;">${displayId}</div></td>
                 <td>
                     <div class="unit-name" style="font-weight:600;">${unitName}</div>
-                    <div class="property-info" style="font-size:11px; color:var(--muted);"><i class="bi bi-geo-alt"></i> ${propInfo}</div>
+                    <div class="property-info" style="font-size:11px; color:var(--muted, #64748B);"><i class="bi bi-geo-alt"></i> ${propInfo}</div>
                 </td>
-                <td><strong>${ins.tenant || 'Maria Santos'}</strong></td>
-                <td><span class="inspection-type ${typeClass}" style="padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;">${ins.type || 'Routine'}</span></td>
-                <td>${ins.date || '2026-01-01'}</td>
-                <td>${ins.inspector || 'Property Manager'}</td>
+                <td><strong>${tenantName}</strong></td>
+                <td><span class="inspection-type ${typeClass}" style="padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;">${type}</span></td>
+                <td>${ins.date || ins.inspection_date || '—'}</td>
+                <td>${conditionBadge}</td>
+                <td>${ins.inspector || 'Inspector'}</td>
                 <td>${statusBadge}</td>
                 <td><div class="actions" style="display:flex; gap:6px;">${actionButtons}</div></td>
             `;
             tbody.appendChild(tr);
         });
 
-        const countEl = document.getElementById('showingCountText');
-        if (countEl) countEl.textContent = `Showing 1–${inspections.length} of ${inspections.length} inspections`;
+        document.getElementById('showingCountText').textContent = `Showing 1–${inspections.length} of ${inspections.length} inspection records`;
+        await updateKPIs();
     }
 
     async function saveInspection() {
@@ -1420,39 +1257,48 @@
         const dateInput = document.getElementById('modalDateInput');
         const inspectorInput = document.getElementById('modalInspectorInput');
         const tenantInput = document.getElementById('modalTenantInput');
+        const conditionSelect = document.getElementById('modalConditionSelect');
+        const statusSelect = document.getElementById('modalStatusSelect');
+        const photoInput = document.getElementById('modalPhotoInput');
         const notesInput = document.getElementById('modalNotesInput');
 
-        const unitLoc = unitSelect ? unitSelect.value : '';
+        const unitRaw = unitSelect ? unitSelect.value : '';
         const type = typeSelect ? typeSelect.value : 'Routine';
         const date = dateInput && dateInput.value ? dateInput.value : new Date().toISOString().split('T')[0];
         const inspector = inspectorInput && inspectorInput.value.trim() ? inspectorInput.value.trim() : 'Property Admin';
-        const tenant = tenantInput && tenantInput.value.trim() ? tenantInput.value.trim() : 'Maria Santos';
+        const tenant = tenantInput && tenantInput.value.trim() ? tenantInput.value.trim() : 'Occupant';
+        const condition = conditionSelect ? conditionSelect.value : 'Good';
+        const status = statusSelect ? statusSelect.value : 'Scheduled';
+        const photo = photoInput ? photoInput.value.trim() : '';
         const notes = notesInput ? notesInput.value.trim() : '';
 
-        if (!unitLoc) {
+        if (!unitRaw) {
             alert("Please select a target unit.");
             return;
         }
 
-        const parts = unitLoc.split('•');
-        const unitName = parts[parts.length - 1] ? parts[parts.length - 1].trim() : 'Unit 101';
-        const propertyInfo = parts.slice(0, parts.length - 1).join('•').trim() || 'Sunrise Residences • Tower A';
-        const inspectionId = `INS-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`;
+        const parts = unitRaw.split('|')[0].split('•');
+        const unitName = parts[parts.length - 1] ? parts[parts.length - 1].trim() : 'Unit';
+        const propertyInfo = parts.slice(0, parts.length - 1).join('•').trim() || 'Property Location';
+        const inspectionId = `INS-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
         const payload = {
             inspection_id: inspectionId,
             unit_name: unitName,
             property_info: propertyInfo,
             tenant: tenant,
-            tenant_email: 'maria.santos@tenant.ph',
+            tenant_name: tenant,
             type: type,
             date: date,
+            inspection_date: date,
             inspector: inspector,
-            status: 'Scheduled',
+            condition: condition,
+            condition_rating: condition,
+            status: status,
+            photos: photo,
             notes: notes
         };
 
-        // Live API Dispatch
         try {
             await fetch(INSPECTIONS_API_URL, {
                 method: 'POST',
@@ -1463,27 +1309,11 @@
             console.warn("Backend save bypassed, keeping locally.", e);
         }
 
-        const newIns = {
-            id: inspectionId,
-            inspection_id: inspectionId,
-            unitName: unitName,
-            unit_name: unitName,
-            propertyInfo: propertyInfo,
-            property_info: propertyInfo,
-            tenant: tenant,
-            tenant_email: 'maria.santos@tenant.ph',
-            type: type,
-            date: date,
-            inspector: inspector,
-            status: 'Scheduled',
-            notes: notes
-        };
-
         let inspections = await getInspections();
-        inspections.unshift(newIns);
+        inspections.unshift({ ...payload, id: inspectionId });
         saveInspections(inspections);
 
-        // Push notification
+        // System notification
         let notifications = getNotifications();
         notifications.unshift({
             id: `NOTIF-${Date.now()}`,
@@ -1491,32 +1321,32 @@
             category: 'asset',
             status: 'unread',
             is_read: false,
-            title: `${type} Inspection Scheduled`,
+            title: `${type} Inspection Logged`,
             time: 'Just now',
-            description: `An inspection has been scheduled for <strong>${unitName}</strong> (${propertyInfo}) on <strong>${date}</strong> by <strong>${inspector}</strong>.`,
+            description: `Audit inspection recorded for <strong>${unitName}</strong> on <strong>${date}</strong>. Condition rating: <strong>${condition}</strong>.`,
             property: `${propertyInfo} • ${unitName}`,
             actionUrl: 'inspections.html',
-            actionText: 'View Inspection'
+            actionText: 'View Report'
         });
         saveNotifications(notifications);
 
         await renderInspectionTable();
-        await updateKPIs();
         closeModal();
 
         if (unitSelect) unitSelect.value = '';
         if (inspectorInput) inspectorInput.value = '';
         if (tenantInput) tenantInput.value = '';
+        if (photoInput) photoInput.value = '';
         if (notesInput) notesInput.value = '';
 
-        alert(`Inspection (${inspectionId}) scheduled successfully for ${tenant}!`);
+        alert(`Inspection record (${inspectionId}) saved successfully!`);
     }
 
     async function deleteInspection(id) {
-        if (!confirm("Are you sure you want to delete this inspection record?")) return;
+        if (!confirm("Are you sure you want to delete this inspection audit record?")) return;
         
         try {
-            await fetch(`${INSPECTIONS_API_URL}${id}/`, {
+            await fetch(`${INSPECTIONS_API_URL}${encodeURIComponent(id)}`, {
                 method: 'DELETE',
                 headers: getAuthHeaders()
             });
@@ -1527,7 +1357,6 @@
         saveInspections(inspections);
 
         await renderInspectionTable();
-        await updateKPIs();
     }
 
     async function viewInspectionReport(id) {
@@ -1535,7 +1364,7 @@
         const ins = inspections.find(i => String(i.id) === String(id) || String(i.inspection_id) === String(id));
         if (!ins) return;
 
-        alert(`ARGO Inspection Report Details\n\nInspection ID: ${ins.inspection_id || ins.id}\nUnit: ${ins.unitName || ins.unit_name} (${ins.propertyInfo || ins.property_info})\nTenant: ${ins.tenant}\nType: ${ins.type}\nDate: ${ins.date}\nInspector: ${ins.inspector}\nStatus: ${ins.status}\nNotes: ${ins.notes || 'Unit condition handover checklist verified and signed.'}`);
+        alert(`ARGO Property Inspection Report\n\nInspection ID: ${ins.inspection_id || ins.id}\nUnit: ${ins.unit_name || ins.unitName} (${ins.property_info || ins.propertyInfo})\nTenant: ${ins.tenant || ins.tenant_name}\nType: ${ins.type}\nAudit Date: ${ins.date || ins.inspection_date}\nInspector: ${ins.inspector}\nCondition: ${ins.condition || ins.condition_rating || 'Good'}\nStatus: ${ins.status}\nAttached Photos: ${ins.photos || 'None'}\nRemarks: ${ins.notes || 'No remarks provided.'}`);
     }
 
     async function updateKPIs() {
@@ -1548,13 +1377,10 @@
 
         let inspections = await getInspections();
         const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
-        const tenantName = user.name || 'Maria Santos';
+        const loggedInName = (user.name || '').toLowerCase();
 
-        if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
-            inspections = inspections.filter(i => 
-                (i.tenant && i.tenant.toLowerCase().includes(tenantName.toLowerCase())) || 
-                (i.unitName && i.unitName.includes('101'))
-            );
+        if (['client', 'tenant', 'client_pov'].includes(rawRole) && loggedInName) {
+            inspections = inspections.filter(i => (i.tenant || i.tenant_name || '').toLowerCase().includes(loggedInName));
         }
 
         let total = inspections.length;
@@ -1574,24 +1400,17 @@
     }
 
     function updateHeaderBadge() {
-        const rawRole = (
-            localStorage.getItem('argo_pov') || 
-            localStorage.getItem('user_role') || 
-            localStorage.getItem('role') || 
-            'admin'
-        ).toLowerCase().trim();
-
-        let role = 'admin';
-        if (['client', 'tenant', 'client_pov'].includes(rawRole)) role = 'client';
-        else if (['owner', 'property_owner', 'investor'].includes(rawRole)) role = 'owner';
-
-        const notifs = getNotifications().filter(n => (n.pov === role || n.pov === 'all') && (n.status === 'unread' || n.is_read === false));
+        const notifs = getNotifications().filter(n => (n.pov === 'admin' || !n.pov) && (n.status === 'unread' || n.is_read === false));
         const badge = document.getElementById('headerNotifBadge');
         if (badge) badge.textContent = notifs.length;
     }
 
     async function openModal() { 
         await populateUnitDropdown();
+        const today = new Date().toISOString().split('T')[0];
+        const dateInput = document.getElementById('modalDateInput');
+        if (dateInput && !dateInput.value) dateInput.value = today;
+        
         const modal = document.getElementById("inspectionModal"); 
         if (modal) modal.classList.add("show"); 
     }
@@ -1607,13 +1426,9 @@
     };
 
     function filterTable() {
-        const searchInput = document.getElementById("searchInput");
-        const typeFilter = document.getElementById("typeFilter");
-        const statusFilter = document.getElementById("statusFilter");
-
-        const searchValue = searchInput ? searchInput.value.toLowerCase() : "";
-        const typeValue = typeFilter ? typeFilter.value : "";
-        const statusValue = statusFilter ? statusFilter.value : "";
+        const searchValue = document.getElementById("searchInput").value.toLowerCase();
+        const typeValue = document.getElementById("typeFilter").value;
+        const statusValue = document.getElementById("statusFilter").value;
 
         const rows = document.querySelectorAll("#inspectionTable tr");
 
@@ -1625,8 +1440,8 @@
             const rowStatus = row.dataset.status || "";
 
             const matchesSearch = text.includes(searchValue);
-            const matchesType = typeValue === "" || rowType.toLowerCase() === typeValue.toLowerCase();
-            const matchesStatus = statusValue === "" || rowStatus.toLowerCase() === statusValue.toLowerCase();
+            const matchesType = typeValue === "" || rowType.toLowerCase().includes(typeValue.toLowerCase());
+            const matchesStatus = statusValue === "" || rowStatus.toLowerCase().includes(statusValue.toLowerCase());
 
             if (matchesSearch && matchesType && matchesStatus) {
                 row.style.display = "";
@@ -1637,15 +1452,31 @@
     }
 
     function resetFilters() {
-        const searchInput = document.getElementById("searchInput");
-        const typeFilter = document.getElementById("typeFilter");
-        const statusFilter = document.getElementById("statusFilter");
-
-        if (searchInput) searchInput.value = "";
-        if (typeFilter) typeFilter.value = "";
-        if (statusFilter) statusFilter.value = "";
+        document.getElementById("searchInput").value = "";
+        document.getElementById("typeFilter").value = "";
+        document.getElementById("statusFilter").value = "";
         filterTable();
     }
+
+    // Real-Time Cross-Tab Listener
+    window.addEventListener('storage', async (e) => {
+        if (['argo_inspections', 'argo_units', 'argo_leases', 'argo_notifications', 'argo_user', 'argo_pov'].includes(e.key)) {
+            applyRoleContext();
+            loadUserData();
+            await populateUnitDropdown();
+            await renderInspectionTable();
+            updateHeaderBadge();
+        }
+    });
+
+    // Page Load Initialization
+    document.addEventListener('DOMContentLoaded', async () => {
+        applyRoleContext();
+        loadUserData();
+        await populateUnitDropdown();
+        await renderInspectionTable();
+        updateHeaderBadge();
+    });
 
     // Profile Dropdown Handler
     const userProfileBtn = document.getElementById('userProfileBtn');

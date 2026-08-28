@@ -62,7 +62,9 @@ def seed_database():
             id=uuid.uuid4(),
             organization_id=org_id,
             name="Juan Dela Cruz",
+            full_name="Juan Dela Cruz",
             email="admin@argo.ph",
+            phone="09170000000",
             role="admin",
             avatar="JD",
             is_active=True
@@ -71,7 +73,9 @@ def seed_database():
             id=uuid.uuid4(),
             organization_id=org_id,
             name="Don Ramon Santos",
+            full_name="Don Ramon Santos",
             email="ramon.santos@owner.ph",
+            phone="09185549011",
             role="owner",
             avatar="RS",
             is_active=True
@@ -80,7 +84,9 @@ def seed_database():
             id=uuid.uuid4(),
             organization_id=org_id,
             name="Maria Santos",
+            full_name="Maria Santos",
             email="maria.santos@tenant.ph",
+            phone="09171234567",
             role="client",
             avatar="MS",
             is_active=True
@@ -88,12 +94,13 @@ def seed_database():
         db.add_all([admin_user, owner_user, tenant_user])
         db.commit()
 
-        # 3. Add Master Property: Sunrise Residences (20 Units Capacity)
+        # 3. Add Master Property: Sunrise Residences (20 Units Capacity, TCT Land Title)
         prop = models.Property(
             id=uuid.uuid4(),
             organization_id=org_id,
             code="PROP-001",
             name="Sunrise Residences",
+            tct_number="TCT #49281-MNL",
             type="Residential Multi-Family",
             location="123 Solar St., Parañaque, Metro Manila",
             units_count=20,
@@ -102,7 +109,7 @@ def seed_database():
         db.add(prop)
         db.commit()
 
-        # 4. Add Master Building: Tower A (5 Floors, 20 Units Capacity)
+        # 4. Add Master Building: Tower A (5 Floors, 20 Units Capacity, Floor Distribution)
         bldg = models.Building(
             id=uuid.uuid4(),
             organization_id=org_id,
@@ -111,42 +118,49 @@ def seed_database():
             name="Tower A",
             floors=5,
             total_units=20,
+            floor_distribution={
+                "First Floor": 4,
+                "Second Floor": 4,
+                "Third Floor": 4,
+                "Fourth Floor": 4,
+                "Fifth Floor": 4
+            },
             status="ACTIVE"
         )
         db.add(bldg)
         db.commit()
 
-        # 5. Add All 20 Inventory Units (5 Floors x 4 Units)
+        # 5. Add All 20 Inventory Units (5 Floors x 4 Units with sqm specifications)
         unit_configs = [
             # 1st Floor
-            ("Unit 101", "1-Bedroom Apartment", "1st Floor", 1, 15000.00, "OCCUPIED", "45.5 sqm · 1 bedroom · Living Area"),
-            ("Unit 102", "Studio Deluxe", "1st Floor", 1, 12500.00, "VACANT", "32.0 sqm · Studio type"),
-            ("Unit 103", "1-Bedroom Apartment", "1st Floor", 1, 15000.00, "VACANT", "45.5 sqm · 1 bedroom"),
-            ("Unit 104", "2-Bedroom Suite", "1st Floor", 1, 20000.00, "VACANT", "60.0 sqm · 2 bedrooms · Balcony"),
+            ("Unit 101", "1-Bedroom Apartment", "First Floor", 1, 45.5, 15000.00, "OCCUPIED", "45.5 sqm · 1 bedroom · Living Area"),
+            ("Unit 102", "Studio Deluxe", "First Floor", 1, 32.0, 12500.00, "VACANT", "32.0 sqm · Studio type"),
+            ("Unit 103", "1-Bedroom Apartment", "First Floor", 1, 45.5, 15000.00, "VACANT", "45.5 sqm · 1 bedroom"),
+            ("Unit 104", "2-Bedroom Suite", "First Floor", 1, 60.0, 20000.00, "VACANT", "60.0 sqm · 2 bedrooms · Balcony"),
             # 2nd Floor
-            ("Unit 201", "1-Bedroom Apartment", "2nd Floor", 2, 15500.00, "VACANT", "45.5 sqm · 1 bedroom"),
-            ("Unit 202", "Studio Deluxe", "2nd Floor", 2, 13000.00, "VACANT", "32.0 sqm · Studio type"),
-            ("Unit 203", "1-Bedroom Apartment", "2nd Floor", 2, 15500.00, "VACANT", "45.5 sqm · 1 bedroom"),
-            ("Unit 204", "2-Bedroom Suite", "2nd Floor", 2, 20500.00, "VACANT", "60.0 sqm · 2 bedrooms · Balcony"),
+            ("Unit 201", "1-Bedroom Apartment", "Second Floor", 2, 45.5, 15500.00, "VACANT", "45.5 sqm · 1 bedroom"),
+            ("Unit 202", "Studio Deluxe", "Second Floor", 2, 32.0, 13000.00, "VACANT", "32.0 sqm · Studio type"),
+            ("Unit 203", "1-Bedroom Apartment", "Second Floor", 2, 45.5, 15500.00, "VACANT", "45.5 sqm · 1 bedroom"),
+            ("Unit 204", "2-Bedroom Suite", "Second Floor", 2, 60.0, 20500.00, "VACANT", "60.0 sqm · 2 bedrooms · Balcony"),
             # 3rd Floor
-            ("Unit 301", "1-Bedroom Apartment", "3rd Floor", 3, 16000.00, "VACANT", "45.5 sqm · 1 bedroom"),
-            ("Unit 302", "Studio Deluxe", "3rd Floor", 3, 13500.00, "VACANT", "32.0 sqm · Studio type"),
-            ("Unit 303", "1-Bedroom Apartment", "3rd Floor", 3, 16000.00, "VACANT", "45.5 sqm · 1 bedroom"),
-            ("Unit 304", "2-Bedroom Suite", "3rd Floor", 3, 21000.00, "VACANT", "60.0 sqm · 2 bedrooms · Corner Unit"),
+            ("Unit 301", "1-Bedroom Apartment", "Third Floor", 3, 45.5, 16000.00, "VACANT", "45.5 sqm · 1 bedroom"),
+            ("Unit 302", "Studio Deluxe", "Third Floor", 3, 32.0, 13500.00, "VACANT", "32.0 sqm · Studio type"),
+            ("Unit 303", "1-Bedroom Apartment", "Third Floor", 3, 45.5, 16000.00, "VACANT", "45.5 sqm · 1 bedroom"),
+            ("Unit 304", "2-Bedroom Suite", "Third Floor", 3, 60.0, 21000.00, "VACANT", "60.0 sqm · 2 bedrooms · Corner Unit"),
             # 4th Floor
-            ("Unit 401", "1-Bedroom Apartment", "4th Floor", 4, 16500.00, "VACANT", "45.5 sqm · 1 bedroom"),
-            ("Unit 402", "Studio Deluxe", "4th Floor", 4, 14000.00, "VACANT", "32.0 sqm · Studio type"),
-            ("Unit 403", "1-Bedroom Apartment", "4th Floor", 4, 16500.00, "VACANT", "45.5 sqm · 1 bedroom"),
-            ("Unit 404", "2-Bedroom Suite", "4th Floor", 4, 21500.00, "VACANT", "60.0 sqm · 2 bedrooms · High Floor"),
+            ("Unit 401", "1-Bedroom Apartment", "Fourth Floor", 4, 45.5, 16500.00, "VACANT", "45.5 sqm · 1 bedroom"),
+            ("Unit 402", "Studio Deluxe", "Fourth Floor", 4, 32.0, 14000.00, "VACANT", "32.0 sqm · Studio type"),
+            ("Unit 403", "1-Bedroom Apartment", "Fourth Floor", 4, 45.5, 16500.00, "VACANT", "45.5 sqm · 1 bedroom"),
+            ("Unit 404", "2-Bedroom Suite", "Fourth Floor", 4, 60.0, 21500.00, "VACANT", "60.0 sqm · 2 bedrooms · High Floor"),
             # 5th Floor (Penthouse Level)
-            ("Unit 501", "1-Bedroom Apartment", "5th Floor", 5, 17000.00, "VACANT", "45.5 sqm · 1 bedroom · Skyline View"),
-            ("Unit 502", "Studio Deluxe", "5th Floor", 5, 14500.00, "VACANT", "32.0 sqm · Studio type"),
-            ("Unit 503", "1-Bedroom Apartment", "5th Floor", 5, 17000.00, "VACANT", "45.5 sqm · 1 bedroom"),
-            ("Unit 504", "Penthouse Suite", "5th Floor", 5, 25000.00, "VACANT", "75.0 sqm · Penthouse · Panoramic Deck")
+            ("Unit 501", "1-Bedroom Apartment", "Fifth Floor", 5, 45.5, 17000.00, "VACANT", "45.5 sqm · 1 bedroom · Skyline View"),
+            ("Unit 502", "Studio Deluxe", "Fifth Floor", 5, 32.0, 14500.00, "VACANT", "32.0 sqm · Studio type"),
+            ("Unit 503", "1-Bedroom Apartment", "Fifth Floor", 5, 45.5, 17000.00, "VACANT", "45.5 sqm · 1 bedroom"),
+            ("Unit 504", "Penthouse Suite", "Fifth Floor", 5, 75.0, 25000.00, "VACANT", "75.0 sqm · Penthouse · Panoramic Deck")
         ]
 
         unit_objects = {}
-        for uno, utype, flr_str, flr_num, urent, ustatus, udesc in unit_configs:
+        for uno, utype, flr_str, flr_num, usqm, urent, ustatus, udesc in unit_configs:
             u_obj = models.Unit(
                 id=uuid.uuid4(),
                 organization_id=org_id,
@@ -155,6 +169,7 @@ def seed_database():
                 unit_no=uno,
                 type=utype,
                 floor=flr_str,
+                sqm=usqm,
                 rent=urent,
                 status=ustatus,
                 subtitle=udesc

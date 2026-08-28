@@ -1,7 +1,7 @@
 from pydantic import BaseModel, ConfigDict, Field
 from uuid import UUID
 from datetime import datetime, date
-from typing import Optional, List, Union
+from typing import Optional, List, Union, Dict, Any
 
 
 # ==========================================
@@ -21,6 +21,8 @@ class OrganizationSchema(OrganizationBase):
 class UserBase(BaseModel):
     email: str
     name: Optional[str] = "Admin User"
+    full_name: Optional[str] = None
+    phone: Optional[str] = None
     role: str = "admin"
     avatar: Optional[str] = "JD"
     is_active: bool = True
@@ -33,7 +35,9 @@ class UserCreate(UserBase):
 
 class UserUpdate(BaseModel):
     name: Optional[str] = None
+    full_name: Optional[str] = None
     email: Optional[str] = None
+    phone: Optional[str] = None
     role: Optional[str] = None
     avatar: Optional[str] = None
     is_active: Optional[bool] = None
@@ -53,6 +57,7 @@ class UserSchema(UserBase):
 class PropertyBase(BaseModel):
     code: str
     name: str
+    tct_number: Optional[str] = None
     type: str = "Residential"
     location: str
     units_count: Optional[int] = 0
@@ -67,6 +72,7 @@ class PropertyCreate(PropertyBase):
 class PropertyUpdate(BaseModel):
     code: Optional[str] = None
     name: Optional[str] = None
+    tct_number: Optional[str] = None
     type: Optional[str] = None
     location: Optional[str] = None
     units_count: Optional[int] = None
@@ -77,6 +83,7 @@ class PropertyUpdate(BaseModel):
 class PropertySchema(PropertyBase):
     id: UUID
     organization_id: UUID
+    tct_number: Optional[str] = None
     units_count: int = 0
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
@@ -94,6 +101,7 @@ class BuildingBase(BaseModel):
     name: str
     floors: int = 1
     total_units: int = 0
+    floor_distribution: Optional[Dict[str, Any]] = None
     status: str = "ACTIVE"
 
 
@@ -108,6 +116,7 @@ class BuildingUpdate(BaseModel):
     name: Optional[str] = None
     floors: Optional[int] = None
     total_units: Optional[int] = None
+    floor_distribution: Optional[Dict[str, Any]] = None
     status: Optional[str] = None
     updated_by: Optional[UUID] = None
 
@@ -116,6 +125,7 @@ class BuildingSchema(BuildingBase):
     id: UUID
     organization_id: UUID
     property_id: UUID
+    floor_distribution: Optional[Dict[str, Any]] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     created_by: Optional[UUID] = None
@@ -131,6 +141,7 @@ class UnitBase(BaseModel):
     unit_no: str
     type: str = "1BR"
     floor: Optional[str] = "1st Floor"
+    sqm: Optional[float] = 45.0
     rent: float = 0.0
     status: str = "VACANT"
     subtitle: Optional[str] = None
@@ -147,6 +158,7 @@ class UnitUpdate(BaseModel):
     unit_no: Optional[str] = None
     type: Optional[str] = None
     floor: Optional[str] = None
+    sqm: Optional[float] = None
     rent: Optional[float] = None
     rent_amount: Optional[float] = None
     status: Optional[str] = None
@@ -162,6 +174,7 @@ class UnitSchema(UnitBase):
     property_id: UUID
     building_id: Optional[UUID] = None
     floor: str = "1st Floor"
+    sqm: Optional[float] = 45.0
     subtitle: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None

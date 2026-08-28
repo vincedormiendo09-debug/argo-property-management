@@ -31,8 +31,23 @@ def read_notifications(
     ensure_sandbox_organization(db, organization_id)
     stmt = select(models.Notification).where(models.Notification.organization_id == organization_id)
 
+    # Strict role-scoped filtering (pov: admin, owner, client) at database query level
     if pov and pov.lower() != "all":
-        stmt = stmt.where(or_(models.Notification.pov == pov.lower(), models.Notification.pov == "all"))
+        raw_pov = pov.lower().strip()
+        normalized_pov = raw_pov
+        if raw_pov in ("tenant", "client_pov"):
+            normalized_pov = "client"
+        elif raw_pov in ("property_owner", "investor"):
+            normalized_pov = "owner"
+        elif raw_pov in ("pm", "property_manager"):
+            normalized_pov = "admin"
+
+        stmt = stmt.where(or_(
+            models.Notification.pov == normalized_pov,
+            models.Notification.pov == raw_pov,
+            models.Notification.pov == "all"
+        ))
+
     if status_filter:
         stmt = stmt.where(models.Notification.status.ilike(f"%{status_filter}%"))
     if category:
@@ -68,10 +83,32 @@ def read_notifications(
                 property="Sunrise Residences • Unit 101",
                 tag="Status: UNPAID",
                 urgent=False
+            ),
+            models.Notification(
+                id=uuid.uuid4(),
+                organization_id=organization_id,
+                pov="owner",
+                category="asset",
+                status="unread",
+                is_read=False,
+                title="Monthly Owner Statement Ready",
+                description="Your equity disbursement statement for Sunrise Residences has been generated.",
+                property="Sunrise Residences",
+                tag="Statement: August 2026",
+                urgent=False
             )
         ]
         db.add_all(default_notifs)
         db.commit()
+        
+        # Re-run query with role filter applied
+        stmt = select(models.Notification).where(models.Notification.organization_id == organization_id)
+        if pov and pov.lower() != "all":
+            stmt = stmt.where(or_(
+                models.Notification.pov == normalized_pov,
+                models.Notification.pov == raw_pov,
+                models.Notification.pov == "all"
+            ))
         notifications = list(db.scalars(stmt.order_by(models.Notification.created_at.desc())).all())
 
     return notifications

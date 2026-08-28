@@ -14,6 +14,12 @@ if RAW_DATABASE_URL.startswith("postgres://"):
 else:
     DATABASE_URL = RAW_DATABASE_URL
 
+# Ensure Neon PostgreSQL secure connection parameter (sslmode=require) is present for remote cloud databases
+if "postgresql" in DATABASE_URL and "localhost" not in DATABASE_URL and "127.0.0.1" not in DATABASE_URL:
+    if "sslmode" not in DATABASE_URL:
+        separator = "&" if "?" in DATABASE_URL else "?"
+        DATABASE_URL = f"{DATABASE_URL}{separator}sslmode=require"
+
 # Optional SQL query echo configuration via environment variable (defaults to False in live/production)
 SQL_ECHO = os.getenv("SQL_ECHO", "False").lower() in ("true", "1", "t")
 

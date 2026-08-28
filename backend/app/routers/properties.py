@@ -48,6 +48,8 @@ def read_properties(
             search_terms.append(models.Property.code.ilike(f"%{search}%"))
         if hasattr(models.Property, "location"):
             search_terms.append(models.Property.location.ilike(f"%{search}%"))
+        if hasattr(models.Property, "tct_number"):
+            search_terms.append(models.Property.tct_number.ilike(f"%{search}%"))
         if search_terms:
             stmt = stmt.where(or_(*search_terms))
 
@@ -61,6 +63,7 @@ def read_properties(
                 organization_id=organization_id,
                 code="PROP-001",
                 name="Sunrise Residences",
+                tct_number="TCT #49281-MNL",
                 type="Residential",
                 location="Parañaque, Metro Manila",
                 units_count=2 if hasattr(models.Property, "units_count") else None,
@@ -71,6 +74,7 @@ def read_properties(
                 organization_id=organization_id,
                 code="PROP-003",
                 name="Central Business Center",
+                tct_number="CCT #88190-MKT",
                 type="Commercial",
                 location="Makati, Metro Manila",
                 units_count=1 if hasattr(models.Property, "units_count") else None,
@@ -84,7 +88,7 @@ def read_properties(
     return props
 
 
-# 2. POST /api/properties/ - Create a property with org-scoped duplicate check
+# 2. POST /api/properties/ - Create a property with org-scoped duplicate check and initial equity linkage
 @router.post("/", response_model=schemas.PropertySchema, status_code=status.HTTP_201_CREATED)
 def create_property(prop_in: schemas.PropertyCreate, db: Session = Depends(get_db)):
     org_id = getattr(prop_in, "organization_id", DEFAULT_ORG_ID)
@@ -106,8 +110,9 @@ def create_property(prop_in: schemas.PropertyCreate, db: Session = Depends(get_d
         )
 
     prop_data = prop_in.dict(exclude_unset=True)
+    prop_id = uuid.uuid4()
     if "id" not in prop_data or not prop_data["id"]:
-        prop_data["id"] = uuid.uuid4()
+        prop_data["id"] = prop_id
     if "organization_id" not in prop_data:
         prop_data["organization_id"] = org_id
     prop_data["code"] = prop_code

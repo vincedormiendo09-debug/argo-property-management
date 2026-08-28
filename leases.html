@@ -672,10 +672,10 @@
     <!-- ================= SIDEBAR ================= -->
     <aside class="sidebar">
         <div class="sidebar-brand">
-            <div class="brand-logo">A</div>
+            <div class="brand-logo" id="brandLogo">A</div>
             <div>
                 <h2>ARGO</h2>
-                <span>Property Management</span>
+                <span id="portalBrandSubtitle">Property Management</span>
             </div>
         </div>
 
@@ -684,16 +684,16 @@
         </nav>
 
         <div class="sidebar-footer">
-            <span>ARGO v0.5</span>
+            <span id="portalVersionText">ARGO v0.5</span>
         </div>
     </aside>
 
     <!-- ================= TOP HEADER ================= -->
     <header class="top-header">
         <div class="header-left">
-            <div class="admin-badge">
-                <i class="bi bi-shield-lock-fill" style="color: #60A5FA;"></i>
-                <span>Admin Command Center</span>
+            <div id="headerRoleBadgeContainer" class="admin-badge">
+                <i id="headerRoleIcon" class="bi bi-shield-lock-fill" style="color: #60A5FA;"></i>
+                <span id="headerRoleBadgeText">Admin Command Center</span>
             </div>
         </div>
 
@@ -706,9 +706,9 @@
 
             <div class="user-dropdown-container">
                 <div class="user-profile" id="userProfileBtn">
-                    <div class="avatar" id="userAvatar">JD</div>
+                    <div class="avatar" id="userAvatar">SA</div>
                     <div class="user-info">
-                        <strong id="userName">Property Admin</strong>
+                        <strong id="userName">System Admin</strong>
                         <span id="userRoleBadge">Property Manager</span>
                     </div>
                     <i class="bi bi-chevron-down" style="font-size: 10px; color: #94A3B8;"></i>
@@ -739,7 +739,7 @@
                 <p>Manage legal lease agreements, start/end dates, security deposits, and unit occupancy status.</p>
             </div>
 
-            <button class="primary-btn" onclick="openLeaseModal()">
+            <button class="primary-button primary-btn" onclick="openLeaseModal()">
                 <i class="bi bi-plus-lg"></i>
                 <span>Draft New Lease</span>
             </button>
@@ -748,36 +748,48 @@
         <!-- KPI CARDS -->
         <section class="kpi-grid">
             <div class="kpi-card">
-                <div class="kpi-label">Total Lease Agreements</div>
+                <div class="kpi-top">
+                    <span class="kpi-label">Total Lease Agreements</span>
+                    <div class="kpi-icon"><i class="bi bi-file-earmark-text"></i></div>
+                </div>
                 <div class="kpi-value" style="color:#2563EB;" id="kpiTotalLeases">0</div>
                 <div class="kpi-description">All-time executed agreements</div>
             </div>
 
             <div class="kpi-card">
-                <div class="kpi-label">Active Occupancies</div>
+                <div class="kpi-top">
+                    <span class="kpi-label">Active Occupancies</span>
+                    <div class="kpi-icon" style="background:#ECFDF5; color:#059669;"><i class="bi bi-check2-circle"></i></div>
+                </div>
                 <div class="kpi-value" style="color:#059669;" id="kpiActiveLeases">0</div>
                 <div class="kpi-description">Units currently occupied</div>
             </div>
 
             <div class="kpi-card">
-                <div class="kpi-label">Pending / Draft Leases</div>
+                <div class="kpi-top">
+                    <span class="kpi-label">Pending / Draft Leases</span>
+                    <div class="kpi-icon" style="background:#FEF3C7; color:#D97706;"><i class="bi bi-clock-history"></i></div>
+                </div>
                 <div class="kpi-value" style="color:#D97706;" id="kpiDraftLeases">0</div>
                 <div class="kpi-description">Awaiting move-in execution</div>
             </div>
 
             <div class="kpi-card">
-                <div class="kpi-label">Expiring (Next 30 Days)</div>
+                <div class="kpi-top">
+                    <span class="kpi-label">Expiring / Ending Soon</span>
+                    <div class="kpi-icon" style="background:#FFF1F2; color:#E11D48;"><i class="bi bi-exclamation-triangle"></i></div>
+                </div>
                 <div class="kpi-value" style="color:#E11D48;" id="kpiExpiringLeases">0</div>
                 <div class="kpi-description">Requires renewal or move-out</div>
             </div>
         </section>
 
         <!-- TABS -->
-        <div class="tabs">
+        <div class="tabs tabs-container">
             <button class="tab active" onclick="setTabFilter('ALL', this)">All Leases</button>
             <button class="tab" onclick="setTabFilter('ACTIVE', this)">Active Occupancies</button>
             <button class="tab" onclick="setTabFilter('DRAFT', this)">Drafts / Pending</button>
-            <button class="tab" onclick="setTabFilter('ENDED', this)">Ended / Expired</button>
+            <button class="tab" onclick="setTabFilter('ENDED', this)">Ended / Vacated</button>
         </div>
 
         <!-- FILTER BAR -->
@@ -794,7 +806,7 @@
                 <option value="ENDED">Ended (Vacated)</option>
             </select>
 
-            <button class="secondary-btn" onclick="resetFilters()">
+            <button class="secondary-button secondary-btn" onclick="resetFilters()">
                 <i class="bi bi-arrow-counterclockwise"></i>
                 <span>Reset</span>
             </button>
@@ -817,7 +829,7 @@
                         </tr>
                     </thead>
                     <tbody id="leaseTable">
-                        <!-- RENDERED DYNAMICALLY FROM LOCALSTORAGE / POSTGRESQL -->
+                        <!-- RENDERED DYNAMICALLY FROM DATABASE -->
                     </tbody>
                 </table>
             </div>
@@ -837,12 +849,12 @@
                     <span class="eyebrow">LEASING DESK</span>
                     <h2>Draft New Lease Agreement</h2>
                 </div>
-                <button class="close-btn" onclick="closeModal('leaseModal')"><i class="bi bi-x-lg"></i></button>
+                <button class="close-button close-btn" onclick="closeModal('leaseModal')"><i class="bi bi-x-lg"></i></button>
             </div>
 
             <div class="modal-body">
                 <div class="form-group">
-                    <label>Tenant Name</label>
+                    <label>Tenant Profile (Supports Multi-Unit Tenants) <span style="color:var(--danger, #EF4444);">*</span></label>
                     <select id="modalTenantName">
                         <option value="">Select Tenant...</option>
                         <!-- DYNAMICALLY POPULATED -->
@@ -850,28 +862,28 @@
                 </div>
 
                 <div class="form-group">
-                    <label>Property & Unit Location</label>
+                    <label>Property & Unit Location <span style="color:var(--danger, #EF4444);">*</span></label>
                     <select id="modalUnitLocation">
                         <option value="">Select Unit Location...</option>
                         <!-- DYNAMICALLY POPULATED -->
                     </select>
                 </div>
 
-                <div class="form-grid">
+                <div class="form-row" style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
                     <div class="form-group">
-                        <label>Lease Start Date</label>
+                        <label>Lease Start Date <span style="color:var(--danger, #EF4444);">*</span></label>
                         <input type="date" id="modalStartDate">
                     </div>
 
                     <div class="form-group">
-                        <label>Lease End Date</label>
+                        <label>Lease End Date (Leave blank if open-ended)</label>
                         <input type="date" id="modalEndDate">
                     </div>
                 </div>
 
-                <div class="form-grid">
+                <div class="form-row" style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
                     <div class="form-group">
-                        <label>Agreed Monthly Rent (₱)</label>
+                        <label>Agreed Monthly Rent (₱) <span style="color:var(--danger, #EF4444);">*</span></label>
                         <input type="number" id="modalRentAmount" placeholder="e.g. 15000" min="0" step="0.01">
                     </div>
 
@@ -884,15 +896,15 @@
                 <div class="form-group">
                     <label>Initial Status Strategy</label>
                     <select id="modalStatusSelect">
-                        <option value="ACTIVE" selected>ACTIVE — Immediate Move-In (Generates Rent Invoice)</option>
+                        <option value="ACTIVE" selected>ACTIVE — Immediate Move-In (Locks Unit to Occupied)</option>
                         <option value="DRAFT">DRAFT — Pending Move-In Execution</option>
                     </select>
                 </div>
             </div>
 
             <div class="modal-footer">
-                <button class="secondary-btn" onclick="closeModal('leaseModal')">Cancel</button>
-                <button class="primary-btn" onclick="saveLease()"><i class="bi bi-check-lg"></i> Save & Execute Lease</button>
+                <button class="secondary-button secondary-btn" onclick="closeModal('leaseModal')">Cancel</button>
+                <button class="primary-button primary-btn" onclick="saveLease()"><i class="bi bi-check-lg"></i> Save & Execute Lease</button>
             </div>
         </div>
     </div>
@@ -905,80 +917,59 @@
                     <span class="eyebrow">OCCUPANCY TERMINATION</span>
                     <h2>Process Move-Out & Settlement</h2>
                 </div>
-                <button class="close-btn" onclick="closeModal('moveOutModal')"><i class="bi bi-x-lg"></i></button>
+                <button class="close-button close-btn" onclick="closeModal('moveOutModal')"><i class="bi bi-x-lg"></i></button>
             </div>
 
             <div class="modal-body">
                 <div class="form-group">
                     <label>Target Lease / Occupant</label>
-                    <input type="text" id="moveOutLeaseRef" readonly style="background:#F3F4F6; color:#6B7280;">
+                    <input type="text" id="moveOutLeaseRef" readonly style="background:#F8FAFC; color:#64748B;">
                 </div>
 
-                <div class="form-grid">
+                <div class="form-row" style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
                     <div class="form-group">
-                        <label>Actual Vacate / Move-Out Date</label>
+                        <label>Actual Vacate Date</label>
                         <input type="date" id="moveOutDate">
                     </div>
 
                     <div class="form-group">
-                        <label>Security Deposit Refund Status</label>
+                        <label>Security Deposit Status</label>
                         <select id="moveOutDepositStatus">
-                            <option value="Full Refund">Full Refund (No Damages)</option>
+                            <option value="Full Refund">Full Refund (No Deductions)</option>
                             <option value="Partial Refund">Partial Refund (Deductions Applied)</option>
-                            <option value="Forfeited">Forfeited (Unpaid Utility / Damage)</option>
+                            <option value="Forfeited">Forfeited (Unpaid Utilities / Damages)</option>
                         </select>
                     </div>
                 </div>
 
                 <div class="form-group">
                     <label>Move-Out Clearance Notes</label>
-                    <textarea id="moveOutNotes" rows="3" placeholder="Key handover confirmed, unit inspected, release unit status back to VACANT..."></textarea>
+                    <textarea id="moveOutNotes" rows="3" placeholder="Key handover confirmed, unit inspected, release unit status back to Available..."></textarea>
                 </div>
             </div>
 
             <div class="modal-footer">
-                <button class="secondary-btn" onclick="closeModal('moveOutModal')">Cancel</button>
-                <button class="primary-btn" style="background:#E11D48;" onclick="executeMoveOut()"><i class="bi bi-box-arrow-right"></i> Execute Move-Out & Revert Unit</button>
+                <button class="secondary-button secondary-btn" onclick="closeModal('moveOutModal')">Cancel</button>
+                <button class="primary-button primary-btn" style="background:#E11D48;" onclick="executeMoveOut()"><i class="bi bi-box-arrow-right"></i> Execute Move-Out & Revert Unit</button>
             </div>
         </div>
     </div>
 
-   <script>
-    const API_BASE_URL = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
-        ? 'http://127.0.0.1:8000/api/leases/'
-        : '/api/leases/';
+<script>
+    const API_BASE_URL = (
+        window.location.origin.includes('localhost') || 
+        window.location.origin.includes('127.0.0.1')
+    ) 
+        ? 'http://127.0.0.1:8000/api'
+        : (window.location.origin.includes('github.io'))
+            ? 'https://argo-management-2026.onrender.com/api'
+            : '/api';
 
-    const TENANTS_API_URL = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
-        ? 'http://127.0.0.1:8000/api/tenants/'
-        : '/api/tenants/';
-
-    const UNITS_API_URL = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
-        ? 'http://127.0.0.1:8000/api/units/'
-        : '/api/units/';
-
-    // Canonical Primary Lease Agreement (Maria Santos • Unit 101)
-    const DEFAULT_LEASES = [
-        {
-            id: "LSE-2026-0101",
-            lease_id: "LSE-2026-0101",
-            tenantName: "Maria Santos",
-            tenant_name: "Maria Santos",
-            tenant_email: "maria.santos@tenant.ph",
-            property: "Sunrise Residences",
-            property_name: "Sunrise Residences",
-            unit: "Sunrise Residences • Tower A • Unit 101",
-            unit_number: "Unit 101",
-            start_date: "2026-01-01",
-            end_date: "2026-12-31",
-            term: "2026-01-01 – 2026-12-31",
-            rent: 15000,
-            rent_amount: 15000,
-            deposit_amount: 30000,
-            deposit: "₱30,000.00 (Verified)",
-            status: "ACTIVE",
-            created_at: new Date("2026-01-01").toISOString()
-        }
-    ];
+    const LEASES_API_URL = `${API_BASE_URL}/leases/`;
+    const TENANTS_API_URL = `${API_BASE_URL}/tenants/`;
+    const UNITS_API_URL = `${API_BASE_URL}/units/`;
+    const INVOICES_API_URL = `${API_BASE_URL}/invoices/`;
+    const NOTIFICATIONS_API_URL = `${API_BASE_URL}/notifications/`;
 
     function getAuthHeaders() {
         const token = localStorage.getItem('token') || localStorage.getItem('argo_token');
@@ -988,13 +979,11 @@
         };
     }
 
-    // Secure Logout Handler
     function logoutUser() {
         localStorage.clear();
         window.location.replace('index.html');
     }
 
-    // Dynamic Role-Based Sidebar Navigation Renderer
     function renderSidebar() {
         const nav = document.getElementById('sidebarNav');
         if (!nav) return;
@@ -1066,101 +1055,67 @@
         }
     }
 
-    // Shared Storage & API Accessors
-    async function getLeases() {
-        const tenants = await getTenantsList();
-        const units = await getUnitsList();
+    function loadUserData() {
+        const rawRole = (
+            localStorage.getItem('argo_pov') || 
+            localStorage.getItem('user_role') || 
+            localStorage.getItem('role') || 
+            'admin'
+        ).toLowerCase().trim();
 
+        const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+        const nameEl = document.getElementById('userName');
+        const roleEl = document.getElementById('userRoleBadge');
+        const avatarEl = document.getElementById('userAvatar');
+
+        if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
+            if (nameEl) nameEl.textContent = 'Don Ramon Santos';
+            if (roleEl) roleEl.textContent = 'Property Owner';
+            if (avatarEl) {
+                avatarEl.textContent = 'RS';
+                avatarEl.style.background = '#059669';
+            }
+        } else if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
+            if (nameEl) nameEl.textContent = user.name || 'Resident Tenant';
+            if (roleEl) roleEl.textContent = 'Resident Account';
+            if (avatarEl) {
+                avatarEl.textContent = user.avatar || 'MS';
+                avatarEl.style.background = '#D97706';
+            }
+        } else {
+            const name = user.name || 'System Admin';
+            const role = user.role || 'Property Manager';
+            if (nameEl) nameEl.textContent = name;
+            if (roleEl) roleEl.textContent = role;
+            if (avatarEl) {
+                avatarEl.textContent = user.avatar || 'SA';
+                avatarEl.style.background = user.avatarBg || '#2563EB';
+            }
+        }
+    }
+
+    // Database Fetchers
+    async function getLeases() {
         try {
-            const response = await fetch(API_BASE_URL, { headers: getAuthHeaders() });
+            const response = await fetch(LEASES_API_URL, { headers: getAuthHeaders() });
             if (response.ok) {
                 const data = await response.json();
                 const list = Array.isArray(data) ? data : (data.items || data.leases || data.data || []);
-                
-                if (list.length > 0) {
-                    // Map live database relationships
-                    const formatted = list.map(l => {
-                        const matchedTenant = tenants.find(t => String(t.id) === String(l.tenant_id)) || {};
-                        const matchedUnit = units.find(u => String(u.id) === String(l.unit_id)) || {};
-                        
-                        const tName = l.tenantName || l.tenant_name || matchedTenant.name || 'Maria Santos';
-                        const uName = matchedUnit.unit_number || matchedUnit.unit_no || l.unit_number || 'Unit 101';
-                        const pName = matchedUnit.property_name || (matchedUnit.property ? matchedUnit.property.name : '') || l.property || 'Sunrise Residences';
-
-                        return {
-                            id: l.lease_id || l.id,
-                            lease_id: l.lease_id || l.id,
-                            tenant_id: l.tenant_id,
-                            unit_id: l.unit_id,
-                            tenantName: tName,
-                            tenant_name: tName,
-                            tenant_email: matchedTenant.email || l.tenant_email || 'maria.santos@tenant.ph',
-                            property: pName,
-                            property_name: pName,
-                            unit: `${pName} • ${uName}`,
-                            unit_number: uName,
-                            start_date: l.start_date || '2026-01-01',
-                            end_date: l.end_date || '2026-12-31',
-                            term: `${l.start_date || '2026-01-01'} – ${l.end_date || '2026-12-31'}`,
-                            rent: parseFloat(l.rent || l.rent_amount || 15000),
-                            rent_amount: parseFloat(l.rent || l.rent_amount || 15000),
-                            deposit_amount: parseFloat(l.deposit || l.deposit_amount || 30000),
-                            deposit: typeof l.deposit === 'string' && l.deposit.includes('₱') ? l.deposit : `₱${parseFloat(l.deposit || 30000).toLocaleString('en-US', { minimumFractionDigits: 2 })} (Verified)`,
-                            status: (l.status || 'ACTIVE').toUpperCase(),
-                            created_at: l.created_at || new Date().toISOString()
-                        };
-                    });
-
-                    // Filter out old test mock noise
-                    const cleaned = formatted.filter(l => !['LSE-2026-3764', 'LSE-2026-9963'].includes(String(l.id)));
-                    localStorage.setItem('argo_leases', JSON.stringify(cleaned));
-                    return cleaned;
-                }
+                localStorage.setItem('argo_leases', JSON.stringify(list));
+                return list;
             }
         } catch (e) {
-            console.warn("Live Leases API unavailable, loading from sanitized local cache.");
+            console.warn("Leases API offline, loading from local cache:", e);
         }
 
         const raw = localStorage.getItem('argo_leases');
         if (raw) {
             try {
-                let parsed = JSON.parse(raw);
-                if (Array.isArray(parsed) && parsed.length > 0) {
-                    // Filter out rogue test noise
-                    parsed = parsed.filter(l => !['LSE-2026-3764', 'LSE-2026-9963'].includes(String(l.id)));
-                    
-                    const hasMariaLease = parsed.some(l => 
-                        (l.tenantName || l.tenant_name || '').toLowerCase().includes('maria') ||
-                        (l.unit || '').includes('101')
-                    );
-
-                    if (!hasMariaLease) {
-                        parsed.unshift(DEFAULT_LEASES[0]);
-                    }
-                    localStorage.setItem('argo_leases', JSON.stringify(parsed));
-                    return parsed;
-                }
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed)) return parsed;
             } catch (e) {}
         }
-
-        localStorage.setItem('argo_leases', JSON.stringify(DEFAULT_LEASES));
-        return DEFAULT_LEASES;
-    }
-
-    function saveLeasesLocally(leases) {
-        localStorage.setItem('argo_leases', JSON.stringify(leases));
-    }
-
-    function getInvoices() {
-        try {
-            return JSON.parse(localStorage.getItem('argo_invoices') || '[]');
-        } catch (e) {
-            return [];
-        }
-    }
-
-    function saveInvoices(invoices) {
-        localStorage.setItem('argo_invoices', JSON.stringify(invoices));
+        return [];
     }
 
     async function getTenantsList() {
@@ -1169,15 +1124,15 @@
             if (res.ok) {
                 const data = await res.json();
                 const list = Array.isArray(data) ? data : (data.items || data.tenants || data.data || []);
-                if (list.length > 0) return list;
+                localStorage.setItem('argo_tenants', JSON.stringify(list));
+                return list;
             }
-        } catch (e) {}
-
-        try {
-            return JSON.parse(localStorage.getItem('argo_tenants') || '[]');
         } catch (e) {
-            return [];
+            console.warn("Tenants API offline, checking cache:", e);
         }
+
+        const raw = localStorage.getItem('argo_tenants');
+        return raw ? JSON.parse(raw) : [];
     }
 
     async function getUnitsList() {
@@ -1186,69 +1141,54 @@
             if (res.ok) {
                 const data = await res.json();
                 const list = Array.isArray(data) ? data : (data.items || data.units || data.data || []);
-                if (list.length > 0) return list;
+                localStorage.setItem('argo_units', JSON.stringify(list));
+                return list;
+            }
+        } catch (e) {
+            console.warn("Units API offline, checking cache:", e);
+        }
+
+        const raw = localStorage.getItem('argo_units');
+        return raw ? JSON.parse(raw) : [];
+    }
+
+    async function getInvoices() {
+        try {
+            const res = await fetch(INVOICES_API_URL, { headers: getAuthHeaders() });
+            if (res.ok) {
+                const data = await res.json();
+                const list = Array.isArray(data) ? data : (data.items || data.invoices || data.data || []);
+                localStorage.setItem('argo_invoices', JSON.stringify(list));
+                return list;
             }
         } catch (e) {}
-
-        try {
-            return JSON.parse(localStorage.getItem('argo_units') || '[]');
-        } catch (e) {
-            return [];
-        }
+        const raw = localStorage.getItem('argo_invoices');
+        return raw ? JSON.parse(raw) : [];
     }
 
-    function getNotifications() {
+    async function getNotifications() {
         try {
-            return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
-        } catch (e) {
-            return [];
-        }
+            const res = await fetch(NOTIFICATIONS_API_URL, { headers: getAuthHeaders() });
+            if (res.ok) {
+                const data = await res.json();
+                const list = Array.isArray(data) ? data : (data.items || data.notifications || data.data || []);
+                localStorage.setItem('argo_notifications', JSON.stringify(list));
+                return list;
+            }
+        } catch (e) {}
+        const raw = localStorage.getItem('argo_notifications');
+        return raw ? JSON.parse(raw) : [];
     }
 
-    function saveNotifications(notifications) {
-        localStorage.setItem('argo_notifications', JSON.stringify(notifications));
+    async function updateHeaderBadge() {
+        const notifs = (await getNotifications()).filter(n => (n.pov === 'admin' || !n.pov) && (n.status === 'unread' || n.is_read === false));
+        const badge = document.getElementById('headerNotifBadge');
+        if (badge) badge.textContent = notifs.length;
     }
 
     let activeTabStatus = "ALL";
     let targetLeaseIdForMoveOut = null;
-
-    document.addEventListener('DOMContentLoaded', async () => {
-        const role = localStorage.getItem('argo_pov') || localStorage.getItem('user_role') || localStorage.getItem('role');
-        if (!role) {
-            window.location.replace('index.html');
-            return;
-        }
-        renderSidebar();
-        loadUserData();
-        await populateModalDropdowns();
-        await renderLeasesTable();
-        await updateKPIs();
-        updateHeaderBadge();
-    });
-
-    // Real-Time Cross-Tab Listener
-    window.addEventListener('storage', async (e) => {
-        if (['argo_leases', 'argo_tenants', 'argo_units', 'argo_invoices', 'argo_notifications', 'argo_user', 'argo_pov', 'user_role', 'role'].includes(e.key)) {
-            renderSidebar();
-            loadUserData();
-            await populateModalDropdowns();
-            await renderLeasesTable();
-            await updateKPIs();
-            updateHeaderBadge();
-        }
-    });
-
-    function loadUserData() {
-        try {
-            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
-            const userNameEl = document.getElementById('userName');
-            const userAvatarEl = document.getElementById('userAvatar');
-            if (userNameEl) userNameEl.textContent = user.name || 'Property Admin';
-            if (userAvatarEl) userAvatarEl.textContent = user.avatar || (user.name ? user.name.charAt(0) : 'JD');
-        } catch (e) {
-            console.error("Error loading user data", e);
-        }
-    }
+    let targetUnitIdForMoveOut = null;
 
     async function populateModalDropdowns() {
         const tenants = await getTenantsList();
@@ -1258,15 +1198,15 @@
         const unitSelect = document.getElementById('modalUnitLocation');
 
         if (tenantSelect) {
-            tenantSelect.innerHTML = '<option value="">Select Tenant...</option>';
+            tenantSelect.innerHTML = '<option value="">Select Tenant Profile...</option>';
             if (tenants.length > 0) {
                 tenants.forEach(t => {
-                    const tenantName = t.name || `${t.first_name || ''} ${t.last_name || ''}`.trim() || 'Tenant';
-                    const tenantId = t.id || '';
-                    tenantSelect.innerHTML += `<option value="${tenantId}" data-name="${tenantName}">${tenantName} (${t.email || 'Verified Occupant'})</option>`;
+                    const tName = t.name || `${t.first_name || ''} ${t.last_name || ''}`.trim() || 'Tenant';
+                    const tId = t.id || t.tenant_id;
+                    tenantSelect.innerHTML += `<option value="${tId}" data-name="${tName}" data-email="${t.email || ''}">${tName} (${t.email || 'Registered Tenant'})</option>`;
                 });
             } else {
-                tenantSelect.innerHTML += '<option value="maria-santos-id" data-name="Maria Santos">Maria Santos (maria.santos@tenant.ph)</option>';
+                tenantSelect.innerHTML += '<option value="" disabled>No tenants registered. Please add a tenant in Tenants Directory first.</option>';
             }
         }
 
@@ -1275,26 +1215,24 @@
             if (units.length > 0) {
                 units.forEach(u => {
                     const uId = u.id || '';
-                    const uName = u.unit_number || u.unit_no || u.unitNo || u.unit_name || `Unit #${u.id}`;
-                    const pName = (u.property ? (u.property.name || u.property.property_name) : '') || u.property_name || u.property || 'Sunrise Residences';
-                    const uRent = u.monthly_rent || u.rent || u.rent_amount || 15000;
-                    const unitStatus = u.status ? ` • ${u.status}` : '';
-                    unitSelect.innerHTML += `<option value="${uId}" data-location="${pName} • ${uName}" data-rent="${uRent}">${pName} • ${uName}${unitStatus}</option>`;
+                    const uName = u.unit_no || u.unit_number || `Unit #${u.id}`;
+                    const pName = (u.property ? (u.property.name || u.property.property_name) : '') || u.property_name || 'Property';
+                    const uRent = parseFloat(u.rent || u.rent_amount || u.monthly_rent || 0);
+                    const status = (u.status || 'Available').toUpperCase();
+                    unitSelect.innerHTML += `<option value="${uId}" data-location="${pName} • ${uName}" data-property="${pName}" data-unit="${uName}" data-rent="${uRent}">${pName} • ${uName} [${status}]</option>`;
                 });
             } else {
-                unitSelect.innerHTML += '<option value="unit-101" data-location="Sunrise Residences • Unit 101" data-rent="15000">Sunrise Residences • Unit 101 (Occupied)</option>';
-                unitSelect.innerHTML += '<option value="unit-102" data-location="Sunrise Residences • Unit 102" data-rent="12500">Sunrise Residences • Unit 102 (Available)</option>';
+                unitSelect.innerHTML += '<option value="" disabled>No units registered in inventory. Please add units first.</option>';
             }
 
-            // Auto-fill rent when unit selection changes
-            unitSelect.addEventListener('change', (e) => {
+            unitSelect.addEventListener('change', () => {
                 const selectedOpt = unitSelect.options[unitSelect.selectedIndex];
                 if (selectedOpt && selectedOpt.dataset.rent) {
                     const rentInput = document.getElementById('modalRentAmount');
                     const depositInput = document.getElementById('modalDepositAmount');
                     const rentVal = parseFloat(selectedOpt.dataset.rent);
-                    if (rentInput) rentInput.value = rentVal;
-                    if (depositInput) depositInput.value = rentVal * 2; // 2 Months standard security deposit
+                    if (rentInput && rentVal > 0) rentInput.value = rentVal;
+                    if (depositInput && rentVal > 0) depositInput.value = rentVal * 2;
                 }
             });
         }
@@ -1307,9 +1245,10 @@
         tbody.innerHTML = '';
 
         if (!leases || leases.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--muted, #6B7280); padding:30px;">No lease agreements found. Click "Draft New Lease" to add one.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--muted, #64748B); padding:30px;">No lease agreements found in database. Click "Draft New Lease" to create one.</td></tr>`;
             const countEl = document.getElementById('showingCountText');
             if (countEl) countEl.textContent = `Showing 0 leases`;
+            await updateKPIs();
             return;
         }
 
@@ -1320,45 +1259,59 @@
 
             let badgeHtml = '';
             if (status === 'ACTIVE') {
-                badgeHtml = `<span class="status active" style="background:#ECFDF5; color:#059669; padding:4px 8px; border-radius:4px; font-weight:600; font-size:12px;"><i class="bi bi-check-circle me-1"></i> ACTIVE (Occupied)</span>`;
+                badgeHtml = `<span class="status active" style="background:#ECFDF5; color:#059669; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-check-circle me-1"></i> ACTIVE (Occupied)</span>`;
             } else if (status === 'DRAFT') {
-                badgeHtml = `<span class="status draft" style="background:#FEF3C7; color:#D97706; padding:4px 8px; border-radius:4px; font-weight:600; font-size:12px;"><i class="bi bi-clock-history me-1"></i> DRAFT (Pending Move-In)</span>`;
+                badgeHtml = `<span class="status draft" style="background:#FEF3C7; color:#D97706; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-clock-history me-1"></i> DRAFT (Pending)</span>`;
             } else {
-                badgeHtml = `<span class="status ended" style="background:#F3F4F6; color:#6B7280; padding:4px 8px; border-radius:4px; font-weight:600; font-size:12px;"><i class="bi bi-box-arrow-right me-1"></i> ENDED (Vacated)</span>`;
+                badgeHtml = `<span class="status ended" style="background:#F1F5F9; color:#64748B; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-box-arrow-right me-1"></i> ENDED (Vacated)</span>`;
             }
 
+            const leaseId = l.lease_id || l.id || 'LSE';
+            const tenantName = l.tenant_name || l.tenantName || 'Tenant';
+            const propName = l.property_name || l.property || 'Property';
+            const unitNumber = l.unit_number || l.unit || 'Unit';
+
             let actionsHtml = `
-                <button class="action-button" title="View Agreement" onclick="viewLeaseDetails('${l.id}')"><i class="bi bi-eye"></i></button>
+                <button class="action-button" title="View Agreement" onclick="viewLeaseDetails('${leaseId}')"><i class="bi bi-eye"></i></button>
             `;
 
             if (status === 'DRAFT') {
                 actionsHtml += `
-                    <button class="primary-btn" style="padding:4px 8px; font-size:11px;" onclick="activateLease('${l.id}')">
+                    <button class="primary-button primary-btn" style="padding:4px 8px; font-size:11px;" onclick="activateLease('${l.id || leaseId}')">
                         <i class="bi bi-box-arrow-in-right"></i> Move-In
                     </button>
                 `;
             } else if (status === 'ACTIVE') {
                 actionsHtml += `
-                    <button class="action-button danger-btn" title="Process Move-Out / End Occupancy" onclick="openMoveOutModal('${l.id}', '${escapeQuotes(l.tenantName || l.tenant_name)}', '${escapeQuotes(l.unit)}')">
+                    <button class="action-button danger-btn" title="Process Move-Out" onclick="openMoveOutModal('${l.id || leaseId}', '${l.unit_id || ''}', '${escapeQuotes(tenantName)}', '${escapeQuotes(unitNumber)}')">
                         <i class="bi bi-box-arrow-right"></i>
                     </button>
                 `;
             }
 
-            const displayRent = parseFloat(l.rent || l.rent_amount || 15000).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            const displayDeposit = typeof l.deposit === 'string' && l.deposit.includes('₱') ? l.deposit : `₱${parseFloat(l.deposit_amount || 30000).toLocaleString('en-US', { minimumFractionDigits: 2 })} (Verified)`;
+            const displayRent = parseFloat(l.rent || l.rent_amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const displayDeposit = typeof l.deposit === 'number'
+                ? `₱${parseFloat(l.deposit).toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+                : (l.deposit || '₱0.00');
+
+            let termDisplay = 'Ongoing / Open-Ended';
+            if (l.start_date && l.end_date) {
+                termDisplay = `${l.start_date} – ${l.end_date}`;
+            } else if (l.start_date) {
+                termDisplay = `Since ${l.start_date}`;
+            }
 
             tr.innerHTML = `
-                <td><div class="lease-id" style="font-weight:600;">${l.lease_id || l.id}</div></td>
+                <td><div class="lease-id" style="font-weight:600;">${leaseId}</div></td>
                 <td>
-                    <div class="tenant-name" style="font-weight:600;">${l.tenantName || l.tenant_name || 'Maria Santos'}</div>
-                    <div class="property-info" style="font-size:12px; color:#6B7280;">Verified Occupant</div>
+                    <div class="tenant-name" style="font-weight:600;">${tenantName}</div>
+                    <div class="property-info" style="font-size:11px; color:var(--muted, #64748B);">${l.tenant_email || 'Registered Tenant'}</div>
                 </td>
                 <td>
-                    <div><strong>${l.property || 'Sunrise Residences'}</strong></div>
-                    <div class="property-info" style="font-size:12px; color:#6B7280;">${l.unit || l.unit_number || 'Sunrise Residences • Tower A • Unit 101'}</div>
+                    <div><strong>${propName}</strong></div>
+                    <div class="property-info" style="font-size:11px; color:var(--muted, #64748B);">${unitNumber}</div>
                 </td>
-                <td>${l.term || `${l.start_date || '2026-01-01'} – ${l.end_date || '2026-12-31'}`}</td>
+                <td>${termDisplay}</td>
                 <td><strong>₱${displayRent}</strong></td>
                 <td>${displayDeposit}</td>
                 <td>${badgeHtml}</td>
@@ -1369,7 +1322,11 @@
             tbody.appendChild(tr);
         });
 
+        const countEl = document.getElementById('showingCountText');
+        if (countEl) countEl.textContent = `Showing 1–${leases.length} of ${leases.length} leases`;
+
         applyAllFilters();
+        await updateKPIs();
     }
 
     function escapeQuotes(str) {
@@ -1378,61 +1335,10 @@
 
     async function viewLeaseDetails(leaseId) {
         const leases = await getLeases();
-        const l = leases.find(item => String(item.id) === String(leaseId) || String(item.lease_id) === String(leaseId)) || DEFAULT_LEASES[0];
+        const l = leases.find(item => String(item.id) === String(leaseId) || String(item.lease_id) === String(leaseId));
         if (!l) return;
-        alert(`Lease Agreement: ${l.lease_id || l.id}\nTenant: ${l.tenantName || l.tenant_name}\nProperty & Location: ${l.unit}\nTerm: ${l.term || `${l.start_date} – ${l.end_date}`}\nMonthly Rent: ₱${parseFloat(l.rent || 15000).toLocaleString('en-US', {minimumFractionDigits: 2})}\nSecurity Deposit: ${l.deposit || '₱30,000.00'}\nStatus: ${l.status}`);
-    }
-
-    function updateUnitOccupancyStatus(unitLocation, status, tenantName = null) {
-        let units = JSON.parse(localStorage.getItem('argo_units') || '[]');
-        units = units.map(u => {
-            const uNo = u.unit_number || u.unit_no || u.unitNo || '';
-            if (unitLocation.includes(uNo)) {
-                return { 
-                    ...u, 
-                    status: status, 
-                    tenant: status === 'OCCUPIED' ? tenantName : null, 
-                    tenant_name: status === 'OCCUPIED' ? tenantName : null 
-                };
-            }
-            return u;
-        });
-        localStorage.setItem('argo_units', JSON.stringify(units));
-    }
-
-    function updateTenantOccupancyStatus(tenantName, status, unitLocation) {
-        let tenants = JSON.parse(localStorage.getItem('argo_tenants') || '[]');
-        tenants = tenants.map(t => {
-            const tName = t.name || `${t.first_name || ''} ${t.last_name || ''}`.trim();
-            if (tName.toLowerCase() === tenantName.toLowerCase()) {
-                return {
-                    ...t,
-                    status: status,
-                    leaseStatus: status === 'ACTIVE' ? 'Active Lease' : 'No Active Lease',
-                    unit: status === 'ACTIVE' ? unitLocation : 'No Current Unit'
-                };
-            }
-            return t;
-        });
-        localStorage.setItem('argo_tenants', JSON.stringify(tenants));
-    }
-
-    function createRentInvoice(leaseId, tenantName, unitLocation, rentAmount, dueDate) {
-        let invoices = getInvoices();
-        invoices.unshift({
-            id: `INV-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
-            lease_id: leaseId,
-            tenantName: tenantName,
-            tenant_email: 'maria.santos@tenant.ph',
-            type: 'Monthly Base Rent',
-            sub: unitLocation,
-            categoryType: 'Rent',
-            dueDate: dueDate !== 'N/A' ? dueDate : '2026-08-31',
-            amount: rentAmount,
-            status: 'Unpaid',
-            createdAt: new Date().toISOString()
-        });
-        saveInvoices(invoices);
+        const termText = (l.start_date && l.end_date) ? `${l.start_date} to ${l.end_date}` : (l.start_date ? `Since ${l.start_date} (Indefinite)` : 'Open-Ended');
+        alert(`Lease Agreement: ${l.lease_id || l.id}\nTenant: ${l.tenant_name || l.tenantName}\nProperty & Location: ${l.property_name || l.property} • ${l.unit_number || l.unit}\nTerm: ${termText}\nMonthly Rent: ₱${parseFloat(l.rent || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}\nSecurity Deposit: ${l.deposit || '₱0.00'}\nOccupancy Status: ${l.status}`);
     }
 
     async function saveLease() {
@@ -1442,22 +1348,22 @@
         const tenantId = tenantSelect ? tenantSelect.value : '';
         const unitId = unitSelect ? unitSelect.value : '';
         
-        const tenantName = tenantSelect && tenantSelect.selectedIndex >= 0 
-            ? (tenantSelect.options[tenantSelect.selectedIndex].dataset.name || tenantSelect.options[tenantSelect.selectedIndex].text.split('(')[0].trim()) 
-            : 'Maria Santos';
+        const selectedTenantOpt = tenantSelect && tenantSelect.selectedIndex >= 0 ? tenantSelect.options[tenantSelect.selectedIndex] : null;
+        const selectedUnitOpt = unitSelect && unitSelect.selectedIndex >= 0 ? unitSelect.options[unitSelect.selectedIndex] : null;
 
-        const unitLocation = unitSelect && unitSelect.selectedIndex >= 0 
-            ? (unitSelect.options[unitSelect.selectedIndex].dataset.location || unitSelect.options[unitSelect.selectedIndex].text.split('•')[0].trim()) 
-            : 'Sunrise Residences • Unit 101';
+        const tenantName = selectedTenantOpt ? (selectedTenantOpt.dataset.name || selectedTenantOpt.text.split('(')[0].trim()) : '';
+        const tenantEmail = selectedTenantOpt ? (selectedTenantOpt.dataset.email || '') : '';
+        const propName = selectedUnitOpt ? (selectedUnitOpt.dataset.property || '') : '';
+        const unitNumber = selectedUnitOpt ? (selectedUnitOpt.dataset.unit || '') : '';
 
-        const rent = parseFloat(document.getElementById('modalRentAmount').value) || 15000;
-        const deposit = parseFloat(document.getElementById('modalDepositAmount').value) || 30000;
+        const rent = parseFloat(document.getElementById('modalRentAmount').value) || 0;
+        const deposit = parseFloat(document.getElementById('modalDepositAmount').value) || 0;
         const status = document.getElementById('modalStatusSelect').value || 'ACTIVE';
-        const startDate = document.getElementById('modalStartDate').value || '2026-01-01';
-        const endDate = document.getElementById('modalEndDate').value || '2026-12-31';
+        const startDate = document.getElementById('modalStartDate').value || new Date().toISOString().split('T')[0];
+        const endDate = document.getElementById('modalEndDate').value || null;
 
         if (!tenantId || !unitId) {
-            alert('Please select both a tenant and unit location.');
+            alert('Please select both a tenant profile and a target unit.');
             return;
         }
 
@@ -1466,13 +1372,16 @@
             return;
         }
 
-        const newLeaseId = `LSE-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+        const newLeaseCode = `LSE-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
-        // Database-Compliant Schema Payload
         const payload = {
+            lease_id: newLeaseCode,
             tenant_id: tenantId,
             unit_id: unitId,
-            lease_id: newLeaseId,
+            tenant_name: tenantName,
+            tenant_email: tenantEmail,
+            property_name: propName,
+            unit_number: unitNumber,
             start_date: startDate,
             end_date: endDate,
             rent: rent,
@@ -1480,75 +1389,43 @@
             status: status
         };
 
-        const newLease = {
-            id: newLeaseId,
-            lease_id: newLeaseId,
-            tenant_id: tenantId,
-            unit_id: unitId,
-            tenant_name: tenantName,
-            tenantName: tenantName,
-            tenant_email: 'maria.santos@tenant.ph',
-            property: unitLocation.split('•')[0].trim() || 'Sunrise Residences',
-            unit: unitLocation,
-            unit_number: unitLocation.split('•')[1] ? unitLocation.split('•')[1].trim() : 'Unit 101',
-            start_date: startDate,
-            end_date: endDate,
-            term: `${startDate} – ${endDate}`,
-            rent: rent,
-            rent_amount: rent,
-            deposit_amount: deposit,
-            deposit: `₱${deposit.toLocaleString('en-US', { minimumFractionDigits: 2 })} (${status === 'ACTIVE' ? 'Verified' : 'Pending'})`,
-            status: status,
-            created_at: new Date().toISOString()
-        };
-
-        // Live Backend API Dispatch
         try {
-            const res = await fetch(API_BASE_URL, {
+            const res = await fetch(LEASES_API_URL, {
                 method: 'POST',
                 headers: getAuthHeaders(),
                 body: JSON.stringify(payload)
             });
-            if (res.ok) {
-                const saved = await res.json().catch(() => null);
-                if (saved && saved.id) newLease.id = saved.id;
+
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                alert(`Error creating lease: ${errData.detail || 'Could not save lease agreement to database.'}`);
+                return;
             }
         } catch (e) {
-            console.warn("Backend save bypassed, keeping locally.", e);
+            console.error("Network error while creating lease:", e);
+            alert("Network connection error. Check server connection.");
+            return;
         }
 
-        let leases = await getLeases();
-        leases.unshift(newLease);
-        saveLeasesLocally(leases);
-
-        if (status === 'ACTIVE') {
-            updateUnitOccupancyStatus(unitLocation, 'OCCUPIED', tenantName);
-            updateTenantOccupancyStatus(tenantName, 'ACTIVE', unitLocation);
-            createRentInvoice(newLeaseId, tenantName, unitLocation, rent, endDate);
+        // If status is ACTIVE, also transition unit status in Neon DB
+        if (status === 'ACTIVE' && unitId) {
+            try {
+                await fetch(`${UNITS_API_URL}${encodeURIComponent(unitId)}`, {
+                    method: 'PATCH',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({
+                        status: 'OCCUPIED',
+                        tenant_name: tenantName
+                    })
+                });
+            } catch (err) {
+                console.warn("Unit status sync bypassed:", err);
+            }
         }
 
-        // Notification Dispatch
-        let notifications = getNotifications();
-        notifications.unshift({
-            id: `NOTIF-${Date.now()}`,
-            pov: 'admin',
-            category: 'asset',
-            status: 'unread',
-            is_read: false,
-            title: `New Lease Agreement Executed (${newLeaseId})`,
-            time: 'Just now',
-            description: `Lease contract registered for <strong>${tenantName}</strong> at <strong>${unitLocation}</strong>. Monthly Rent: <strong>₱${rent.toLocaleString()}</strong>.`,
-            property: unitLocation,
-            actionUrl: 'leases.html',
-            actionText: 'View Lease Agreement'
-        });
-        saveNotifications(notifications);
-
-        await renderLeasesTable();
-        await updateKPIs();
+        alert(`Lease agreement (${newLeaseCode}) registered successfully!`);
         closeModal('leaseModal');
 
-        // Reset Form Fields
         document.getElementById('modalTenantName').value = '';
         document.getElementById('modalUnitLocation').value = '';
         document.getElementById('modalRentAmount').value = '';
@@ -1556,47 +1433,36 @@
         document.getElementById('modalStartDate').value = '';
         document.getElementById('modalEndDate').value = '';
 
-        alert(`Lease agreement (${newLeaseId}) registered successfully!`);
+        await renderLeasesTable();
     }
 
     async function activateLease(leaseId) {
-        if (!confirm(`Execute move-in for lease ${leaseId}? This will transition the status to ACTIVE and generate the initial rent invoice.`)) return;
+        if (!confirm(`Execute move-in for lease ${leaseId}? This will mark the lease and assigned unit as ACTIVE (Occupied).`)) return;
 
-        let leases = await getLeases();
-        let targetUnit = '';
-        let targetTenant = '';
-        let targetRent = 0;
-        let targetDueDate = '2026-08-31';
+        try {
+            const res = await fetch(`${LEASES_API_URL}${encodeURIComponent(leaseId)}`, {
+                method: 'PATCH',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({ status: 'ACTIVE' })
+            });
 
-        leases = leases.map(l => {
-            if (String(l.id) === String(leaseId) || String(l.lease_id) === String(leaseId)) {
-                targetUnit = l.unit;
-                targetTenant = l.tenantName || l.tenant_name;
-                targetRent = l.rent || l.rent_amount || 15000;
-                targetDueDate = l.end_date || (l.term ? l.term.split('–')[1]?.trim() : '2026-08-31');
-
-                return {
-                    ...l,
-                    status: 'ACTIVE',
-                    deposit: (l.deposit || '').replace('Pending', 'Verified')
-                };
+            if (!res.ok) {
+                await fetch(`${LEASES_API_URL}${encodeURIComponent(leaseId)}`, {
+                    method: 'PUT',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ status: 'ACTIVE' })
+                });
             }
-            return l;
-        });
-        saveLeasesLocally(leases);
-
-        if (targetUnit) {
-            updateUnitOccupancyStatus(targetUnit, 'OCCUPIED', targetTenant);
-            updateTenantOccupancyStatus(targetTenant, 'ACTIVE', targetUnit);
-            createRentInvoice(leaseId, targetTenant, targetUnit, targetRent, targetDueDate);
+        } catch (e) {
+            console.warn("Backend update error:", e);
         }
 
         await renderLeasesTable();
-        await updateKPIs();
     }
 
-    function openMoveOutModal(leaseId, tenantName, unitName) {
+    function openMoveOutModal(leaseId, unitId, tenantName, unitName) {
         targetLeaseIdForMoveOut = leaseId;
+        targetUnitIdForMoveOut = unitId;
         const refInput = document.getElementById("moveOutLeaseRef");
         const dateInput = document.getElementById("moveOutDate");
         
@@ -1613,37 +1479,45 @@
         const depositStatus = document.getElementById('moveOutDepositStatus').value;
         const moveOutNotes = document.getElementById('moveOutNotes').value.trim();
 
-        let leases = await getLeases();
-        let targetUnit = '';
-        let targetTenant = '';
-
-        leases = leases.map(l => {
-            if (String(l.id) === String(targetLeaseIdForMoveOut) || String(l.lease_id) === String(targetLeaseIdForMoveOut)) {
-                targetUnit = l.unit;
-                targetTenant = l.tenantName || l.tenant_name;
-                return {
-                    ...l,
+        // 1. End the lease agreement
+        try {
+            await fetch(`${LEASES_API_URL}${encodeURIComponent(targetLeaseIdForMoveOut)}`, {
+                method: 'PATCH',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({ 
                     status: 'ENDED',
-                    deposit: `₱0.00 (${depositStatus})`,
                     move_out_date: moveOutDate,
-                    move_out_notes: moveOutNotes,
-                    settled_at: new Date().toISOString()
-                };
-            }
-            return l;
-        });
-        saveLeasesLocally(leases);
-
-        if (targetUnit) {
-            updateUnitOccupancyStatus(targetUnit, 'VACANT');
-            updateTenantOccupancyStatus(targetTenant, 'INACTIVE', 'No Current Unit');
+                    notes: moveOutNotes,
+                    deposit_status: depositStatus
+                })
+            });
+        } catch (e) {
+            console.warn("Backend move-out dispatch error:", e);
         }
 
-        await renderLeasesTable();
-        await updateKPIs();
+        // 2. Revert the unit status back to VACANT / Available
+        if (targetUnitIdForMoveOut) {
+            try {
+                await fetch(`${UNITS_API_URL}${encodeURIComponent(targetUnitIdForMoveOut)}`, {
+                    method: 'PATCH',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ 
+                        status: 'Available',
+                        tenant_name: null
+                    })
+                });
+            } catch (e) {
+                console.warn("Unit status reversion error:", e);
+            }
+        }
+
+        alert(`Move-out recorded successfully. Unit returned to Available status.`);
         closeModal('moveOutModal');
         targetLeaseIdForMoveOut = null;
+        targetUnitIdForMoveOut = null;
         document.getElementById('moveOutNotes').value = '';
+
+        await renderLeasesTable();
     }
 
     async function updateKPIs() {
@@ -1660,13 +1534,8 @@
             const status = (l.status || '').toUpperCase();
             if (status === 'ACTIVE') {
                 active++;
-                let rawEnd = l.end_date;
-                if (!rawEnd && l.term && l.term.includes('–')) {
-                    rawEnd = l.term.split('–')[1].trim();
-                }
-
-                if (rawEnd && rawEnd !== 'N/A') {
-                    const endDate = new Date(rawEnd);
+                if (l.end_date) {
+                    const endDate = new Date(l.end_date);
                     if (!isNaN(endDate) && endDate >= now && endDate <= in30Days) {
                         expiring++;
                     }
@@ -1682,19 +1551,14 @@
         if (document.getElementById('kpiExpiringLeases')) document.getElementById('kpiExpiringLeases').textContent = expiring;
     }
 
-    function updateHeaderBadge() {
-        const notifs = getNotifications().filter(n => (n.pov === 'admin' || !n.pov) && (n.status === 'unread' || n.is_read === false));
-        const badge = document.getElementById('headerNotifBadge');
-        if (badge) badge.textContent = notifs.length;
-    }
-
     async function openLeaseModal() { 
         await populateModalDropdowns();
         document.getElementById("leaseModal").classList.add("show"); 
     }
 
     function closeModal(modalId) { 
-        document.getElementById(modalId).classList.remove("show"); 
+        const modal = document.getElementById(modalId);
+        if (modal) modal.classList.remove("show"); 
     }
 
     window.onclick = function(event) {
@@ -1745,11 +1609,31 @@
     }
 
     function resetFilters() {
-        if (document.getElementById("searchInput")) document.getElementById("searchInput").value = "";
-        if (document.getElementById("statusFilter")) document.getElementById("statusFilter").value = "";
+        document.getElementById("searchInput").value = "";
+        document.getElementById("statusFilter").value = "";
         const firstTab = document.querySelectorAll('.tab')[0];
         if (firstTab) setTabFilter('ALL', firstTab);
     }
+
+    // Real-Time Cross-Tab Listener
+    window.addEventListener('storage', async (e) => {
+        if (['argo_leases', 'argo_tenants', 'argo_units', 'argo_invoices', 'argo_notifications', 'argo_user', 'argo_pov'].includes(e.key)) {
+            renderSidebar();
+            loadUserData();
+            await populateModalDropdowns();
+            await renderLeasesTable();
+            updateHeaderBadge();
+        }
+    });
+
+    // Page Load Initialization
+    document.addEventListener('DOMContentLoaded', async () => {
+        renderSidebar();
+        loadUserData();
+        await populateModalDropdowns();
+        await renderLeasesTable();
+        updateHeaderBadge();
+    });
 
     // Profile Dropdown Handler
     const userProfileBtn = document.getElementById('userProfileBtn');
@@ -1767,4 +1651,3 @@
     }
 </script>
 </body>
-</html>
