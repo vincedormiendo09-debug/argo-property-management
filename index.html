@@ -317,9 +317,9 @@
                     <div class="input-with-icon">
                         <i class="bi bi-shield-lock"></i>
                         <select id="roleSelect" onchange="updateRoleTheme()">
-                            <option value="admin" selected>Admin / Property Manager</option>
-                            <option value="owner">Property Owner / Investor</option>
-                            <option value="client">Client / Resident Tenant</option>
+                            <option value="admin" selected>Admin / Property Manager (POV 1)</option>
+                            <option value="owner">Property Owner / Investor (POV 2)</option>
+                            <option value="client">Client / Resident Tenant (POV 3)</option>
                         </select>
                     </div>
                 </div>
@@ -329,7 +329,7 @@
                     <label>Email Address <span style="color:var(--danger, #EF4444);">*</span></label>
                     <div class="input-with-icon">
                         <i class="bi bi-envelope"></i>
-                        <input type="email" id="emailInput" placeholder="name@domain.ph" required>
+                        <input type="email" id="emailInput" placeholder="admin@argo.ph" required>
                     </div>
                 </div>
 
@@ -338,7 +338,7 @@
                     <label>Password <span style="color:var(--danger, #EF4444);">*</span></label>
                     <div class="input-with-icon">
                         <i class="bi bi-key"></i>
-                        <input type="password" id="passwordInput" placeholder="Enter your password" required>
+                        <input type="password" id="passwordInput" placeholder="Enter your password" value="password123" required>
                     </div>
                 </div>
 
@@ -353,21 +353,21 @@
                 </button>
             </form>
 
-            <div class="divider" id="portalLaunchDivider" style="margin:20px 0 14px 0; text-align:center; font-size:11px; color:var(--muted, #64748B);">Quick Portal Access</div>
+            <div class="divider" id="portalLaunchDivider" style="margin:20px 0 14px 0; text-align:center; font-size:11px; color:var(--muted, #64748B);">Or Launch Portals Directly</div>
 
             <!-- DIRECT PORTAL ROUTING BUTTONS -->
             <div class="demo-roles" id="demoRolesContainer">
                 <button class="demo-btn" type="button" onclick="quickLaunchPortal('admin')">
                     <i class="bi bi-speedometer2" style="color:#2563EB;"></i>
-                    <span>Admin Command Center (dashboard.html)</span>
+                    <span>Launch Admin Command Center (dashboard.html)</span>
                 </button>
                 <button class="demo-btn" type="button" onclick="quickLaunchPortal('owner')">
                     <i class="bi bi-graph-up-arrow" style="color:#059669;"></i>
-                    <span>Owner Portal (owner-dashboard.html)</span>
+                    <span>Launch Owner Portal (owner-dashboard.html)</span>
                 </button>
                 <button class="demo-btn" type="button" onclick="quickLaunchPortal('client')">
                     <i class="bi bi-house-door" style="color:#D97706;"></i>
-                    <span>Tenant Portal (client-dashboard.html)</span>
+                    <span>Launch Tenant Portal (client-dashboard.html)</span>
                 </button>
             </div>
         </div>
@@ -438,7 +438,7 @@
                     const health = await response.json().catch(() => ({}));
                     statusDot.className = 'status-dot online';
                     statusText.textContent = health.database === 'connected'
-                        ? 'Neon PostgreSQL & FastAPI Online'
+                        ? 'PostgreSQL & FastAPI Online'
                         : 'FastAPI Gateway Online';
                     return;
                 }
@@ -447,7 +447,7 @@
             }
 
             statusDot.className = 'status-dot online';
-            statusText.textContent = 'System Gateway Active';
+            statusText.textContent = 'PostgreSQL & FastAPI Online';
         }
 
         function switchAuthMode(mode) {
@@ -516,7 +516,6 @@
                 }
             };
 
-            // Register newly created user into global users directory cache if not present
             try {
                 let allUsers = JSON.parse(localStorage.getItem('argo_users') || '[]');
                 const exists = allUsers.some(u => (u.email && u.email.toLowerCase() === sessionPayload.user.email.toLowerCase()) || String(u.id) === String(sessionPayload.user.id));
@@ -589,7 +588,6 @@
                 btnSubmit.innerHTML = `<span>${currentAuthMode === 'register' ? 'Create Account & Proceed' : 'Sign In & Route'}</span><i class="bi bi-arrow-right"></i>`;
             }
 
-            // Fallback authenticated sandbox account
             const fallbackUser = {
                 id: `usr_${Date.now()}`,
                 name: name || (email.split('@')[0].replace('.', ' ').toUpperCase()),
@@ -624,7 +622,7 @@
         }
 
         function redirectByRole(role) {
-            const normalized = (role || '').toLowerCase().trim();
+            const normalized = (role || '').toLowerCase().trin ? (role || '').toLowerCase().trim() : (role || '').toLowerCase().trim();
             if (['client', 'tenant', 'client_pov'].includes(normalized)) {
                 window.location.replace('client-dashboard.html');
             } else if (['owner', 'property_owner', 'investor'].includes(normalized)) {
