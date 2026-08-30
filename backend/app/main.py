@@ -102,7 +102,6 @@ app = FastAPI(
     description="Multi-Tenant Property Operations Backend Gateway",
     version="0.5.0",
     lifespan=lifespan
-    # redirect_slashes left at default (True) so both /api/properties and /api/properties/ resolve seamlessly
 )
 
 # ==========================================
@@ -173,6 +172,7 @@ if documents and hasattr(documents, "router"):
 ownership_router = APIRouter()
 
 
+@ownership_router.get("")
 @ownership_router.get("/")
 def get_property_ownerships(
     organization_id: Optional[str] = Query(default=None),
@@ -199,11 +199,17 @@ def get_property_ownerships(
     results = []
 
     # Cache properties and owners for lookup
-    props_map = {p.id: (getattr(p, 'name', '') or getattr(p, 'property_name', '') or 'Property') for p in db.scalars(select(models.Property)).all()}
-    owners_map = {o.id: (getattr(o, 'name', '') or getattr(o, 'full_name', '') or 'Owner') for o in db.scalars(select(models.Owner)).all()}
+    props_map = {
+        p.id: (getattr(p, "name", None) or getattr(p, "property_name", None) or "Property") 
+        for p in db.scalars(select(models.Property)).all()
+    }
+    owners_map = {
+        o.id: (getattr(o, "name", None) or getattr(o, "full_name", None) or "Owner") 
+        for o in db.scalars(select(models.Owner)).all()
+    }
     for u in db.scalars(select(models.User)).all():
         if u.id not in owners_map:
-            owners_map[u.id] = getattr(u, 'name', '') or getattr(u, 'full_name', '') or 'Registered Owner'
+            owners_map[u.id] = getattr(u, "name", None) or getattr(u, "full_name", None) or "Registered Owner"
 
     for s in shares:
         s_id = str(s.id)
@@ -225,12 +231,14 @@ def get_property_ownerships(
     return results
 
 
+@ownership_router.post("", status_code=status.HTTP_201_CREATED)
 @ownership_router.post("/", status_code=status.HTTP_201_CREATED)
 def assign_property_ownership_endpoint(
     share_payload: Dict[str, Any],
+    organization_id: Optional[str] = Query(default=None),
     db: Session = Depends(get_db)
 ):
-    org_id = parse_uuid_safely(share_payload.get("organization_id")) or DEFAULT_ORG_ID
+    org_id = parse_uuid_safely(share_payload.get("organization_id") or organization_id) or DEFAULT_ORG_ID
     prop_id = parse_uuid_safely(share_payload.get("property_id"))
     own_id = parse_uuid_safely(share_payload.get("owner_id"))
 
@@ -258,8 +266,10 @@ def assign_property_ownership_endpoint(
 
 
 @ownership_router.delete("/{share_id}", status_code=status.HTTP_204_NO_CONTENT)
+@ownership_router.delete("/{share_id}/", status_code=status.HTTP_204_NO_CONTENT)
 def delete_property_ownership_endpoint(
     share_id: str,
+    organization_id: Optional[str] = Query(default=None),
     db: Session = Depends(get_db)
 ):
     share_uuid = parse_uuid_safely(share_id)
