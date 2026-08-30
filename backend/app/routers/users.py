@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from ..database import get_db
 from .. import models
 
-router = APIRorgID = uuid.UUID("a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11")
+router = APIRouter()
 DEFAULT_ORG_ID = uuid.UUID("a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11")
 
 
