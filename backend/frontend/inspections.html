@@ -859,10 +859,14 @@
             ? 'https://argo-management-2026.onrender.com/api'
             : '/api';
 
-    const INSPECTIONS_API_URL = `${API_BASE_URL}/inspections`;
-    const UNITS_API_URL = `${API_BASE_URL}/units`;
-    const LEASES_API_URL = `${API_BASE_URL}/leases`;
-    const NOTIFICATIONS_API_URL = `${API_BASE_URL}/notifications`;
+    const INSPECTIONS_API_URL = `${API_BASE_URL}/inspections/`;
+    const UNITS_API_URL = `${API_BASE_URL}/units/`;
+    const LEASES_API_URL = `${API_BASE_URL}/leases/`;
+    const NOTIFICATIONS_API_URL = `${API_BASE_URL}/notifications/`;
+
+    function getOrgId() {
+        return localStorage.getItem('organization_id') || localStorage.getItem('argo_org_id') || DEFAULT_ORG_ID;
+    }
 
     function getAuthHeaders() {
         const token = localStorage.getItem('token') || localStorage.getItem('argo_token');
@@ -1046,10 +1050,11 @@
         }
     }
 
-    // Direct Database Fetchers (No LocalStorage Cache Poisoning)
+    // Direct Database Fetchers
     async function getInspections() {
         try {
-            const response = await fetch(INSPECTIONS_API_URL, { 
+            const orgId = getOrgId();
+            const response = await fetch(`${INSPECTIONS_API_URL}?organization_id=${orgId}`, { 
                 headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
                 cache: 'no-store'
             });
@@ -1065,7 +1070,8 @@
 
     async function getUnits() {
         try {
-            const res = await fetch(UNITS_API_URL, { 
+            const orgId = getOrgId();
+            const res = await fetch(`${UNITS_API_URL}?organization_id=${orgId}`, { 
                 headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
                 cache: 'no-store'
             });
@@ -1081,7 +1087,8 @@
 
     async function getLeases() {
         try {
-            const res = await fetch(LEASES_API_URL, { 
+            const orgId = getOrgId();
+            const res = await fetch(`${LEASES_API_URL}?organization_id=${orgId}`, { 
                 headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
                 cache: 'no-store'
             });
@@ -1097,7 +1104,8 @@
 
     async function getNotifications() {
         try {
-            const res = await fetch(NOTIFICATIONS_API_URL, { 
+            const orgId = getOrgId();
+            const res = await fetch(`${NOTIFICATIONS_API_URL}?organization_id=${orgId}`, { 
                 headers: getAuthHeaders(),
                 cache: 'no-store'
             });
@@ -1122,7 +1130,9 @@
             const leaseGroup = document.createElement('optgroup');
             leaseGroup.label = 'Active Leased Units';
             activeLeases.forEach(l => {
-                const uLoc = l.property_name && l.unit_number ? `${l.property_name} • ${l.unit_number}` : (l.unit || 'Unit');
+                const pName = l.property_name || 'Property';
+                const uNum = l.unit_number || l.unit_no || l.unit || 'Unit';
+                const uLoc = `${pName} • ${uNum}`;
                 const tName = l.tenant_name || l.tenantName || 'Tenant';
                 const uId = l.unit_id || '';
                 const opt = document.createElement('option');
@@ -1149,6 +1159,8 @@
             });
             modalSelect.appendChild(vacantGroup);
         }
+
+        modalSelect.onchange = autoFillTenantFromUnit;
     }
 
     function autoFillTenantFromUnit() {
@@ -1265,7 +1277,7 @@
         await updateKPIs();
     }
 
-    // LIVE SAVE INSPECTION (POST /api/inspections + POST /api/notifications)
+    // LIVE SAVE INSPECTION (POST /api/inspections/ + POST /api/notifications/)
     async function saveInspection() {
         const unitSelect = document.getElementById('modalUnitSelect');
         const typeSelect = document.getElementById('modalTypeSelect');
@@ -1275,7 +1287,7 @@
         const conditionSelect = document.getElementById('modalConditionSelect');
         const statusSelect = document.getElementById('modalStatusSelect');
         const notesInput = document.getElementById('modalNotesInput');
-        const orgId = localStorage.getItem('organization_id') || DEFAULT_ORG_ID;
+        const orgId = getOrgId();
 
         const unitRaw = unitSelect ? unitSelect.value : '';
         const type = typeSelect ? typeSelect.value : 'Routine';
@@ -1314,7 +1326,7 @@
         };
 
         try {
-            const res = await fetch(INSPECTIONS_API_URL, {
+            const res = await fetch(`${INSPECTIONS_API_URL}?organization_id=${orgId}`, {
                 method: 'POST',
                 headers: getAuthHeaders(),
                 body: JSON.stringify(payload)
@@ -1333,7 +1345,7 @@
 
         // Push System Notification
         try {
-            await fetch(NOTIFICATIONS_API_URL, {
+            await fetch(`${NOTIFICATIONS_API_URL}?organization_id=${orgId}`, {
                 method: 'POST',
                 headers: getAuthHeaders(),
                 body: JSON.stringify({
@@ -1366,8 +1378,9 @@
         const name = displayCode || dbId;
         if (!confirm(`Are you sure you want to permanently delete inspection audit "${name}" from the database?`)) return;
         
+        const orgId = getOrgId();
         try {
-            const res = await fetch(`${INSPECTIONS_API_URL}/${encodeURIComponent(dbId)}`, {
+            const res = await fetch(`${INSPECTIONS_API_URL}${encodeURIComponent(dbId)}?organization_id=${orgId}`, {
                 method: 'DELETE',
                 headers: getAuthHeaders()
             });
@@ -1456,9 +1469,13 @@
     };
 
     function filterTable() {
-        const searchValue = document.getElementById("searchInput").value.toLowerCase();
-        const typeValue = document.getElementById("typeFilter").value;
-        const statusValue = document.getElementById("statusFilter").value;
+        const searchInput = document.getElementById("searchInput");
+        const typeFilter = document.getElementById("typeFilter");
+        const statusFilter = document.getElementById("statusFilter");
+
+        const searchValue = searchInput ? searchInput.value.toLowerCase().trim() : "";
+        const typeValue = typeFilter ? typeFilter.value : "";
+        const statusValue = statusFilter ? statusFilter.value : "";
 
         const rows = document.querySelectorAll("#inspectionTable tr");
 
@@ -1469,7 +1486,7 @@
             const rowType = row.dataset.type || "";
             const rowStatus = row.dataset.status || "";
 
-            const matchesSearch = text.includes(searchValue);
+            const matchesSearch = searchValue === "" || text.includes(searchValue);
             const matchesType = typeValue === "" || rowType.toLowerCase().includes(typeValue.toLowerCase());
             const matchesStatus = statusValue === "" || rowStatus.toLowerCase().includes(statusValue.toLowerCase());
 
@@ -1482,9 +1499,13 @@
     }
 
     function resetFilters() {
-        document.getElementById("searchInput").value = "";
-        document.getElementById("typeFilter").value = "";
-        document.getElementById("statusFilter").value = "";
+        const searchInput = document.getElementById("searchInput");
+        const typeFilter = document.getElementById("typeFilter");
+        const statusFilter = document.getElementById("statusFilter");
+
+        if (searchInput) searchInput.value = "";
+        if (typeFilter) typeFilter.value = "";
+        if (statusFilter) statusFilter.value = "";
         filterTable();
     }
 
