@@ -1,6 +1,7 @@
 import uuid
 import logging
-from typing import List, Optional
+from datetime import datetime
+from typing import List, Optional, Any, Dict
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select, or_, delete
 from sqlalchemy.orm import Session
@@ -12,8 +13,20 @@ from .. import models, schemas
 router = APIRouter()
 logger = logging.getLogger("uvicorn.error")
 
-# Default Organization UUID matching schema.sql and seed.py
 DEFAULT_ORG_ID = uuid.UUID("a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11")
+
+
+def parse_org_id(org_id_raw: Optional[str]) -> uuid.UUID:
+    """Safely converts string, null, or undefined organization IDs to valid UUIDs."""
+    if not org_id_raw:
+        return DEFAULT_ORG_ID
+    clean = str(org_id_raw).strip().lower()
+    if clean in ("undefined", "null", ""):
+        return DEFAULT_ORG_ID
+    try:
+        return uuid.UUID(clean)
+    except Exception:
+        return DEFAULT_ORG_ID
 
 
 def ensure_sandbox_organization(db: Session, org_id: uuid.UUID):
@@ -25,69 +38,137 @@ def ensure_sandbox_organization(db: Session, org_id: uuid.UUID):
         db.commit()
 
 
-# 1. GET /api/buildings/ - Read real buildings scoped by organization_id with filter and search
-@router.get("/", response_model=List[schemas.BuildingSchema])
+# ---------------------------------------------------------------------
+# 1. GET BUILDINGS (Supports /api/buildings & /api/buildings/)
+# ---------------------------------------------------------------------
+@router.get("")
+@router.get("/")
 def read_buildings(
-    organization_id: uuid.UUID = Query(default=DEFAULT_ORG_ID),
+    organization_id: Optional[str] = Query(default=None),
     property_id: Optional[str] = Query(default=None),
     status_filter: Optional[str] = Query(default=None, alias="status"),
     search: Optional[str] = Query(default=None),
     db: Session = Depends(get_db)
 ):
-    ensure_sandbox_organization(db, organization_id)
+    org_id = parse_org_id(organization_id)
+    ensure_sandbox_organization(db, org_id)
 
-    stmt = select(models.Building).where(models.Building.organization_id == organization_id)
+    stmt = select(models.Building).where(
+        or_(
+            models.Building.organization_id == org_id,
+            models.Building.organization_id.is_(None)
+        )
+    )
 
-    if property_id:
+    if property_id and property_id not in ("undefined", "null", ""):
         try:
-            p_uuid = uuid.UUID(property_id)
-            stmt = stmt.where(models.Building.property_id == p_uuid)
+            stmt = stmt.where(models.Building.property_id == uuid.UUID(property_id))
         except ValueError:
             pass
 
     if status_filter:
         stmt = stmt.where(models.Building.status.ilike(f"%{status_filter.strip()}%"))
 
+    buildings_list = list(db.scalars(stmt).all())
+
+    # Map property names for display
+    props_map = {
+        p.id: (getattr(p, "name", None) or getattr(p, "property_name", None) or "Property Asset")
+        for p in db.scalars(select(models.Property)).all()
+    }
+
+    results: List[Dict[str, Any]] = []
+    for b in buildings_list:
+        b_id = str(b.id)
+        p_id = b.property_id
+        prop_name = props_map.get(p_id, "Property Asset")
+
+        results.append({
+            "id": b_id,
+            "organization_id": str(getattr(b, "organization_id", None) or org_id),
+            "property_id": str(p_id),
+            "property_name": prop_name,
+            "property": prop_name,
+            "code": getattr(b, "code", f"BLDG-{b_id[:4].upper()}"),
+            "name": getattr(b, "name", "Building"),
+            "floors": int(getattr(b, "floors", 1) or 1),
+            "total_units": int(getattr(b, "total_units", 0) or 0),
+            "occupied_units": int(getattr(b, "occupied_units", 0) or 0),
+            "status": getattr(b, "status", "Active") or "Active",
+            "floor_distribution": getattr(b, "floor_distribution", None)
+        })
+
     if search:
-        search_term = search.strip()
-        search_terms = [
-            models.Building.name.ilike(f"%{search_term}%"),
-            models.Building.code.ilike(f"%{search_term}%")
+        s = search.strip().lower()
+        results = [
+            r for r in results
+            if s in (r.get("name") or "").lower()
+            or s in (r.get("code") or "").lower()
+            or s in (r.get("property_name") or "").lower()
         ]
-        stmt = stmt.where(or_(*search_terms))
 
-    return list(db.scalars(stmt).all())
+    return results
 
 
-# 2. POST /api/buildings/ - Create building with unit auto-provisioning
-@router.post("/", response_model=schemas.BuildingSchema, status_code=status.HTTP_201_CREATED)
-def create_building(bldg_in: schemas.BuildingCreate, db: Session = Depends(get_db)):
-    org_id = getattr(bldg_in, "organization_id", DEFAULT_ORG_ID) or DEFAULT_ORG_ID
+# ---------------------------------------------------------------------
+# 2. CREATE BUILDING (Supports POST /api/buildings & POST /api/buildings/)
+# ---------------------------------------------------------------------
+@router.post("", status_code=status.HTTP_201_CREATED)
+@router.post("/", status_code=status.HTTP_201_CREATED)
+def create_building(
+    bldg_in: Dict[str, Any],
+    organization_id: Optional[str] = Query(default=None),
+    db: Session = Depends(get_db)
+):
+    org_id = parse_org_id(bldg_in.get("organization_id") or organization_id)
     ensure_sandbox_organization(db, org_id)
 
-    # 1. Verify parent property exists
-    prop_id = getattr(bldg_in, "property_id", None)
-    if not prop_id:
+    bldg_name = (bldg_in.get("name") or "").strip()
+    if not bldg_name:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="A parent Property ID is required to create a building."
+            detail="Building Name is required."
         )
 
-    prop = db.scalar(
-        select(models.Property).where(
-            models.Property.id == prop_id,
-            models.Property.organization_id == org_id
+    # 1. Resolve parent property
+    prop_id_raw = bldg_in.get("property_id")
+    prop = None
+
+    if prop_id_raw and str(prop_id_raw).strip() not in ("undefined", "null", ""):
+        try:
+            prop_uuid = uuid.UUID(str(prop_id_raw).strip())
+            prop = db.scalar(
+                select(models.Property).where(
+                    models.Property.id == prop_uuid,
+                    or_(
+                        models.Property.organization_id == org_id,
+                        models.Property.organization_id.is_(None)
+                    )
+                )
+            )
+        except ValueError:
+            pass
+
+    if not prop:
+        prop = db.scalar(
+            select(models.Property).where(
+                or_(
+                    models.Property.organization_id == org_id,
+                    models.Property.organization_id.is_(None)
+                )
+            )
         )
-    )
+
     if not prop:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Property with ID '{prop_id}' was not found in this organization."
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="A registered Property asset is required before adding buildings."
         )
 
-    bldg_code = (bldg_in.code or f"BLDG-{str(uuid.uuid4())[:4].upper()}").strip()
+    prop_id = prop.id
+    bldg_code = (bldg_in.get("code") or f"BLDG-{str(uuid.uuid4())[:4].upper()}").strip()
 
-    # 2. Scoped duplicate check: (organization_id, code) must be unique
+    # 2. Scoped duplicate code check
     existing = db.scalar(
         select(models.Building).where(
             models.Building.organization_id == org_id,
@@ -95,39 +176,45 @@ def create_building(bldg_in: schemas.BuildingCreate, db: Session = Depends(get_d
         )
     )
     if existing:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Building code '{bldg_code}' already exists for this organization."
-        )
+        bldg_code = f"{bldg_code}-{str(uuid.uuid4())[:3].upper()}"
 
-    floors = bldg_in.floors or 1
-    floor_dist = bldg_in.floor_distribution or {}
+    floors = int(bldg_in.get("floors") or 1)
+    floor_dist = bldg_in.get("floor_distribution")
 
     if not floor_dist or not isinstance(floor_dist, dict):
         floor_dist = {f"Floor {i}": 4 for i in range(1, floors + 1)}
 
-    calculated_total_units = sum(int(v) for v in floor_dist.values())
+    calculated_total_units = int(bldg_in.get("total_units") or sum(int(v) for v in floor_dist.values()))
 
     bldg_id = uuid.uuid4()
-    bldg_data = bldg_in.model_dump(exclude_unset=True) if hasattr(bldg_in, "model_dump") else bldg_in.dict(exclude_unset=True)
-    
-    bldg_data["id"] = bldg_id
-    bldg_data["organization_id"] = org_id
-    bldg_data["property_id"] = prop_id
-    bldg_data["code"] = bldg_code
-    bldg_data["total_units"] = calculated_total_units
-    bldg_data["floor_distribution"] = floor_dist
-    if "status" not in bldg_data or not bldg_data["status"]:
-        bldg_data["status"] = "ACTIVE"
+    if bldg_in.get("id"):
+        try:
+            bldg_id = uuid.UUID(str(bldg_in["id"]))
+        except ValueError:
+            pass
 
-    db_bldg = models.Building(**bldg_data)
+    db_bldg = models.Building(
+        id=bldg_id,
+        organization_id=org_id,
+        property_id=prop_id,
+        code=bldg_code,
+        name=bldg_name,
+        floors=floors,
+        total_units=calculated_total_units,
+        occupied_units=int(bldg_in.get("occupied_units") or 0),
+        status=bldg_in.get("status") or "Active",
+        floor_distribution=floor_dist
+    )
     db.add(db_bldg)
 
     # 3. Automatically provision corresponding unit rows in inventory
     units_created = 0
     for floor_key, unit_count in floor_dist.items():
         floor_num_str = "".join(filter(str.isdigit, floor_key)) or "1"
-        f_num = int(floor_num_str)
+        try:
+            f_num = int(floor_num_str)
+        except ValueError:
+            f_num = 1
 
         for u_idx in range(1, int(unit_count) + 1):
             unit_num = f"{f_num}0{u_idx}"
@@ -162,120 +249,199 @@ def create_building(bldg_in: schemas.BuildingCreate, db: Session = Depends(get_d
                 db.add(models.Unit(**unit_kwargs))
                 units_created += 1
 
-    # Update parent property's units count counter
     if hasattr(prop, "units_count"):
         prop.units_count = (prop.units_count or 0) + units_created
 
     db.commit()
     db.refresh(db_bldg)
-    return db_bldg
+
+    return {
+        "id": str(db_bldg.id),
+        "organization_id": str(db_bldg.organization_id),
+        "property_id": str(db_bldg.property_id),
+        "code": db_bldg.code,
+        "name": db_bldg.name,
+        "floors": db_bldg.floors,
+        "total_units": db_bldg.total_units,
+        "occupied_units": db_bldg.occupied_units,
+        "status": db_bldg.status,
+        "floor_distribution": db_bldg.floor_distribution
+    }
 
 
-# 3. GET /api/buildings/{building_id} - Fetch a single building record
-@router.get("/{building_id}", response_model=schemas.BuildingSchema)
+# ---------------------------------------------------------------------
+# 3. GET SINGLE BUILDING
+# ---------------------------------------------------------------------
+@router.get("/{building_id}")
+@router.get("/{building_id}/")
 def get_building(
     building_id: str,
-    organization_id: uuid.UUID = Query(default=DEFAULT_ORG_ID),
+    organization_id: Optional[str] = Query(default=None),
     db: Session = Depends(get_db)
 ):
+    org_id = parse_org_id(organization_id)
+    clean_id = building_id.strip()
+
+    bldg = None
     try:
-        parsed_uuid = uuid.UUID(building_id)
-        stmt = select(models.Building).where(
-            models.Building.id == parsed_uuid,
-            models.Building.organization_id == organization_id
+        b_uuid = uuid.UUID(clean_id)
+        bldg = db.scalar(
+            select(models.Building).where(
+                models.Building.id == b_uuid,
+                or_(
+                    models.Building.organization_id == org_id,
+                    models.Building.organization_id.is_(None)
+                )
+            )
         )
     except ValueError:
-        stmt = select(models.Building).where(
-            models.Building.code.ilike(building_id.strip()),
-            models.Building.organization_id == organization_id
+        pass
+
+    if not bldg and hasattr(models.Building, "code"):
+        bldg = db.scalar(
+            select(models.Building).where(
+                models.Building.code.ilike(clean_id),
+                or_(
+                    models.Building.organization_id == org_id,
+                    models.Building.organization_id.is_(None)
+                )
+            )
         )
 
-    bldg = db.scalar(stmt)
     if not bldg:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Building not found."
         )
-    return bldg
+
+    return {
+        "id": str(bldg.id),
+        "organization_id": str(bldg.organization_id or org_id),
+        "property_id": str(bldg.property_id),
+        "code": bldg.code,
+        "name": bldg.name,
+        "floors": bldg.floors,
+        "total_units": bldg.total_units,
+        "occupied_units": bldg.occupied_units,
+        "status": bldg.status,
+        "floor_distribution": bldg.floor_distribution
+    }
 
 
-# 4. PUT / PATCH /api/buildings/{building_id} - Update building specifications
-@router.put("/{building_id}", response_model=schemas.BuildingSchema)
-@router.patch("/{building_id}", response_model=schemas.BuildingSchema)
+# ---------------------------------------------------------------------
+# 4. UPDATE BUILDING (PUT / PATCH)
+# ---------------------------------------------------------------------
+@router.put("/{building_id}")
+@router.put("/{building_id}/")
+@router.patch("/{building_id}")
+@router.patch("/{building_id}/")
 def update_building(
     building_id: str,
-    bldg_update: schemas.BuildingUpdate,
-    organization_id: uuid.UUID = Query(default=DEFAULT_ORG_ID),
+    bldg_update: Dict[str, Any],
+    organization_id: Optional[str] = Query(default=None),
     db: Session = Depends(get_db)
 ):
+    org_id = parse_org_id(organization_id)
+    clean_id = building_id.strip()
+
+    db_bldg = None
     try:
-        parsed_uuid = uuid.UUID(building_id)
-        stmt = select(models.Building).where(
-            models.Building.id == parsed_uuid,
-            models.Building.organization_id == organization_id
+        b_uuid = uuid.UUID(clean_id)
+        db_bldg = db.scalar(
+            select(models.Building).where(
+                models.Building.id == b_uuid,
+                or_(
+                    models.Building.organization_id == org_id,
+                    models.Building.organization_id.is_(None)
+                )
+            )
         )
     except ValueError:
-        stmt = select(models.Building).where(
-            models.Building.code.ilike(building_id.strip()),
-            models.Building.organization_id == organization_id
+        pass
+
+    if not db_bldg and hasattr(models.Building, "code"):
+        db_bldg = db.scalar(
+            select(models.Building).where(
+                models.Building.code.ilike(clean_id),
+                or_(
+                    models.Building.organization_id == org_id,
+                    models.Building.organization_id.is_(None)
+                )
+            )
         )
 
-    db_bldg = db.scalar(stmt)
     if not db_bldg:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Building not found."
         )
 
-    update_data = bldg_update.model_dump(exclude_unset=True) if hasattr(bldg_update, "model_dump") else bldg_update.dict(exclude_unset=True)
-
-    # Scoped duplicate check if code is being modified
-    if "code" in update_data and update_data["code"]:
-        clean_code = update_data["code"].strip()
-        update_data["code"] = clean_code
-        if clean_code.lower() != (db_bldg.code or "").lower():
-            code_check = db.scalar(
-                select(models.Building).where(
-                    models.Building.organization_id == organization_id,
-                    models.Building.code.ilike(clean_code),
-                    models.Building.id != db_bldg.id
-                )
-            )
-            if code_check:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Building code '{clean_code}' is already in use."
-                )
-
-    for field, value in update_data.items():
+    for field, value in bldg_update.items():
         if hasattr(db_bldg, field):
-            setattr(db_bldg, field, value)
+            if field == "property_id" and value:
+                try:
+                    setattr(db_bldg, field, uuid.UUID(str(value)))
+                except ValueError:
+                    pass
+            else:
+                setattr(db_bldg, field, value)
 
     db.commit()
     db.refresh(db_bldg)
-    return db_bldg
+
+    return {
+        "id": str(db_bldg.id),
+        "organization_id": str(db_bldg.organization_id),
+        "property_id": str(db_bldg.property_id),
+        "code": db_bldg.code,
+        "name": db_bldg.name,
+        "floors": db_bldg.floors,
+        "total_units": db_bldg.total_units,
+        "occupied_units": db_bldg.occupied_units,
+        "status": db_bldg.status,
+        "floor_distribution": db_bldg.floor_distribution
+    }
 
 
-# 5. DELETE /api/buildings/{building_id} - Cleanly delete building and associated units
+# ---------------------------------------------------------------------
+# 5. DELETE BUILDING
+# ---------------------------------------------------------------------
 @router.delete("/{building_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{building_id}/", status_code=status.HTTP_204_NO_CONTENT)
 def delete_building(
     building_id: str,
-    organization_id: uuid.UUID = Query(default=DEFAULT_ORG_ID),
+    organization_id: Optional[str] = Query(default=None),
     db: Session = Depends(get_db)
 ):
+    org_id = parse_org_id(organization_id)
+    clean_id = building_id.strip()
+
+    db_bldg = None
     try:
-        parsed_uuid = uuid.UUID(building_id)
-        stmt = select(models.Building).where(
-            models.Building.id == parsed_uuid,
-            models.Building.organization_id == organization_id
+        b_uuid = uuid.UUID(clean_id)
+        db_bldg = db.scalar(
+            select(models.Building).where(
+                models.Building.id == b_uuid,
+                or_(
+                    models.Building.organization_id == org_id,
+                    models.Building.organization_id.is_(None)
+                )
+            )
         )
     except ValueError:
-        stmt = select(models.Building).where(
-            models.Building.code.ilike(building_id.strip()),
-            models.Building.organization_id == organization_id
+        pass
+
+    if not db_bldg and hasattr(models.Building, "code"):
+        db_bldg = db.scalar(
+            select(models.Building).where(
+                models.Building.code.ilike(clean_id),
+                or_(
+                    models.Building.organization_id == org_id,
+                    models.Building.organization_id.is_(None)
+                )
+            )
         )
 
-    db_bldg = db.scalar(stmt)
     if not db_bldg:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -283,11 +449,10 @@ def delete_building(
         )
 
     try:
-        # Check if units inside this building have active leases attached
         building_units = db.scalars(
             select(models.Unit).where(models.Unit.building_id == db_bldg.id)
         ).all()
-        
+
         unit_ids = [u.id for u in building_units]
         if unit_ids:
             active_leases = db.scalars(
@@ -299,7 +464,6 @@ def delete_building(
                     detail="Cannot delete this building because one or more units have active lease agreements attached."
                 )
 
-            # Safely delete dependent units
             for u in building_units:
                 db.delete(u)
 
