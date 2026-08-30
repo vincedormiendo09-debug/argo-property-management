@@ -3,7 +3,7 @@ import logging
 from datetime import date, datetime
 from typing import List, Optional, Any, Dict
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select, or_, delete
+from sqlalchemy import select, or_
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
@@ -57,22 +57,21 @@ def parse_date_value(val: Any) -> Optional[date]:
 
 
 def serialize_utility(item: Any, db: Session) -> Dict[str, Any]:
-    """Helper to return serialized utility charge dictionary with complete tenant and unit metadata."""
+    """Helper to return a fully serialized utility dictionary compatible with frontend views."""
     u_id = str(getattr(item, "id", "") or "")
     code = (
-        getattr(item, "utility_id", None) 
-        or getattr(item, "invoice_id", None) 
-        or getattr(item, "ref_no", None) 
+        getattr(item, "utility_id", None)
+        or getattr(item, "charge_id", None)
+        or getattr(item, "invoice_id", None)
+        or getattr(item, "ref_no", None)
         or f"UTL-{u_id[:6].upper()}"
     )
 
-    # Extract Tenant Information
     tenant_name = getattr(item, "tenant_name", None)
     tenant_email = getattr(item, "tenant_email", None)
-    tenant_obj = getattr(item, "tenant", None)
-    if not tenant_name and tenant_obj:
-        tenant_name = getattr(tenant_obj, "name", None) or getattr(tenant_obj, "full_name", None)
-        tenant_email = tenant_email or getattr(tenant_obj, "email", None)
+    unit_number = getattr(item, "unit_number", None) or getattr(item, "unit_no", None)
+    property_name = getattr(item, "property_name", None)
+    unit_loc = getattr(item, "unit_location", None)
 
     if not tenant_name and getattr(item, "tenant_id", None):
         t_row = db.scalar(select(models.Tenant).where(models.Tenant.id == item.tenant_id))
@@ -85,41 +84,24 @@ def serialize_utility(item: Any, db: Session) -> Dict[str, Any]:
                 tenant_name = u_row.name or getattr(u_row, "full_name", None)
                 tenant_email = tenant_email or u_row.email
 
-    # Extract Property & Unit Location
-    unit_number = getattr(item, "unit_number", None) or getattr(item, "unit_no", None)
-    property_name = getattr(item, "property_name", None)
-    unit_obj = getattr(item, "unit", None)
-    if unit_obj:
-        unit_number = unit_number or getattr(unit_obj, "unit_no", None) or getattr(unit_obj, "unit_number", None)
-        prop_obj = getattr(unit_obj, "property", None)
-        if prop_obj:
-            property_name = property_name or getattr(prop_obj, "name", None) or getattr(prop_obj, "property_name", None)
-    elif getattr(item, "unit_id", None):
-        u_row = db.scalar(select(models.Unit).where(models.Unit.id == item.unit_id))
-        if u_row:
-            unit_number = unit_number or getattr(u_row, "unit_no", None) or getattr(u_row, "unit_number", None)
-            if getattr(u_row, "property_id", None):
-                p_row = db.scalar(select(models.Property).where(models.Property.id == u_row.property_id))
-                if p_row:
-                    property_name = property_name or getattr(p_row, "name", None) or getattr(p_row, "property_name", None)
-
     amount_val = float(
-        getattr(item, "amount", None) 
-        or getattr(item, "charge_amount", None) 
-        or getattr(item, "total_amount", 0) 
+        getattr(item, "amount", None)
+        or getattr(item, "charge_amount", None)
+        or getattr(item, "total_amount", 0)
         or 0
     )
     due_d = getattr(item, "due_date", None)
-    billing_period = getattr(item, "billing_period", None) or getattr(item, "period", None) or "Current Period"
-    utility_type = (
-        getattr(item, "utility_type", None) 
-        or getattr(item, "type", None) 
-        or getattr(item, "category_type", "Electricity Sub-Meter")
+    b_period = getattr(item, "billing_period", None) or getattr(item, "period", None) or "Current Period"
+    u_type = (
+        getattr(item, "utility_type", None)
+        or getattr(item, "type", None)
+        or "Electricity Sub-Meter"
     )
 
     return {
         "id": u_id,
         "utility_id": code,
+        "charge_id": code,
         "invoice_id": code,
         "ref_no": code,
         "organization_id": str(getattr(item, "organization_id", "") or ""),
@@ -131,27 +113,29 @@ def serialize_utility(item: Any, db: Session) -> Dict[str, Any]:
         "property_name": property_name or "Property",
         "unit_number": unit_number or "Unit",
         "unit_no": unit_number or "Unit",
-        "utility_type": utility_type,
-        "type": utility_type,
-        "billing_period": billing_period,
-        "period": billing_period,
+        "unit_location": unit_loc or f"{property_name or 'Property'} • {unit_number or 'Unit'}",
+        "utility_type": u_type,
+        "type": u_type,
+        "billing_period": b_period,
+        "period": b_period,
         "amount": amount_val,
         "charge_amount": amount_val,
-        "reading_prev": float(getattr(item, "reading_prev", 0) or 0) if hasattr(item, "reading_prev") else None,
-        "reading_curr": float(getattr(item, "reading_curr", 0) or 0) if hasattr(item, "reading_curr") else None,
-        "consumption": float(getattr(item, "consumption", 0) or 0) if hasattr(item, "consumption") else None,
-        "rate": float(getattr(item, "rate", 0) or 0) if hasattr(item, "rate") else None,
+        "total_amount": amount_val,
+        "reading_prev": float(getattr(item, "reading_prev", 0) or 0),
+        "reading_curr": float(getattr(item, "reading_curr", 0) or 0),
+        "consumption": float(getattr(item, "consumption", 0) or 0),
+        "rate": float(getattr(item, "rate", 0) or 0),
         "due_date": str(due_d) if due_d else None,
         "status": getattr(item, "status", "Unpaid") or "Unpaid",
-        "notes": getattr(item, "notes", None) or getattr(item, "remarks", "") or ""
+        "notes": getattr(item, "notes", None) or getattr(item, "breakdown", "") or "",
+        "breakdown": getattr(item, "breakdown", None) or getattr(item, "notes", "") or ""
     }
 
 
 def find_utility_record(db: Session, utility_id: str, org_id: uuid.UUID):
-    """Finds a utility charge across models.Utility or models.Invoice."""
+    """Finds a utility charge across models.Utility safely."""
     clean_id = utility_id.strip()
 
-    # 1. If dedicated Utility model exists
     if hasattr(models, "Utility"):
         try:
             parsed_uuid = uuid.UUID(clean_id)
@@ -182,42 +166,11 @@ def find_utility_record(db: Session, utility_id: str, org_id: uuid.UUID):
             if record:
                 return record
 
-    # 2. Fallback to Invoice model
-    if hasattr(models, "Invoice"):
-        try:
-            parsed_uuid = uuid.UUID(clean_id)
-            record = db.scalar(
-                select(models.Invoice).where(
-                    models.Invoice.id == parsed_uuid,
-                    or_(
-                        models.Invoice.organization_id == org_id,
-                        models.Invoice.organization_id.is_(None)
-                    )
-                )
-            )
-            if record:
-                return record
-        except ValueError:
-            pass
-
-        if hasattr(models.Invoice, "invoice_id"):
-            record = db.scalar(
-                select(models.Invoice).where(
-                    models.Invoice.invoice_id.ilike(clean_id),
-                    or_(
-                        models.Invoice.organization_id == org_id,
-                        models.Invoice.organization_id.is_(None)
-                    )
-                )
-            )
-            if record:
-                return record
-
     return None
 
 
 # ---------------------------------------------------------------------
-# 1. GET UTILITY CHARGES (Dual Route)
+# 1. GET UTILITY CHARGES (Dual Route: with and without trailing slash)
 # ---------------------------------------------------------------------
 @router.get("")
 @router.get("/")
@@ -229,13 +182,11 @@ def read_utilities(
     search: Optional[str] = Query(default=None),
     db: Session = Depends(get_db)
 ):
-    """Retrieve all utility charges and meter readings."""
+    """Retrieve all utility charges and meter statements."""
     org_id = parse_org_id(organization_id)
     ensure_sandbox_organization(db, org_id)
 
     records = []
-
-    # Query from Utility table if exists
     if hasattr(models, "Utility"):
         stmt = select(models.Utility).where(
             or_(
@@ -253,50 +204,29 @@ def read_utilities(
                 stmt = stmt.where(models.Utility.tenant_id == uuid.UUID(tenant_id.strip()))
             except ValueError:
                 pass
-        records.extend(list(db.scalars(stmt).all()))
 
-    # Also query utility-type invoices from Invoice table
-    if hasattr(models, "Invoice"):
-        inv_stmt = select(models.Invoice).where(
-            or_(
-                models.Invoice.organization_id == org_id,
-                models.Invoice.organization_id.is_(None)
-            ),
-            or_(
-                models.Invoice.type.ilike("%elec%"),
-                models.Invoice.type.ilike("%water%"),
-                models.Invoice.type.ilike("%util%"),
-                models.Invoice.type.ilike("%hoa%"),
-                models.Invoice.type.ilike("%meter%")
-            )
-        )
-        records.extend(list(db.scalars(inv_stmt).all()))
+        records = list(db.scalars(stmt).all())
 
     serialized = [serialize_utility(r, db) for r in records]
 
-    # Deduplicate by ID
-    unique_map = {}
-    for item in serialized:
-        unique_map[item["id"]] = item
-    results = list(unique_map.values())
-
-    # Apply Filters
     if status_filter:
         s_clean = status_filter.strip().upper()
-        results = [r for r in results if s_clean in (r.get("status") or "").upper()]
+        serialized = [r for r in serialized if s_clean in str(r.get("status", "")).upper()]
 
     if search:
         s = search.strip().lower()
-        results = [
-            r for r in results
+        serialized = [
+            r for r in serialized
             if s in str(r.get("utility_id", "")).lower()
             or s in str(r.get("tenant_name", "")).lower()
             or s in str(r.get("property_name", "")).lower()
             or s in str(r.get("unit_number", "")).lower()
-            or s in str(r.get("utility_type", "")).lower()
+            or s in str(r.get("unit_location", "")).lower()
+            or s in str(r.get("type", "")).lower()
+            or s in str(r.get("notes", "")).lower()
         ]
 
-    return results
+    return serialized
 
 
 # ---------------------------------------------------------------------
@@ -309,7 +239,7 @@ def create_utility_charge(
     organization_id: Optional[str] = Query(default=None),
     db: Session = Depends(get_db)
 ):
-    """Creates a new utility charge and saves it to the database."""
+    """Creates a new utility charge with safe foreign-key validation and dynamic attribute filtering."""
     org_id = parse_org_id(charge_in.get("organization_id") or organization_id)
     ensure_sandbox_organization(db, org_id)
 
@@ -317,35 +247,38 @@ def create_utility_charge(
     if amount_val <= 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Charge amount must be greater than zero."
+            detail="Utility charge amount must be greater than zero."
         )
 
-    # Resolve Unit & Lease & Tenant
+    # 1. Foreign-Key Safe UUID Resolution (Avoids PostgreSQL ForeignKeyViolation)
     unit_id_val = None
-    unit_id_raw = charge_in.get("unit_id")
-    if unit_id_raw:
+    if charge_in.get("unit_id"):
         try:
-            unit_id_val = uuid.UUID(str(unit_id_raw).strip())
+            parsed_u = uuid.UUID(str(charge_in["unit_id"]).strip())
+            if db.scalar(select(models.Unit).where(models.Unit.id == parsed_u)):
+                unit_id_val = parsed_u
         except ValueError:
             pass
 
     tenant_id_val = None
-    tenant_id_raw = charge_in.get("tenant_id")
-    if tenant_id_raw:
+    if charge_in.get("tenant_id"):
         try:
-            tenant_id_val = uuid.UUID(str(tenant_id_raw).strip())
+            parsed_t = uuid.UUID(str(charge_in["tenant_id"]).strip())
+            if db.scalar(select(models.Tenant).where(models.Tenant.id == parsed_t)):
+                tenant_id_val = parsed_t
         except ValueError:
             pass
 
     lease_id_val = None
-    lease_id_raw = charge_in.get("lease_id")
-    if lease_id_raw:
+    if charge_in.get("lease_id"):
         try:
-            lease_id_val = uuid.UUID(str(lease_id_raw).strip())
+            parsed_l = uuid.UUID(str(charge_in["lease_id"]).strip())
+            if db.scalar(select(models.Lease).where(models.Lease.id == parsed_l)):
+                lease_id_val = parsed_l
         except ValueError:
             pass
 
-    # Resolve Denormalized Metadata for NOT NULL constraint safety
+    # 2. Resolve Denormalized Metadata for UI and NOT NULL Constraints
     tenant_name = charge_in.get("tenant_name")
     if not tenant_name and tenant_id_val:
         t_row = db.scalar(select(models.Tenant).where(models.Tenant.id == tenant_id_val))
@@ -358,104 +291,69 @@ def create_utility_charge(
     if not tenant_name:
         tenant_name = "Resident Tenant"
 
-    prop_name = charge_in.get("property_name")
-    unit_num = charge_in.get("unit_number") or charge_in.get("unit_no")
-
-    if (not prop_name or not unit_num) and unit_id_val:
-        u_row = db.scalar(select(models.Unit).where(models.Unit.id == unit_id_val))
-        if u_row:
-            unit_num = unit_num or u_row.unit_no or u_row.unit_number or "Unit"
-            if getattr(u_row, "property_id", None):
-                p_row = db.scalar(select(models.Property).where(models.Property.id == u_row.property_id))
-                if p_row:
-                    prop_name = prop_name or p_row.name
-    
-    if not prop_name:
-        prop_name = "Property"
-    if not unit_num:
-        unit_num = "Unit"
-
+    tenant_email = charge_in.get("tenant_email") or ""
+    prop_name = charge_in.get("property_name") or "Property"
+    unit_num = charge_in.get("unit_number") or charge_in.get("unit_no") or "Unit"
+    unit_loc = charge_in.get("unit_location") or f"{prop_name} • {unit_num}"
     u_type = charge_in.get("utility_type") or charge_in.get("type") or "Electricity Sub-Meter"
     b_period = charge_in.get("billing_period") or charge_in.get("period") or datetime.now().strftime("%B %Y")
-    d_date = parse_date_value(charge_in.get("due_date") or datetime.now().date())
-    notes_val = str(charge_in.get("notes") or charge_in.get("remarks") or "")
+    notes_val = str(charge_in.get("notes") or charge_in.get("breakdown") or "")
     status_val = "Paid" if "PAID" in str(charge_in.get("status", "")).upper() else "Unpaid"
-    code = f"UTL-{datetime.now().year}-{str(uuid.uuid4())[:4].upper()}"
+    code = charge_in.get("utility_id") or charge_in.get("charge_id") or f"UTL-{datetime.now().year}-{str(uuid.uuid4())[:4].upper()}"
 
-    # Determine primary model to instantiate
-    target_model = models.Utility if hasattr(models, "Utility") else models.Invoice
-
+    # 3. Assemble Record Data
     record_data = {
         "id": uuid.uuid4(),
         "organization_id": org_id,
-        "status": status_val
+        "utility_id": code,
+        "charge_id": code,
+        "utility_type": u_type,
+        "type": u_type,
+        "billing_period": b_period,
+        "period": b_period,
+        "amount": amount_val,
+        "charge_amount": amount_val,
+        "total_amount": amount_val,
+        "status": status_val,
+        "tenant_name": tenant_name,
+        "tenant_email": tenant_email,
+        "property_name": prop_name,
+        "unit_number": unit_num,
+        "unit_no": unit_num,
+        "unit_location": unit_loc,
+        "breakdown": notes_val,
+        "notes": notes_val,
+        "due_date": parse_date_value(charge_in.get("due_date") or datetime.now().date())
     }
 
-    # Safe dynamic field assignment
-    if hasattr(target_model, "utility_id"):
-        record_data["utility_id"] = code
-    if hasattr(target_model, "invoice_id"):
-        record_data["invoice_id"] = code
-    if hasattr(target_model, "ref_no"):
-        record_data["ref_no"] = code
-
-    if hasattr(target_model, "unit_id") and unit_id_val:
+    if unit_id_val:
         record_data["unit_id"] = unit_id_val
-    if hasattr(target_model, "tenant_id") and tenant_id_val:
+    if tenant_id_val:
         record_data["tenant_id"] = tenant_id_val
-    if hasattr(target_model, "lease_id") and lease_id_val:
+    if lease_id_val:
         record_data["lease_id"] = lease_id_val
 
-    if hasattr(target_model, "tenant_name"):
-        record_data["tenant_name"] = tenant_name
-    if hasattr(target_model, "property_name"):
-        record_data["property_name"] = prop_name
-    if hasattr(target_model, "unit_number"):
-        record_data["unit_number"] = unit_num
-    if hasattr(target_model, "unit_no"):
-        record_data["unit_no"] = unit_num
-
-    if hasattr(target_model, "amount"):
-        record_data["amount"] = amount_val
-    if hasattr(target_model, "charge_amount"):
-        record_data["charge_amount"] = amount_val
-    if hasattr(target_model, "total_amount"):
-        record_data["total_amount"] = amount_val
-
-    if hasattr(target_model, "utility_type"):
-        record_data["utility_type"] = u_type
-    if hasattr(target_model, "type"):
-        record_data["type"] = u_type
-    if hasattr(target_model, "category_type"):
-        record_data["category_type"] = "Utility"
-
-    if hasattr(target_model, "billing_period"):
-        record_data["billing_period"] = b_period
-    if hasattr(target_model, "period"):
-        record_data["period"] = b_period
-    if hasattr(target_model, "due_date"):
-        record_data["due_date"] = d_date
-    if hasattr(target_model, "notes"):
-        record_data["notes"] = notes_val
-    if hasattr(target_model, "remarks"):
-        record_data["remarks"] = notes_val
-
-    # Optional meter reading fields
+    # Optional meter attributes
     for field in ["reading_prev", "reading_curr", "consumption", "rate"]:
-        if hasattr(target_model, field) and charge_in.get(field) is not None:
-            record_data[field] = float(charge_in[field])
+        if charge_in.get(field) is not None:
+            try:
+                record_data[field] = float(charge_in[field])
+            except (ValueError, TypeError):
+                pass
 
-    db_record = target_model(**record_data)
+    # 4. Filter attributes against models.Utility columns to prevent unexpected kwarg crashes
+    filtered_kwargs = {k: v for k, v in record_data.items() if hasattr(models.Utility, k)}
+    db_record = models.Utility(**filtered_kwargs)
     db.add(db_record)
 
     try:
         db.commit()
         db.refresh(db_record)
-    except IntegrityError as e:
+    except Exception as e:
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Database constraint error saving utility charge: {str(e)}"
+            detail=f"Database error saving utility: {str(e)}"
         )
 
     return serialize_utility(db_record, db)
@@ -471,7 +369,7 @@ def get_utility(
     organization_id: Optional[str] = Query(default=None),
     db: Session = Depends(get_db)
 ):
-    """Fetch single utility charge by UUID or identifier code."""
+    """Fetch a single utility record by UUID or code."""
     org_id = parse_org_id(organization_id)
     record = find_utility_record(db, utility_id, org_id)
     if not record:
@@ -495,7 +393,7 @@ def update_utility(
     organization_id: Optional[str] = Query(default=None),
     db: Session = Depends(get_db)
 ):
-    """Update utility charge status or meter reading details."""
+    """Update utility charge status or remarks."""
     org_id = parse_org_id(organization_id)
     record = find_utility_record(db, utility_id, org_id)
     if not record:
@@ -530,12 +428,36 @@ def delete_utility(
 ):
     """Permanently delete a utility charge record."""
     org_id = parse_org_id(organization_id)
-    record = find_utility_record(db, utility_id, org_id)
-    if not record:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Utility record not found."
+    clean_id = utility_id.strip()
+
+    record = None
+    try:
+        parsed_uuid = uuid.UUID(clean_id)
+        record = db.scalar(
+            select(models.Utility).where(
+                models.Utility.id == parsed_uuid,
+                or_(
+                    models.Utility.organization_id == org_id,
+                    models.Utility.organization_id.is_(None)
+                )
+            )
         )
+    except ValueError:
+        pass
+
+    if not record and hasattr(models.Utility, "utility_id"):
+        record = db.scalar(
+            select(models.Utility).where(
+                models.Utility.utility_id.ilike(clean_id),
+                or_(
+                    models.Utility.organization_id == org_id,
+                    models.Utility.organization_id.is_(None)
+                )
+            )
+        )
+
+    if not record:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Utility record not found.")
 
     try:
         db.delete(record)
