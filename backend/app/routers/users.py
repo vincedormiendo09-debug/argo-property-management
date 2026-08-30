@@ -3,13 +3,12 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select, or_
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, EmailStr, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from ..database import get_db
 from .. import models
 
-router = APIRouter()
-
+router = APIRorgID = uuid.UUID("a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11")
 DEFAULT_ORG_ID = uuid.UUID("a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11")
 
 
@@ -25,7 +24,7 @@ def ensure_sandbox_organization(db: Session, org_id: uuid.UUID):
 class UserCreate(BaseModel):
     name: Optional[str] = "Admin User"
     full_name: Optional[str] = None
-    email: EmailStr
+    email: str
     phone: Optional[str] = None
     role: Optional[str] = "admin"
     avatar: Optional[str] = "JD"
@@ -35,7 +34,7 @@ class UserCreate(BaseModel):
 class UserUpdate(BaseModel):
     name: Optional[str] = None
     full_name: Optional[str] = None
-    email: Optional[EmailStr] = None
+    email: Optional[str] = None
     phone: Optional[str] = None
     role: Optional[str] = None
     avatar: Optional[str] = None
