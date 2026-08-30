@@ -952,12 +952,16 @@
             ? 'https://argo-management-2026.onrender.com/api'
             : '/api';
 
-    const METER_READINGS_API_URL = `${API_BASE_URL}/meter-readings`;
-    const UTILITY_CHARGES_API_URL = `${API_BASE_URL}/utility-charges`;
-    const INVOICES_API_URL = `${API_BASE_URL}/invoices`;
-    const LEASES_API_URL = `${API_BASE_URL}/leases`;
-    const UNITS_API_URL = `${API_BASE_URL}/units`;
-    const NOTIFICATIONS_API_URL = `${API_BASE_URL}/notifications`;
+    const METER_READINGS_API_URL = `${API_BASE_URL}/meter-readings/`;
+    const UTILITIES_API_URL = `${API_BASE_URL}/utilities/`;
+    const INVOICES_API_URL = `${API_BASE_URL}/invoices/`;
+    const LEASES_API_URL = `${API_BASE_URL}/leases/`;
+    const UNITS_API_URL = `${API_BASE_URL}/units/`;
+    const NOTIFICATIONS_API_URL = `${API_BASE_URL}/notifications/`;
+
+    function getOrgId() {
+        return localStorage.getItem('organization_id') || localStorage.getItem('argo_org_id') || DEFAULT_ORG_ID;
+    }
 
     function getMasterRates() {
         try {
@@ -1080,10 +1084,11 @@
         if (roleBadge) roleBadge.textContent = user.role || 'Property Manager';
     }
 
-    // Direct Database Fetchers (No LocalStorage Cache Poisoning)
+    // Direct Database Fetchers
     async function getReadings() {
         try {
-            const response = await fetch(METER_READINGS_API_URL, { 
+            const orgId = getOrgId();
+            const response = await fetch(`${METER_READINGS_API_URL}?organization_id=${orgId}`, { 
                 headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
                 cache: 'no-store'
             });
@@ -1099,7 +1104,8 @@
 
     async function getLeasesList() {
         try {
-            const res = await fetch(LEASES_API_URL, { 
+            const orgId = getOrgId();
+            const res = await fetch(`${LEASES_API_URL}?organization_id=${orgId}`, { 
                 headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
                 cache: 'no-store'
             });
@@ -1115,7 +1121,8 @@
 
     async function getUnitsList() {
         try {
-            const res = await fetch(UNITS_API_URL, { 
+            const orgId = getOrgId();
+            const res = await fetch(`${UNITS_API_URL}?organization_id=${orgId}`, { 
                 headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
                 cache: 'no-store'
             });
@@ -1131,7 +1138,8 @@
 
     async function getNotifications() {
         try {
-            const res = await fetch(NOTIFICATIONS_API_URL, { 
+            const orgId = getOrgId();
+            const res = await fetch(`${NOTIFICATIONS_API_URL}?organization_id=${orgId}`, { 
                 headers: getAuthHeaders(),
                 cache: 'no-store'
             });
@@ -1155,13 +1163,15 @@
 
         if (activeLeases.length > 0) {
             activeLeases.forEach(l => {
-                const uLoc = l.property_name && l.unit_number ? `${l.property_name} • ${l.unit_number}` : (l.unit || 'Assigned Unit');
+                const propName = l.property_name || 'Property';
+                const unitNum = l.unit_number || l.unit_no || l.unit || 'Unit';
+                const uLoc = `${propName} • ${unitNum}`;
                 const tenant = l.tenant_name || l.tenantName || 'Tenant';
                 const tenantEmail = l.tenant_email || '';
                 const unitId = l.unit_id || '';
-                const unitClean = (l.unit_number || l.unit || '101').replace(/[^0-9a-zA-Z]/g, '');
+                const leaseId = l.id || l.lease_id || '';
+                const unitClean = String(unitNum).replace(/[^0-9a-zA-Z]/g, '');
 
-                // Locate latest reading baseline for Electricity and Water for this unit
                 const latestElec = readings.find(r => 
                     (String(r.unit_id) === String(unitId) || r.unit_location === uLoc) && 
                     (r.utility === 'Meralco' || (r.utility || '').toLowerCase().includes('elec'))
@@ -1179,10 +1189,10 @@
                 const waterSerial = latestWater?.serial || `MAY-${unitClean}-01`;
 
                 select.innerHTML += `
-                    <option value="${tenant}|${uLoc}|Meralco|${elecSerial}|${elecPrev}|kWh|${tenantEmail}|${unitId}">
+                    <option value="${tenant}|${uLoc}|Electricity|${elecSerial}|${elecPrev}|kWh|${tenantEmail}|${unitId}|${leaseId}|${propName}|${unitNum}">
                         ${tenant} — ${uLoc} [Electricity Sub-Meter: ${elecSerial}]
                     </option>
-                    <option value="${tenant}|${uLoc}|Maynilad|${waterSerial}|${waterPrev}|cu.m|${tenantEmail}|${unitId}">
+                    <option value="${tenant}|${uLoc}|Water|${waterSerial}|${waterPrev}|cu.m|${tenantEmail}|${unitId}|${leaseId}|${propName}|${unitNum}">
                         ${tenant} — ${uLoc} [Water Sub-Meter: ${waterSerial}]
                     </option>
                 `;
@@ -1190,6 +1200,8 @@
         } else {
             select.innerHTML += '<option value="" disabled>No active leases found in database. Please create an active lease first.</option>';
         }
+
+        select.onchange = autoFillPreviousDial;
     }
 
     async function populatePeriodFilter() {
@@ -1228,7 +1240,7 @@
             tr.dataset.utility = r.utility;
             tr.dataset.period = r.period || '';
 
-            const isElec = r.utility === 'Meralco' || (r.utility || '').toLowerCase().includes('elec') || (r.serial && r.serial.includes('MER'));
+            const isElec = r.utility === 'Electricity' || r.utility === 'Meralco' || (r.utility || '').toLowerCase().includes('elec') || (r.serial && r.serial.includes('MER'));
             const utilBadge = isElec 
                 ? `<span class="utility-badge meralco" style="background:#FEF3C7; color:#B45309; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-lightning-charge" style="margin-right:4px;"></i> Electricity</span>`
                 : `<span class="utility-badge maynilad" style="background:#DBEAFE; color:#1D4ED8; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-droplet" style="margin-right:4px;"></i> Water</span>`;
@@ -1278,9 +1290,11 @@
 
     function autoFillPreviousDial() {
         const selectVal = document.getElementById('modalMeterSelect').value;
+        const prevInput = document.getElementById('modalPrevDial');
+        const unitLabel = document.getElementById('modalUnitLabel');
         if (!selectVal) {
-            document.getElementById('modalPrevDial').value = "0.00";
-            document.getElementById('modalUnitLabel').textContent = "Measured in units";
+            if (prevInput) prevInput.value = "0.00";
+            if (unitLabel) unitLabel.textContent = "Measured in units";
             calculateConsumption();
             return;
         }
@@ -1289,23 +1303,27 @@
         const prevDial = parseFloat(val[4]) || 0;
         const symbol = val[5] || 'units';
 
-        document.getElementById('modalPrevDial').value = prevDial.toFixed(2);
-        document.getElementById('modalUnitLabel').textContent = `Measured in ${symbol}`;
+        if (prevInput) prevInput.value = prevDial.toFixed(2);
+        if (unitLabel) unitLabel.textContent = `Measured in ${symbol}`;
 
         calculateConsumption();
     }
 
     function calculateConsumption() {
-        const prev = parseFloat(document.getElementById('modalPrevDial').value) || 0;
-        const curr = parseFloat(document.getElementById('modalCurrDial').value) || 0;
+        const prevInput = document.getElementById('modalPrevDial');
+        const currInput = document.getElementById('modalCurrDial');
+        const previewEl = document.getElementById('modalNetConsumptionPreview');
+
+        const prev = parseFloat(prevInput ? prevInput.value : 0) || 0;
+        const curr = parseFloat(currInput ? currInput.value : 0) || 0;
         const selectVal = document.getElementById('modalMeterSelect').value;
         const symbol = selectVal ? selectVal.split('|')[5] || 'units' : 'units';
 
         const net = curr >= prev ? (curr - prev) : 0;
-        document.getElementById('modalNetConsumptionPreview').textContent = `${net.toFixed(2)} ${symbol}`;
+        if (previewEl) previewEl.textContent = `${net.toFixed(2)} ${symbol}`;
     }
 
-    // LIVE SAVE METER READING & AUTO-STAGE INVOICE (POST /api/meter-readings + POST /api/utility-charges + POST /api/invoices)
+    // LIVE SAVE METER READING & AUTO-STAGE UTILITY CHARGE (POST /api/meter-readings/ + POST /api/utilities/)
     async function saveReading() {
         const selectVal = document.getElementById('modalMeterSelect').value;
         if (!selectVal) {
@@ -1322,11 +1340,15 @@
         const symbol = val[5] || 'units';
         const tenantEmail = val[6] || '';
         const unitId = val[7] && val[7].length === 36 ? val[7] : null;
+        const leaseId = val[8] && val[8].length === 36 ? val[8] : null;
+        const propName = val[9] || 'Property';
+        const unitNum = val[10] || 'Unit';
 
         const currDialInput = document.getElementById('modalCurrDial').value;
         const currDial = parseFloat(currDialInput);
         const period = document.getElementById('modalPeriod').value.trim() || new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-        const orgId = localStorage.getItem('organization_id') || DEFAULT_ORG_ID;
+        const notes = document.getElementById('modalNotes') ? document.getElementById('modalNotes').value.trim() : '';
+        const orgId = getOrgId();
 
         if (currDialInput === '' || isNaN(currDial) || currDial < prevDial) {
             alert(`Please enter a valid current dial reading greater than or equal to previous baseline (${prevDial.toFixed(2)}).`);
@@ -1335,10 +1357,10 @@
 
         const netConsumption = currDial - prevDial;
         const rates = getMasterRates();
-        const ratePerUnit = utility === 'Meralco' ? rates.MERALCO_KWH : rates.MAYNILAD_CUM;
+        const ratePerUnit = (utility === 'Electricity' || utility === 'Meralco') ? rates.MERALCO_KWH : rates.MAYNILAD_CUM;
         const computedCharge = netConsumption * ratePerUnit;
 
-        const newChargeCode = utility === 'Meralco' 
+        const newChargeCode = (utility === 'Electricity' || utility === 'Meralco')
             ? `UTL-ELE-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}` 
             : `UTL-WTR-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
@@ -1354,12 +1376,13 @@
             consumption: netConsumption,
             unit_symbol: symbol,
             period: period,
-            status: 'Billed'
+            status: 'Billed',
+            notes: notes
         };
 
-        // 1. Save Reading in Neon Database
+        // 1. Save Meter Reading to Database
         try {
-            const res = await fetch(METER_READINGS_API_URL, {
+            const res = await fetch(`${METER_READINGS_API_URL}?organization_id=${orgId}`, {
                 method: 'POST',
                 headers: getAuthHeaders(),
                 body: JSON.stringify(readingPayload)
@@ -1376,30 +1399,46 @@
             return;
         }
 
-        // 2. Synchronize Utility Charges Table in Neon DB
+        // 2. Synchronize Utility Ledger Entry
         try {
-            await fetch(UTILITY_CHARGES_API_URL, {
+            await fetch(`${UTILITIES_API_URL}?organization_id=${orgId}`, {
                 method: 'POST',
                 headers: getAuthHeaders(),
                 body: JSON.stringify({
                     organization_id: orgId,
+                    utility_id: newChargeCode,
                     charge_id: newChargeCode,
+                    unit_id: unitId,
+                    lease_id: leaseId,
                     tenant_name: tenantName,
                     tenant_email: tenantEmail,
+                    property_name: propName,
+                    unit_number: unitNum,
                     unit_location: unitLocation,
-                    type: utility === 'Meralco' ? 'Electricity' : 'Water',
-                    breakdown: `${utility === 'Meralco' ? 'Electricity' : 'Water'} Sub-Meter ${netConsumption.toFixed(2)} ${symbol} @ ₱${ratePerUnit.toFixed(2)}/${symbol}`,
+                    utility_type: utility === 'Electricity' || utility === 'Meralco' ? 'Electricity Sub-Meter' : 'Water Sub-Meter',
+                    type: utility === 'Electricity' || utility === 'Meralco' ? 'Electricity Sub-Meter' : 'Water Sub-Meter',
+                    notes: `${utility} Sub-Meter: ${netConsumption.toFixed(2)} ${symbol} @ ₱${ratePerUnit.toFixed(2)}/${symbol}`,
+                    breakdown: `${utility} Sub-Meter: ${netConsumption.toFixed(2)} ${symbol} @ ₱${ratePerUnit.toFixed(2)}/${symbol}`,
+                    billing_period: period,
                     period: period,
                     due_date: new Date().toISOString().split('T')[0],
                     amount: computedCharge,
-                    status: 'UNPAID'
+                    charge_amount: computedCharge,
+                    total_amount: computedCharge,
+                    reading_prev: prevDial,
+                    reading_curr: currDial,
+                    consumption: netConsumption,
+                    rate: ratePerUnit,
+                    status: 'Unpaid'
                 })
             });
-        } catch (e) {}
+        } catch (e) {
+            console.warn("Auto-sync utility charge error:", e);
+        }
 
-        // 3. Dispatch Notification to Tenant Self-Service
+        // 3. Dispatch Notification to Tenant
         try {
-            await fetch(NOTIFICATIONS_API_URL, {
+            await fetch(`${NOTIFICATIONS_API_URL}?organization_id=${orgId}`, {
                 method: 'POST',
                 headers: getAuthHeaders(),
                 body: JSON.stringify({
@@ -1408,7 +1447,7 @@
                     category: 'payment',
                     status: 'Active',
                     is_read: false,
-                    title: `New ${utility === 'Meralco' ? 'Electricity' : 'Water'} Utility Bill Generated`,
+                    title: `New ${utility} Meter Reading Logged`,
                     description: `Sub-meter reading logged for ${unitLocation}. Billed consumption: ${netConsumption.toFixed(2)} ${symbol} (${formatPeso(computedCharge)}).`,
                     property: unitLocation,
                     urgent: false
@@ -1416,11 +1455,11 @@
             });
         } catch (e) {}
 
-        alert(`Sub-meter reading recorded! Billed charge of ${formatPeso(computedCharge)} (${newChargeCode}) dispatched for ${tenantName}.`);
+        alert(`Sub-meter reading recorded! Billed charge of ${formatPeso(computedCharge)} (${newChargeCode}) staged into Utilities.`);
         closeModal();
 
         document.getElementById('modalCurrDial').value = '';
-        document.getElementById('modalNotes').value = '';
+        if (document.getElementById('modalNotes')) document.getElementById('modalNotes').value = '';
 
         await renderReadingsTable();
         await populatePeriodFilter();
@@ -1433,8 +1472,9 @@
         const name = displayCode || dbId;
         if (!confirm(`Are you sure you want to delete meter reading "${name}" from the database?`)) return;
         
+        const orgId = getOrgId();
         try {
-            const res = await fetch(`${METER_READINGS_API_URL}/${encodeURIComponent(dbId)}`, {
+            const res = await fetch(`${METER_READINGS_API_URL}${encodeURIComponent(dbId)}?organization_id=${orgId}`, {
                 method: 'DELETE',
                 headers: getAuthHeaders()
             });
@@ -1468,7 +1508,8 @@
         const unitSym = r.unit_symbol || 'units';
 
         const rates = getMasterRates();
-        const ratePerUnit = r.utility === 'Meralco' ? rates.MERALCO_KWH : rates.MAYNILAD_CUM;
+        const isElec = r.utility === 'Electricity' || r.utility === 'Meralco' || (r.utility || '').toLowerCase().includes('elec');
+        const ratePerUnit = isElec ? rates.MERALCO_KWH : rates.MAYNILAD_CUM;
         const totalBilled = netConsVal * ratePerUnit;
 
         alert(
@@ -1491,8 +1532,8 @@
     async function updateKPIs() {
         const readings = await getReadings();
         const activeMeters = readings.length;
-        const powerReadings = readings.filter(r => r.utility === 'Meralco' || (r.utility || '').toLowerCase().includes('elec') || (r.serial && r.serial.includes('MER')));
-        const waterReadings = readings.filter(r => r.utility === 'Maynilad' || (r.utility || '').toLowerCase().includes('water') || (r.serial && r.serial.includes('MAY')));
+        const powerReadings = readings.filter(r => r.utility === 'Electricity' || r.utility === 'Meralco' || (r.utility || '').toLowerCase().includes('elec') || (r.serial && r.serial.includes('MER')));
+        const waterReadings = readings.filter(r => r.utility === 'Water' || r.utility === 'Maynilad' || (r.utility || '').toLowerCase().includes('water') || (r.serial && r.serial.includes('MAY')));
 
         const avgPower = powerReadings.length > 0 
             ? Math.round(powerReadings.reduce((sum, r) => sum + parseFloat(r.consumption || 0), 0) / powerReadings.length) 
@@ -1534,6 +1575,10 @@
         }
         
         populateModalDropdowns();
+        const currDialInput = document.getElementById('modalCurrDial');
+        if (currDialInput) {
+            currDialInput.oninput = calculateConsumption;
+        }
         document.getElementById("readingModal").classList.add("show"); 
     }
 
@@ -1547,9 +1592,13 @@
     };
 
     function filterTable() {
-        const searchValue = document.getElementById("searchInput").value.toLowerCase();
-        const utilityValue = document.getElementById("utilityFilter").value;
-        const periodValue = document.getElementById("periodFilter").value;
+        const searchInput = document.getElementById("searchInput");
+        const utilityFilter = document.getElementById("utilityFilter");
+        const periodFilter = document.getElementById("periodFilter");
+
+        const searchValue = searchInput ? searchInput.value.toLowerCase().trim() : "";
+        const utilityValue = utilityFilter ? utilityFilter.value : "";
+        const periodValue = periodFilter ? periodFilter.value : "";
 
         const rows = document.querySelectorAll("#readingTable tr");
         let visibleCount = 0;
@@ -1563,8 +1612,8 @@
             const rowUtility = row.dataset.utility || "";
             const rowPeriod = row.dataset.period || "";
 
-            const matchesSearch = text.includes(searchValue);
-            const matchesUtility = utilityValue === "" || rowUtility === utilityValue;
+            const matchesSearch = searchValue === "" || text.includes(searchValue);
+            const matchesUtility = utilityValue === "" || rowUtility.toLowerCase().includes(utilityValue.toLowerCase());
             const matchesPeriod = periodValue === "" || rowPeriod === periodValue;
 
             if (matchesSearch && matchesUtility && matchesPeriod) {
@@ -1582,9 +1631,13 @@
     }
 
     function resetFilters() {
-        document.getElementById("searchInput").value = "";
-        document.getElementById("utilityFilter").value = "";
-        document.getElementById("periodFilter").value = "";
+        const searchInput = document.getElementById("searchInput");
+        const utilityFilter = document.getElementById("utilityFilter");
+        const periodFilter = document.getElementById("periodFilter");
+
+        if (searchInput) searchInput.value = "";
+        if (utilityFilter) utilityFilter.value = "";
+        if (periodFilter) periodFilter.value = "";
         filterTable();
     }
 
