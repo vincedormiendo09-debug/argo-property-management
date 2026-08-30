@@ -90,14 +90,16 @@ def find_owner_by_identifier(db: Session, owner_id: str, organization_id: uuid.U
         return owner
 
     # 4. Fallback: Search User table directly and build dynamic Owner
-    user = db.scalar(
-        select(models.User).where(
-            or_(
-                models.User.email.ilike(clean_id),
-                models.User.id == (uuid.UUID(clean_id) if len(clean_id) == 36 else None)
-            )
-        )
-    )
+    user = None
+    try:
+        user_uuid = uuid.UUID(clean_id)
+        user = db.scalar(select(models.User).where(models.User.id == user_uuid))
+    except ValueError:
+        pass
+
+    if not user:
+        user = db.scalar(select(models.User).where(models.User.email.ilike(clean_id)))
+
     if user:
         name_parts = (user.name or user.full_name or "Registered Owner").strip().split(maxsplit=1)
         first_name = name_parts[0]
@@ -132,6 +134,7 @@ def find_owner_by_identifier(db: Session, owner_id: str, organization_id: uuid.U
 # FRACTIONAL EQUITY OWNERSHIP ENDPOINTS
 # ---------------------------------------------------------------------
 @router.get("/shares/all", response_model=List[schemas.PropertyOwnershipSchema])
+@router.get("/shares/all/", response_model=List[schemas.PropertyOwnershipSchema])
 def read_property_ownerships(
     organization_id: Optional[str] = Query(default=None),
     property_id: Optional[str] = Query(default=None),
@@ -163,6 +166,7 @@ def read_property_ownerships(
 
 
 @router.post("/shares/assign", response_model=schemas.PropertyOwnershipSchema, status_code=status.HTTP_201_CREATED)
+@router.post("/shares/assign/", response_model=schemas.PropertyOwnershipSchema, status_code=status.HTTP_201_CREATED)
 def assign_property_ownership(
     share_in: schemas.PropertyOwnershipCreate,
     db: Session = Depends(get_db)
@@ -185,6 +189,7 @@ def assign_property_ownership(
 # ---------------------------------------------------------------------
 # OWNERS ENDPOINTS (DIRECT DATABASE + LIVE USER MERGING)
 # ---------------------------------------------------------------------
+@router.get("")
 @router.get("/")
 def read_owners(
     organization_id: Optional[str] = Query(default=None),
@@ -194,7 +199,7 @@ def read_owners(
 ):
     """
     Returns explicit Owner records merged with registered Users.
-    Uses string-tolerant query parsing and clean dictionary serialization.
+    Dual-routed to handle both with and without trailing slash (/api/owners and /api/owners/).
     """
     org_id = parse_org_id(organization_id)
     ensure_sandbox_organization(db, org_id)
@@ -240,7 +245,7 @@ def read_owners(
     except Exception as e:
         logger.warning(f"Notice querying owners table: {e}")
 
-    # 2. Fetch all registered users with owner/investor/landlord roles (Elena Villanueva & Don Ramon Santos)
+    # 2. Fetch all registered users with owner/investor/landlord roles (e.g. Elena Villanueva & Don Ramon Santos)
     try:
         owner_users = list(db.scalars(
             select(models.User).where(
@@ -297,6 +302,7 @@ def read_owners(
     return results
 
 
+@router.post("", response_model=schemas.OwnerSchema, status_code=status.HTTP_201_CREATED)
 @router.post("/", response_model=schemas.OwnerSchema, status_code=status.HTTP_201_CREATED)
 def create_owner(owner_in: schemas.OwnerCreate, db: Session = Depends(get_db)):
     org_id = getattr(owner_in, "organization_id", DEFAULT_ORG_ID) or DEFAULT_ORG_ID
@@ -343,6 +349,7 @@ def create_owner(owner_in: schemas.OwnerCreate, db: Session = Depends(get_db)):
 
 
 @router.get("/{owner_id}")
+@router.get("/{owner_id}/")
 def get_owner(
     owner_id: str,
     organization_id: Optional[str] = Query(default=None),
@@ -372,7 +379,9 @@ def get_owner(
 
 
 @router.put("/{owner_id}", response_model=schemas.OwnerSchema)
+@router.put("/{owner_id}/", response_model=schemas.OwnerSchema)
 @router.patch("/{owner_id}", response_model=schemas.OwnerSchema)
+@router.patch("/{owner_id}/", response_model=schemas.OwnerSchema)
 def update_owner(
     owner_id: str,
     owner_update: schemas.OwnerUpdate,
@@ -416,6 +425,7 @@ def update_owner(
 
 
 @router.delete("/{owner_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{owner_id}/", status_code=status.HTTP_204_NO_CONTENT)
 def delete_owner(
     owner_id: str,
     organization_id: Optional[str] = Query(default=None),
