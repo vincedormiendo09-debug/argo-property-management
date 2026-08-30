@@ -27,6 +27,11 @@ from .routers import (
 
 # Optional / Supplementary Routers
 try:
+    from .routers import utilities
+except ImportError:
+    utilities = None
+
+try:
     from .routers import buildings
 except ImportError:
     buildings = None
@@ -143,6 +148,11 @@ app.include_router(tenants.router, prefix="/api/tenants", tags=["Tenants"])
 app.include_router(leases.router, prefix="/api/leases", tags=["Leases"])
 app.include_router(invoices.router, prefix="/api/invoices", tags=["Invoices & Rent Collection"])
 app.include_router(maintenance.router, prefix="/api/maintenance", tags=["Maintenance Work Orders"])
+
+# Utilities (Mounted to both /api/utilities and /api/utility-charges for full backward compatibility)
+if utilities and hasattr(utilities, "router"):
+    app.include_router(utilities.router, prefix="/api/utilities", tags=["Utilities & Sub-Meters"])
+    app.include_router(utilities.router, prefix="/api/utility-charges", tags=["Utility Charges"])
 
 if buildings and hasattr(buildings, "router"):
     app.include_router(buildings.router, prefix="/api/buildings", tags=["Buildings"])
