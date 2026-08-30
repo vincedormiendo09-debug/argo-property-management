@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -19,13 +19,13 @@ DEFAULT_ORG_ID = uuid.UUID("a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11")
 # REQUEST & RESPONSE SCHEMAS
 # =====================================================================
 class LoginRequest(BaseModel):
-    email: EmailStr
+    email: str
     password: Optional[str] = None
     username: Optional[str] = None  # OAuth2 form support
 
 
 class RegisterRequest(BaseModel):
-    email: EmailStr
+    email: str
     password: str
     name: str
     full_name: Optional[str] = None
@@ -54,6 +54,7 @@ class LoginResponse(BaseModel):
 # AUTHENTICATION ENDPOINTS
 # =====================================================================
 @router.post("/login", response_model=LoginResponse)
+@router.post("/login/", response_model=LoginResponse)
 def login(credentials: LoginRequest, db: Session = Depends(get_db)):
     """
     Verifies user against the PostgreSQL users table and returns session payload
@@ -125,6 +126,7 @@ def login(credentials: LoginRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/register", response_model=LoginResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/register/", response_model=LoginResponse, status_code=status.HTTP_201_CREATED)
 def register(payload: RegisterRequest, db: Session = Depends(get_db)):
     """
     Handles new user self-registration from index.html and provisions them in PostgreSQL.
@@ -186,6 +188,7 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
 
 
 @router.get("/me", response_model=UserProfile)
+@router.get("/me/", response_model=UserProfile)
 def get_current_user_profile(
     email: Optional[str] = None,
     db: Session = Depends(get_db)
