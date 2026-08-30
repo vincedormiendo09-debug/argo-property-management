@@ -9,18 +9,22 @@ from sqlalchemy.orm import Session
 
 from .database import engine, Base, get_db
 from . import models
-from .routers import units, properties, tenants, leases, invoices, maintenance
+from .routers import (
+    units, 
+    properties, 
+    tenants, 
+    leases, 
+    invoices, 
+    maintenance, 
+    auth, 
+    users
+)
 
 # Dynamic imports for optional/supplementary modules
 try:
     from .routers import buildings
 except ImportError:
     buildings = None
-
-try:
-    from .routers import auth
-except ImportError:
-    auth = None
 
 try:
     from .routers import owners
@@ -51,11 +55,6 @@ try:
     from .routers import documents
 except ImportError:
     documents = None
-
-try:
-    from .routers import users
-except ImportError:
-    users = None
 
 
 @asynccontextmanager
@@ -124,8 +123,10 @@ app.add_middleware(
 )
 
 # ==========================================
-# 1. MOUNT CORE API ROUTERS
+# 1. MOUNT CORE & AUTH API ROUTERS
 # ==========================================
+app.include_router(auth.router, prefix="/api/auth", tags=["Authentication & Access"])
+app.include_router(users.router, prefix="/api/users", tags=["Users & Profiles"])
 app.include_router(properties.router, prefix="/api/properties", tags=["Properties"])
 app.include_router(units.router, prefix="/api/units", tags=["Units"])
 app.include_router(tenants.router, prefix="/api/tenants", tags=["Tenants"])
@@ -136,9 +137,6 @@ app.include_router(maintenance.router, prefix="/api/maintenance", tags=["Mainten
 # Mount supplementary routers if present
 if buildings and hasattr(buildings, "router"):
     app.include_router(buildings.router, prefix="/api/buildings", tags=["Buildings"])
-
-if auth and hasattr(auth, "router"):
-    app.include_router(auth.router, prefix="/api/auth", tags=["Authentication & Access"])
 
 if owners and hasattr(owners, "router"):
     app.include_router(owners.router, prefix="/api/owners", tags=["Property Owners"])
@@ -158,10 +156,10 @@ if inspections and hasattr(inspections, "router"):
 if documents and hasattr(documents, "router"):
     app.include_router(documents.router, prefix="/api/documents", tags=["Document Vault"])
 
-if users and hasattr(users, "router"):
-    app.include_router(users.router, prefix="/api/users", tags=["Users & Profiles"])
 
-
+# ==========================================
+# 2. SYSTEM HEALTH & DIAGNOSTIC ENDPOINTS
+# ==========================================
 @app.get("/api/health", tags=["System Health"])
 @app.get("/health", tags=["System Health"])
 def health_check(db: Session = Depends(get_db)):
