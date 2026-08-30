@@ -1,7 +1,7 @@
 import uuid
 from datetime import date, datetime
 from typing import List, Optional, Any, Dict
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status, Body
 from sqlalchemy import select, or_
 from sqlalchemy.orm import Session
 
@@ -104,11 +104,11 @@ def read_inspections(
     return inspections
 
 
-# 2. POST /api/inspections/ - Record a new inspection (Dual route prevents 405)
+# 2. POST /api/inspections/ - Record a new inspection
 @router.post("", response_model=schemas.InspectionSchema, status_code=status.HTTP_201_CREATED)
 @router.post("/", response_model=schemas.InspectionSchema, status_code=status.HTTP_201_CREATED)
 def create_inspection(
-    inspection_in: Any,
+    inspection_in: Any = Body(...),
     organization_id: Optional[str] = Query(default=None),
     db: Session = Depends(get_db)
 ):
@@ -184,7 +184,7 @@ def get_inspection(
 @router.patch("/{inspection_id}/", response_model=schemas.InspectionSchema)
 def update_inspection(
     inspection_id: str,
-    insp_update: Any,
+    insp_update: Any = Body(...),
     organization_id: Optional[str] = Query(default=None),
     db: Session = Depends(get_db)
 ):
