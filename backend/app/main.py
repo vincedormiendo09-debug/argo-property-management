@@ -162,9 +162,6 @@ if users and hasattr(users, "router"):
     app.include_router(users.router, prefix="/api/users", tags=["Users & Profiles"])
 
 
-# ==========================================
-# 2. SYSTEM HEALTH & DIAGNOSTIC ENDPOINTS
-# ==========================================
 @app.get("/api/health", tags=["System Health"])
 @app.get("/health", tags=["System Health"])
 def health_check(db: Session = Depends(get_db)):

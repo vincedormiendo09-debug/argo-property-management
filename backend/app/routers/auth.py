@@ -14,9 +14,6 @@ router = APIRouter()
 # Default Organization UUID matching seed.py and schema.sql
 DEFAULT_ORG_ID = uuid.UUID("a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11")
 
-# Default password hash for fallback users (password123)
-DEFAULT_PASSWORD_HASH = "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQmG6W5650nxcebGW2y26"
-
 
 # =====================================================================
 # REQUEST & RESPONSE SCHEMAS
@@ -88,7 +85,6 @@ def login(credentials: LoginRequest, db: Session = Depends(get_db)):
                 name=name,
                 full_name=name,
                 email=search_email,
-                password_hash=DEFAULT_PASSWORD_HASH,
                 role=role,
                 avatar=avatar,
                 is_active=True
@@ -152,7 +148,6 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
     elif normalized_role not in ["admin", "owner", "client"]:
         normalized_role = "client"
 
-    # Fixed Python string slicing instead of JS substring
     initials = "".join([n[0] for n in payload.name.split() if n])[:2].upper() if payload.name else "US"
 
     # 3. Create new user record
@@ -163,7 +158,6 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
         full_name=payload.full_name or payload.name,
         email=clean_email,
         phone=payload.phone,
-        password_hash=DEFAULT_PASSWORD_HASH,
         role=normalized_role,
         avatar=initials or "U",
         is_active=True
