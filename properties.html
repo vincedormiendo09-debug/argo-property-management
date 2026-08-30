@@ -936,6 +936,10 @@
 
     let registeredOwnersCache = [];
 
+    function getOrgId() {
+        return localStorage.getItem('organization_id') || localStorage.getItem('argo_org_id') || DEFAULT_ORG_ID;
+    }
+
     function getAuthHeaders() {
         const token = localStorage.getItem('token') || localStorage.getItem('argo_token');
         return {
@@ -1031,7 +1035,8 @@
 
     async function updateHeaderBadge() {
         try {
-            const res = await fetch(NOTIFICATIONS_API_URL, { 
+            const orgId = getOrgId();
+            const res = await fetch(`${NOTIFICATIONS_API_URL}?organization_id=${orgId}`, { 
                 headers: getAuthHeaders(),
                 cache: 'no-store'
             });
@@ -1046,10 +1051,11 @@
         } catch (e) {}
     }
 
-    // Direct Live API Fetchers (No LocalStorage Cache Poisoning)
+    // Direct Live API Fetchers
     async function getProperties() {
         try {
-            const response = await fetch(PROPERTIES_API_URL, { 
+            const orgId = getOrgId();
+            const response = await fetch(`${PROPERTIES_API_URL}?organization_id=${orgId}`, { 
                 headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
                 cache: 'no-store'
             });
@@ -1065,7 +1071,8 @@
 
     async function getBuildings() {
         try {
-            const response = await fetch(BUILDINGS_API_URL, { 
+            const orgId = getOrgId();
+            const response = await fetch(`${BUILDINGS_API_URL}?organization_id=${orgId}`, { 
                 headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
                 cache: 'no-store'
             });
@@ -1081,7 +1088,8 @@
 
     async function getUnits() {
         try {
-            const response = await fetch(UNITS_API_URL, { 
+            const orgId = getOrgId();
+            const response = await fetch(`${UNITS_API_URL}?organization_id=${orgId}`, { 
                 headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
                 cache: 'no-store'
             });
@@ -1097,7 +1105,8 @@
 
     async function getOwners() {
         try {
-            const response = await fetch(OWNERS_API_URL, { 
+            const orgId = getOrgId();
+            const response = await fetch(`${OWNERS_API_URL}?organization_id=${orgId}`, { 
                 headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
                 cache: 'no-store'
             });
@@ -1113,7 +1122,8 @@
 
     async function getRegisteredUsers() {
         try {
-            const res = await fetch(USERS_API_URL, { 
+            const orgId = getOrgId();
+            const res = await fetch(`${USERS_API_URL}?organization_id=${orgId}&role=owner`, { 
                 headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
                 cache: 'no-store'
             });
@@ -1129,7 +1139,8 @@
 
     async function getLeases() {
         try {
-            const res = await fetch(LEASES_API_URL, { 
+            const orgId = getOrgId();
+            const res = await fetch(`${LEASES_API_URL}?organization_id=${orgId}`, { 
                 headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
                 cache: 'no-store'
             });
@@ -1145,7 +1156,8 @@
 
     async function getOwnership() {
         try {
-            const res = await fetch(OWNERSHIP_API_URL, { 
+            const orgId = getOrgId();
+            const res = await fetch(`${OWNERSHIP_API_URL}?organization_id=${orgId}`, { 
                 headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
                 cache: 'no-store'
             });
@@ -1159,7 +1171,7 @@
         return [];
     }
 
-    // Populate Searchable Owner Combobox Dynamically from Live DB
+    // Populate Searchable Owner Combobox & Dropdowns Dynamically from Live DB
     async function populateOwnersDatalist() {
         const users = await getRegisteredUsers();
         const owners = await getOwners();
@@ -1172,9 +1184,10 @@
         // 1. Registered users with owner role
         users.forEach(u => {
             const role = (u.role || '').toLowerCase();
-            if (role === 'owner' || role === 'property_owner' || role === 'investor') {
+            if (role.includes('owner') || role.includes('investor')) {
                 const name = u.name || u.full_name || 'Owner User';
-                ownerMap.set(String(u.id || u.email), {
+                const key = String(u.email || u.id).toLowerCase();
+                ownerMap.set(key, {
                     id: u.id,
                     name: name,
                     email: u.email || '',
@@ -1186,12 +1199,15 @@
         // 2. Verified Property Owner profiles
         owners.forEach(o => {
             const name = o.name || 'Property Owner';
-            ownerMap.set(String(o.id || o.own_id), {
-                id: o.id || o.own_id,
-                name: name,
-                email: o.email || '',
-                type: o.type || 'Individual'
-            });
+            const key = String(o.email || o.id || o.own_id).toLowerCase();
+            if (!ownerMap.has(key)) {
+                ownerMap.set(key, {
+                    id: o.id || o.own_id,
+                    name: name,
+                    email: o.email || '',
+                    type: o.type || 'Individual'
+                });
+            }
         });
 
         registeredOwnersCache = Array.from(ownerMap.values());
@@ -1208,19 +1224,23 @@
 
     function handleOwnerSelect(selectedValue) {
         if (!selectedValue) {
-            document.getElementById('modalSelectedOwnerId').value = '';
+            const hiddenId = document.getElementById('modalSelectedOwnerId');
+            if (hiddenId) hiddenId.value = '';
             return;
         }
 
+        const cleanVal = selectedValue.toLowerCase().trim();
         const matched = registeredOwnersCache.find(o => {
-            const fullText = `${o.name} (${o.email || o.id})`;
-            return fullText.toLowerCase() === selectedValue.toLowerCase() || 
-                   o.name.toLowerCase() === selectedValue.toLowerCase() ||
-                   (o.email && o.email.toLowerCase() === selectedValue.toLowerCase());
+            const fullText = `${o.name} (${o.email || o.id})`.toLowerCase();
+            return fullText === cleanVal || 
+                   o.name.toLowerCase() === cleanVal ||
+                   (o.email && o.email.toLowerCase() === cleanVal) ||
+                   String(o.id).toLowerCase() === cleanVal;
         });
 
-        if (matched) {
-            document.getElementById('modalSelectedOwnerId').value = matched.id;
+        const hiddenId = document.getElementById('modalSelectedOwnerId');
+        if (hiddenId && matched) {
+            hiddenId.value = matched.id;
         }
     }
 
@@ -1243,8 +1263,8 @@
         const ownOwnerSelect = document.getElementById('modalOwnOwner');
         if (ownOwnerSelect) {
             ownOwnerSelect.innerHTML = '<option value="">Select Owner...</option>';
-            owners.forEach(o => {
-                const oId = o.id || o.own_id;
+            registeredOwnersCache.forEach(o => {
+                const oId = o.id;
                 const oName = o.name || 'Owner';
                 const oType = (o.type || 'Individual').toUpperCase();
                 ownOwnerSelect.innerHTML += `<option value="${oId}">${oName} (${oType})</option>`;
@@ -1280,7 +1300,7 @@
             tr.dataset.type = p.type || 'Residential Multi-Family';
             tr.dataset.status = (p.status || 'Active').toUpperCase();
 
-            // 1. Live Linked Buildings
+            // 1. Linked Buildings
             const matchedBuildings = buildings.filter(b => {
                 const bPropId = String(b.property_id || '');
                 const bPropName = (b.property ? (b.property.name || b.property) : '') || b.property_name || '';
@@ -1288,7 +1308,7 @@
             });
             const bldgCount = matchedBuildings.length;
 
-            // 2. Live Linked Units & Leased Metrics
+            // 2. Linked Units & Leased Metrics
             const matchedUnits = units.filter(u => {
                 const uPropId = String(u.property_id || '');
                 const uPropName = (u.property ? (u.property.name || u.property.property_name) : '') || u.property_name || u.property || '';
@@ -1314,7 +1334,7 @@
                 occupiedCount = matchedLeases.length;
             }
 
-            // 3. Live Matched Ownership Shares
+            // 3. Matched Ownership Shares
             const matchedOwnership = ownershipList.filter(shr => {
                 const shrProp = shr.property || shr.propertyName || shr.property_name || '';
                 return shrProp.toLowerCase() === propName.toLowerCase() || String(shr.property_id || '') === propIdStr;
@@ -1364,14 +1384,24 @@
         const type = document.getElementById('modalPropType').value;
         const location = document.getElementById('modalPropLoc').value.trim();
         const ownerSearchText = document.getElementById('ownerSearchCombobox').value.trim();
-        const selectedOwnerId = document.getElementById('modalSelectedOwnerId').value.trim();
+        let selectedOwnerId = document.getElementById('modalSelectedOwnerId').value.trim();
         const initialShare = parseFloat(document.getElementById('modalInitialShare').value) || 100.00;
         const ownerRole = document.getElementById('modalOwnerRole').value;
-        const orgId = localStorage.getItem('organization_id') || DEFAULT_ORG_ID;
+        const orgId = getOrgId();
 
         if (!name || !location) {
             alert("Please fill in both the Property Name and Legal Address.");
             return;
+        }
+
+        // Resolve owner ID if user typed in the combobox directly
+        if (!selectedOwnerId && ownerSearchText) {
+            const matched = registeredOwnersCache.find(o => 
+                `${o.name} (${o.email || o.id})`.toLowerCase() === ownerSearchText.toLowerCase() ||
+                o.name.toLowerCase() === ownerSearchText.toLowerCase() ||
+                (o.email && o.email.toLowerCase() === ownerSearchText.toLowerCase())
+            );
+            if (matched) selectedOwnerId = matched.id;
         }
 
         const payload = {
@@ -1385,6 +1415,10 @@
             units_count: 0,
             status: "Active"
         };
+
+        if (selectedOwnerId) {
+            payload.owner_id = selectedOwnerId;
+        }
 
         let createdProperty = null;
 
@@ -1410,32 +1444,22 @@
 
         const newPropId = createdProperty?.id || code;
 
-        // If an owner was assigned during creation, link them directly via POST /api/property-ownership
-        if ((ownerSearchText || selectedOwnerId) && newPropId) {
-            const matchedOwner = registeredOwnersCache.find(o => 
-                (selectedOwnerId && String(o.id) === String(selectedOwnerId)) ||
-                `${o.name} (${o.email || o.id})`.toLowerCase() === ownerSearchText.toLowerCase() ||
-                o.name.toLowerCase() === ownerSearchText.toLowerCase()
-            );
-
-            const resolvedOwnerId = matchedOwner ? matchedOwner.id : selectedOwnerId;
-
-            if (resolvedOwnerId) {
-                try {
-                    await fetch(OWNERSHIP_API_URL, {
-                        method: 'POST',
-                        headers: getAuthHeaders(),
-                        body: JSON.stringify({
-                            organization_id: orgId,
-                            property_id: newPropId,
-                            owner_id: resolvedOwnerId,
-                            share_percent: initialShare,
-                            role: ownerRole
-                        })
-                    });
-                } catch (err) {
-                    console.warn("Ownership link warning:", err);
-                }
+        // Auto-assign fractional equity ownership
+        if (selectedOwnerId && newPropId) {
+            try {
+                await fetch(OWNERSHIP_API_URL, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({
+                        organization_id: orgId,
+                        property_id: newPropId,
+                        owner_id: selectedOwnerId,
+                        share_percent: initialShare,
+                        role: ownerRole
+                    })
+                });
+            } catch (err) {
+                console.warn("Ownership link notice:", err);
             }
         }
 
@@ -1524,7 +1548,7 @@
         const ownerId = document.getElementById('modalOwnOwner').value;
         const share = parseFloat(document.getElementById('modalOwnShare').value);
         const role = document.getElementById('modalOwnRole').value;
-        const orgId = localStorage.getItem('organization_id') || DEFAULT_ORG_ID;
+        const orgId = getOrgId();
 
         if (!propertyId || !ownerId) {
             alert("Please select both a property and an owner.");

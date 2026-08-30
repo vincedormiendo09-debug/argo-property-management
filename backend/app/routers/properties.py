@@ -1,4 +1,5 @@
 import uuid
+import logging
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select, or_
@@ -8,13 +9,14 @@ from ..database import get_db
 from .. import models, schemas
 
 router = APIRouter()
+logger = logging.getLogger("uvicorn.error")
 
 # Default Organization UUID matching schema.sql and seed.py
 DEFAULT_ORG_ID = uuid.UUID("a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11")
 
 
 def ensure_sandbox_organization(db: Session, org_id: uuid.UUID):
-    """Ensures a stub Organization exists in local DB to satisfy FK constraints."""
+    """Ensures a stub Organization exists in database to satisfy FK constraints."""
     org = db.scalar(select(models.Organization).where(models.Organization.id == org_id))
     if not org:
         sandbox_org = models.Organization(id=org_id, name="ARGO Property Management Corp.")
@@ -22,10 +24,11 @@ def ensure_sandbox_organization(db: Session, org_id: uuid.UUID):
         db.commit()
 
 
-# 1. GET /api/properties/ - Read properties scoped by organization_id with filter and search
+# 1. GET /api/properties/ - Read real properties with owner, type, status, and search filters
 @router.get("/", response_model=List[schemas.PropertySchema])
 def read_properties(
     organization_id: uuid.UUID = Query(default=DEFAULT_ORG_ID),
+    owner_id: Optional[uuid.UUID] = Query(default=None),
     type_filter: Optional[str] = Query(default=None, alias="type"),
     status_filter: Optional[str] = Query(default=None, alias="status"),
     search: Optional[str] = Query(default=None),
@@ -33,59 +36,36 @@ def read_properties(
 ):
     ensure_sandbox_organization(db, organization_id)
 
-    # Query properties strictly scoped to the tenant organization
     stmt = select(models.Property).where(models.Property.organization_id == organization_id)
 
+    # Filter by specific Owner (used by Owner portal views)
+    if owner_id and hasattr(models.Property, "owner_id"):
+        stmt = stmt.where(models.Property.owner_id == owner_id)
+
     if type_filter:
-        stmt = stmt.where(models.Property.type.ilike(f"%{type_filter}%"))
+        stmt = stmt.where(models.Property.type.ilike(f"%{type_filter.strip()}%"))
+        
     if status_filter:
-        stmt = stmt.where(models.Property.status.ilike(f"%{status_filter}%"))
+        stmt = stmt.where(models.Property.status.ilike(f"%{status_filter.strip()}%"))
+
     if search:
+        search_term = search.strip()
         search_terms = []
         if hasattr(models.Property, "name"):
-            search_terms.append(models.Property.name.ilike(f"%{search}%"))
+            search_terms.append(models.Property.name.ilike(f"%{search_term}%"))
         if hasattr(models.Property, "code"):
-            search_terms.append(models.Property.code.ilike(f"%{search}%"))
+            search_terms.append(models.Property.code.ilike(f"%{search_term}%"))
         if hasattr(models.Property, "location"):
-            search_terms.append(models.Property.location.ilike(f"%{search}%"))
+            search_terms.append(models.Property.location.ilike(f"%{search_term}%"))
+        if hasattr(models.Property, "address"):
+            search_terms.append(models.Property.address.ilike(f"%{search_term}%"))
         if hasattr(models.Property, "tct_number"):
-            search_terms.append(models.Property.tct_number.ilike(f"%{search}%"))
+            search_terms.append(models.Property.tct_number.ilike(f"%{search_term}%"))
+            
         if search_terms:
             stmt = stmt.where(or_(*search_terms))
 
-    props = list(db.scalars(stmt).all())
-
-    # Seed default sandbox properties if database is empty for this org
-    if not props and not search and not type_filter and not status_filter:
-        default_props = [
-            models.Property(
-                id=uuid.uuid4(),
-                organization_id=organization_id,
-                code="PROP-001",
-                name="Sunrise Residences",
-                tct_number="TCT #49281-MNL",
-                type="Residential",
-                location="Parañaque, Metro Manila",
-                units_count=2 if hasattr(models.Property, "units_count") else None,
-                status="Active"
-            ),
-            models.Property(
-                id=uuid.uuid4(),
-                organization_id=organization_id,
-                code="PROP-003",
-                name="Central Business Center",
-                tct_number="CCT #88190-MKT",
-                type="Commercial",
-                location="Makati, Metro Manila",
-                units_count=1 if hasattr(models.Property, "units_count") else None,
-                status="Active"
-            )
-        ]
-        db.add_all(default_props)
-        db.commit()
-        props = list(db.scalars(stmt).all())
-
-    return props
+    return list(db.scalars(stmt).all())
 
 
 # 2. POST /api/properties/ - Create a property with org-scoped duplicate check
@@ -94,14 +74,17 @@ def create_property(prop_in: schemas.PropertyCreate, db: Session = Depends(get_d
     org_id = getattr(prop_in, "organization_id", DEFAULT_ORG_ID) or DEFAULT_ORG_ID
     ensure_sandbox_organization(db, org_id)
 
-    prop_code = prop_in.code or f"PROP-{str(uuid.uuid4())[:4].upper()}"
+    prop_data = prop_in.model_dump(exclude_unset=True) if hasattr(prop_in, "model_dump") else prop_in.dict(exclude_unset=True)
+    
+    prop_code = prop_data.get("code") or f"PROP-{str(uuid.uuid4())[:4].upper()}"
 
     # Scoped duplicate check: (organization_id, code) must be unique
-    existing_stmt = select(models.Property).where(
-        models.Property.organization_id == org_id,
-        models.Property.code == prop_code
+    existing = db.scalar(
+        select(models.Property).where(
+            models.Property.organization_id == org_id,
+            models.Property.code.ilike(prop_code.strip())
+        )
     )
-    existing = db.scalar(existing_stmt)
 
     if existing:
         raise HTTPException(
@@ -109,13 +92,15 @@ def create_property(prop_in: schemas.PropertyCreate, db: Session = Depends(get_d
             detail=f"Property code '{prop_code}' already exists for this organization."
         )
 
-    prop_data = prop_in.model_dump(exclude_unset=True) if hasattr(prop_in, "model_dump") else prop_in.dict(exclude_unset=True)
-    prop_id = uuid.uuid4()
     if "id" not in prop_data or not prop_data["id"]:
-        prop_data["id"] = prop_id
+        prop_data["id"] = uuid.uuid4()
     if "organization_id" not in prop_data or not prop_data["organization_id"]:
         prop_data["organization_id"] = org_id
-    prop_data["code"] = prop_code
+        
+    prop_data["code"] = prop_code.strip()
+    
+    if "status" not in prop_data or not prop_data["status"]:
+        prop_data["status"] = "Active"
 
     db_prop = models.Property(**prop_data)
     db.add(db_prop)
@@ -140,7 +125,7 @@ def get_property(
     except ValueError:
         if hasattr(models.Property, "code"):
             stmt = select(models.Property).where(
-                models.Property.code == property_id,
+                models.Property.code.ilike(property_id.strip()),
                 models.Property.organization_id == organization_id
             )
         else:
@@ -177,7 +162,7 @@ def update_property(
     except ValueError:
         if hasattr(models.Property, "code"):
             stmt = select(models.Property).where(
-                models.Property.code == property_id,
+                models.Property.code.ilike(property_id.strip()),
                 models.Property.organization_id == organization_id
             )
         else:
@@ -194,6 +179,25 @@ def update_property(
         )
 
     update_data = prop_update.model_dump(exclude_unset=True) if hasattr(prop_update, "model_dump") else prop_update.dict(exclude_unset=True)
+
+    # Check for duplicate property code if code is being updated
+    if "code" in update_data and update_data["code"]:
+        clean_code = update_data["code"].strip()
+        update_data["code"] = clean_code
+        if clean_code != (db_prop.code or ""):
+            code_check = db.scalar(
+                select(models.Property).where(
+                    models.Property.organization_id == organization_id,
+                    models.Property.code.ilike(clean_code),
+                    models.Property.id != db_prop.id
+                )
+            )
+            if code_check:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Property code '{clean_code}' is already in use."
+                )
+
     for field, value in update_data.items():
         if hasattr(db_prop, field):
             setattr(db_prop, field, value)
@@ -203,7 +207,7 @@ def update_property(
     return db_prop
 
 
-# 5. DELETE /api/properties/{property_id} - Delete or archive property record
+# 5. DELETE /api/properties/{property_id} - Delete property record
 @router.delete("/{property_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_property(
     property_id: str,
@@ -219,7 +223,7 @@ def delete_property(
     except ValueError:
         if hasattr(models.Property, "code"):
             stmt = select(models.Property).where(
-                models.Property.code == property_id,
+                models.Property.code.ilike(property_id.strip()),
                 models.Property.organization_id == organization_id
             )
         else:

@@ -104,48 +104,62 @@ SEED_ACCOUNTS = {
 
 
 def create_operational_profile(db: Session, user: models.User, org_id: uuid.UUID) -> None:
-    """
-    Safely provisions matching operational records (Tenant or Owner) in a separate
-    transaction so database constraints will never break or block user registration.
-    """
+    """Safely auto-provisions matching tenant or owner operational records."""
     try:
-        if user.role == "client":
+        name_parts = (user.name or "User").split(maxsplit=1)
+        first_name = name_parts[0]
+        last_name = name_parts[1] if len(name_parts) > 1 else ""
+
+        if user.role in ["client", "tenant"]:
             tenant_exists = db.scalar(select(models.Tenant).where(models.Tenant.email == user.email))
             if not tenant_exists:
-                tenant_kwargs = {
-                    "id": uuid.uuid4(),
-                    "organization_id": org_id,
-                    "name": user.name or "Tenant User",
-                    "email": user.email,
-                    "phone": user.phone,
-                    "status": "active"
-                }
-                if hasattr(models.Tenant, "user_id"):
-                    tenant_kwargs["user_id"] = user.id
+                t = models.Tenant(
+                    id=uuid.uuid4(),
+                    organization_id=org_id,
+                    email=user.email,
+                    phone=user.phone or "",
+                    status="active"
+                )
+                if hasattr(t, "user_id"):
+                    t.user_id = user.id
+                if hasattr(t, "name"):
+                    t.name = user.name
+                if hasattr(t, "full_name"):
+                    t.full_name = user.name
+                if hasattr(t, "first_name"):
+                    t.first_name = first_name
+                if hasattr(t, "last_name"):
+                    t.last_name = last_name
 
-                db.add(models.Tenant(**tenant_kwargs))
+                db.add(t)
                 db.commit()
 
-        elif user.role == "owner":
+        elif user.role in ["owner", "property_owner"]:
             owner_exists = db.scalar(select(models.Owner).where(models.Owner.email == user.email))
             if not owner_exists:
-                owner_kwargs = {
-                    "id": uuid.uuid4(),
-                    "organization_id": org_id,
-                    "name": user.name or "Property Owner",
-                    "email": user.email,
-                    "phone": user.phone,
-                    "status": "active"
-                }
-                if hasattr(models.Owner, "user_id"):
-                    owner_kwargs["user_id"] = user.id
+                o = models.Owner(
+                    id=uuid.uuid4(),
+                    organization_id=org_id,
+                    email=user.email,
+                    phone=user.phone or "",
+                    status="active"
+                )
+                if hasattr(o, "user_id"):
+                    o.user_id = user.id
+                if hasattr(o, "name"):
+                    o.name = user.name
+                if hasattr(o, "full_name"):
+                    o.full_name = user.name
+                if hasattr(o, "first_name"):
+                    o.first_name = first_name
+                if hasattr(o, "last_name"):
+                    o.last_name = last_name
 
-                db.add(models.Owner(**owner_kwargs))
+                db.add(o)
                 db.commit()
     except Exception as err:
         db.rollback()
-        logger.warning(f"Operational profile auto-bridge skipped for {user.email}: {err}")
-
+        logger.warning(f"Operational auto-provision skipped for {user.email}: {err}")
 
 # =====================================================================
 # AUTHENTICATION ENDPOINTS

@@ -918,6 +918,10 @@
     const TENANTS_API_URL = `${API_BASE_URL}/tenants`;
     const UNITS_API_URL = `${API_BASE_URL}/units`;
 
+    function getOrgId() {
+        return localStorage.getItem('organization_id') || localStorage.getItem('argo_org_id') || DEFAULT_ORG_ID;
+    }
+
     function parseCurrency(val) {
         if (val === undefined || val === null || val === '') return 0;
         if (typeof val === 'number') return isNaN(val) ? 0 : val;
@@ -984,10 +988,11 @@
         nav.innerHTML = html;
     }
 
-    // Direct Live Database Fetchers (No Stale LocalStorage Cache Poisoning)
+    // Direct Database Fetchers Scoped by Organization ID
     async function getInvoices() {
         try {
-            const res = await fetch(INVOICES_API_URL, { 
+            const orgId = getOrgId();
+            const res = await fetch(`${INVOICES_API_URL}?organization_id=${orgId}`, { 
                 headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
                 cache: 'no-store'
             });
@@ -1003,7 +1008,8 @@
 
     async function getLeases() {
         try {
-            const res = await fetch(LEASES_API_URL, { 
+            const orgId = getOrgId();
+            const res = await fetch(`${LEASES_API_URL}?organization_id=${orgId}`, { 
                 headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
                 cache: 'no-store'
             });
@@ -1019,7 +1025,8 @@
 
     async function getTenants() {
         try {
-            const res = await fetch(TENANTS_API_URL, { 
+            const orgId = getOrgId();
+            const res = await fetch(`${TENANTS_API_URL}?organization_id=${orgId}`, { 
                 headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
                 cache: 'no-store'
             });
@@ -1035,7 +1042,8 @@
 
     async function getUnits() {
         try {
-            const res = await fetch(UNITS_API_URL, { 
+            const orgId = getOrgId();
+            const res = await fetch(`${UNITS_API_URL}?organization_id=${orgId}`, { 
                 headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
                 cache: 'no-store'
             });
@@ -1051,7 +1059,8 @@
 
     async function getTickets() {
         try {
-            const res = await fetch(MAINTENANCE_API_URL, { 
+            const orgId = getOrgId();
+            const res = await fetch(`${MAINTENANCE_API_URL}?organization_id=${orgId}`, { 
                 headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
                 cache: 'no-store'
             });
@@ -1067,7 +1076,8 @@
 
     async function getNotifications() {
         try {
-            const res = await fetch(NOTIFICATIONS_API_URL, { 
+            const orgId = getOrgId();
+            const res = await fetch(`${NOTIFICATIONS_API_URL}?organization_id=${orgId}`, { 
                 headers: getAuthHeaders(),
                 cache: 'no-store'
             });
@@ -1079,45 +1089,69 @@
         return [];
     }
 
-    // Dynamic Tenant Resolution (Strictly Scoped by Logged-In User in Neon DB)
+    // Dynamic User -> Tenant Profile -> Lease Resolution
     async function getActiveTenantContext() {
-        const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
-        const userEmail = (user.email || localStorage.getItem('user_email') || '').toLowerCase().trim();
-        const userName = user.name || user.full_name || 'Resident Tenant';
-        const userId = user.id || null;
+        let user = {};
+        try {
+            user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+        } catch (e) {
+            user = {};
+        }
 
-        const tenants = await getTenants();
-        const leases = await getLeases();
-        const units = await getUnits();
+        const userEmail = (user.email || localStorage.getItem('user_email') || localStorage.getItem('email') || '').toLowerCase().trim();
+        const userName = (user.name || user.full_name || localStorage.getItem('user_name') || 'Resident Tenant').trim();
+        const userId = user.id ? String(user.id) : null;
 
-        // Match tenant profile in Neon DB
+        const [tenants, leases, units] = await Promise.all([
+            getTenants(),
+            getLeases(),
+            getUnits()
+        ]);
+
+        // 1. Resolve matching operational profile in tenants table
         const matchedTenant = tenants.find(t => {
-            const tUserId = String(t.user_id || t.userId || '');
+            const tUserId = t.user_id ? String(t.user_id) : '';
+            const tId = t.id ? String(t.id) : '';
             const tEmail = (t.email || '').toLowerCase().trim();
-            const tName = (t.name || '').toLowerCase().trim();
+            const tName = (t.name || `${t.first_name || ''} ${t.last_name || ''}`).toLowerCase().trim();
 
-            return (userId && tUserId === String(userId)) ||
+            return (userId && (tUserId === userId || tId === userId)) ||
                    (userEmail && tEmail === userEmail) ||
                    (userName && tName === userName.toLowerCase());
         }) || null;
 
-        const tenantId = matchedTenant ? matchedTenant.id : userId;
+        // Collect all possible identity keys representing this tenant
+        const validTenantIds = new Set();
+        if (matchedTenant?.id) validTenantIds.add(String(matchedTenant.id));
+        if (matchedTenant?.user_id) validTenantIds.add(String(matchedTenant.user_id));
+        if (matchedTenant?.tnt_id) validTenantIds.add(String(matchedTenant.tnt_id));
+        if (userId) validTenantIds.add(userId);
 
-        // Match lease records belonging to this tenant
+        const validEmails = new Set();
+        if (userEmail) validEmails.add(userEmail);
+        if (matchedTenant?.email) validEmails.add(matchedTenant.email.toLowerCase().trim());
+
+        const validNames = new Set();
+        if (userName) validNames.add(userName.toLowerCase());
+        if (matchedTenant?.name) validNames.add(matchedTenant.name.toLowerCase().trim());
+
+        // 2. Resolve leases matching any identity marker
         const userLeases = leases.filter(l => {
             const lTenantId = String(l.tenant_id || l.tenantId || '');
+            const lUserId = String(l.user_id || l.userId || '');
             const lEmail = (l.tenant_email || l.email || '').toLowerCase().trim();
             const lName = (l.tenant_name || l.tenantName || '').toLowerCase().trim();
-            
-            return (tenantId && lTenantId === String(tenantId)) ||
-                   (userId && lTenantId === String(userId)) ||
-                   (userEmail && lEmail === userEmail) ||
-                   (userName && lName === userName.toLowerCase());
+
+            return validTenantIds.has(lTenantId) ||
+                   validTenantIds.has(lUserId) ||
+                   validEmails.has(lEmail) ||
+                   validNames.has(lName);
         });
 
+        // 3. Find active lease or fallback to most recent lease
         const activeLease = userLeases.find(l => (l.status || '').toUpperCase() === 'ACTIVE') || userLeases[0] || null;
 
-        // Resolve exact Unit details from Units table if linked
+        // 4. Resolve exact unit and property names
         let resolvedUnitName = activeLease ? (activeLease.unit_number || activeLease.unit || 'Unit') : 'No Unit';
         let resolvedPropName = activeLease ? (activeLease.property_name || activeLease.property || 'Property') : 'Property';
 
@@ -1125,7 +1159,7 @@
             const matchedUnit = units.find(u => String(u.id) === String(activeLease.unit_id));
             if (matchedUnit) {
                 resolvedUnitName = matchedUnit.unit_no || matchedUnit.unit_number || resolvedUnitName;
-                resolvedPropName = matchedUnit.property_name || resolvedPropName;
+                resolvedPropName = matchedUnit.property_name || (matchedUnit.property ? (matchedUnit.property.name || matchedUnit.property) : resolvedPropName);
             }
         }
 
@@ -1133,7 +1167,10 @@
             user,
             userId,
             tenant: matchedTenant,
-            tenantId,
+            tenantId: matchedTenant ? matchedTenant.id : userId,
+            validTenantIds: Array.from(validTenantIds),
+            validEmails: Array.from(validEmails),
+            validNames: Array.from(validNames),
             name: matchedTenant?.name || userName,
             email: userEmail,
             leases: userLeases,
@@ -1146,16 +1183,21 @@
     async function getTenantInvoices() {
         const ctx = await getActiveTenantContext();
         const allInvoices = await getInvoices();
-        const activeLeaseIds = new Set(ctx.leases.map(l => String(l.id || l.lease_id)).filter(Boolean));
+        const activeLeaseIds = new Set(ctx.leases.map(l => String(l.id || l.lease_id || '')).filter(Boolean));
+        const tenantIdSet = new Set(ctx.validTenantIds);
+        const emailSet = new Set(ctx.validEmails);
+        const nameSet = new Set(ctx.validNames);
 
         return allInvoices.filter(inv => {
-            const invEmail = (inv.tenant_email || '').toLowerCase().trim();
+            const invTenantId = String(inv.tenant_id || inv.tenantId || '');
+            const invEmail = (inv.tenant_email || inv.email || '').toLowerCase().trim();
             const invName = (inv.tenant_name || inv.tenantName || '').toLowerCase().trim();
             const invLeaseId = String(inv.lease_id || inv.leaseId || '');
 
-            return (ctx.email && invEmail === ctx.email) ||
-                   (ctx.name && invName === ctx.name.toLowerCase()) ||
-                   (activeLeaseIds.has(invLeaseId));
+            return tenantIdSet.has(invTenantId) ||
+                   emailSet.has(invEmail) ||
+                   nameSet.has(invName) ||
+                   activeLeaseIds.has(invLeaseId);
         });
     }
 
@@ -1164,15 +1206,19 @@
         const allTickets = await getTickets();
         const activeUnitIds = new Set(ctx.leases.map(l => String(l.unit_id || '')).filter(Boolean));
         const activeUnitNames = new Set(ctx.leases.map(l => (l.unit_number || l.unit || '').toLowerCase()).filter(Boolean));
+        const emailSet = new Set(ctx.validEmails);
+        const nameSet = new Set(ctx.validNames);
 
         return allTickets.filter(t => {
+            const tTenantId = String(t.tenant_id || t.tenantId || '');
             const tEmail = (t.tenant_email || '').toLowerCase().trim();
             const tName = (t.tenant_name || t.tenantName || '').toLowerCase().trim();
             const tLoc = (t.property_location || t.fullLocation || '').toLowerCase();
             const tUnitId = String(t.unit_id || '');
 
-            return (ctx.email && tEmail === ctx.email) ||
-                   (ctx.name && tName === ctx.name.toLowerCase()) ||
+            return ctx.validTenantIds.includes(tTenantId) ||
+                   emailSet.has(tEmail) ||
+                   nameSet.has(tName) ||
                    (tUnitId && activeUnitIds.has(tUnitId)) ||
                    ([...activeUnitNames].some(u => u && tLoc.includes(u)));
         });
@@ -1193,7 +1239,7 @@
         }
 
         if (avatarEl) {
-            const initials = ctx.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'U';
+            const initials = ctx.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'TN';
             avatarEl.textContent = initials;
             avatarEl.style.background = '#D97706';
         }
@@ -1208,7 +1254,7 @@
         const welcomeEl = document.getElementById('welcomeHeaderTitle');
         if (welcomeEl) welcomeEl.textContent = `Welcome Home, ${ctx.name.split(' ')[0]}`;
 
-        // 1. Outstanding Balance Calculation strictly for this tenant
+        // 1. Outstanding Balance Calculation
         let totalUnpaid = 0;
         let earliestDueDate = null;
 
@@ -1299,6 +1345,7 @@
         if (!l) {
             if (badgeTag) {
                 badgeTag.className = 'status-badge';
+                badgeTag.style.cssText = 'background:#F1F5F9; color:#64748B; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;';
                 badgeTag.textContent = 'No Active Lease';
             }
             if (dispLeaseId) dispLeaseId.textContent = 'None Registered';
@@ -1460,7 +1507,7 @@
         }
     }
 
-    // LIVE SUBMIT PAYMENT PROOF (PATCH /api/invoices/{id} + POST /api/transactions + POST /api/notifications)
+    // LIVE SUBMIT PAYMENT PROOF
     async function submitPayment() {
         const ctx = await getActiveTenantContext();
         const invoiceSelect = document.getElementById('modalInvoiceSelect');
@@ -1475,7 +1522,7 @@
         const amount = parseFloat(amountInput ? amountInput.value : 0) || 0;
         let refNo = refInput ? refInput.value.trim() : '';
         const remarks = notesInput ? notesInput.value.trim() : '';
-        const orgId = localStorage.getItem('organization_id') || DEFAULT_ORG_ID;
+        const orgId = getOrgId();
 
         if (!invoiceId) {
             alert("No active unpaid invoice selected.");
@@ -1495,9 +1542,9 @@
         if (!refNo.startsWith('#')) refNo = '#' + refNo;
         const locationStr = ctx.activeLease ? `${ctx.propertyName} • ${ctx.unitName}` : 'Resident Unit';
 
-        // 1. Submit Payment Verification to Neon PostgreSQL
+        // 1. Submit Payment Verification to Backend
         try {
-            const res = await fetch(`${INVOICES_API_URL}/${encodeURIComponent(invoiceId)}`, {
+            const res = await fetch(`${INVOICES_API_URL}/${encodeURIComponent(invoiceId)}?organization_id=${orgId}`, {
                 method: 'PATCH',
                 headers: getAuthHeaders(),
                 body: JSON.stringify({
@@ -1509,8 +1556,7 @@
             });
 
             if (!res.ok) {
-                // Fallback PUT
-                await fetch(`${INVOICES_API_URL}/${encodeURIComponent(invoiceId)}`, {
+                await fetch(`${INVOICES_API_URL}/${encodeURIComponent(invoiceId)}?organization_id=${orgId}`, {
                     method: 'PUT',
                     headers: getAuthHeaders(),
                     body: JSON.stringify({
@@ -1528,7 +1574,7 @@
         // 2. Dispatch Live Ledger Transaction
         const txnId = `TXN-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
         try {
-            await fetch(TRANSACTIONS_API_URL, {
+            await fetch(`${TRANSACTIONS_API_URL}?organization_id=${orgId}`, {
                 method: 'POST',
                 headers: getAuthHeaders(),
                 body: JSON.stringify({
@@ -1548,7 +1594,7 @@
 
         // 3. Dispatch Notification Alert to Admin POV
         try {
-            await fetch(NOTIFICATIONS_API_URL, {
+            await fetch(`${NOTIFICATIONS_API_URL}?organization_id=${orgId}`, {
                 method: 'POST',
                 headers: getAuthHeaders(),
                 body: JSON.stringify({

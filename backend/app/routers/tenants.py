@@ -1,4 +1,5 @@
 import uuid
+import logging
 from datetime import datetime
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -9,13 +10,14 @@ from ..database import get_db
 from .. import models, schemas
 
 router = APIRouter()
+logger = logging.getLogger("uvicorn.error")
 
-# Default Organization UUID matching schema.sql and seed.py
+# Default Organization UUID matching schema.sql
 DEFAULT_ORG_ID = uuid.UUID("a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11")
 
 
 def ensure_sandbox_organization(db: Session, org_id: uuid.UUID):
-    """Ensures a stub Organization exists in local DB to satisfy FK constraints."""
+    """Ensures a stub Organization exists in DB to satisfy FK constraints."""
     org = db.scalar(select(models.Organization).where(models.Organization.id == org_id))
     if not org:
         sandbox_org = models.Organization(id=org_id, name="ARGO Property Management Corp.")
@@ -23,7 +25,7 @@ def ensure_sandbox_organization(db: Session, org_id: uuid.UUID):
         db.commit()
 
 
-# 1. GET /api/tenants/ - Read tenants scoped by organization_id with filter & search
+# 1. GET /api/tenants/ - Read real tenants from database with filter & search
 @router.get("/", response_model=List[schemas.TenantSchema])
 def read_tenants(
     organization_id: uuid.UUID = Query(default=DEFAULT_ORG_ID),
@@ -45,6 +47,8 @@ def read_tenants(
         search_terms = []
         if hasattr(models.Tenant, "name"):
             search_terms.append(models.Tenant.name.ilike(f"%{search}%"))
+        if hasattr(models.Tenant, "full_name"):
+            search_terms.append(models.Tenant.full_name.ilike(f"%{search}%"))
         if hasattr(models.Tenant, "email"):
             search_terms.append(models.Tenant.email.ilike(f"%{search}%"))
         if hasattr(models.Tenant, "phone"):
@@ -54,48 +58,29 @@ def read_tenants(
         if search_terms:
             stmt = stmt.where(or_(*search_terms))
 
-    tenants = list(db.scalars(stmt).all())
-
-    # Seed default sandbox tenant if DB is empty for this org
-    if not tenants and not search and not status_filter and not type_filter:
-        default_tenant_data = {
-            "id": uuid.uuid4(),
-            "organization_id": organization_id,
-            "name": "Maria Santos",
-            "email": "maria.santos@tenant.ph",
-            "phone": "09171234567",
-            "status": "Active"
-        }
-        if hasattr(models.Tenant, "tnt_id"):
-            default_tenant_data["tnt_id"] = "TNT-1001"
-        if hasattr(models.Tenant, "type"):
-            default_tenant_data["type"] = "Individual"
-
-        default_tenants = [models.Tenant(**default_tenant_data)]
-        db.add_all(default_tenants)
-        db.commit()
-        tenants = list(db.scalars(stmt).all())
-
-    return tenants
+    return list(db.scalars(stmt).all())
 
 
-# 2. POST /api/tenants/ - Create a new tenant with org-scoped email duplicate check
+# 2. POST /api/tenants/ - Create a new tenant
 @router.post("/", response_model=schemas.TenantSchema, status_code=status.HTTP_201_CREATED)
 def create_tenant(tenant_in: schemas.TenantCreate, db: Session = Depends(get_db)):
     org_id = getattr(tenant_in, "organization_id", DEFAULT_ORG_ID) or DEFAULT_ORG_ID
     ensure_sandbox_organization(db, org_id)
 
+    clean_email = tenant_in.email.lower().strip() if tenant_in.email else None
+
     # Org-scoped email duplicate check
-    if tenant_in.email:
-        existing_stmt = select(models.Tenant).where(
-            models.Tenant.organization_id == org_id,
-            models.Tenant.email == tenant_in.email
+    if clean_email:
+        existing = db.scalar(
+            select(models.Tenant).where(
+                models.Tenant.organization_id == org_id,
+                models.Tenant.email.ilike(clean_email)
+            )
         )
-        existing = db.scalar(existing_stmt)
         if existing:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Tenant with email '{tenant_in.email}' already exists in this organization."
+                detail=f"Tenant with email '{clean_email}' already exists in this organization."
             )
 
     tenant_data = tenant_in.model_dump(exclude_unset=True) if hasattr(tenant_in, "model_dump") else tenant_in.dict(exclude_unset=True)
@@ -103,8 +88,12 @@ def create_tenant(tenant_in: schemas.TenantCreate, db: Session = Depends(get_db)
         tenant_data["id"] = uuid.uuid4()
     if "organization_id" not in tenant_data or not tenant_data["organization_id"]:
         tenant_data["organization_id"] = org_id
+    if clean_email:
+        tenant_data["email"] = clean_email
     if "tnt_id" not in tenant_data and hasattr(models.Tenant, "tnt_id"):
         tenant_data["tnt_id"] = f"TNT-{datetime.now().year}-{str(uuid.uuid4())[:4].upper()}"
+    if "status" not in tenant_data or not tenant_data["status"]:
+        tenant_data["status"] = "Active"
 
     db_tenant = models.Tenant(**tenant_data)
     db.add(db_tenant)
@@ -148,7 +137,7 @@ def get_tenant(
     return tenant
 
 
-# 4. PUT / PATCH /api/tenants/{tenant_id} - Update tenant profile, contact, or status
+# 4. PUT / PATCH /api/tenants/{tenant_id} - Update tenant record
 @router.put("/{tenant_id}", response_model=schemas.TenantSchema)
 @router.patch("/{tenant_id}", response_model=schemas.TenantSchema)
 def update_tenant(
@@ -184,20 +173,22 @@ def update_tenant(
 
     update_data = tenant_update.model_dump(exclude_unset=True) if hasattr(tenant_update, "model_dump") else tenant_update.dict(exclude_unset=True)
 
-    # If updating email, check for duplicate within organization
-    if "email" in update_data and update_data["email"] and update_data["email"] != db_tenant.email:
-        email_check = db.scalar(
-            select(models.Tenant).where(
-                models.Tenant.organization_id == organization_id,
-                models.Tenant.email == update_data["email"],
-                models.Tenant.id != db_tenant.id
+    if "email" in update_data and update_data["email"]:
+        clean_update_email = update_data["email"].lower().strip()
+        update_data["email"] = clean_update_email
+        if clean_update_email != (db_tenant.email or "").lower().strip():
+            email_check = db.scalar(
+                select(models.Tenant).where(
+                    models.Tenant.organization_id == organization_id,
+                    models.Tenant.email.ilike(clean_update_email),
+                    models.Tenant.id != db_tenant.id
+                )
             )
-        )
-        if email_check:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Email '{update_data['email']}' is already assigned to another tenant."
-            )
+            if email_check:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Email '{clean_update_email}' is already assigned to another tenant."
+                )
 
     for field, value in update_data.items():
         if hasattr(db_tenant, field):

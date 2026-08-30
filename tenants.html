@@ -999,6 +999,10 @@
     let unassignedClientsCache = [];
     let activeTabStatus = "ALL";
 
+    function getOrgId() {
+        return localStorage.getItem('organization_id') || localStorage.getItem('argo_org_id') || DEFAULT_ORG_ID;
+    }
+
     function getAuthHeaders() {
         const token = localStorage.getItem('token') || localStorage.getItem('argo_token');
         return {
@@ -1123,10 +1127,11 @@
         }
     }
 
-    // Direct Database Fetchers (No LocalStorage Cache Traps)
+    // Direct Database Fetchers
     async function getTenants() {
         try {
-            const response = await fetch(TENANTS_API_URL, { 
+            const orgId = getOrgId();
+            const response = await fetch(`${TENANTS_API_URL}?organization_id=${orgId}`, { 
                 headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
                 cache: 'no-store'
             });
@@ -1142,7 +1147,8 @@
 
     async function getRegisteredUsers() {
         try {
-            const res = await fetch(USERS_API_URL, { 
+            const orgId = getOrgId();
+            const res = await fetch(`${USERS_API_URL}?organization_id=${orgId}&role=client`, { 
                 headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
                 cache: 'no-store'
             });
@@ -1158,7 +1164,8 @@
 
     async function getUnitsList() {
         try {
-            const res = await fetch(UNITS_API_URL, { 
+            const orgId = getOrgId();
+            const res = await fetch(`${UNITS_API_URL}?organization_id=${orgId}`, { 
                 headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
                 cache: 'no-store'
             });
@@ -1174,7 +1181,8 @@
 
     async function getLeasesList() {
         try {
-            const res = await fetch(LEASES_API_URL, { 
+            const orgId = getOrgId();
+            const res = await fetch(`${LEASES_API_URL}?organization_id=${orgId}`, { 
                 headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
                 cache: 'no-store'
             });
@@ -1190,7 +1198,8 @@
 
     async function updateHeaderBadge() {
         try {
-            const res = await fetch(NOTIFICATIONS_API_URL, { 
+            const orgId = getOrgId();
+            const res = await fetch(`${NOTIFICATIONS_API_URL}?organization_id=${orgId}`, { 
                 headers: getAuthHeaders(),
                 cache: 'no-store'
             });
@@ -1205,7 +1214,7 @@
         } catch (e) {}
     }
 
-    // Populate Searchable Client Combobox (Excludes already assigned clients)
+    // Populate Searchable Client Combobox
     async function populateUnassignedClientsCombobox() {
         const users = await getRegisteredUsers();
         const existingTenants = await getTenants();
@@ -1219,7 +1228,7 @@
 
         unassignedClientsCache = users.filter(u => {
             const role = (u.role || '').toLowerCase();
-            const isClientRole = role === 'client' || role === 'tenant' || role === 'resident';
+            const isClientRole = role.includes('client') || role.includes('tenant') || role.includes('resident');
             const isAssigned = assignedUserIds.has(String(u.id)) || assignedEmails.has((u.email || '').toLowerCase());
             return isClientRole && !isAssigned;
         });
@@ -1239,17 +1248,25 @@
     function handleClientAccountSelect(selectedValue) {
         if (!selectedValue) return;
 
+        const cleanVal = selectedValue.toLowerCase().trim();
         const matched = unassignedClientsCache.find(u => {
-            const entryText = `${u.name || u.full_name || 'Client'} (${u.email || ''})`;
-            return entryText.toLowerCase() === selectedValue.toLowerCase() || 
-                   (u.email && u.email.toLowerCase() === selectedValue.toLowerCase());
+            const entryText = `${u.name || u.full_name || 'Client'} (${u.email || ''})`.toLowerCase();
+            return entryText === cleanVal || 
+                   (u.name && u.name.toLowerCase() === cleanVal) ||
+                   (u.email && u.email.toLowerCase() === cleanVal) ||
+                   String(u.id).toLowerCase() === cleanVal;
         });
 
         if (matched) {
-            document.getElementById('modalUserId').value = matched.id || '';
-            document.getElementById('modalTenantName').value = matched.name || matched.full_name || '';
-            document.getElementById('modalTenantEmail').value = matched.email || '';
-            document.getElementById('modalTenantPhone').value = matched.phone || '';
+            const userIdInput = document.getElementById('modalUserId');
+            const nameInput = document.getElementById('modalTenantName');
+            const emailInput = document.getElementById('modalTenantEmail');
+            const phoneInput = document.getElementById('modalTenantPhone');
+
+            if (userIdInput) userIdInput.value = matched.id || '';
+            if (nameInput) nameInput.value = matched.name || matched.full_name || '';
+            if (emailInput) emailInput.value = matched.email || '';
+            if (phoneInput) phoneInput.value = matched.phone || '';
         }
     }
 
@@ -1393,7 +1410,7 @@
         const status = statusSelect ? statusSelect.value : 'Active';
         const unit = unitSelect ? unitSelect.value : 'No Current Unit';
         const userId = userIdInput ? userIdInput.value.trim() : null;
-        const orgId = localStorage.getItem('organization_id') || DEFAULT_ORG_ID;
+        const orgId = getOrgId();
 
         if (!name) {
             alert("Please enter a tenant full name or entity name.");
@@ -1566,9 +1583,13 @@
     }
 
     function resetFilters() {
-        document.getElementById("searchInput").value = "";
-        document.getElementById("typeFilter").value = "";
-        document.getElementById("statusFilter").value = "";
+        const searchInput = document.getElementById("searchInput");
+        const typeFilter = document.getElementById("typeFilter");
+        const statusFilter = document.getElementById("statusFilter");
+
+        if (searchInput) searchInput.value = "";
+        if (typeFilter) typeFilter.value = "";
+        if (statusFilter) statusFilter.value = "";
         
         const firstTab = document.querySelectorAll('.tab')[0];
         if (firstTab) setTabFilter('ALL', firstTab);
@@ -1599,4 +1620,3 @@
         });
     }
 </script>
-</body>

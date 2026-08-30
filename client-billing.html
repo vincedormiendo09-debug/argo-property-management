@@ -979,6 +979,10 @@
     const TRANSACTIONS_API_URL = `${API_BASE_URL}/transactions`;
     const NOTIFICATIONS_API_URL = `${API_BASE_URL}/notifications`;
 
+    function getOrgId() {
+        return localStorage.getItem('organization_id') || localStorage.getItem('argo_org_id') || DEFAULT_ORG_ID;
+    }
+
     function parseCurrency(val) {
         if (val === undefined || val === null || val === '') return 0;
         if (typeof val === 'number') return isNaN(val) ? 0 : val;
@@ -1045,10 +1049,11 @@
         nav.innerHTML = html;
     }
 
-    // Direct Live Database Fetchers (No Stale LocalStorage Cache Poisoning)
+    // Direct Live Database Fetchers Scoped by Organization ID
     async function getInvoices() {
         try {
-            const res = await fetch(INVOICES_API_URL, { 
+            const orgId = getOrgId();
+            const res = await fetch(`${INVOICES_API_URL}?organization_id=${orgId}`, { 
                 headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
                 cache: 'no-store'
             });
@@ -1064,7 +1069,8 @@
 
     async function getLeases() { 
         try {
-            const res = await fetch(LEASES_API_URL, { 
+            const orgId = getOrgId();
+            const res = await fetch(`${LEASES_API_URL}?organization_id=${orgId}`, { 
                 headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
                 cache: 'no-store'
             });
@@ -1080,7 +1086,8 @@
 
     async function getTenants() {
         try {
-            const res = await fetch(TENANTS_API_URL, { 
+            const orgId = getOrgId();
+            const res = await fetch(`${TENANTS_API_URL}?organization_id=${orgId}`, { 
                 headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
                 cache: 'no-store'
             });
@@ -1096,7 +1103,8 @@
 
     async function getUnits() {
         try {
-            const res = await fetch(UNITS_API_URL, { 
+            const orgId = getOrgId();
+            const res = await fetch(`${UNITS_API_URL}?organization_id=${orgId}`, { 
                 headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
                 cache: 'no-store'
             });
@@ -1112,7 +1120,8 @@
 
     async function getNotifications() { 
         try {
-            const res = await fetch(NOTIFICATIONS_API_URL, { 
+            const orgId = getOrgId();
+            const res = await fetch(`${NOTIFICATIONS_API_URL}?organization_id=${orgId}`, { 
                 headers: getAuthHeaders(),
                 cache: 'no-store'
             });
@@ -1124,45 +1133,69 @@
         return [];
     }
 
-    // Dynamic Tenant Resolution (Strictly Scoped by Logged-In User in Neon DB)
+    // Dynamic Multi-Marker Tenant Resolution
     async function getActiveTenantContext() {
-        const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
-        const userEmail = (user.email || localStorage.getItem('user_email') || '').toLowerCase().trim();
-        const userName = user.name || user.full_name || 'Resident Tenant';
-        const userId = user.id || null;
+        let user = {};
+        try {
+            user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+        } catch (e) {
+            user = {};
+        }
 
-        const tenants = await getTenants();
-        const leases = await getLeases();
-        const units = await getUnits();
+        const userEmail = (user.email || localStorage.getItem('user_email') || localStorage.getItem('email') || '').toLowerCase().trim();
+        const userName = (user.name || user.full_name || localStorage.getItem('user_name') || 'Resident Tenant').trim();
+        const userId = user.id ? String(user.id) : null;
 
-        // Match tenant profile from Neon DB
+        const [tenants, leases, units] = await Promise.all([
+            getTenants(),
+            getLeases(),
+            getUnits()
+        ]);
+
+        // 1. Match tenant profile from Neon DB
         const matchedTenant = tenants.find(t => {
-            const tUserId = String(t.user_id || t.userId || '');
+            const tUserId = t.user_id ? String(t.user_id) : '';
+            const tId = t.id ? String(t.id) : '';
             const tEmail = (t.email || '').toLowerCase().trim();
-            const tName = (t.name || '').toLowerCase().trim();
-            
-            return (userId && tUserId === String(userId)) ||
+            const tName = (t.name || `${t.first_name || ''} ${t.last_name || ''}`).toLowerCase().trim();
+
+            return (userId && (tUserId === userId || tId === userId)) ||
                    (userEmail && tEmail === userEmail) ||
                    (userName && tName === userName.toLowerCase());
         }) || null;
 
-        const tenantId = matchedTenant ? matchedTenant.id : userId;
+        // Collect all possible identity markers
+        const validTenantIds = new Set();
+        if (matchedTenant?.id) validTenantIds.add(String(matchedTenant.id));
+        if (matchedTenant?.user_id) validTenantIds.add(String(matchedTenant.user_id));
+        if (matchedTenant?.tnt_id) validTenantIds.add(String(matchedTenant.tnt_id));
+        if (userId) validTenantIds.add(userId);
 
-        // Match leases belonging to this tenant
+        const validEmails = new Set();
+        if (userEmail) validEmails.add(userEmail);
+        if (matchedTenant?.email) validEmails.add(matchedTenant.email.toLowerCase().trim());
+
+        const validNames = new Set();
+        if (userName) validNames.add(userName.toLowerCase());
+        if (matchedTenant?.name) validNames.add(matchedTenant.name.toLowerCase().trim());
+
+        // 2. Match leases belonging to this tenant
         const userLeases = leases.filter(l => {
             const lTenantId = String(l.tenant_id || l.tenantId || '');
+            const lUserId = String(l.user_id || l.userId || '');
             const lEmail = (l.tenant_email || l.email || '').toLowerCase().trim();
             const lName = (l.tenant_name || l.tenantName || '').toLowerCase().trim();
-            
-            return (tenantId && lTenantId === String(tenantId)) ||
-                   (userId && lTenantId === String(userId)) ||
-                   (userEmail && lEmail === userEmail) ||
-                   (userName && lName === userName.toLowerCase());
+
+            return validTenantIds.has(lTenantId) ||
+                   validTenantIds.has(lUserId) ||
+                   validEmails.has(lEmail) ||
+                   validNames.has(lName);
         });
 
+        // 3. Find active lease or latest lease
         const activeLease = userLeases.find(l => (l.status || '').toUpperCase() === 'ACTIVE') || userLeases[0] || null;
 
-        // Resolve unit and property location
+        // 4. Resolve exact unit and property location
         let fullTag = 'No Active Unit Assigned';
         if (activeLease) {
             let uNum = activeLease.unit_number || activeLease.unit || 'Unit';
@@ -1172,7 +1205,7 @@
                 const matchedUnit = units.find(u => String(u.id) === String(activeLease.unit_id));
                 if (matchedUnit) {
                     uNum = matchedUnit.unit_no || matchedUnit.unit_number || uNum;
-                    pName = matchedUnit.property_name || pName;
+                    pName = matchedUnit.property_name || (matchedUnit.property ? (matchedUnit.property.name || matchedUnit.property) : pName);
                 }
             }
             fullTag = `${pName} • ${uNum}`;
@@ -1182,7 +1215,10 @@
             user,
             userId,
             tenant: matchedTenant,
-            tenantId,
+            tenantId: matchedTenant ? matchedTenant.id : userId,
+            validTenantIds: Array.from(validTenantIds),
+            validEmails: Array.from(validEmails),
+            validNames: Array.from(validNames),
             name: matchedTenant?.name || userName,
             email: userEmail,
             leases: userLeases,
@@ -1194,16 +1230,21 @@
     async function getTenantInvoices() {
         const ctx = await getActiveTenantContext();
         const allInvoices = await getInvoices();
-        const activeLeaseIds = new Set(ctx.leases.map(l => String(l.id || l.lease_id)).filter(Boolean));
+        const activeLeaseIds = new Set(ctx.leases.map(l => String(l.id || l.lease_id || '')).filter(Boolean));
+        const tenantIdSet = new Set(ctx.validTenantIds);
+        const emailSet = new Set(ctx.validEmails);
+        const nameSet = new Set(ctx.validNames);
 
         return allInvoices.filter(inv => {
-            const invEmail = (inv.tenant_email || '').toLowerCase().trim();
+            const invTenantId = String(inv.tenant_id || inv.tenantId || '');
+            const invEmail = (inv.tenant_email || inv.email || '').toLowerCase().trim();
             const invName = (inv.tenant_name || inv.tenantName || '').toLowerCase().trim();
             const invLeaseId = String(inv.lease_id || inv.leaseId || '');
 
-            return (ctx.email && invEmail === ctx.email) ||
-                   (ctx.name && invName === ctx.name.toLowerCase()) ||
-                   (activeLeaseIds.has(invLeaseId));
+            return tenantIdSet.has(invTenantId) ||
+                   emailSet.has(invEmail) ||
+                   nameSet.has(invName) ||
+                   activeLeaseIds.has(invLeaseId);
         });
     }
 
@@ -1217,7 +1258,7 @@
         if (roleEl) roleEl.textContent = ctx.fullTag;
 
         if (avatarEl) {
-            const initials = ctx.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'U';
+            const initials = ctx.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'TN';
             avatarEl.textContent = initials;
             avatarEl.style.background = '#D97706';
         }
@@ -1445,7 +1486,7 @@
         }
     }
 
-    // LIVE SUBMIT PAYMENT PROOF (PATCH /api/invoices/{id} + POST /api/transactions + POST /api/notifications)
+    // LIVE SUBMIT PAYMENT PROOF
     async function submitPaymentProof() {
         const ctx = await getActiveTenantContext();
         const invoiceSelect = document.getElementById('modalInvoiceSelect');
@@ -1460,8 +1501,7 @@
         const amount = parseFloat(amountInput ? amountInput.value : 0) || 0;
         let refNo = refInput ? refInput.value.trim() : '';
         const notes = notesInput ? notesInput.value.trim() : '';
-        const receiptFile = fileInput && fileInput.files ? fileInput.files[0] : null;
-        const orgId = localStorage.getItem('organization_id') || DEFAULT_ORG_ID;
+        const orgId = getOrgId();
 
         if (!invoiceId) {
             alert("No active unpaid invoice selected.");
@@ -1483,7 +1523,7 @@
 
         // 1. Submit Payment Verification to Neon PostgreSQL
         try {
-            const res = await fetch(`${INVOICES_API_URL}/${encodeURIComponent(invoiceId)}`, {
+            const res = await fetch(`${INVOICES_API_URL}/${encodeURIComponent(invoiceId)}?organization_id=${orgId}`, {
                 method: 'PATCH',
                 headers: getAuthHeaders(),
                 body: JSON.stringify({
@@ -1495,8 +1535,7 @@
             });
 
             if (!res.ok) {
-                // Fallback PUT
-                await fetch(`${INVOICES_API_URL}/${encodeURIComponent(invoiceId)}`, {
+                await fetch(`${INVOICES_API_URL}/${encodeURIComponent(invoiceId)}?organization_id=${orgId}`, {
                     method: 'PUT',
                     headers: getAuthHeaders(),
                     body: JSON.stringify({
@@ -1514,7 +1553,7 @@
         // 2. Dispatch Live Ledger Transaction
         const txnId = `TXN-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
         try {
-            await fetch(TRANSACTIONS_API_URL, {
+            await fetch(`${TRANSACTIONS_API_URL}?organization_id=${orgId}`, {
                 method: 'POST',
                 headers: getAuthHeaders(),
                 body: JSON.stringify({
@@ -1534,7 +1573,7 @@
 
         // 3. Dispatch Notification Alert to Admin POV (rent-collection.html)
         try {
-            await fetch(NOTIFICATIONS_API_URL, {
+            await fetch(`${NOTIFICATIONS_API_URL}?organization_id=${orgId}`, {
                 method: 'POST',
                 headers: getAuthHeaders(),
                 body: JSON.stringify({

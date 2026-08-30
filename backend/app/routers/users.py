@@ -85,10 +85,28 @@ def get_all_users(
     role: Optional[str] = Query(default=None),
     db: Session = Depends(get_db)
 ):
-    """Retrieve all registered users (used by properties owner combobox and admin directories)."""
+    """Retrieve all registered users with flexible matching for tenant/client and owner roles."""
     stmt = select(models.User).where(models.User.organization_id == organization_id)
+    
     if role:
-        stmt = stmt.where(models.User.role.ilike(f"%{role}%"))
+        clean_role = role.lower().strip()
+        if clean_role in ["tenant", "client", "client_pov"]:
+            stmt = stmt.where(
+                or_(
+                    models.User.role.ilike("%client%"),
+                    models.User.role.ilike("%tenant%")
+                )
+            )
+        elif clean_role in ["owner", "property_owner", "investor"]:
+            stmt = stmt.where(
+                or_(
+                    models.User.role.ilike("%owner%"),
+                    models.User.role.ilike("%investor%")
+                )
+            )
+        else:
+            stmt = stmt.where(models.User.role.ilike(f"%{clean_role}%"))
+
     users = list(db.scalars(stmt).all())
     return users
 
@@ -107,7 +125,7 @@ def create_or_register_user(
     # Check for duplicate email across organization
     if user_in.email:
         existing = db.scalar(
-            select(models.User).where(models.User.email.ilike(user_in.email))
+            select(models.User).where(models.User.email.ilike(user_in.email.strip()))
         )
         if existing:
             raise HTTPException(
@@ -118,6 +136,7 @@ def create_or_register_user(
     user_data = user_in.model_dump(exclude_unset=True) if hasattr(user_in, "model_dump") else user_in.dict(exclude_unset=True)
     user_data["id"] = uuid.uuid4()
     user_data["organization_id"] = org_id
+    user_data["email"] = user_in.email.lower().strip()
 
     if "name" in user_data and not user_data.get("full_name"):
         user_data["full_name"] = user_data["name"]
@@ -141,7 +160,7 @@ def get_current_user_profile(
     if email:
         user = db.scalar(
             select(models.User).where(
-                models.User.email.ilike(email),
+                models.User.email.ilike(email.strip()),
                 models.User.organization_id == organization_id
             )
         )
@@ -185,6 +204,9 @@ def update_user_profile(
         update_data["full_name"] = update_data["name"]
     elif "full_name" in update_data and "name" not in update_data and update_data["full_name"]:
         update_data["name"] = update_data["full_name"]
+
+    if "email" in update_data and update_data["email"]:
+        update_data["email"] = update_data["email"].lower().strip()
 
     for key, value in update_data.items():
         if hasattr(user, key):
