@@ -26,79 +26,8 @@ def ensure_sandbox_organization(db: Session, org_id: uuid.UUID):
         db.commit()
 
 
-def sync_tenant_users_to_tenants(db: Session, org_id: uuid.UUID):
-    """
-    Auto-bridges registered users with role 'client' or 'tenant' into the tenants table.
-    Links user_id and email so registered residents immediately appear in Admin dropdowns.
-    """
-    try:
-        tenant_users = db.scalars(
-            select(models.User).where(
-                models.User.organization_id == org_id,
-                or_(
-                    models.User.role.ilike("%client%"),
-                    models.User.role.ilike("%tenant%")
-                )
-            )
-        ).all()
-
-        for u in tenant_users:
-            if not u.email:
-                continue
-            clean_email = u.email.lower().strip()
-
-            # Check if tenant profile exists by user_id or email
-            existing_tenant = db.scalar(
-                select(models.Tenant).where(
-                    models.Tenant.organization_id == org_id,
-                    or_(
-                        models.Tenant.user_id == u.id,
-                        models.Tenant.email.ilike(clean_email)
-                    )
-                )
-            )
-
-            if not existing_tenant:
-                name_parts = (u.name or u.full_name or "Resident Tenant").strip().split(maxsplit=1)
-                first_name = name_parts[0]
-                last_name = name_parts[1] if len(name_parts) > 1 else ""
-
-                tenant_data = {
-                    "id": uuid.uuid4(),
-                    "organization_id": org_id,
-                    "email": clean_email,
-                    "phone": u.phone or "",
-                    "status": "Active"
-                }
-                if hasattr(models.Tenant, "user_id"):
-                    tenant_data["user_id"] = u.id
-                if hasattr(models.Tenant, "name"):
-                    tenant_data["name"] = u.name or u.full_name or "Resident Tenant"
-                if hasattr(models.Tenant, "full_name"):
-                    tenant_data["full_name"] = u.name or u.full_name or "Resident Tenant"
-                if hasattr(models.Tenant, "first_name"):
-                    tenant_data["first_name"] = first_name
-                if hasattr(models.Tenant, "last_name"):
-                    tenant_data["last_name"] = last_name
-                if hasattr(models.Tenant, "tnt_id"):
-                    tenant_data["tnt_id"] = f"TNT-{datetime.now().year}-{str(uuid.uuid4())[:4].upper()}"
-                if hasattr(models.Tenant, "type"):
-                    tenant_data["type"] = "Individual"
-
-                db.add(models.Tenant(**tenant_data))
-            else:
-                # Heal orphaned tenant record by linking user_id
-                if hasattr(existing_tenant, "user_id") and not existing_tenant.user_id:
-                    existing_tenant.user_id = u.id
-
-        db.commit()
-    except Exception as err:
-        db.rollback()
-        logger.warning(f"Tenant auto-sync notice: {err}")
-
-
 def find_tenant_by_identifier(db: Session, tenant_id: str, organization_id: uuid.UUID):
-    """Robustly locates a tenant by UUID, user_id, or custom TNT string."""
+    """Robustly locates a tenant by UUID, user_id, custom TNT string, email, or virtual user match."""
     clean_id = tenant_id.strip()
     try:
         parsed_uuid = uuid.UUID(clean_id)
@@ -133,10 +62,37 @@ def find_tenant_by_identifier(db: Session, tenant_id: str, organization_id: uuid
             models.Tenant.organization_id == organization_id
         )
     )
-    return tenant
+    if tenant:
+        return tenant
+
+    # Check registered users table directly if not found in tenants table
+    user = db.scalar(
+        select(models.User).where(
+            models.User.email.ilike(clean_id),
+            models.User.organization_id == organization_id
+        )
+    )
+    if user:
+        virtual_tenant = models.Tenant(
+            id=user.id,
+            organization_id=organization_id,
+            name=user.name or user.full_name or "Registered Tenant",
+            email=user.email,
+            phone=user.phone or "",
+            status="Active"
+        )
+        if hasattr(virtual_tenant, "user_id"):
+            virtual_tenant.user_id = user.id
+        if hasattr(virtual_tenant, "unit"):
+            virtual_tenant.unit = "No Current Unit"
+        if hasattr(virtual_tenant, "type"):
+            virtual_tenant.type = "Individual"
+        return virtual_tenant
+
+    return None
 
 
-# 1. GET /api/tenants/ - Read real tenants with auto-sync and search
+# 1. GET /api/tenants/ - Read real tenants with on-the-fly user merging and search
 @router.get("/", response_model=List[schemas.TenantSchema])
 def read_tenants(
     organization_id: uuid.UUID = Query(default=DEFAULT_ORG_ID),
@@ -147,33 +103,63 @@ def read_tenants(
 ):
     ensure_sandbox_organization(db, organization_id)
 
-    # Auto-bridge registered user accounts so dropdowns display all tenants
-    sync_tenant_users_to_tenants(db, organization_id)
+    # 1. Fetch existing explicit tenant profiles
+    tenants = list(db.scalars(select(models.Tenant).where(models.Tenant.organization_id == organization_id)).all())
 
-    stmt = select(models.Tenant).where(models.Tenant.organization_id == organization_id)
+    existing_user_ids = {str(t.user_id) for t in tenants if getattr(t, 'user_id', None)}
+    existing_emails = {(t.email or '').lower().strip() for t in tenants if getattr(t, 'email', None)}
+
+    # 2. Directly grab ALL users registered with client, tenant, or resident roles from index.html
+    tenant_users = db.scalars(
+        select(models.User).where(
+            models.User.organization_id == organization_id,
+            or_(
+                models.User.role.ilike("%client%"),
+                models.User.role.ilike("%tenant%"),
+                models.User.role.ilike("%resident%")
+            )
+        )
+    ).all()
+
+    # 3. Merge them on the fly into the response feed so they appear instantly
+    for u in tenant_users:
+        u_email = (u.email or '').lower().strip()
+        if str(u.id) not in existing_user_ids and u_email not in existing_emails:
+            uname = getattr(u, 'name', None) or getattr(u, 'full_name', None) or 'Registered Tenant'
+            uphone = getattr(u, 'phone', '') or ''
+
+            virtual_tenant = models.Tenant(
+                id=u.id,
+                organization_id=organization_id,
+                name=uname,
+                email=u.email,
+                phone=uphone,
+                status='Active'
+            )
+            if hasattr(virtual_tenant, 'user_id'):
+                virtual_tenant.user_id = u.id
+            if hasattr(virtual_tenant, 'tnt_id'):
+                virtual_tenant.tnt_id = f"TNT-{str(u.id)[:6].upper()}"
+            if hasattr(virtual_tenant, 'unit'):
+                virtual_tenant.unit = 'No Current Unit'
+            if hasattr(virtual_tenant, 'type'):
+                virtual_tenant.type = 'Individual'
+
+            tenants.append(virtual_tenant)
 
     if status_filter:
-        stmt = stmt.where(models.Tenant.status.ilike(f"%{status_filter.strip()}%"))
-    if type_filter and hasattr(models.Tenant, "type"):
-        stmt = stmt.where(models.Tenant.type.ilike(f"%{type_filter.strip()}%"))
+        s_filter = status_filter.strip().lower()
+        tenants = [t for t in tenants if s_filter in (t.status or '').lower()]
+
+    if type_filter:
+        t_filter = type_filter.strip().lower()
+        tenants = [t for t in tenants if t_filter in (t.type or '').lower()]
 
     if search:
-        search_term = search.strip()
-        search_terms = []
-        if hasattr(models.Tenant, "name"):
-            search_terms.append(models.Tenant.name.ilike(f"%{search_term}%"))
-        if hasattr(models.Tenant, "full_name"):
-            search_terms.append(models.Tenant.full_name.ilike(f"%{search_term}%"))
-        if hasattr(models.Tenant, "email"):
-            search_terms.append(models.Tenant.email.ilike(f"%{search_term}%"))
-        if hasattr(models.Tenant, "phone"):
-            search_terms.append(models.Tenant.phone.ilike(f"%{search_term}%"))
-        if hasattr(models.Tenant, "tnt_id"):
-            search_terms.append(models.Tenant.tnt_id.ilike(f"%{search_term}%"))
-        if search_terms:
-            stmt = stmt.where(or_(*search_terms))
+        s_term = search.strip().lower()
+        tenants = [t for t in tenants if s_term in (t.name or '').lower() or s_term in (t.email or '').lower()]
 
-    return list(db.scalars(stmt).all())
+    return tenants
 
 
 # 2. POST /api/tenants/ - Create a new tenant

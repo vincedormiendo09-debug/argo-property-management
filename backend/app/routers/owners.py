@@ -25,77 +25,6 @@ def ensure_sandbox_organization(db: Session, org_id: uuid.UUID):
         db.commit()
 
 
-def sync_owner_users_to_owners(db: Session, org_id: uuid.UUID):
-    """
-    Auto-bridges registered users with role 'owner' or 'investor' into the owners table.
-    Links user_id and email so registered owners immediately appear in Admin dropdowns.
-    """
-    try:
-        owner_users = db.scalars(
-            select(models.User).where(
-                models.User.organization_id == org_id,
-                or_(
-                    models.User.role.ilike("%owner%"),
-                    models.User.role.ilike("%investor%")
-                )
-            )
-        ).all()
-
-        for u in owner_users:
-            if not u.email:
-                continue
-            clean_email = u.email.lower().strip()
-            
-            # Check if an owner profile exists by user_id or email
-            existing_owner = db.scalar(
-                select(models.Owner).where(
-                    models.Owner.organization_id == org_id,
-                    or_(
-                        models.Owner.user_id == u.id,
-                        models.Owner.email.ilike(clean_email)
-                    )
-                )
-            )
-            
-            if not existing_owner:
-                name_parts = (u.name or u.full_name or "Property Owner").strip().split(maxsplit=1)
-                first_name = name_parts[0]
-                last_name = name_parts[1] if len(name_parts) > 1 else ""
-
-                owner_data = {
-                    "id": uuid.uuid4(),
-                    "organization_id": org_id,
-                    "email": clean_email,
-                    "phone": u.phone or "",
-                    "status": "Active"
-                }
-                if hasattr(models.Owner, "user_id"):
-                    owner_data["user_id"] = u.id
-                if hasattr(models.Owner, "name"):
-                    owner_data["name"] = u.name or u.full_name or "Property Owner"
-                if hasattr(models.Owner, "full_name"):
-                    owner_data["full_name"] = u.name or u.full_name or "Property Owner"
-                if hasattr(models.Owner, "first_name"):
-                    owner_data["first_name"] = first_name
-                if hasattr(models.Owner, "last_name"):
-                    owner_data["last_name"] = last_name
-                if hasattr(models.Owner, "own_id"):
-                    owner_data["own_id"] = f"OWN-{datetime.now().year}-{str(uuid.uuid4())[:4].upper()}"
-                if hasattr(models.Owner, "type"):
-                    owner_data["type"] = "Individual"
-
-                db.add(models.Owner(**owner_data))
-            else:
-                # Heal orphaned owner record by linking user_id
-                if hasattr(existing_owner, "user_id") and not existing_owner.user_id:
-                    existing_owner.user_id = u.id
-
-        db.commit()
-    except Exception as err:
-        db.rollback()
-        logger.warning(f"Owner auto-sync notice: {err}")
-
-
 def find_owner_by_identifier(db: Session, owner_id: str, organization_id: uuid.UUID):
     """Robustly locates an owner by UUID, user_id, or custom own_id string."""
     clean_id = owner_id.strip()
@@ -125,14 +54,37 @@ def find_owner_by_identifier(db: Session, owner_id: str, organization_id: uuid.U
         if owner:
             return owner
 
-    # Fallback lookup by email
+    # Fallback lookup by email or virtual user match
     owner = db.scalar(
         select(models.Owner).where(
             models.Owner.email.ilike(clean_id),
             models.Owner.organization_id == organization_id
         )
     )
-    return owner
+    if owner:
+        return owner
+
+    # Check registered users table directly if not found in owners table
+    user = db.scalar(
+        select(models.User).where(
+            models.User.email.ilike(clean_id),
+            models.User.organization_id == organization_id
+        )
+    )
+    if user:
+        virtual_owner = models.Owner(
+            id=user.id,
+            organization_id=organization_id,
+            name=user.name or user.full_name or "Registered Owner",
+            email=user.email,
+            phone=user.phone or "",
+            status="Active"
+        )
+        if hasattr(virtual_owner, "user_id"):
+            virtual_owner.user_id = user.id
+        return virtual_owner
+
+    return None
 
 
 # ---------------------------------------------------------------------
@@ -189,31 +141,56 @@ def read_owners(
 ):
     ensure_sandbox_organization(db, organization_id)
     
-    # Auto-bridge registered user accounts so dropdowns display all owners
-    sync_owner_users_to_owners(db, organization_id)
+    # 1. Fetch existing explicit owner profiles
+    owners = list(db.scalars(select(models.Owner).where(models.Owner.organization_id == organization_id)).all())
+    
+    existing_user_ids = {str(o.user_id) for o in owners if getattr(o, 'user_id', None)}
+    existing_emails = {(o.email or '').lower().strip() for o in owners if getattr(o, 'email', None)}
 
-    stmt = select(models.Owner).where(models.Owner.organization_id == organization_id)
+    # 2. Directly grab ALL users registered with owner, investor, or property_owner roles from index.html
+    owner_users = db.scalars(
+        select(models.User).where(
+            models.User.organization_id == organization_id,
+            or_(
+                models.User.role.ilike("%owner%"),
+                models.User.role.ilike("%investor%"),
+                models.User.role.ilike("%property_owner%")
+            )
+        )
+    ).all()
+
+    # 3. Merge them on the fly into the response feed so they appear instantly
+    for u in owner_users:
+        u_email = (u.email or '').lower().strip()
+        if str(u.id) not in existing_user_ids and u_email not in existing_emails:
+            uname = getattr(u, 'name', None) or getattr(u, 'full_name', None) or 'Registered Owner'
+            uphone = getattr(u, 'phone', '') or ''
+            
+            virtual_owner = models.Owner(
+                id=u.id,
+                organization_id=organization_id,
+                name=uname,
+                email=u.email,
+                phone=uphone,
+                status='Active'
+            )
+            if hasattr(virtual_owner, 'user_id'):
+                virtual_owner.user_id = u.id
+            if hasattr(virtual_owner, 'own_id'):
+                virtual_owner.own_id = f"OWN-{str(u.id)[:6].upper()}"
+            if hasattr(virtual_owner, 'type'):
+                virtual_owner.type = 'Individual'
+                
+            owners.append(virtual_owner)
 
     if status_filter:
-        stmt = stmt.where(models.Owner.status.ilike(f"%{status_filter.strip()}%"))
+        owners = [o for o in owners if status_filter.lower() in (o.status or '').lower()]
 
     if search:
-        search_term = search.strip()
-        search_terms = []
-        if hasattr(models.Owner, "name"):
-            search_terms.append(models.Owner.name.ilike(f"%{search_term}%"))
-        if hasattr(models.Owner, "full_name"):
-            search_terms.append(models.Owner.full_name.ilike(f"%{search_term}%"))
-        if hasattr(models.Owner, "email"):
-            search_terms.append(models.Owner.email.ilike(f"%{search_term}%"))
-        if hasattr(models.Owner, "phone"):
-            search_terms.append(models.Owner.phone.ilike(f"%{search_term}%"))
-        if hasattr(models.Owner, "own_id"):
-            search_terms.append(models.Owner.own_id.ilike(f"%{search_term}%"))
-        if search_terms:
-            stmt = stmt.where(or_(*search_terms))
+        s_term = search.strip().lower()
+        owners = [o for o in owners if s_term in (o.name or '').lower() or s_term in (o.email or '').lower()]
 
-    return list(db.scalars(stmt).all())
+    return owners
 
 
 @router.post("/", response_model=schemas.OwnerSchema, status_code=status.HTTP_201_CREATED)
