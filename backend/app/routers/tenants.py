@@ -39,10 +39,10 @@ def ensure_sandbox_organization(db: Session, org_id: uuid.UUID):
 
 
 def find_tenant_by_identifier(db: Session, tenant_id: str, organization_id: uuid.UUID):
-    """Robustly locates a tenant by UUID, user_id, custom TNT string, email, or virtual user match."""
+    """Robustly locates a tenant by UUID, user_id, custom TNT code, email, or User record."""
     clean_id = tenant_id.strip()
 
-    # 1. Search Tenant table by UUID
+    # 1. Search Tenant table by UUID (id or user_id)
     try:
         parsed_uuid = uuid.UUID(clean_id)
         tenant = db.scalar(
@@ -102,16 +102,34 @@ def find_tenant_by_identifier(db: Session, tenant_id: str, organization_id: uuid
     if tenant:
         return tenant
 
-    # 4. Fallback: Search User table directly (e.g. Maria Santos, Carlos Mendoza)
+    # 4. Fallback: Search User table directly if role is client/tenant
     user = None
     try:
         user_uuid = uuid.UUID(clean_id)
-        user = db.scalar(select(models.User).where(models.User.id == user_uuid))
+        user = db.scalar(
+            select(models.User).where(
+                models.User.id == user_uuid,
+                or_(
+                    models.User.role.ilike("%client%"),
+                    models.User.role.ilike("%tenant%"),
+                    models.User.role.ilike("%resident%")
+                )
+            )
+        )
     except ValueError:
         pass
 
     if not user:
-        user = db.scalar(select(models.User).where(models.User.email.ilike(clean_id)))
+        user = db.scalar(
+            select(models.User).where(
+                models.User.email.ilike(clean_id),
+                or_(
+                    models.User.role.ilike("%client%"),
+                    models.User.role.ilike("%tenant%"),
+                    models.User.role.ilike("%resident%")
+                )
+            )
+        )
 
     if user:
         t_id = str(user.id)
@@ -129,17 +147,17 @@ def find_tenant_by_identifier(db: Session, tenant_id: str, organization_id: uuid
             virtual_tenant.tenant_id = f"TNT-{t_id[:6].upper()}"
         if hasattr(virtual_tenant, "tnt_id"):
             virtual_tenant.tnt_id = f"TNT-{t_id[:6].upper()}"
-        if hasattr(virtual_tenant, "type"):
-            virtual_tenant.type = "Individual"
         if hasattr(virtual_tenant, "unit"):
             virtual_tenant.unit = "Unassigned"
+        if hasattr(virtual_tenant, "type"):
+            virtual_tenant.type = "Individual"
         return virtual_tenant
 
     return None
 
 
 # ---------------------------------------------------------------------
-# 1. GET TENANTS (Supports both /api/tenants & /api/tenants/)
+# 1. GET TENANTS (Supports both /api/tenants and /api/tenants/)
 # ---------------------------------------------------------------------
 @router.get("")
 @router.get("/")
@@ -150,13 +168,16 @@ def read_tenants(
     search: Optional[str] = Query(default=None),
     db: Session = Depends(get_db)
 ):
+    """
+    Returns database tenant profiles merged with registered client/tenant user accounts.
+    """
     org_id = parse_org_id(organization_id)
     ensure_sandbox_organization(db, org_id)
 
     results: List[Dict[str, Any]] = []
-    seen = set()
+    seen_identifiers = set()
 
-    # 1. Fetch explicit 'tenants' table records
+    # 1. Query explicit 'tenants' table records from Neon DB
     try:
         db_tenants = list(db.scalars(
             select(models.Tenant).where(
@@ -175,11 +196,11 @@ def read_tenants(
             code = getattr(t, "tenant_id", None) or getattr(t, "tnt_id", None) or f"TNT-{t_id[:6].upper()}"
 
             if t_id:
-                seen.add(t_id)
+                seen_identifiers.add(t_id)
             if t_user_id:
-                seen.add(t_user_id)
+                seen_identifiers.add(t_user_id)
             if t_email:
-                seen.add(t_email)
+                seen_identifiers.add(t_email)
 
             results.append({
                 "id": t_id,
@@ -199,7 +220,7 @@ def read_tenants(
     except Exception as e:
         logger.warning(f"Notice querying tenants table: {e}")
 
-    # 2. Fetch registered users with client/tenant roles (Maria Santos, Carlos Mendoza)
+    # 2. Query registered users with active client/tenant/resident roles
     try:
         tenant_users = list(db.scalars(
             select(models.User).where(
@@ -216,11 +237,11 @@ def read_tenants(
             u_email = (getattr(u, "email", "") or "").lower().strip()
             u_name = getattr(u, "name", "") or getattr(u, "full_name", "") or "Resident Tenant"
 
-            if u_id not in seen and u_email not in seen:
+            if u_id not in seen_identifiers and u_email not in seen_identifiers:
                 if u_id:
-                    seen.add(u_id)
+                    seen_identifiers.add(u_id)
                 if u_email:
-                    seen.add(u_email)
+                    seen_identifiers.add(u_email)
 
                 code = f"TNT-{u_id[:6].upper()}"
                 results.append({
@@ -288,7 +309,6 @@ def create_tenant(
     clean_email = (tenant_in.get("email") or "").strip().lower() or None
     code = (tenant_in.get("tenant_id") or tenant_in.get("tnt_id") or f"TNT-{datetime.now().year}-{str(uuid.uuid4())[:4].upper()}").strip()
 
-    # Scoped duplicate check
     duplicate_filters = []
     if hasattr(models.Tenant, "tenant_id"):
         duplicate_filters.append(models.Tenant.tenant_id.ilike(code))
@@ -426,7 +446,7 @@ def update_tenant(
 
 
 # ---------------------------------------------------------------------
-# 5. DELETE TENANT
+# 5. DELETE TENANT (Completely removes tenant profile & client role)
 # ---------------------------------------------------------------------
 @router.delete("/{tenant_id}", status_code=status.HTTP_204_NO_CONTENT)
 @router.delete("/{tenant_id}/", status_code=status.HTTP_204_NO_CONTENT)
@@ -436,21 +456,65 @@ def delete_tenant(
     db: Session = Depends(get_db)
 ):
     org_id = parse_org_id(organization_id)
-    db_tenant = find_tenant_by_identifier(db, tenant_id, org_id)
+    clean_id = tenant_id.strip()
+
+    # 1. Locate explicit Tenant table row
+    db_tenant = None
+    try:
+        parsed_uuid = uuid.UUID(clean_id)
+        db_tenant = db.scalar(
+            select(models.Tenant).where(
+                or_(
+                    models.Tenant.id == parsed_uuid,
+                    models.Tenant.user_id == parsed_uuid
+                )
+            )
+        )
+    except ValueError:
+        pass
+
     if not db_tenant:
+        if hasattr(models.Tenant, "tenant_id"):
+            db_tenant = db.scalar(select(models.Tenant).where(models.Tenant.tenant_id.ilike(clean_id)))
+        if not db_tenant and hasattr(models.Tenant, "tnt_id"):
+            db_tenant = db.scalar(select(models.Tenant).where(models.Tenant.tnt_id.ilike(clean_id)))
+        if not db_tenant:
+            db_tenant = db.scalar(select(models.Tenant).where(models.Tenant.email.ilike(clean_id)))
+
+    # 2. Locate corresponding User record to revoke client role
+    target_email = getattr(db_tenant, "email", clean_id) if db_tenant else clean_id
+    target_user = None
+
+    try:
+        parsed_uuid = uuid.UUID(clean_id)
+        target_user = db.scalar(select(models.User).where(models.User.id == parsed_uuid))
+    except ValueError:
+        pass
+
+    if not target_user and target_email:
+        target_user = db.scalar(select(models.User).where(models.User.email.ilike(target_email)))
+
+    if not db_tenant and not target_user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Tenant not found."
+            detail="Tenant record not found."
         )
 
     try:
-        db.delete(db_tenant)
+        # Delete row from tenants table
+        if db_tenant:
+            db.delete(db_tenant)
+
+        # Revoke the client role from the User row so they do not regenerate in the tenant feed
+        if target_user and any(k in (target_user.role or "").lower() for k in ["client", "tenant", "resident"]):
+            target_user.role = "inactive"
+
         db.commit()
     except IntegrityError:
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cannot delete tenant because they are referenced by active leases or billing records."
+            detail="Cannot delete tenant because active leases or invoice records are attached."
         )
     except Exception as e:
         db.rollback()
