@@ -1,4 +1,5 @@
 import uuid
+import logging
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
@@ -9,6 +10,7 @@ from ..database import get_db
 from .. import models
 
 router = APIRouter()
+logger = logging.getLogger("uvicorn.error")
 
 # Default Organization UUID matching seed.py and schema.sql
 DEFAULT_ORG_ID = uuid.UUID("a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11")
@@ -101,6 +103,50 @@ SEED_ACCOUNTS = {
 }
 
 
+def create_operational_profile(db: Session, user: models.User, org_id: uuid.UUID) -> None:
+    """
+    Safely provisions matching operational records (Tenant or Owner) in a separate
+    transaction so database constraints will never break or block user registration.
+    """
+    try:
+        if user.role == "client":
+            tenant_exists = db.scalar(select(models.Tenant).where(models.Tenant.email == user.email))
+            if not tenant_exists:
+                tenant_kwargs = {
+                    "id": uuid.uuid4(),
+                    "organization_id": org_id,
+                    "name": user.name or "Tenant User",
+                    "email": user.email,
+                    "phone": user.phone,
+                    "status": "active"
+                }
+                if hasattr(models.Tenant, "user_id"):
+                    tenant_kwargs["user_id"] = user.id
+
+                db.add(models.Tenant(**tenant_kwargs))
+                db.commit()
+
+        elif user.role == "owner":
+            owner_exists = db.scalar(select(models.Owner).where(models.Owner.email == user.email))
+            if not owner_exists:
+                owner_kwargs = {
+                    "id": uuid.uuid4(),
+                    "organization_id": org_id,
+                    "name": user.name or "Property Owner",
+                    "email": user.email,
+                    "phone": user.phone,
+                    "status": "active"
+                }
+                if hasattr(models.Owner, "user_id"):
+                    owner_kwargs["user_id"] = user.id
+
+                db.add(models.Owner(**owner_kwargs))
+                db.commit()
+    except Exception as err:
+        db.rollback()
+        logger.warning(f"Operational profile auto-bridge skipped for {user.email}: {err}")
+
+
 # =====================================================================
 # AUTHENTICATION ENDPOINTS
 # =====================================================================
@@ -143,37 +189,11 @@ def login(credentials: LoginRequest, db: Session = Depends(get_db)):
                 is_active=True
             )
             db.add(user)
-
-            # Link operational tenant profile
-            if acc_data["role"] == "client":
-                tenant_exists = db.scalar(select(models.Tenant).where(models.Tenant.email == search_email))
-                if not tenant_exists:
-                    db.add(models.Tenant(
-                        id=uuid.uuid4(),
-                        organization_id=org_id,
-                        user_id=user.id,
-                        name=acc_data["name"],
-                        email=search_email,
-                        phone=acc_data["phone"],
-                        status="active"
-                    ))
-
-            # Link operational owner profile
-            elif acc_data["role"] == "owner":
-                owner_exists = db.scalar(select(models.Owner).where(models.Owner.email == search_email))
-                if not owner_exists:
-                    db.add(models.Owner(
-                        id=uuid.uuid4(),
-                        organization_id=org_id,
-                        user_id=user.id,
-                        name=acc_data["name"],
-                        email=search_email,
-                        phone=acc_data["phone"],
-                        status="active"
-                    ))
-
             db.commit()
             db.refresh(user)
+
+            # Auto-provision operational profile safely
+            create_operational_profile(db, user, org_id)
         else:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -235,7 +255,7 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
     # 3. Ensure parent organization exists before inserting dependent rows
     ensure_organization_exists(db, org_id)
 
-    # 4. Create user record
+    # 4. Create and commit User record first (guarantees account creation)
     new_user = models.User(
         id=uuid.uuid4(),
         organization_id=org_id,
@@ -248,35 +268,11 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
         is_active=True
     )
     db.add(new_user)
-
-    # 5. Auto-bridge operational tenant or owner profile
-    if normalized_role == "client":
-        existing_tenant = db.scalar(select(models.Tenant).where(models.Tenant.email == clean_email))
-        if not existing_tenant:
-            db.add(models.Tenant(
-                id=uuid.uuid4(),
-                organization_id=org_id,
-                user_id=new_user.id,
-                name=payload.name,
-                email=clean_email,
-                phone=payload.phone,
-                status="active"
-            ))
-    elif normalized_role == "owner":
-        existing_owner = db.scalar(select(models.Owner).where(models.Owner.email == clean_email))
-        if not existing_owner:
-            db.add(models.Owner(
-                id=uuid.uuid4(),
-                organization_id=org_id,
-                user_id=new_user.id,
-                name=payload.name,
-                email=clean_email,
-                phone=payload.phone,
-                status="active"
-            ))
-
     db.commit()
     db.refresh(new_user)
+
+    # 5. Safely auto-bridge operational Tenant / Owner profile
+    create_operational_profile(db, new_user, org_id)
 
     session_token = f"argo_live_{new_user.role}_{uuid.uuid4()}"
 
