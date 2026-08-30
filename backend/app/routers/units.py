@@ -1,8 +1,9 @@
 import uuid
 import logging
-from typing import List, Optional
+from datetime import datetime
+from typing import List, Optional, Any, Dict
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select, or_
+from sqlalchemy import select, or_, delete
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
@@ -12,8 +13,20 @@ from .. import models, schemas
 router = APIRouter()
 logger = logging.getLogger("uvicorn.error")
 
-# Default Organization UUID matching schema.sql and seed.py
 DEFAULT_ORG_ID = uuid.UUID("a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11")
+
+
+def parse_org_id(org_id_raw: Optional[str]) -> uuid.UUID:
+    """Safely converts string, null, or undefined organization IDs to valid UUIDs."""
+    if not org_id_raw:
+        return DEFAULT_ORG_ID
+    clean = str(org_id_raw).strip().lower()
+    if clean in ("undefined", "null", ""):
+        return DEFAULT_ORG_ID
+    try:
+        return uuid.UUID(clean)
+    except Exception:
+        return DEFAULT_ORG_ID
 
 
 def ensure_sandbox_organization(db: Session, org_id: uuid.UUID):
@@ -27,13 +40,18 @@ def ensure_sandbox_organization(db: Session, org_id: uuid.UUID):
 
 def find_unit_by_identifier(db: Session, unit_id: str, organization_id: uuid.UUID):
     """Robustly resolves a unit by UUID, exact unit_no, normalized slug, or unit_number."""
+    clean_id = unit_id.strip()
+
     # 1. Try parsing as UUID
     try:
-        parsed_uuid = uuid.UUID(unit_id)
+        parsed_uuid = uuid.UUID(clean_id)
         unit = db.scalar(
             select(models.Unit).where(
                 models.Unit.id == parsed_uuid,
-                models.Unit.organization_id == organization_id
+                or_(
+                    models.Unit.organization_id == organization_id,
+                    models.Unit.organization_id.is_(None)
+                )
             )
         )
         if unit:
@@ -47,19 +65,25 @@ def find_unit_by_identifier(db: Session, unit_id: str, organization_id: uuid.UUI
     # 2. Exact match on unit_no
     unit = db.scalar(
         select(models.Unit).where(
-            models.Unit.unit_no.ilike(unit_id.strip()),
-            models.Unit.organization_id == organization_id
+            models.Unit.unit_no.ilike(clean_id),
+            or_(
+                models.Unit.organization_id == organization_id,
+                models.Unit.organization_id.is_(None)
+            )
         )
     )
     if unit:
         return unit
 
     # 3. Normalized match (e.g., "unit-101" -> "Unit 101")
-    normalized_name = unit_id.replace("-", " ").title().strip()
+    normalized_name = clean_id.replace("-", " ").title().strip()
     unit = db.scalar(
         select(models.Unit).where(
             models.Unit.unit_no.ilike(normalized_name),
-            models.Unit.organization_id == organization_id
+            or_(
+                models.Unit.organization_id == organization_id,
+                models.Unit.organization_id.is_(None)
+            )
         )
     )
     if unit:
@@ -70,207 +94,360 @@ def find_unit_by_identifier(db: Session, unit_id: str, organization_id: uuid.UUI
         unit = db.scalar(
             select(models.Unit).where(
                 or_(
-                    models.Unit.unit_number.ilike(unit_id.strip()),
+                    models.Unit.unit_number.ilike(clean_id),
                     models.Unit.unit_number.ilike(normalized_name)
                 ),
-                models.Unit.organization_id == organization_id
+                or_(
+                    models.Unit.organization_id == organization_id,
+                    models.Unit.organization_id.is_(None)
+                )
             )
         )
         if unit:
             return unit
 
-    # 5. Substring fallback match
-    unit = db.scalar(
-        select(models.Unit).where(
-            models.Unit.unit_no.ilike(f"%{unit_id.strip()}%"),
-            models.Unit.organization_id == organization_id
-        )
-    )
-    if unit:
-        return unit
-
     return None
 
 
-# 1. GET /api/units/ - Read real units from DB with cascading filters
-@router.get("/", response_model=List[schemas.UnitSchema])
+# ---------------------------------------------------------------------
+# 1. GET UNITS (Matches both /api/units and /api/units/)
+# ---------------------------------------------------------------------
+@router.get("")
+@router.get("/")
 def read_units(
-    organization_id: uuid.UUID = Query(default=DEFAULT_ORG_ID),
-    property_id: Optional[uuid.UUID] = Query(default=None),
-    building_id: Optional[uuid.UUID] = Query(default=None),
+    organization_id: Optional[str] = Query(default=None),
+    property_id: Optional[str] = Query(default=None),
+    building_id: Optional[str] = Query(default=None),
     floor_filter: Optional[str] = Query(default=None, alias="floor"),
     status_filter: Optional[str] = Query(default=None, alias="status"),
     type_filter: Optional[str] = Query(default=None, alias="type"),
     search: Optional[str] = Query(default=None),
     db: Session = Depends(get_db)
 ):
-    ensure_sandbox_organization(db, organization_id)
+    org_id = parse_org_id(organization_id)
+    ensure_sandbox_organization(db, org_id)
 
-    stmt = select(models.Unit).where(models.Unit.organization_id == organization_id)
+    stmt = select(models.Unit).where(
+        or_(
+            models.Unit.organization_id == org_id,
+            models.Unit.organization_id.is_(None)
+        )
+    )
     
-    if property_id:
-        stmt = stmt.where(models.Unit.property_id == property_id)
-    if building_id and hasattr(models.Unit, "building_id"):
-        stmt = stmt.where(models.Unit.building_id == building_id)
+    if property_id and property_id not in ("undefined", "null", ""):
+        try:
+            stmt = stmt.where(models.Unit.property_id == uuid.UUID(property_id))
+        except ValueError:
+            pass
+
+    if building_id and building_id not in ("undefined", "null", "") and hasattr(models.Unit, "building_id"):
+        try:
+            stmt = stmt.where(models.Unit.building_id == uuid.UUID(building_id))
+        except ValueError:
+            pass
+
     if floor_filter and hasattr(models.Unit, "floor"):
         stmt = stmt.where(models.Unit.floor.ilike(f"%{floor_filter.strip()}%"))
+
     if status_filter:
         stmt = stmt.where(models.Unit.status.ilike(f"%{status_filter.strip()}%"))
+
     if type_filter and hasattr(models.Unit, "type"):
         stmt = stmt.where(models.Unit.type.ilike(f"%{type_filter.strip()}%"))
 
+    units_list = list(db.scalars(stmt).all())
+
+    # Lookup tables for relations
+    props_map = {
+        p.id: (getattr(p, "name", None) or getattr(p, "property_name", None) or "Property") 
+        for p in db.scalars(select(models.Property)).all()
+    }
+    bldgs_map = {
+        b.id: (getattr(b, "name", None) or "Building") 
+        for b in db.scalars(select(models.Building)).all()
+    }
+
+    results: List[Dict[str, Any]] = []
+    for u in units_list:
+        u_id = str(u.id)
+        p_id = u.property_id
+        b_id = getattr(u, "building_id", None)
+        rent_val = float(getattr(u, "rent", None) or getattr(u, "rent_amount", None) or 0.0)
+
+        results.append({
+            "id": u_id,
+            "organization_id": str(getattr(u, "organization_id", None) or org_id),
+            "property_id": str(p_id),
+            "property_name": props_map.get(p_id, "Property Asset"),
+            "building_id": str(b_id) if b_id else None,
+            "building_name": bldgs_map.get(b_id, "") if b_id else "",
+            "unit_no": getattr(u, "unit_no", f"UNIT-{u_id[:4].upper()}"),
+            "unit_number": getattr(u, "unit_number", getattr(u, "unit_no", "")),
+            "type": getattr(u, "type", "1-Bedroom Apartment") or "1-Bedroom Apartment",
+            "floor": getattr(u, "floor", "1st Floor") or "1st Floor",
+            "floor_number": int(getattr(u, "floor_number", 1) or 1),
+            "sqm": float(getattr(u, "sqm", 45.0) or 45.0),
+            "rent": rent_val,
+            "rent_amount": rent_val,
+            "status": getattr(u, "status", "Available") or "Available",
+            "tenant_name": getattr(u, "tenant_name", None),
+            "subtitle": getattr(u, "subtitle", None),
+            "description": getattr(u, "description", None)
+        })
+
     if search:
-        search_term = search.strip()
-        search_terms = []
-        if hasattr(models.Unit, "unit_no"):
-            search_terms.append(models.Unit.unit_no.ilike(f"%{search_term}%"))
-        if hasattr(models.Unit, "subtitle"):
-            search_terms.append(models.Unit.subtitle.ilike(f"%{search_term}%"))
-        if hasattr(models.Unit, "floor"):
-            search_terms.append(models.Unit.floor.ilike(f"%{search_term}%"))
-        if hasattr(models.Unit, "type"):
-            search_terms.append(models.Unit.type.ilike(f"%{search_term}%"))
-        if search_terms:
-            stmt = stmt.where(or_(*search_terms))
+        s = search.strip().lower()
+        results = [
+            r for r in results
+            if s in (r.get("unit_no") or "").lower()
+            or s in (r.get("property_name") or "").lower()
+            or s in (r.get("building_name") or "").lower()
+            or s in (r.get("type") or "").lower()
+            or s in (r.get("floor") or "").lower()
+            or s in (r.get("tenant_name") or "").lower()
+        ]
 
-    return list(db.scalars(stmt).all())
+    return results
 
 
-# 2. POST /api/units/ - Create a new unit
-@router.post("/", response_model=schemas.UnitSchema, status_code=status.HTTP_201_CREATED)
-def create_unit(unit_in: schemas.UnitCreate, db: Session = Depends(get_db)):
-    org_id = getattr(unit_in, "organization_id", DEFAULT_ORG_ID) or DEFAULT_ORG_ID
+# ---------------------------------------------------------------------
+# 2. CREATE UNIT (Matches POST /api/units & POST /api/units/)
+# ---------------------------------------------------------------------
+@router.post("", status_code=status.HTTP_201_CREATED)
+@router.post("/", status_code=status.HTTP_201_CREATED)
+def create_unit(
+    unit_in: Dict[str, Any],
+    organization_id: Optional[str] = Query(default=None),
+    db: Session = Depends(get_db)
+):
+    org_id = parse_org_id(unit_in.get("organization_id") or organization_id)
     ensure_sandbox_organization(db, org_id)
 
-    # 1. Verify parent property exists
-    prop_id = getattr(unit_in, "property_id", None)
-    if not prop_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="A parent Property ID is required to create a unit."
+    # 1. Verify and resolve parent property
+    prop_id_raw = unit_in.get("property_id")
+    parent_prop = None
+
+    if prop_id_raw and str(prop_id_raw).strip() not in ("undefined", "null", ""):
+        try:
+            p_uuid = uuid.UUID(str(prop_id_raw).strip())
+            parent_prop = db.scalar(
+                select(models.Property).where(
+                    models.Property.id == p_uuid,
+                    or_(
+                        models.Property.organization_id == org_id,
+                        models.Property.organization_id.is_(None)
+                    )
+                )
+            )
+        except ValueError:
+            pass
+
+    if not parent_prop:
+        parent_prop = db.scalar(
+            select(models.Property).where(
+                or_(
+                    models.Property.organization_id == org_id,
+                    models.Property.organization_id.is_(None)
+                )
+            )
         )
 
-    prop_stmt = select(models.Property).where(
-        models.Property.id == prop_id,
-        models.Property.organization_id == org_id
-    )
-    parent_prop = db.scalar(prop_stmt)
     if not parent_prop:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Property with ID '{prop_id}' was not found in this organization."
-        )
-
-    # 2. Scoped duplicate check: (organization_id, property_id, unit_no) must be unique
-    unit_no_val = getattr(unit_in, "unit_no", "").strip()
-    dup_stmt = select(models.Unit).where(
-        models.Unit.organization_id == org_id,
-        models.Unit.property_id == prop_id,
-        models.Unit.unit_no.ilike(unit_no_val)
-    )
-    existing = db.scalar(dup_stmt)
-    if existing:
-        raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Unit '{unit_no_val}' already exists for this property."
+            detail="A registered Property asset is required before creating units."
         )
 
-    # 3. Assemble and sanitize unit data
-    unit_data = unit_in.model_dump(exclude_unset=True) if hasattr(unit_in, "model_dump") else unit_in.dict(exclude_unset=True)
-    if "id" not in unit_data or not unit_data["id"]:
-        unit_data["id"] = uuid.uuid4()
-    if "organization_id" not in unit_data or not unit_data["organization_id"]:
-        unit_data["organization_id"] = org_id
-    unit_data["property_id"] = prop_id
-    unit_data["unit_no"] = unit_no_val
+    prop_id = parent_prop.id
+    unit_no_val = (unit_in.get("unit_no") or unit_in.get("unit_number") or "").strip()
+    if not unit_no_val:
+        unit_no_val = f"U-{str(uuid.uuid4())[:4].upper()}"
 
-    # Default occupancy status
-    if "status" not in unit_data or not unit_data["status"]:
-        unit_data["status"] = "Available"
+    # 2. Duplicate check
+    existing = db.scalar(
+        select(models.Unit).where(
+            models.Unit.organization_id == org_id,
+            models.Unit.property_id == prop_id,
+            models.Unit.unit_no.ilike(unit_no_val)
+        )
+    )
+    if existing:
+        unit_no_val = f"{unit_no_val}-{str(uuid.uuid4())[:3].upper()}"
 
-    # Sync rent/rent_amount model field naming
-    if "rent" in unit_data and hasattr(models.Unit, "rent_amount") and not hasattr(models.Unit, "rent"):
-        unit_data["rent_amount"] = unit_data.pop("rent")
-    elif "rent_amount" in unit_data and hasattr(models.Unit, "rent") and not hasattr(models.Unit, "rent_amount"):
-        unit_data["rent"] = unit_data.pop("rent_amount")
+    # 3. Assemble record
+    new_id = uuid.uuid4()
+    if unit_in.get("id"):
+        try:
+            new_id = uuid.UUID(str(unit_in["id"]))
+        except ValueError:
+            pass
+
+    rent_val = float(unit_in.get("rent") or unit_in.get("rent_amount") or 0.00)
+    sqm_val = float(unit_in.get("sqm") or 45.00)
+    floor_val = (unit_in.get("floor") or "1st Floor").strip()
+    floor_num = int(unit_in.get("floor_number") or "".join(filter(str.isdigit, floor_val)) or 1)
+
+    unit_data = {
+        "id": new_id,
+        "organization_id": org_id,
+        "property_id": prop_id,
+        "unit_no": unit_no_val,
+        "unit_number": unit_no_val,
+        "type": unit_in.get("type") or "1-Bedroom Apartment",
+        "floor": floor_val,
+        "floor_number": floor_num,
+        "sqm": sqm_val,
+        "status": unit_in.get("status") or "Available",
+        "subtitle": unit_in.get("subtitle") or f"{floor_val} · Standard Unit",
+        "description": unit_in.get("description")
+    }
+
+    if hasattr(models.Unit, "rent"):
+        unit_data["rent"] = rent_val
+    if hasattr(models.Unit, "rent_amount"):
+        unit_data["rent_amount"] = rent_val
+
+    # Optional building link
+    bldg_id_raw = unit_in.get("building_id")
+    if bldg_id_raw and str(bldg_id_raw).strip() not in ("undefined", "null", ""):
+        try:
+            unit_data["building_id"] = uuid.UUID(str(bldg_id_raw).strip())
+        except ValueError:
+            pass
 
     db_unit = models.Unit(**unit_data)
     db.add(db_unit)
 
-    # Increment property unit counter if column exists
+    # Increment property unit counter
     if hasattr(parent_prop, "units_count"):
         parent_prop.units_count = (parent_prop.units_count or 0) + 1
 
     db.commit()
     db.refresh(db_unit)
-    return db_unit
+
+    return {
+        "id": str(db_unit.id),
+        "organization_id": str(db_unit.organization_id),
+        "property_id": str(db_unit.property_id),
+        "unit_no": db_unit.unit_no,
+        "type": db_unit.type,
+        "floor": db_unit.floor,
+        "sqm": float(db_unit.sqm or 0),
+        "rent": float(getattr(db_unit, "rent", None) or getattr(db_unit, "rent_amount", None) or 0),
+        "status": db_unit.status
+    }
 
 
-# 3. GET /api/units/{unit_id} - Fetch a single unit by UUID or Unit Number
-@router.get("/{unit_id}", response_model=schemas.UnitSchema)
+# ---------------------------------------------------------------------
+# 3. GET SINGLE UNIT
+# ---------------------------------------------------------------------
+@router.get("/{unit_id}")
+@router.get("/{unit_id}/")
 def get_unit(
     unit_id: str,
-    organization_id: uuid.UUID = Query(default=DEFAULT_ORG_ID),
+    organization_id: Optional[str] = Query(default=None),
     db: Session = Depends(get_db)
 ):
-    unit = find_unit_by_identifier(db, unit_id, organization_id)
+    org_id = parse_org_id(organization_id)
+    unit = find_unit_by_identifier(db, unit_id, org_id)
     if not unit:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Unit not found."
         )
-    return unit
+
+    rent_val = float(getattr(unit, "rent", None) or getattr(unit, "rent_amount", None) or 0.0)
+    return {
+        "id": str(unit.id),
+        "organization_id": str(unit.organization_id or org_id),
+        "property_id": str(unit.property_id),
+        "building_id": str(unit.building_id) if getattr(unit, "building_id", None) else None,
+        "unit_no": unit.unit_no,
+        "type": unit.type,
+        "floor": unit.floor,
+        "sqm": float(unit.sqm or 0),
+        "rent": rent_val,
+        "rent_amount": rent_val,
+        "status": unit.status
+    }
 
 
-# 4. PUT & PATCH /api/units/{unit_id} - Update unit status (OCCUPIED <-> VACANT), rent, and specs
-@router.put("/{unit_id}", response_model=schemas.UnitSchema)
-@router.patch("/{unit_id}", response_model=schemas.UnitSchema)
+# ---------------------------------------------------------------------
+# 4. UPDATE UNIT (PUT / PATCH)
+# ---------------------------------------------------------------------
+@router.put("/{unit_id}")
+@router.put("/{unit_id}/")
+@router.patch("/{unit_id}")
+@router.patch("/{unit_id}/")
 def update_unit(
     unit_id: str,
-    unit_update: schemas.UnitUpdate,
-    organization_id: uuid.UUID = Query(default=DEFAULT_ORG_ID),
+    unit_update: Dict[str, Any],
+    organization_id: Optional[str] = Query(default=None),
     db: Session = Depends(get_db)
 ):
-    db_unit = find_unit_by_identifier(db, unit_id, organization_id)
+    org_id = parse_org_id(organization_id)
+    db_unit = find_unit_by_identifier(db, unit_id, org_id)
     if not db_unit:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Unit not found."
         )
 
-    update_data = unit_update.model_dump(exclude_unset=True) if hasattr(unit_update, "model_dump") else unit_update.dict(exclude_unset=True)
-
-    # Normalize incoming status string
-    if "status" in update_data and update_data["status"]:
-        s = str(update_data["status"]).strip().upper()
+    # Normalize status string
+    if "status" in unit_update and unit_update["status"]:
+        s = str(unit_update["status"]).strip().upper()
         if s in ("AVAILABLE", "VACANT"):
-            update_data["status"] = "Available"
+            unit_update["status"] = "Available"
         elif s in ("OCCUPIED", "LEASED"):
-            update_data["status"] = "Occupied"
+            unit_update["status"] = "Occupied"
         elif s in ("MAINTENANCE", "UNDER_MAINTENANCE"):
-            update_data["status"] = "Maintenance"
+            unit_update["status"] = "Maintenance"
 
-    for field, value in update_data.items():
+    for field, value in unit_update.items():
         if hasattr(db_unit, field):
-            setattr(db_unit, field, value)
-        elif field == "rent" and hasattr(db_unit, "rent_amount"):
-            setattr(db_unit, "rent_amount", value)
-        elif field == "rent_amount" and hasattr(db_unit, "rent"):
-            setattr(db_unit, "rent", value)
+            if field in ("property_id", "building_id") and value:
+                try:
+                    setattr(db_unit, field, uuid.UUID(str(value)))
+                except ValueError:
+                    pass
+            elif field in ("rent", "rent_amount", "sqm") and value is not None:
+                setattr(db_unit, field, float(value))
+            else:
+                setattr(db_unit, field, value)
+        elif field == "rent" and hasattr(db_unit, "rent_amount") and value is not None:
+            setattr(db_unit, "rent_amount", float(value))
+        elif field == "rent_amount" and hasattr(db_unit, "rent") and value is not None:
+            setattr(db_unit, "rent", float(value))
 
     db.commit()
     db.refresh(db_unit)
-    return db_unit
+
+    rent_val = float(getattr(db_unit, "rent", None) or getattr(db_unit, "rent_amount", None) or 0.0)
+    return {
+        "id": str(db_unit.id),
+        "organization_id": str(db_unit.organization_id),
+        "property_id": str(db_unit.property_id),
+        "unit_no": db_unit.unit_no,
+        "type": db_unit.type,
+        "floor": db_unit.floor,
+        "sqm": float(db_unit.sqm or 0),
+        "rent": rent_val,
+        "status": db_unit.status
+    }
 
 
-# 5. DELETE /api/units/{unit_id} - Remove unit from inventory
+# ---------------------------------------------------------------------
+# 5. DELETE UNIT
+# ---------------------------------------------------------------------
 @router.delete("/{unit_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{unit_id}/", status_code=status.HTTP_204_NO_CONTENT)
 def delete_unit(
     unit_id: str,
-    organization_id: uuid.UUID = Query(default=DEFAULT_ORG_ID),
+    organization_id: Optional[str] = Query(default=None),
     db: Session = Depends(get_db)
 ):
-    db_unit = find_unit_by_identifier(db, unit_id, organization_id)
+    org_id = parse_org_id(organization_id)
+    db_unit = find_unit_by_identifier(db, unit_id, org_id)
     if not db_unit:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -278,7 +455,6 @@ def delete_unit(
         )
 
     try:
-        # Decrement property counter if column exists
         if db_unit.property_id:
             prop = db.scalar(select(models.Property).where(models.Property.id == db_unit.property_id))
             if prop and hasattr(prop, "units_count") and (prop.units_count or 0) > 0:
