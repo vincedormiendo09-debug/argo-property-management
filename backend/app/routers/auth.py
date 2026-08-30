@@ -3,7 +3,7 @@ import logging
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import select, or_
 from sqlalchemy.orm import Session
 
 from ..database import get_db
@@ -104,24 +104,41 @@ SEED_ACCOUNTS = {
 
 
 def create_operational_profile(db: Session, user: models.User, org_id: uuid.UUID) -> None:
-    """Safely auto-provisions matching tenant or owner operational records."""
-    try:
-        name_parts = (user.name or "User").split(maxsplit=1)
-        first_name = name_parts[0]
-        last_name = name_parts[1] if len(name_parts) > 1 else ""
+    """
+    Safely auto-provisions matching tenant or owner operational records.
+    Ensures user_id, email, and display names are synced so Admin dropdowns
+    and portal dashboards pick up registered users immediately.
+    """
+    clean_email = user.email.lower().strip()
+    name_parts = (user.name or user.full_name or "User").strip().split(maxsplit=1)
+    first_name = name_parts[0]
+    last_name = name_parts[1] if len(name_parts) > 1 else ""
 
-        if user.role in ["client", "tenant"]:
-            tenant_exists = db.scalar(select(models.Tenant).where(models.Tenant.email == user.email))
-            if not tenant_exists:
+    try:
+        if user.role in ["client", "tenant", "client_pov"]:
+            # Check if tenant record already exists by user_id OR email
+            tenant = db.scalar(
+                select(models.Tenant).where(
+                    or_(
+                        models.Tenant.user_id == user.id,
+                        models.Tenant.email.ilike(clean_email)
+                    )
+                )
+            )
+
+            if not tenant:
+                tnt_code = f"TNT-{str(uuid.uuid4())[:4].upper()}"
                 t = models.Tenant(
                     id=uuid.uuid4(),
                     organization_id=org_id,
-                    email=user.email,
+                    email=clean_email,
                     phone=user.phone or "",
-                    status="active"
+                    status="Active"
                 )
                 if hasattr(t, "user_id"):
                     t.user_id = user.id
+                if hasattr(t, "tnt_id"):
+                    t.tnt_id = tnt_code
                 if hasattr(t, "name"):
                     t.name = user.name
                 if hasattr(t, "full_name"):
@@ -130,22 +147,41 @@ def create_operational_profile(db: Session, user: models.User, org_id: uuid.UUID
                     t.first_name = first_name
                 if hasattr(t, "last_name"):
                     t.last_name = last_name
+                if hasattr(t, "type"):
+                    t.type = "Individual"
 
                 db.add(t)
                 db.commit()
+            else:
+                # Link existing orphaned tenant row to user.id if not set
+                if hasattr(tenant, "user_id") and not tenant.user_id:
+                    tenant.user_id = user.id
+                    db.commit()
 
-        elif user.role in ["owner", "property_owner"]:
-            owner_exists = db.scalar(select(models.Owner).where(models.Owner.email == user.email))
-            if not owner_exists:
+        elif user.role in ["owner", "property_owner", "investor"]:
+            # Check if owner record already exists by user_id OR email
+            owner = db.scalar(
+                select(models.Owner).where(
+                    or_(
+                        models.Owner.user_id == user.id,
+                        models.Owner.email.ilike(clean_email)
+                    )
+                )
+            )
+
+            if not owner:
+                own_code = f"OWN-{str(uuid.uuid4())[:4].upper()}"
                 o = models.Owner(
                     id=uuid.uuid4(),
                     organization_id=org_id,
-                    email=user.email,
+                    email=clean_email,
                     phone=user.phone or "",
-                    status="active"
+                    status="Active"
                 )
                 if hasattr(o, "user_id"):
                     o.user_id = user.id
+                if hasattr(o, "own_id"):
+                    o.own_id = own_code
                 if hasattr(o, "name"):
                     o.name = user.name
                 if hasattr(o, "full_name"):
@@ -154,12 +190,21 @@ def create_operational_profile(db: Session, user: models.User, org_id: uuid.UUID
                     o.first_name = first_name
                 if hasattr(o, "last_name"):
                     o.last_name = last_name
+                if hasattr(o, "type"):
+                    o.type = "Individual"
 
                 db.add(o)
                 db.commit()
+            else:
+                # Link existing orphaned owner row to user.id if not set
+                if hasattr(owner, "user_id") and not owner.user_id:
+                    owner.user_id = user.id
+                    db.commit()
+
     except Exception as err:
         db.rollback()
         logger.warning(f"Operational auto-provision skipped for {user.email}: {err}")
+
 
 # =====================================================================
 # AUTHENTICATION ENDPOINTS
@@ -168,8 +213,9 @@ def create_operational_profile(db: Session, user: models.User, org_id: uuid.UUID
 @router.post("/login/", response_model=LoginResponse)
 def login(credentials: LoginRequest, db: Session = Depends(get_db)):
     """
-    Authenticates users against PostgreSQL. If a configured seed account is used for
-    the first time, it auto-provisions the organization, user, and operational records.
+    Authenticates users against PostgreSQL.
+    Also auto-heals and creates the linked tenant/owner operational profile
+    on login if one is missing.
     """
     search_email = (credentials.email or credentials.username or "").lower().strip()
     if not search_email:
@@ -188,7 +234,6 @@ def login(credentials: LoginRequest, db: Session = Depends(get_db)):
             acc_data = SEED_ACCOUNTS[search_email]
             org_id = DEFAULT_ORG_ID
 
-            # Ensure parent organization exists before inserting dependent rows
             ensure_organization_exists(db, org_id)
 
             user = models.User(
@@ -206,7 +251,6 @@ def login(credentials: LoginRequest, db: Session = Depends(get_db)):
             db.commit()
             db.refresh(user)
 
-            # Auto-provision operational profile safely
             create_operational_profile(db, user, org_id)
         else:
             raise HTTPException(
@@ -214,13 +258,17 @@ def login(credentials: LoginRequest, db: Session = Depends(get_db)):
                 detail="Invalid credentials. User account not found in database."
             )
 
-    if not user.is_active:
+    if hasattr(user, "is_active") and not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Account is currently disabled. Contact system administrator."
         )
 
     org_id = user.organization_id or DEFAULT_ORG_ID
+
+    # Ensure the operational profile is present every time the user logs in
+    create_operational_profile(db, user, org_id)
+
     session_token = f"argo_live_{user.role}_{uuid.uuid4()}"
 
     return LoginResponse(
@@ -242,7 +290,8 @@ def login(credentials: LoginRequest, db: Session = Depends(get_db)):
 @router.post("/register/", response_model=LoginResponse, status_code=status.HTTP_201_CREATED)
 def register(payload: RegisterRequest, db: Session = Depends(get_db)):
     """
-    Registers a new user, ensuring organization existence and creating linked operational records.
+    Registers a new user, ensures organization existence, commits the User record,
+    and immediately creates the corresponding operational profile in 'tenants' or 'owners'.
     """
     clean_email = payload.email.lower().strip()
 
@@ -266,15 +315,15 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
     initials = "".join([n[0] for n in payload.name.split() if n])[:2].upper() if payload.name else "US"
     org_id = payload.organization_id or DEFAULT_ORG_ID
 
-    # 3. Ensure parent organization exists before inserting dependent rows
+    # 3. Ensure parent organization exists
     ensure_organization_exists(db, org_id)
 
-    # 4. Create and commit User record first (guarantees account creation)
+    # 4. Create and commit User record
     new_user = models.User(
         id=uuid.uuid4(),
         organization_id=org_id,
-        name=payload.name,
-        full_name=payload.full_name or payload.name,
+        name=payload.name.strip(),
+        full_name=payload.full_name or payload.name.strip(),
         email=clean_email,
         phone=payload.phone,
         role=normalized_role,
@@ -285,7 +334,7 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_user)
 
-    # 5. Safely auto-bridge operational Tenant / Owner profile
+    # 5. Instantly create linked Tenant or Owner profile
     create_operational_profile(db, new_user, org_id)
 
     session_token = f"argo_live_{new_user.role}_{uuid.uuid4()}"

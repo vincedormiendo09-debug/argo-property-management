@@ -5,6 +5,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select, or_
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 
 from ..database import get_db
 from .. import models, schemas
@@ -16,7 +17,7 @@ DEFAULT_ORG_ID = uuid.UUID("a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11")
 
 
 def ensure_sandbox_organization(db: Session, org_id: uuid.UUID):
-    """Ensures a stub Organization exists in DB to satisfy FK constraints."""
+    """Ensures the Organization exists in DB to satisfy FK constraints."""
     org = db.scalar(select(models.Organization).where(models.Organization.id == org_id))
     if not org:
         sandbox_org = models.Organization(id=org_id, name="ARGO Property Management Corp.")
@@ -26,8 +27,8 @@ def ensure_sandbox_organization(db: Session, org_id: uuid.UUID):
 
 def sync_owner_users_to_owners(db: Session, org_id: uuid.UUID):
     """
-    Auto-bridges registered users with role 'owner' into the owners table
-    so registered owner accounts appear in dropdowns and directory views.
+    Auto-bridges registered users with role 'owner' or 'investor' into the owners table.
+    Links user_id and email so registered owners immediately appear in Admin dropdowns.
     """
     try:
         owner_users = db.scalars(
@@ -44,14 +45,20 @@ def sync_owner_users_to_owners(db: Session, org_id: uuid.UUID):
             if not u.email:
                 continue
             clean_email = u.email.lower().strip()
+            
+            # Check if an owner profile exists by user_id or email
             existing_owner = db.scalar(
                 select(models.Owner).where(
                     models.Owner.organization_id == org_id,
-                    models.Owner.email.ilike(clean_email)
+                    or_(
+                        models.Owner.user_id == u.id,
+                        models.Owner.email.ilike(clean_email)
+                    )
                 )
             )
+            
             if not existing_owner:
-                name_parts = (u.name or "Property Owner").split(maxsplit=1)
+                name_parts = (u.name or u.full_name or "Property Owner").strip().split(maxsplit=1)
                 first_name = name_parts[0]
                 last_name = name_parts[1] if len(name_parts) > 1 else ""
 
@@ -65,9 +72,9 @@ def sync_owner_users_to_owners(db: Session, org_id: uuid.UUID):
                 if hasattr(models.Owner, "user_id"):
                     owner_data["user_id"] = u.id
                 if hasattr(models.Owner, "name"):
-                    owner_data["name"] = u.name or "Property Owner"
+                    owner_data["name"] = u.name or u.full_name or "Property Owner"
                 if hasattr(models.Owner, "full_name"):
-                    owner_data["full_name"] = u.name or "Property Owner"
+                    owner_data["full_name"] = u.name or u.full_name or "Property Owner"
                 if hasattr(models.Owner, "first_name"):
                     owner_data["first_name"] = first_name
                 if hasattr(models.Owner, "last_name"):
@@ -78,10 +85,54 @@ def sync_owner_users_to_owners(db: Session, org_id: uuid.UUID):
                     owner_data["type"] = "Individual"
 
                 db.add(models.Owner(**owner_data))
+            else:
+                # Heal orphaned owner record by linking user_id
+                if hasattr(existing_owner, "user_id") and not existing_owner.user_id:
+                    existing_owner.user_id = u.id
+
         db.commit()
     except Exception as err:
         db.rollback()
         logger.warning(f"Owner auto-sync notice: {err}")
+
+
+def find_owner_by_identifier(db: Session, owner_id: str, organization_id: uuid.UUID):
+    """Robustly locates an owner by UUID, user_id, or custom own_id string."""
+    clean_id = owner_id.strip()
+    try:
+        parsed_uuid = uuid.UUID(clean_id)
+        owner = db.scalar(
+            select(models.Owner).where(
+                or_(
+                    models.Owner.id == parsed_uuid,
+                    models.Owner.user_id == parsed_uuid
+                ),
+                models.Owner.organization_id == organization_id
+            )
+        )
+        if owner:
+            return owner
+    except ValueError:
+        pass
+
+    if hasattr(models.Owner, "own_id"):
+        owner = db.scalar(
+            select(models.Owner).where(
+                models.Owner.own_id.ilike(clean_id),
+                models.Owner.organization_id == organization_id
+            )
+        )
+        if owner:
+            return owner
+
+    # Fallback lookup by email
+    owner = db.scalar(
+        select(models.Owner).where(
+            models.Owner.email.ilike(clean_id),
+            models.Owner.organization_id == organization_id
+        )
+    )
+    return owner
 
 
 # ---------------------------------------------------------------------
@@ -138,7 +189,7 @@ def read_owners(
 ):
     ensure_sandbox_organization(db, organization_id)
     
-    # Sync registered owner users before fetching
+    # Auto-bridge registered user accounts so dropdowns display all owners
     sync_owner_users_to_owners(db, organization_id)
 
     stmt = select(models.Owner).where(models.Owner.organization_id == organization_id)
@@ -171,12 +222,12 @@ def create_owner(owner_in: schemas.OwnerCreate, db: Session = Depends(get_db)):
     ensure_sandbox_organization(db, org_id)
 
     clean_email = owner_in.email.lower().strip() if owner_in.email else None
-    own_id = owner_in.own_id or f"OWN-{datetime.now().year}-{str(uuid.uuid4())[:4].upper()}"
+    own_id = getattr(owner_in, "own_id", None) or f"OWN-{datetime.now().year}-{str(uuid.uuid4())[:4].upper()}"
 
-    # Check for duplicate own_id or email
+    # Scoped duplicate check
     duplicate_filters = []
     if own_id and hasattr(models.Owner, "own_id"):
-        duplicate_filters.append(models.Owner.own_id == own_id)
+        duplicate_filters.append(models.Owner.own_id.ilike(own_id))
     if clean_email and hasattr(models.Owner, "email"):
         duplicate_filters.append(models.Owner.email.ilike(clean_email))
 
@@ -190,7 +241,7 @@ def create_owner(owner_in: schemas.OwnerCreate, db: Session = Depends(get_db)):
         if existing:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"An owner with this ID or email already exists in this organization."
+                detail="An owner with this ID or email already exists in this organization."
             )
 
     owner_data = owner_in.model_dump(exclude_unset=True) if hasattr(owner_in, "model_dump") else owner_in.dict(exclude_unset=True)
@@ -217,27 +268,12 @@ def get_owner(
     organization_id: uuid.UUID = Query(default=DEFAULT_ORG_ID),
     db: Session = Depends(get_db)
 ):
-    try:
-        parsed_uuid = uuid.UUID(owner_id)
-        stmt = select(models.Owner).where(
-            models.Owner.id == parsed_uuid,
-            models.Owner.organization_id == organization_id
-        )
-    except ValueError:
-        if hasattr(models.Owner, "own_id"):
-            stmt = select(models.Owner).where(
-                models.Owner.own_id == owner_id.strip(),
-                models.Owner.organization_id == organization_id
-            )
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid owner identifier format."
-            )
-
-    owner = db.scalar(stmt)
+    owner = find_owner_by_identifier(db, owner_id, organization_id)
     if not owner:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Owner not found.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail="Owner not found."
+        )
     return owner
 
 
@@ -249,27 +285,12 @@ def update_owner(
     organization_id: uuid.UUID = Query(default=DEFAULT_ORG_ID),
     db: Session = Depends(get_db)
 ):
-    try:
-        parsed_uuid = uuid.UUID(owner_id)
-        stmt = select(models.Owner).where(
-            models.Owner.id == parsed_uuid,
-            models.Owner.organization_id == organization_id
-        )
-    except ValueError:
-        if hasattr(models.Owner, "own_id"):
-            stmt = select(models.Owner).where(
-                models.Owner.own_id == owner_id.strip(),
-                models.Owner.organization_id == organization_id
-            )
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid owner identifier format."
-            )
-
-    db_owner = db.scalar(stmt)
+    db_owner = find_owner_by_identifier(db, owner_id, organization_id)
     if not db_owner:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Owner not found.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail="Owner not found."
+        )
 
     update_data = owner_update.model_dump(exclude_unset=True) if hasattr(owner_update, "model_dump") else owner_update.dict(exclude_unset=True)
     
@@ -305,28 +326,27 @@ def delete_owner(
     organization_id: uuid.UUID = Query(default=DEFAULT_ORG_ID),
     db: Session = Depends(get_db)
 ):
-    try:
-        parsed_uuid = uuid.UUID(owner_id)
-        stmt = select(models.Owner).where(
-            models.Owner.id == parsed_uuid,
-            models.Owner.organization_id == organization_id
-        )
-    except ValueError:
-        if hasattr(models.Owner, "own_id"):
-            stmt = select(models.Owner).where(
-                models.Owner.own_id == owner_id.strip(),
-                models.Owner.organization_id == organization_id
-            )
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid owner identifier format."
-            )
-
-    db_owner = db.scalar(stmt)
+    db_owner = find_owner_by_identifier(db, owner_id, organization_id)
     if not db_owner:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Owner not found.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail="Owner not found."
+        )
 
-    db.delete(db_owner)
-    db.commit()
+    try:
+        db.delete(db_owner)
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot delete owner because they hold active property ownership shares."
+        )
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error deleting owner: {str(e)}"
+        )
+
     return None

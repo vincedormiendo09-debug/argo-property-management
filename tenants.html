@@ -996,7 +996,7 @@
     const NOTIFICATIONS_API_URL = `${API_BASE_URL}/notifications`;
 
     let currentInspectedTenantId = null;
-    let unassignedClientsCache = [];
+    let registeredClientsCache = [];
     let activeTabStatus = "ALL";
 
     function getOrgId() {
@@ -1101,33 +1101,15 @@
         const roleEl = document.getElementById('userRoleBadge');
         const avatarEl = document.getElementById('userAvatar');
 
-        if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
-            if (nameEl) nameEl.textContent = user.name || 'Property Owner';
-            if (roleEl) roleEl.textContent = 'Property Owner';
-            if (avatarEl) {
-                avatarEl.textContent = user.avatar || 'PO';
-                avatarEl.style.background = '#059669';
-            }
-        } else if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
-            if (nameEl) nameEl.textContent = user.name || 'Resident Tenant';
-            if (roleEl) roleEl.textContent = 'Resident Account';
-            if (avatarEl) {
-                avatarEl.textContent = user.avatar || 'MS';
-                avatarEl.style.background = '#D97706';
-            }
-        } else {
-            const name = user.name || 'System Admin';
-            const role = user.role || 'Property Manager';
-            if (nameEl) nameEl.textContent = name;
-            if (roleEl) roleEl.textContent = role;
-            if (avatarEl) {
-                avatarEl.textContent = user.avatar || 'SA';
-                avatarEl.style.background = user.avatarBg || '#2563EB';
-            }
+        if (nameEl) nameEl.textContent = user.name || 'System Admin';
+        if (roleEl) roleEl.textContent = user.role || 'Property Manager';
+        if (avatarEl) {
+            avatarEl.textContent = user.avatar || (user.name ? user.name.charAt(0) : 'SA');
+            avatarEl.style.background = user.avatarBg || '#2563EB';
         }
     }
 
-    // Direct Database Fetchers
+    // Direct Database Fetchers Scoped by Organization ID
     async function getTenants() {
         try {
             const orgId = getOrgId();
@@ -1148,7 +1130,7 @@
     async function getRegisteredUsers() {
         try {
             const orgId = getOrgId();
-            const res = await fetch(`${USERS_API_URL}?organization_id=${orgId}&role=client`, { 
+            const res = await fetch(`${USERS_API_URL}?organization_id=${orgId}`, { 
                 headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
                 cache: 'no-store'
             });
@@ -1214,7 +1196,7 @@
         } catch (e) {}
     }
 
-    // Populate Searchable Client Combobox
+    // Populate Searchable Client Combobox Directly from Registered Index Users
     async function populateUnassignedClientsCombobox() {
         const users = await getRegisteredUsers();
         const existingTenants = await getTenants();
@@ -1224,16 +1206,16 @@
         datalist.innerHTML = '';
 
         const assignedUserIds = new Set(existingTenants.map(t => String(t.user_id || t.id)).filter(Boolean));
-        const assignedEmails = new Set(existingTenants.map(t => (t.email || '').toLowerCase()).filter(Boolean));
+        const assignedEmails = new Set(existingTenants.map(t => (t.email || '').toLowerCase().trim()).filter(Boolean));
 
-        unassignedClientsCache = users.filter(u => {
-            const role = (u.role || '').toLowerCase();
-            const isClientRole = role.includes('client') || role.includes('tenant') || role.includes('resident');
-            const isAssigned = assignedUserIds.has(String(u.id)) || assignedEmails.has((u.email || '').toLowerCase());
+        registeredClientsCache = users.filter(u => {
+            const role = (u.role || '').toLowerCase().trim();
+            const isClientRole = role.includes('client') || role.includes('tenant') || role.includes('resident') || role.includes('user');
+            const isAssigned = assignedUserIds.has(String(u.id)) || assignedEmails.has((u.email || '').toLowerCase().trim());
             return isClientRole && !isAssigned;
         });
 
-        unassignedClientsCache.forEach(u => {
+        registeredClientsCache.forEach(u => {
             const option = document.createElement('option');
             const fullName = u.name || u.full_name || 'Client';
             option.value = `${fullName} (${u.email || ''})`;
@@ -1249,11 +1231,11 @@
         if (!selectedValue) return;
 
         const cleanVal = selectedValue.toLowerCase().trim();
-        const matched = unassignedClientsCache.find(u => {
-            const entryText = `${u.name || u.full_name || 'Client'} (${u.email || ''})`.toLowerCase();
+        const matched = registeredClientsCache.find(u => {
+            const entryText = `${u.name || u.full_name || 'Client'} (${u.email || ''})`.toLowerCase().trim();
             return entryText === cleanVal || 
-                   (u.name && u.name.toLowerCase() === cleanVal) ||
-                   (u.email && u.email.toLowerCase() === cleanVal) ||
+                   (u.name && u.name.toLowerCase().trim() === cleanVal) ||
+                   (u.email && u.email.toLowerCase().trim() === cleanVal) ||
                    String(u.id).toLowerCase() === cleanVal;
         });
 
@@ -1433,7 +1415,7 @@
         };
 
         try {
-            const res = await fetch(TENANTS_API_URL, {
+            const res = await fetch(`${TENANTS_API_URL}?organization_id=${orgId}`, {
                 method: 'POST',
                 headers: getAuthHeaders(),
                 body: JSON.stringify(payload)
@@ -1471,7 +1453,8 @@
         if (!confirm(`Are you sure you want to permanently delete tenant profile "${displayName}" from the database?`)) return;
 
         try {
-            const res = await fetch(`${TENANTS_API_URL}/${encodeURIComponent(id)}`, {
+            const orgId = getOrgId();
+            const res = await fetch(`${TENANTS_API_URL}/${encodeURIComponent(id)}?organization_id=${orgId}`, {
                 method: 'DELETE',
                 headers: getAuthHeaders()
             });
@@ -1602,7 +1585,7 @@
         await populateUnassignedClientsCombobox();
         await populateUnitDropdown();
         await renderTenantTable();
-        await updateHeaderBadge();
+        updateHeaderBadge();
     });
 
     // Profile Dropdown Handler
