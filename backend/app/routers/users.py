@@ -4,7 +4,7 @@ from typing import List, Optional, Any, Dict
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select, or_
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
 
 from ..database import get_db
 from .. import models
@@ -66,9 +66,9 @@ class UserResponse(BaseModel):
     phone: Optional[str] = None
     role: str = "admin"
     avatar: Optional[str] = "JD"
-    is_active: bool = True
+    is_active: Optional[bool] = True
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
 def parse_user_identifier(db: Session, user_id_str: str, organization_id: uuid.UUID):
@@ -112,6 +112,9 @@ def parse_user_identifier(db: Session, user_id_str: str, organization_id: uuid.U
     return db.scalar(select(models.User).where(models.User.email.ilike(clean_id)))
 
 
+# ---------------------------------------------------------------------
+# 1. GET ALL USERS (Filtered by role and flexible org)
+# ---------------------------------------------------------------------
 @router.get("")
 @router.get("/", response_model=List[UserResponse])
 def get_all_users(
@@ -119,20 +122,23 @@ def get_all_users(
     role: Optional[str] = Query(default=None),
     db: Session = Depends(get_db)
 ):
-    """Retrieve all registered users with flexible matching for tenant/client and owner roles."""
-    org_id = parse_org_id(organization_id)
-    ensure_sandbox_organization(db, org_id)
+    """Retrieve all registered users with flexible matching for client/tenant and owner roles."""
+    stmt = select(models.User)
 
-    stmt = select(models.User).where(
-        or_(
-            models.User.organization_id == org_id,
-            models.User.organization_id.is_(None)
-        )
-    )
+    if organization_id:
+        org_id = parse_org_id(organization_id)
+        ensure_sandbox_organization(db, org_id)
+        if hasattr(models.User, "organization_id"):
+            stmt = stmt.where(
+                or_(
+                    models.User.organization_id == org_id,
+                    models.User.organization_id.is_(None)
+                )
+            )
     
     if role:
         clean_role = role.lower().strip()
-        if clean_role in ["tenant", "client", "client_pov"]:
+        if clean_role in ["tenant", "client", "client_pov", "resident"]:
             stmt = stmt.where(
                 or_(
                     models.User.role.ilike("%client%"),
@@ -151,9 +157,22 @@ def get_all_users(
             stmt = stmt.where(models.User.role.ilike(f"%{clean_role}%"))
 
     users = list(db.scalars(stmt).all())
+
+    # Ensure compatibility between 'name' and 'full_name' attributes
+    for u in users:
+        u_name = getattr(u, "name", None)
+        u_full = getattr(u, "full_name", None)
+        if not u_name and u_full:
+            setattr(u, "name", u_full)
+        elif not u_full and u_name:
+            setattr(u, "full_name", u_name)
+
     return users
 
 
+# ---------------------------------------------------------------------
+# 2. CREATE OR REGISTER USER
+# ---------------------------------------------------------------------
 @router.post("", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 @router.post("/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
@@ -178,23 +197,31 @@ def create_or_register_user(
                 detail=f"An account with email '{user_in.email}' already exists."
             )
 
-    user_data = user_in.model_dump(exclude_unset=True) if hasattr(user_in, "model_dump") else user_in.dict(exclude_unset=True)
-    user_data["id"] = uuid.uuid4()
-    user_data["organization_id"] = org_id
-    user_data["email"] = user_in.email.lower().strip()
+    raw_data = user_in.model_dump(exclude_unset=True) if hasattr(user_in, "model_dump") else user_in.dict(exclude_unset=True)
+    raw_data["id"] = uuid.uuid4()
+    raw_data["organization_id"] = org_id
+    raw_data["email"] = user_in.email.lower().strip()
 
-    if "name" in user_data and not user_data.get("full_name"):
-        user_data["full_name"] = user_data["name"]
-    elif "full_name" in user_data and not user_data.get("name"):
-        user_data["name"] = user_data["full_name"]
+    name_val = raw_data.get("name") or raw_data.get("full_name") or "User"
+    raw_data["name"] = name_val
+    raw_data["full_name"] = name_val
 
-    db_user = models.User(**user_data)
+    # Safeguard: only pass attributes that actually exist on models.User
+    user_kwargs = {}
+    for k, v in raw_data.items():
+        if hasattr(models.User, k):
+            user_kwargs[k] = v
+
+    db_user = models.User(**user_kwargs)
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
     return db_user
 
 
+# ---------------------------------------------------------------------
+# 3. GET ACTIVE USER PROFILE (/me)
+# ---------------------------------------------------------------------
 @router.get("/me", response_model=UserResponse)
 def get_current_user_profile(
     email: Optional[str] = Query(default=None),
@@ -229,6 +256,9 @@ def get_current_user_profile(
     return user
 
 
+# ---------------------------------------------------------------------
+# 4. GET SINGLE USER BY ID OR EMAIL
+# ---------------------------------------------------------------------
 @router.get("/{user_id}", response_model=UserResponse)
 @router.get("/{user_id}/", response_model=UserResponse)
 def get_user_by_id(
@@ -244,6 +274,9 @@ def get_user_by_id(
     return user
 
 
+# ---------------------------------------------------------------------
+# 5. UPDATE USER PROFILE
+# ---------------------------------------------------------------------
 @router.put("/{user_id}", response_model=UserResponse)
 @router.put("/{user_id}/", response_model=UserResponse)
 @router.patch("/{user_id}", response_model=UserResponse)
