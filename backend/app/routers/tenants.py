@@ -157,7 +157,7 @@ def find_tenant_by_identifier(db: Session, tenant_id: str, organization_id: uuid
 
 
 # ---------------------------------------------------------------------
-# 1. GET TENANTS (Supports both /api/tenants and /api/tenants/)
+# 1. GET TENANTS (Direct Neon DB Query: Tenants + Registered Users)
 # ---------------------------------------------------------------------
 @router.get("")
 @router.get("/")
@@ -220,7 +220,7 @@ def read_tenants(
     except Exception as e:
         logger.warning(f"Notice querying tenants table: {e}")
 
-    # 2. Query registered users with active client/tenant/resident roles
+    # 2. Query registered users with active client/tenant/resident roles (Maria Santos & Carlos Mendoza)
     try:
         tenant_users = list(db.scalars(
             select(models.User).where(
