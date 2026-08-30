@@ -103,6 +103,7 @@ def serialize_lease(lease: models.Lease, db: Session) -> Dict[str, Any]:
         "unit_id": str(getattr(lease, "unit_id", "") or ""),
         "tenant_id": str(getattr(lease, "tenant_id", "") or ""),
         "tenant_name": tenant_name or "Resident Tenant",
+        "tenant_email": getattr(lease, "tenant_email", "") or "",
         "property_name": prop_name or "Property",
         "unit_number": unit_no or "Unit",
         "unit_no": unit_no or "Unit",
@@ -117,7 +118,7 @@ def serialize_lease(lease: models.Lease, db: Session) -> Dict[str, Any]:
 
 
 # ---------------------------------------------------------------------
-# 1. GET LEASES (Dual Route: Empty & Trailing Slash)
+# 1. GET LEASES
 # ---------------------------------------------------------------------
 @router.get("")
 @router.get("/")
@@ -173,7 +174,7 @@ def read_leases(
 
 
 # ---------------------------------------------------------------------
-# 2. CREATE LEASE (Dual Route: Resolves 405 Method Not Allowed)
+# 2. CREATE LEASE (Fixes NotNullViolation for tenant_name)
 # ---------------------------------------------------------------------
 @router.post("", status_code=status.HTTP_201_CREATED)
 @router.post("/", status_code=status.HTTP_201_CREATED)
@@ -217,7 +218,7 @@ def create_lease(
             detail=f"Unit with ID '{unit_id_raw}' was not found."
         )
 
-    # 2. Parse and Validate Tenant (Auto-Materialize from Users if needed)
+    # 2. Parse and Validate Tenant
     tenant_id_raw = lease_in.get("tenant_id")
     if not tenant_id_raw:
         raise HTTPException(
@@ -246,7 +247,7 @@ def create_lease(
         )
     )
 
-    # If tenant only exists in users table (e.g. Maria Santos / Carlos Mendoza), materialize Tenant row
+    # Auto-Materialize from Users if only registered as a User
     if not tenant:
         client_user = db.scalar(select(models.User).where(models.User.id == tenant_uuid))
         if client_user:
@@ -274,13 +275,41 @@ def create_lease(
                 detail=f"Tenant with ID '{tenant_id_raw}' was not found."
             )
 
-    # 3. Assemble Lease Payload
+    # 3. Resolve required string metadata
+    t_name = (
+        lease_in.get("tenant_name") 
+        or getattr(tenant, "name", None) 
+        or getattr(tenant, "full_name", None) 
+        or "Resident Tenant"
+    )
+    t_email = (
+        lease_in.get("tenant_email") 
+        or getattr(tenant, "email", None) 
+        or ""
+    )
+
+    prop_id = getattr(unit, "property_id", None)
+    prop_name = lease_in.get("property_name")
+    if not prop_name and prop_id:
+        p_row = db.scalar(select(models.Property).where(models.Property.id == prop_id))
+        if p_row:
+            prop_name = p_row.name or getattr(p_row, "property_name", None)
+    if not prop_name:
+        prop_name = "Property"
+
+    u_num = (
+        lease_in.get("unit_number") 
+        or getattr(unit, "unit_no", None) 
+        or getattr(unit, "unit_number", None) 
+        or "Unit"
+    )
+
+    # 4. Assemble Lease Payload
     lease_status = (lease_in.get("status") or "ACTIVE").upper().strip()
     rent_val = float(lease_in.get("monthly_rent") or lease_in.get("rent") or lease_in.get("rent_amount") or 0)
     deposit_val = float(lease_in.get("deposit") or lease_in.get("security_deposit") or 0)
     start_date_val = parse_date_value(lease_in.get("start_date") or lease_in.get("lease_start") or datetime.now().date())
     end_date_val = parse_date_value(lease_in.get("end_date") or lease_in.get("lease_end"))
-
     custom_code = (lease_in.get("lease_id") or f"LSE-{datetime.now().year}-{str(uuid.uuid4())[:6].upper()}").strip()
 
     lease_data = {
@@ -291,7 +320,18 @@ def create_lease(
         "status": lease_status
     }
 
-    # Map database-specific column attributes safely
+    # Populate denormalized columns to fulfill NOT NULL constraints
+    if hasattr(models.Lease, "tenant_name"):
+        lease_data["tenant_name"] = t_name
+    if hasattr(models.Lease, "tenant_email"):
+        lease_data["tenant_email"] = t_email
+    if hasattr(models.Lease, "property_id") and prop_id:
+        lease_data["property_id"] = prop_id
+    if hasattr(models.Lease, "property_name"):
+        lease_data["property_name"] = prop_name
+    if hasattr(models.Lease, "unit_number"):
+        lease_data["unit_number"] = u_num
+
     if hasattr(models.Lease, "lease_id"):
         lease_data["lease_id"] = custom_code
     if hasattr(models.Lease, "start_date"):
@@ -316,14 +356,11 @@ def create_lease(
     db_lease = models.Lease(**lease_data)
     db.add(db_lease)
 
-    # 4. Synchronize Unit Occupancy and Tenant Unit String
+    # 5. Synchronize Unit Occupancy and Tenant location
     if lease_status == "ACTIVE":
         unit.status = "OCCUPIED"
         if hasattr(tenant, "unit"):
-            unit_name = unit.unit_no or unit.unit_number or "Assigned Unit"
-            prop_row = db.scalar(select(models.Property).where(models.Property.id == unit.property_id)) if hasattr(unit, "property_id") else None
-            p_name = prop_row.name if prop_row else "Property"
-            tenant.unit = f"{p_name} • {unit_name}"
+            tenant.unit = f"{prop_name} • {u_num}"
 
     try:
         db.commit()
@@ -388,7 +425,7 @@ def get_lease(
 
 
 # ---------------------------------------------------------------------
-# 4. UPDATE LEASE (PUT / PATCH)
+# 4. UPDATE LEASE
 # ---------------------------------------------------------------------
 @router.put("/{lease_id}")
 @router.put("/{lease_id}/")
@@ -436,7 +473,6 @@ def update_lease(
             detail="Lease not found."
         )
 
-    # Apply updates
     if "status" in lease_update:
         new_status = str(lease_update["status"]).upper().strip()
         db_lease.status = new_status
@@ -482,7 +518,7 @@ def update_lease(
 
 
 # ---------------------------------------------------------------------
-# 5. DELETE LEASE (Release unit back to VACANT)
+# 5. DELETE LEASE
 # ---------------------------------------------------------------------
 @router.delete("/{lease_id}", status_code=status.HTTP_204_NO_CONTENT)
 @router.delete("/{lease_id}/", status_code=status.HTTP_204_NO_CONTENT)
@@ -527,7 +563,6 @@ def delete_lease(
             detail="Lease not found."
         )
 
-    # Revert unit status to VACANT
     if db_lease.unit_id:
         unit = db.scalar(select(models.Unit).where(models.Unit.id == db_lease.unit_id))
         if unit:
