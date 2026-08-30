@@ -16,6 +16,19 @@ logger = logging.getLogger("uvicorn.error")
 DEFAULT_ORG_ID = uuid.UUID("a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11")
 
 
+def parse_org_id(org_id_raw: Optional[str]) -> uuid.UUID:
+    """Safely converts string, null, or undefined organization IDs to valid UUIDs."""
+    if not org_id_raw:
+        return DEFAULT_ORG_ID
+    clean = str(org_id_raw).strip().lower()
+    if clean in ("undefined", "null", ""):
+        return DEFAULT_ORG_ID
+    try:
+        return uuid.UUID(clean)
+    except Exception:
+        return DEFAULT_ORG_ID
+
+
 def ensure_sandbox_organization(db: Session, org_id: uuid.UUID):
     """Ensures the Organization exists in DB to satisfy FK constraints."""
     org = db.scalar(select(models.Organization).where(models.Organization.id == org_id))
@@ -120,22 +133,31 @@ def find_owner_by_identifier(db: Session, owner_id: str, organization_id: uuid.U
 # ---------------------------------------------------------------------
 @router.get("/shares/all", response_model=List[schemas.PropertyOwnershipSchema])
 def read_property_ownerships(
-    organization_id: uuid.UUID = Query(default=DEFAULT_ORG_ID),
-    property_id: Optional[uuid.UUID] = Query(default=None),
-    owner_id: Optional[uuid.UUID] = Query(default=None),
+    organization_id: Optional[str] = Query(default=None),
+    property_id: Optional[str] = Query(default=None),
+    owner_id: Optional[str] = Query(default=None),
     db: Session = Depends(get_db)
 ):
-    ensure_sandbox_organization(db, organization_id)
+    org_id = parse_org_id(organization_id)
+    ensure_sandbox_organization(db, org_id)
+
     stmt = select(models.PropertyOwnership).where(
         or_(
-            models.PropertyOwnership.organization_id == organization_id,
+            models.PropertyOwnership.organization_id == org_id,
             models.PropertyOwnership.organization_id.is_(None)
         )
     )
-    if property_id:
-        stmt = stmt.where(models.PropertyOwnership.property_id == property_id)
-    if owner_id:
-        stmt = stmt.where(models.PropertyOwnership.owner_id == owner_id)
+    if property_id and property_id not in ("undefined", "null", ""):
+        try:
+            stmt = stmt.where(models.PropertyOwnership.property_id == uuid.UUID(property_id))
+        except ValueError:
+            pass
+
+    if owner_id and owner_id not in ("undefined", "null", ""):
+        try:
+            stmt = stmt.where(models.PropertyOwnership.owner_id == uuid.UUID(owner_id))
+        except ValueError:
+            pass
 
     return list(db.scalars(stmt).all())
 
@@ -165,16 +187,16 @@ def assign_property_ownership(
 # ---------------------------------------------------------------------
 @router.get("/")
 def read_owners(
-    organization_id: Optional[uuid.UUID] = Query(default=DEFAULT_ORG_ID),
+    organization_id: Optional[str] = Query(default=None),
     status_filter: Optional[str] = Query(default=None, alias="status"),
     search: Optional[str] = Query(default=None),
     db: Session = Depends(get_db)
 ):
     """
     Returns explicit Owner records merged with registered Users.
-    Uses safe dictionary response to prevent Pydantic 500 validation crashes.
+    Uses string-tolerant query parsing and clean dictionary serialization.
     """
-    org_id = organization_id or DEFAULT_ORG_ID
+    org_id = parse_org_id(organization_id)
     ensure_sandbox_organization(db, org_id)
 
     results: List[Dict[str, Any]] = []
@@ -218,7 +240,7 @@ def read_owners(
     except Exception as e:
         logger.warning(f"Notice querying owners table: {e}")
 
-    # 2. Fetch all registered users with owner/investor/landlord roles
+    # 2. Fetch all registered users with owner/investor/landlord roles (Elena Villanueva & Don Ramon Santos)
     try:
         owner_users = list(db.scalars(
             select(models.User).where(
@@ -320,19 +342,33 @@ def create_owner(owner_in: schemas.OwnerCreate, db: Session = Depends(get_db)):
     return db_owner
 
 
-@router.get("/{owner_id}", response_model=schemas.OwnerSchema)
+@router.get("/{owner_id}")
 def get_owner(
     owner_id: str,
-    organization_id: uuid.UUID = Query(default=DEFAULT_ORG_ID),
+    organization_id: Optional[str] = Query(default=None),
     db: Session = Depends(get_db)
 ):
-    owner = find_owner_by_identifier(db, owner_id, organization_id)
+    org_id = parse_org_id(organization_id)
+    owner = find_owner_by_identifier(db, owner_id, org_id)
     if not owner:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Owner not found."
         )
-    return owner
+
+    oid = str(getattr(owner, "id", "") or "")
+    oname = getattr(owner, "name", "") or getattr(owner, "full_name", "") or "Owner"
+    return {
+        "id": oid,
+        "user_id": str(getattr(owner, "user_id", "") or oid),
+        "own_id": getattr(owner, "own_id", f"OWN-{oid[:6].upper()}"),
+        "name": oname,
+        "full_name": oname,
+        "email": getattr(owner, "email", "") or "",
+        "phone": getattr(owner, "phone", "") or "",
+        "type": getattr(owner, "type", "Individual") or "Individual",
+        "status": getattr(owner, "status", "Active") or "Active"
+    }
 
 
 @router.put("/{owner_id}", response_model=schemas.OwnerSchema)
@@ -340,10 +376,11 @@ def get_owner(
 def update_owner(
     owner_id: str,
     owner_update: schemas.OwnerUpdate,
-    organization_id: uuid.UUID = Query(default=DEFAULT_ORG_ID),
+    organization_id: Optional[str] = Query(default=None),
     db: Session = Depends(get_db)
 ):
-    db_owner = find_owner_by_identifier(db, owner_id, organization_id)
+    org_id = parse_org_id(organization_id)
+    db_owner = find_owner_by_identifier(db, owner_id, org_id)
     if not db_owner:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -358,7 +395,7 @@ def update_owner(
         if clean_email != (getattr(db_owner, "email", "") or "").lower().strip():
             email_check = db.scalar(
                 select(models.Owner).where(
-                    models.Owner.organization_id == organization_id,
+                    models.Owner.organization_id == org_id,
                     models.Owner.email.ilike(clean_email),
                     models.Owner.id != db_owner.id
                 )
@@ -381,10 +418,11 @@ def update_owner(
 @router.delete("/{owner_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_owner(
     owner_id: str,
-    organization_id: uuid.UUID = Query(default=DEFAULT_ORG_ID),
+    organization_id: Optional[str] = Query(default=None),
     db: Session = Depends(get_db)
 ):
-    db_owner = find_owner_by_identifier(db, owner_id, organization_id)
+    org_id = parse_org_id(organization_id)
+    db_owner = find_owner_by_identifier(db, owner_id, org_id)
     if not db_owner:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

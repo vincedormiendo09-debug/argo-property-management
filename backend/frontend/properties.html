@@ -1101,6 +1101,23 @@
         return [];
     }
 
+    async function getOwners() {
+        try {
+            const orgId = getOrgId();
+            const response = await fetch(`${OWNERS_API_URL}?organization_id=${orgId}`, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
+            if (response.ok) {
+                const data = await response.json();
+                return Array.isArray(data) ? data : (data.items || data.owners || data.data || []);
+            }
+        } catch (e) {
+            console.error("Live Owners API fetch failed:", e);
+        }
+        return [];
+    }
+
     async function getLeases() {
         try {
             const orgId = getOrgId();
@@ -1135,88 +1152,61 @@
         return [];
     }
 
-    // Dual-Source Fail-Safe Population of Owner Dropdown
+    // Direct Database Population of Owner Dropdowns (Self-Recovering)
     async function populateOwnersDropdowns() {
-        const orgId = getOrgId();
-        const headers = getAuthHeaders();
-        const ownerMap = new Map();
-
-        // 1. Fetch from /api/owners and /api/users in parallel
-        const [ownersResult, usersResult] = await Promise.allSettled([
-            fetch(`${OWNERS_API_URL}?organization_id=${orgId}`, { headers, cache: 'no-store' }),
-            fetch(`${USERS_API_URL}?organization_id=${orgId}`, { headers, cache: 'no-store' })
-        ]);
-
-        // Parse Owners API Response
-        if (ownersResult.status === 'fulfilled' && ownersResult.value.ok) {
-            try {
-                const data = await ownersResult.value.json();
-                const list = Array.isArray(data) ? data : (data.items || data.data || []);
-                list.forEach(o => {
-                    const key = (o.email || String(o.id)).toLowerCase().trim();
-                    const displayName = o.name || o.full_name || 'Owner';
-                    ownerMap.set(key, {
-                        id: o.id || o.user_id || o.own_id,
-                        name: displayName,
-                        email: o.email || '',
-                        type: o.type || 'Individual'
-                    });
-                });
-            } catch (e) {
-                console.warn("Could not parse /api/owners:", e);
-            }
-        }
-
-        // Parse Users API Response (Direct Sign-up Accounts from index.html)
-        if (usersResult.status === 'fulfilled' && usersResult.value.ok) {
-            try {
-                const data = await usersResult.value.json();
-                const list = Array.isArray(data) ? data : (data.items || data.users || data.data || []);
-                list.forEach(u => {
-                    const role = (u.role || '').toLowerCase().trim();
-                    if (role.includes('owner') || role.includes('investor') || role.includes('property_owner')) {
-                        const key = (u.email || String(u.id)).toLowerCase().trim();
-                        if (!ownerMap.has(key)) {
-                            const displayName = u.name || u.full_name || 'Registered Owner';
-                            ownerMap.set(key, {
-                                id: u.id,
-                                name: displayName,
-                                email: u.email || '',
-                                type: 'Individual'
-                            });
-                        }
-                    }
-                });
-            } catch (e) {
-                console.warn("Could not parse /api/users:", e);
-            }
-        }
-
-        registeredOwnersCache = Array.from(ownerMap.values());
-
-        // Populate Modal New Property Owner Dropdown
         const modalOwnerSelect = document.getElementById('modalOwnerSelect');
+        const ownOwnerSelect = document.getElementById('modalOwnOwner');
+        
         if (modalOwnerSelect) {
-            modalOwnerSelect.innerHTML = '<option value="">Select Registered Property Owner...</option>';
-            if (registeredOwnersCache.length > 0) {
-                registeredOwnersCache.forEach(o => {
-                    const opt = document.createElement('option');
-                    opt.value = o.id;
-                    opt.textContent = `${o.name} (${o.email || 'Registered Owner'})`;
-                    modalOwnerSelect.appendChild(opt);
-                });
-            } else {
-                modalOwnerSelect.innerHTML += '<option value="" disabled>No registered owners in database.</option>';
-            }
+            modalOwnerSelect.innerHTML = '<option value="">Loading registered owners...</option>';
         }
 
-        // Populate Modal Fractional Equity Share Dropdown
-        const ownOwnerSelect = document.getElementById('modalOwnOwner');
-        if (ownOwnerSelect) {
-            ownOwnerSelect.innerHTML = '<option value="">Select Owner...</option>';
-            registeredOwnersCache.forEach(o => {
-                ownOwnerSelect.innerHTML += `<option value="${o.id}">${o.name} (${o.email || o.type || 'Owner'})</option>`;
+        try {
+            const orgId = getOrgId();
+            const response = await fetch(`${OWNERS_API_URL}?organization_id=${orgId}`, {
+                headers: getAuthHeaders(),
+                cache: 'no-store'
             });
+
+            if (!response.ok) {
+                throw new Error(`Server returned HTTP ${response.status}`);
+            }
+
+            const owners = await response.json();
+            const list = Array.isArray(owners) ? owners : (owners.items || owners.data || []);
+            registeredOwnersCache = list;
+
+            // Populate New Property Asset Modal Dropdown
+            if (modalOwnerSelect) {
+                modalOwnerSelect.innerHTML = '<option value="">Select Registered Property Owner...</option>';
+                if (list.length > 0) {
+                    list.forEach(o => {
+                        const opt = document.createElement('option');
+                        opt.value = o.id || o.user_id || o.own_id;
+                        const displayName = o.name || o.full_name || 'Registered Owner';
+                        opt.textContent = `${displayName} (${o.email || 'Registered Owner'})`;
+                        modalOwnerSelect.appendChild(opt);
+                    });
+                } else {
+                    modalOwnerSelect.innerHTML += '<option value="" disabled>No registered owners in database.</option>';
+                }
+            }
+
+            // Populate Fractional Equity Share Modal Dropdown
+            if (ownOwnerSelect) {
+                ownOwnerSelect.innerHTML = '<option value="">Select Owner...</option>';
+                if (list.length > 0) {
+                    list.forEach(o => {
+                        const displayName = o.name || o.full_name || 'Registered Owner';
+                        ownOwnerSelect.innerHTML += `<option value="${o.id || o.user_id}">${displayName} (${o.email || o.type || 'Owner'})</option>`;
+                    });
+                }
+            }
+        } catch (e) {
+            console.error("Failed to load owners into dropdown:", e);
+            if (modalOwnerSelect) {
+                modalOwnerSelect.innerHTML = '<option value="" disabled>Error loading owners from database.</option>';
+            }
         }
     }
 
@@ -1615,7 +1605,9 @@
         document.getElementById('ownershipModal').classList.add('show'); 
     }
 
-    function closeModal(modalId) { document.getElementById(modalId).classList.remove('show'); }
+    function closeModal(modalId) { 
+        document.getElementById(modalId).classList.remove('show'); 
+    }
 
     window.onclick = function(event) {
         if (event.target.classList && event.target.classList.contains('modal-overlay')) {
@@ -1690,4 +1682,3 @@
         });
     }
 </script>
-</body>
