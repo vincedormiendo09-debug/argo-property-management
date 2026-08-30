@@ -872,16 +872,15 @@
             <div class="modal-body">
                 <div class="form-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
                     
-                    <!-- Searchable Combobox for Registered Client Accounts -->
-                    <div class="form-group" style="grid-column: span 2;">
+                    <!-- Native Select Dropdown for Registered Client Accounts -->
+                    <div class="form-group" style="grid-column: span 2; border-top:1px dashed var(--border, #E2E8F0); padding-top:12px;">
                         <label style="display:flex; justify-content:space-between; align-items:center;">
                             <span>Link Registered User Account (Optional)</span>
-                            <span style="font-size:11px; color:var(--primary, #2563EB); font-weight:normal;">Auto-fills from registered client accounts</span>
+                            <span style="font-size:11px; color:#059669; font-weight:600;"><i class="bi bi-database-check me-1"></i>Direct from Database</span>
                         </label>
-                        <input type="text" id="clientSearchCombobox" list="unassignedClientsList" placeholder="Type to search registered client by name or email..." oninput="handleClientAccountSelect(this.value)" autocomplete="off" style="width:100%;">
-                        <datalist id="unassignedClientsList">
-                            <!-- Populated dynamically with registered client users -->
-                        </datalist>
+                        <select id="clientAccountSelect" onchange="handleClientSelectChange(this.value)" style="width:100%; padding:8px; border-radius:6px; border:1px solid #CBD5E1;">
+                            <option value="">-- Choose Registered Client / Tenant --</option>
+                        </select>
                         <input type="hidden" id="modalUserId" value="">
                     </div>
 
@@ -908,7 +907,7 @@
 
                     <div class="form-group">
                         <label>Email Address</label>
-                        <input type="email" id="modalTenantEmail" placeholder="e.g. tenant@example.ph">
+                        <input type="email" id="modalTenantEmail" placeholder="e.g. maria.santos@tenant.ph">
                     </div>
 
                     <div class="form-group">
@@ -1089,13 +1088,6 @@
     }
 
     function loadUserData() {
-        const rawRole = (
-            localStorage.getItem('argo_pov') || 
-            localStorage.getItem('user_role') || 
-            localStorage.getItem('role') || 
-            'admin'
-        ).toLowerCase().trim();
-
         const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
         const nameEl = document.getElementById('userName');
         const roleEl = document.getElementById('userRoleBadge');
@@ -1196,13 +1188,13 @@
         } catch (e) {}
     }
 
-    // Populate Searchable Client Combobox Directly from Registered Neon Users
-    async function populateUnassignedClientsCombobox() {
+    // Populate Native Select Dropdown with Registered Neon DB Client Accounts
+    async function populateClientDropdown() {
         const users = await getRegisteredUsers();
-        const datalist = document.getElementById('unassignedClientsList');
-        if (!datalist) return;
+        const clientSelect = document.getElementById('clientAccountSelect');
+        if (!clientSelect) return;
 
-        datalist.innerHTML = '';
+        clientSelect.innerHTML = '<option value="">-- Choose Registered Client / Tenant --</option>';
 
         registeredClientsCache = users.filter(u => {
             const role = (u.role || '').toLowerCase().trim();
@@ -1211,34 +1203,29 @@
 
         registeredClientsCache.forEach(u => {
             const option = document.createElement('option');
-            const fullName = u.name || u.full_name || 'Client';
-            option.value = `${fullName} (${u.email || ''})`;
-            option.dataset.userId = u.id;
-            option.dataset.name = fullName;
-            option.dataset.email = u.email || '';
-            option.dataset.phone = u.phone || '';
-            datalist.appendChild(option);
+            const fullName = u.name || u.full_name || 'Client User';
+            option.value = u.id;
+            option.textContent = `${fullName} (${u.email || 'No email'}) — [${u.role || 'client'}]`;
+            clientSelect.appendChild(option);
         });
     }
 
-    function handleClientAccountSelect(selectedValue) {
-        if (!selectedValue) return;
+    function handleClientSelectChange(selectedUserId) {
+        const userIdInput = document.getElementById('modalUserId');
+        const nameInput = document.getElementById('modalTenantName');
+        const emailInput = document.getElementById('modalTenantEmail');
+        const phoneInput = document.getElementById('modalTenantPhone');
 
-        const cleanVal = selectedValue.toLowerCase().trim();
-        const matched = registeredClientsCache.find(u => {
-            const entryText = `${u.name || u.full_name || 'Client'} (${u.email || ''})`.toLowerCase().trim();
-            return entryText === cleanVal || 
-                   (u.name && u.name.toLowerCase().trim() === cleanVal) ||
-                   (u.email && u.email.toLowerCase().trim() === cleanVal) ||
-                   String(u.id).toLowerCase() === cleanVal;
-        });
+        if (!selectedUserId) {
+            if (userIdInput) userIdInput.value = '';
+            if (nameInput) nameInput.value = '';
+            if (emailInput) emailInput.value = '';
+            if (phoneInput) phoneInput.value = '';
+            return;
+        }
 
+        const matched = registeredClientsCache.find(u => String(u.id) === String(selectedUserId));
         if (matched) {
-            const userIdInput = document.getElementById('modalUserId');
-            const nameInput = document.getElementById('modalTenantName');
-            const emailInput = document.getElementById('modalTenantEmail');
-            const phoneInput = document.getElementById('modalTenantPhone');
-
             if (userIdInput) userIdInput.value = matched.id || '';
             if (nameInput) nameInput.value = matched.name || matched.full_name || '';
             if (emailInput) emailInput.value = matched.email || '';
@@ -1272,7 +1259,7 @@
         tbody.innerHTML = '';
 
         if (!tenants || tenants.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--muted, #64748B); padding:30px;">No registered client accounts or tenant profiles found in database.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--muted, #64748B); padding:30px;">No registered client accounts or tenant profiles found in database. Click "New Tenant" to register one.</td></tr>`;
             const countEl = document.getElementById('showingCountText');
             if (countEl) countEl.textContent = `Showing 0 tenants`;
             updateKPIsWithData([], []);
@@ -1434,11 +1421,11 @@
         if (emailInput) emailInput.value = '';
         if (phoneInput) phoneInput.value = '';
         if (userIdInput) userIdInput.value = '';
-        if (document.getElementById('clientSearchCombobox')) document.getElementById('clientSearchCombobox').value = '';
+        if (document.getElementById('clientAccountSelect')) document.getElementById('clientAccountSelect').value = '';
         if (unitSelect) unitSelect.value = 'No Current Unit';
 
         await renderTenantTable();
-        await populateUnassignedClientsCombobox();
+        await populateClientDropdown();
     }
 
     // LIVE DELETE TENANT (DELETE /api/tenants/{id}/)
@@ -1466,7 +1453,7 @@
 
         alert(`Tenant profile "${displayName}" deleted permanently from database!`);
         await renderTenantTable();
-        await populateUnassignedClientsCombobox();
+        await populateClientDropdown();
     }
 
     function updateKPIsWithData(tenants, leases) {
@@ -1493,7 +1480,7 @@
 
     async function openModal(modalId = 'tenantModal') { 
         if (modalId === 'tenantModal') {
-            await populateUnassignedClientsCombobox();
+            await populateClientDropdown();
             await populateUnitDropdown();
         }
         const modal = document.getElementById(modalId);
@@ -1576,7 +1563,7 @@
     document.addEventListener('DOMContentLoaded', async () => {
         renderSidebar();
         loadUserData();
-        await populateUnassignedClientsCombobox();
+        await populateClientDropdown();
         await populateUnitDropdown();
         await renderTenantTable();
         updateHeaderBadge();
