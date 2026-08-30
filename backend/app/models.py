@@ -8,7 +8,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from .database import Base  # Relative import resolves the Pylance import error
+from .database import Base
 
 
 # =====================================================================
@@ -41,7 +41,7 @@ class User(Base):
 
 
 # =====================================================================
-# PROPERTY MANAGEMENT MODULE (Aligned with Neon SQL Schema)
+# PROPERTY MANAGEMENT MODULE
 # =====================================================================
 
 class Property(Base):
@@ -257,28 +257,52 @@ class Lease(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
-class UtilityCharge(Base):
-    __tablename__ = "utility_charges"
+# =====================================================================
+# UTILITIES & METERING MODULE
+# =====================================================================
+
+class Utility(Base):
+    __tablename__ = "utilities"
     __table_args__ = (
-        UniqueConstraint("organization_id", "charge_id", name="uq_utility_charges_org_charge_id"),
-        Index("ix_utility_charges_org_status", "organization_id", "status"),
+        Index("ix_utilities_org_status", "organization_id", "status"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     organization_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    
-    charge_id: Mapped[str] = mapped_column(String(50), nullable=False)
-    tenant_name: Mapped[str] = mapped_column(String(150), nullable=False)
-    tenant_email: Mapped[Optional[str]] = mapped_column(String(150), nullable=True)
-    unit_location: Mapped[str] = mapped_column(String(200), nullable=False)
-    type: Mapped[str] = mapped_column(String(100), nullable=False)
-    breakdown: Mapped[str] = mapped_column(Text, nullable=False)
-    period: Mapped[str] = mapped_column(String(100), nullable=False)
-    due_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    unit_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("units.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    tenant_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    lease_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("leases.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+
+    utility_id: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    utility_type: Mapped[str] = mapped_column(String(100), nullable=False, default="Electricity Sub-Meter")
+    type: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    billing_period: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    period: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     amount: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False, default=0.0)
-    status: Mapped[str] = mapped_column(String(50), nullable=False, default="UNPAID")
+
+    reading_prev: Mapped[Optional[float]] = mapped_column(Numeric(12, 2), nullable=True, default=0.0)
+    reading_curr: Mapped[Optional[float]] = mapped_column(Numeric(12, 2), nullable=True, default=0.0)
+    consumption: Mapped[Optional[float]] = mapped_column(Numeric(12, 2), nullable=True, default=0.0)
+    rate: Mapped[Optional[float]] = mapped_column(Numeric(12, 2), nullable=True, default=0.0)
+
+    due_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    status: Mapped[str] = mapped_column(String(50), nullable=False, default="Unpaid")
+
+    tenant_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    tenant_email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    property_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    unit_number: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    unit_no: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    breakdown: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -298,19 +322,34 @@ class Invoice(Base):
     lease_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("leases.id", ondelete="SET NULL"), nullable=True, index=True
     )
+    tenant_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    unit_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("units.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    property_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("properties.id", ondelete="SET NULL"), nullable=True, index=True
+    )
 
     invoice_id: Mapped[str] = mapped_column(String(50), nullable=False)
     tenant_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     tenant_email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    type: Mapped[str] = mapped_column(String(150), nullable=False)
+    property_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    unit_number: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    type: Mapped[str] = mapped_column(String(150), nullable=False, default="Rent")
     sub: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     property_location: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     category_type: Mapped[str] = mapped_column(String(50), nullable=False, default="Rent")
     due_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    paid_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     amount: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False, default=0.0)
+    balance: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False, default=0.0)
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="UNPAID")
     channel: Mapped[str] = mapped_column(String(100), nullable=False, default="GCASH")
+    payment_method: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     ref_no: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    reference_number: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
@@ -516,5 +555,6 @@ class Report(Base):
 
 
 # Backward-compatible aliases
+UtilityCharge = Utility
 MaintenanceRequest = MaintenanceTicket
 PropertyOwner = Owner
