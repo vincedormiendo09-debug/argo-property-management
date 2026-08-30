@@ -1,9 +1,9 @@
 import uuid
 import logging
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Any, Dict
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select, or_
+from sqlalchemy import select, or_, delete
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
@@ -13,8 +13,20 @@ from .. import models, schemas
 router = APIRouter()
 logger = logging.getLogger("uvicorn.error")
 
-# Default Organization UUID matching schema.sql
 DEFAULT_ORG_ID = uuid.UUID("a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11")
+
+
+def parse_org_id(org_id_raw: Optional[str]) -> uuid.UUID:
+    """Safely converts string, null, or undefined organization IDs to valid UUIDs."""
+    if not org_id_raw:
+        return DEFAULT_ORG_ID
+    clean = str(org_id_raw).strip().lower()
+    if clean in ("undefined", "null", ""):
+        return DEFAULT_ORG_ID
+    try:
+        return uuid.UUID(clean)
+    except Exception:
+        return DEFAULT_ORG_ID
 
 
 def ensure_sandbox_organization(db: Session, org_id: uuid.UUID):
@@ -29,6 +41,8 @@ def ensure_sandbox_organization(db: Session, org_id: uuid.UUID):
 def find_tenant_by_identifier(db: Session, tenant_id: str, organization_id: uuid.UUID):
     """Robustly locates a tenant by UUID, user_id, custom TNT string, email, or virtual user match."""
     clean_id = tenant_id.strip()
+
+    # 1. Search Tenant table by UUID
     try:
         parsed_uuid = uuid.UUID(clean_id)
         tenant = db.scalar(
@@ -37,7 +51,10 @@ def find_tenant_by_identifier(db: Session, tenant_id: str, organization_id: uuid
                     models.Tenant.id == parsed_uuid,
                     models.Tenant.user_id == parsed_uuid
                 ),
-                models.Tenant.organization_id == organization_id
+                or_(
+                    models.Tenant.organization_id == organization_id,
+                    models.Tenant.organization_id.is_(None)
+                )
             )
         )
         if tenant:
@@ -45,136 +62,238 @@ def find_tenant_by_identifier(db: Session, tenant_id: str, organization_id: uuid
     except ValueError:
         pass
 
-    if hasattr(models.Tenant, "tnt_id"):
+    # 2. Search Tenant table by custom identifier code (tenant_id or tnt_id)
+    if hasattr(models.Tenant, "tenant_id"):
         tenant = db.scalar(
             select(models.Tenant).where(
-                models.Tenant.tnt_id.ilike(clean_id),
-                models.Tenant.organization_id == organization_id
+                models.Tenant.tenant_id.ilike(clean_id),
+                or_(
+                    models.Tenant.organization_id == organization_id,
+                    models.Tenant.organization_id.is_(None)
+                )
             )
         )
         if tenant:
             return tenant
 
-    # Fallback lookup by email
+    if hasattr(models.Tenant, "tnt_id"):
+        tenant = db.scalar(
+            select(models.Tenant).where(
+                models.Tenant.tnt_id.ilike(clean_id),
+                or_(
+                    models.Tenant.organization_id == organization_id,
+                    models.Tenant.organization_id.is_(None)
+                )
+            )
+        )
+        if tenant:
+            return tenant
+
+    # 3. Search Tenant table by email
     tenant = db.scalar(
         select(models.Tenant).where(
             models.Tenant.email.ilike(clean_id),
-            models.Tenant.organization_id == organization_id
+            or_(
+                models.Tenant.organization_id == organization_id,
+                models.Tenant.organization_id.is_(None)
+            )
         )
     )
     if tenant:
         return tenant
 
-    # Check registered users table directly if not found in tenants table
-    user = db.scalar(
-        select(models.User).where(
-            models.User.email.ilike(clean_id),
-            models.User.organization_id == organization_id
-        )
-    )
+    # 4. Fallback: Search User table directly (e.g. Maria Santos, Carlos Mendoza)
+    user = None
+    try:
+        user_uuid = uuid.UUID(clean_id)
+        user = db.scalar(select(models.User).where(models.User.id == user_uuid))
+    except ValueError:
+        pass
+
+    if not user:
+        user = db.scalar(select(models.User).where(models.User.email.ilike(clean_id)))
+
     if user:
+        t_id = str(user.id)
         virtual_tenant = models.Tenant(
             id=user.id,
             organization_id=organization_id,
-            name=user.name or user.full_name or "Registered Tenant",
+            name=user.name or user.full_name or "Resident Tenant",
             email=user.email,
             phone=user.phone or "",
             status="Active"
         )
         if hasattr(virtual_tenant, "user_id"):
             virtual_tenant.user_id = user.id
-        if hasattr(virtual_tenant, "unit"):
-            virtual_tenant.unit = "No Current Unit"
+        if hasattr(virtual_tenant, "tenant_id"):
+            virtual_tenant.tenant_id = f"TNT-{t_id[:6].upper()}"
+        if hasattr(virtual_tenant, "tnt_id"):
+            virtual_tenant.tnt_id = f"TNT-{t_id[:6].upper()}"
         if hasattr(virtual_tenant, "type"):
             virtual_tenant.type = "Individual"
+        if hasattr(virtual_tenant, "unit"):
+            virtual_tenant.unit = "Unassigned"
         return virtual_tenant
 
     return None
 
 
-# 1. GET /api/tenants/ - Read real tenants with on-the-fly user merging and search
-@router.get("/", response_model=List[schemas.TenantSchema])
+# ---------------------------------------------------------------------
+# 1. GET TENANTS (Supports both /api/tenants & /api/tenants/)
+# ---------------------------------------------------------------------
+@router.get("")
+@router.get("/")
 def read_tenants(
-    organization_id: uuid.UUID = Query(default=DEFAULT_ORG_ID),
+    organization_id: Optional[str] = Query(default=None),
     status_filter: Optional[str] = Query(default=None, alias="status"),
     type_filter: Optional[str] = Query(default=None, alias="type"),
     search: Optional[str] = Query(default=None),
     db: Session = Depends(get_db)
 ):
-    ensure_sandbox_organization(db, organization_id)
+    org_id = parse_org_id(organization_id)
+    ensure_sandbox_organization(db, org_id)
 
-    # 1. Fetch existing explicit tenant profiles
-    tenants = list(db.scalars(select(models.Tenant).where(models.Tenant.organization_id == organization_id)).all())
+    results: List[Dict[str, Any]] = []
+    seen = set()
 
-    existing_user_ids = {str(t.user_id) for t in tenants if getattr(t, 'user_id', None)}
-    existing_emails = {(t.email or '').lower().strip() for t in tenants if getattr(t, 'email', None)}
-
-    # 2. Directly grab ALL users registered with client, tenant, or resident roles from index.html
-    tenant_users = db.scalars(
-        select(models.User).where(
-            models.User.organization_id == organization_id,
-            or_(
-                models.User.role.ilike("%client%"),
-                models.User.role.ilike("%tenant%"),
-                models.User.role.ilike("%resident%")
+    # 1. Fetch explicit 'tenants' table records
+    try:
+        db_tenants = list(db.scalars(
+            select(models.Tenant).where(
+                or_(
+                    models.Tenant.organization_id == org_id,
+                    models.Tenant.organization_id.is_(None)
+                )
             )
-        )
-    ).all()
+        ).all())
 
-    # 3. Merge them on the fly into the response feed so they appear instantly
-    for u in tenant_users:
-        u_email = (u.email or '').lower().strip()
-        if str(u.id) not in existing_user_ids and u_email not in existing_emails:
-            uname = getattr(u, 'name', None) or getattr(u, 'full_name', None) or 'Registered Tenant'
-            uphone = getattr(u, 'phone', '') or ''
+        for t in db_tenants:
+            t_id = str(getattr(t, "id", "") or "")
+            t_user_id = str(getattr(t, "user_id", "") or "")
+            t_email = (getattr(t, "email", "") or "").lower().strip()
+            t_name = getattr(t, "name", "") or getattr(t, "full_name", "") or "Resident Tenant"
+            code = getattr(t, "tenant_id", None) or getattr(t, "tnt_id", None) or f"TNT-{t_id[:6].upper()}"
 
-            virtual_tenant = models.Tenant(
-                id=u.id,
-                organization_id=organization_id,
-                name=uname,
-                email=u.email,
-                phone=uphone,
-                status='Active'
+            if t_id:
+                seen.add(t_id)
+            if t_user_id:
+                seen.add(t_user_id)
+            if t_email:
+                seen.add(t_email)
+
+            results.append({
+                "id": t_id,
+                "user_id": t_user_id or t_id,
+                "tenant_id": code,
+                "tnt_id": code,
+                "name": t_name,
+                "full_name": t_name,
+                "email": getattr(t, "email", "") or "",
+                "phone": getattr(t, "phone", "") or "",
+                "type": getattr(t, "type", "Individual") or "Individual",
+                "unit": getattr(t, "unit", "") or "Unassigned",
+                "lease_id": getattr(t, "lease_id", None),
+                "emergency_contact": getattr(t, "emergency_contact", ""),
+                "status": getattr(t, "status", "Active") or "Active"
+            })
+    except Exception as e:
+        logger.warning(f"Notice querying tenants table: {e}")
+
+    # 2. Fetch registered users with client/tenant roles (Maria Santos, Carlos Mendoza)
+    try:
+        tenant_users = list(db.scalars(
+            select(models.User).where(
+                or_(
+                    models.User.role.ilike("%client%"),
+                    models.User.role.ilike("%tenant%"),
+                    models.User.role.ilike("%resident%")
+                )
             )
-            if hasattr(virtual_tenant, 'user_id'):
-                virtual_tenant.user_id = u.id
-            if hasattr(virtual_tenant, 'tnt_id'):
-                virtual_tenant.tnt_id = f"TNT-{str(u.id)[:6].upper()}"
-            if hasattr(virtual_tenant, 'unit'):
-                virtual_tenant.unit = 'No Current Unit'
-            if hasattr(virtual_tenant, 'type'):
-                virtual_tenant.type = 'Individual'
+        ).all())
 
-            tenants.append(virtual_tenant)
+        for u in tenant_users:
+            u_id = str(getattr(u, "id", "") or "")
+            u_email = (getattr(u, "email", "") or "").lower().strip()
+            u_name = getattr(u, "name", "") or getattr(u, "full_name", "") or "Resident Tenant"
 
+            if u_id not in seen and u_email not in seen:
+                if u_id:
+                    seen.add(u_id)
+                if u_email:
+                    seen.add(u_email)
+
+                code = f"TNT-{u_id[:6].upper()}"
+                results.append({
+                    "id": u_id,
+                    "user_id": u_id,
+                    "tenant_id": code,
+                    "tnt_id": code,
+                    "name": u_name,
+                    "full_name": u_name,
+                    "email": getattr(u, "email", "") or "",
+                    "phone": getattr(u, "phone", "") or "",
+                    "type": "Individual",
+                    "unit": "Unassigned",
+                    "lease_id": None,
+                    "emergency_contact": "",
+                    "status": "Active"
+                })
+    except Exception as e:
+        logger.warning(f"Notice querying users table: {e}")
+
+    # 3. Apply optional filters
     if status_filter:
-        s_filter = status_filter.strip().lower()
-        tenants = [t for t in tenants if s_filter in (t.status or '').lower()]
+        s_filt = status_filter.strip().lower()
+        results = [r for r in results if s_filt in (r.get("status") or "").lower()]
 
     if type_filter:
-        t_filter = type_filter.strip().lower()
-        tenants = [t for t in tenants if t_filter in (t.type or '').lower()]
+        t_filt = type_filter.strip().lower()
+        results = [r for r in results if t_filt in (r.get("type") or "").lower()]
 
     if search:
         s_term = search.strip().lower()
-        tenants = [t for t in tenants if s_term in (t.name or '').lower() or s_term in (t.email or '').lower()]
+        results = [
+            r for r in results
+            if s_term in (r.get("name") or "").lower()
+            or s_term in (r.get("full_name") or "").lower()
+            or s_term in (r.get("email") or "").lower()
+            or s_term in (r.get("phone") or "").lower()
+            or s_term in (r.get("tenant_id") or "").lower()
+            or s_term in (r.get("unit") or "").lower()
+        ]
 
-    return tenants
+    return results
 
 
-# 2. POST /api/tenants/ - Create a new tenant
-@router.post("/", response_model=schemas.TenantSchema, status_code=status.HTTP_201_CREATED)
-def create_tenant(tenant_in: schemas.TenantCreate, db: Session = Depends(get_db)):
-    org_id = getattr(tenant_in, "organization_id", DEFAULT_ORG_ID) or DEFAULT_ORG_ID
+# ---------------------------------------------------------------------
+# 2. CREATE TENANT (Matches POST /api/tenants & POST /api/tenants/)
+# ---------------------------------------------------------------------
+@router.post("", status_code=status.HTTP_201_CREATED)
+@router.post("/", status_code=status.HTTP_201_CREATED)
+def create_tenant(
+    tenant_in: Dict[str, Any],
+    organization_id: Optional[str] = Query(default=None),
+    db: Session = Depends(get_db)
+):
+    org_id = parse_org_id(tenant_in.get("organization_id") or organization_id)
     ensure_sandbox_organization(db, org_id)
 
-    clean_email = tenant_in.email.lower().strip() if tenant_in.email else None
-    tnt_id = getattr(tenant_in, "tnt_id", None) or f"TNT-{datetime.now().year}-{str(uuid.uuid4())[:4].upper()}"
+    name = (tenant_in.get("name") or tenant_in.get("full_name") or "").strip()
+    if not name:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Tenant name is required."
+        )
+
+    clean_email = (tenant_in.get("email") or "").strip().lower() or None
+    code = (tenant_in.get("tenant_id") or tenant_in.get("tnt_id") or f"TNT-{datetime.now().year}-{str(uuid.uuid4())[:4].upper()}").strip()
 
     # Scoped duplicate check
     duplicate_filters = []
-    if tnt_id and hasattr(models.Tenant, "tnt_id"):
-        duplicate_filters.append(models.Tenant.tnt_id.ilike(tnt_id))
+    if hasattr(models.Tenant, "tenant_id"):
+        duplicate_filters.append(models.Tenant.tenant_id.ilike(code))
+    if hasattr(models.Tenant, "tnt_id"):
+        duplicate_filters.append(models.Tenant.tnt_id.ilike(code))
     if clean_email and hasattr(models.Tenant, "email"):
         duplicate_filters.append(models.Tenant.email.ilike(clean_email))
 
@@ -186,97 +305,138 @@ def create_tenant(tenant_in: schemas.TenantCreate, db: Session = Depends(get_db)
             )
         )
         if existing:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="A tenant with this ID or email already exists in this organization."
-            )
+            code = f"{code}-{str(uuid.uuid4())[:3].upper()}"
 
-    tenant_data = tenant_in.model_dump(exclude_unset=True) if hasattr(tenant_in, "model_dump") else tenant_in.dict(exclude_unset=True)
-    if "id" not in tenant_data or not tenant_data["id"]:
-        tenant_data["id"] = uuid.uuid4()
-    tenant_data["organization_id"] = org_id
-    if clean_email:
-        tenant_data["email"] = clean_email
-    if "tnt_id" not in tenant_data and hasattr(models.Tenant, "tnt_id"):
-        tenant_data["tnt_id"] = tnt_id
-    if "status" not in tenant_data or not tenant_data["status"]:
-        tenant_data["status"] = "Active"
+    new_id = uuid.uuid4()
+    if tenant_in.get("id"):
+        try:
+            new_id = uuid.UUID(str(tenant_in["id"]))
+        except ValueError:
+            pass
+
+    tenant_data = {
+        "id": new_id,
+        "organization_id": org_id,
+        "name": name,
+        "email": clean_email or "",
+        "phone": tenant_in.get("phone") or "",
+        "type": tenant_in.get("type") or "Individual",
+        "status": tenant_in.get("status") or "Active",
+        "emergency_contact": tenant_in.get("emergency_contact") or ""
+    }
+
+    if hasattr(models.Tenant, "tenant_id"):
+        tenant_data["tenant_id"] = code
+    if hasattr(models.Tenant, "tnt_id"):
+        tenant_data["tnt_id"] = code
+    if hasattr(models.Tenant, "unit") and tenant_in.get("unit"):
+        tenant_data["unit"] = str(tenant_in["unit"])
+    if hasattr(models.Tenant, "lease_id") and tenant_in.get("lease_id"):
+        tenant_data["lease_id"] = str(tenant_in["lease_id"])
 
     db_tenant = models.Tenant(**tenant_data)
     db.add(db_tenant)
     db.commit()
     db.refresh(db_tenant)
-    return db_tenant
+
+    return {
+        "id": str(db_tenant.id),
+        "organization_id": str(db_tenant.organization_id),
+        "tenant_id": code,
+        "name": db_tenant.name,
+        "email": db_tenant.email,
+        "phone": db_tenant.phone,
+        "type": getattr(db_tenant, "type", "Individual"),
+        "status": db_tenant.status
+    }
 
 
-# 3. GET /api/tenants/{tenant_id} - Fetch a single tenant
-@router.get("/{tenant_id}", response_model=schemas.TenantSchema)
+# ---------------------------------------------------------------------
+# 3. GET SINGLE TENANT
+# ---------------------------------------------------------------------
+@router.get("/{tenant_id}")
+@router.get("/{tenant_id}/")
 def get_tenant(
     tenant_id: str,
-    organization_id: uuid.UUID = Query(default=DEFAULT_ORG_ID),
+    organization_id: Optional[str] = Query(default=None),
     db: Session = Depends(get_db)
 ):
-    tenant = find_tenant_by_identifier(db, tenant_id, organization_id)
+    org_id = parse_org_id(organization_id)
+    tenant = find_tenant_by_identifier(db, tenant_id, org_id)
     if not tenant:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Tenant not found."
         )
-    return tenant
+
+    t_id = str(getattr(tenant, "id", "") or "")
+    code = getattr(tenant, "tenant_id", None) or getattr(tenant, "tnt_id", None) or f"TNT-{t_id[:6].upper()}"
+    return {
+        "id": t_id,
+        "user_id": str(getattr(tenant, "user_id", "") or t_id),
+        "tenant_id": code,
+        "tnt_id": code,
+        "name": getattr(tenant, "name", "") or getattr(tenant, "full_name", "") or "Resident Tenant",
+        "email": getattr(tenant, "email", "") or "",
+        "phone": getattr(tenant, "phone", "") or "",
+        "type": getattr(tenant, "type", "Individual") or "Individual",
+        "unit": getattr(tenant, "unit", "") or "Unassigned",
+        "status": getattr(tenant, "status", "Active") or "Active"
+    }
 
 
-# 4. PUT / PATCH /api/tenants/{tenant_id} - Update tenant record
-@router.put("/{tenant_id}", response_model=schemas.TenantSchema)
-@router.patch("/{tenant_id}", response_model=schemas.TenantSchema)
+# ---------------------------------------------------------------------
+# 4. UPDATE TENANT (PUT / PATCH)
+# ---------------------------------------------------------------------
+@router.put("/{tenant_id}")
+@router.put("/{tenant_id}/")
+@router.patch("/{tenant_id}")
+@router.patch("/{tenant_id}/")
 def update_tenant(
     tenant_id: str,
-    tenant_update: schemas.TenantUpdate,
-    organization_id: uuid.UUID = Query(default=DEFAULT_ORG_ID),
+    tenant_update: Dict[str, Any],
+    organization_id: Optional[str] = Query(default=None),
     db: Session = Depends(get_db)
 ):
-    db_tenant = find_tenant_by_identifier(db, tenant_id, organization_id)
+    org_id = parse_org_id(organization_id)
+    db_tenant = find_tenant_by_identifier(db, tenant_id, org_id)
     if not db_tenant:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Tenant not found."
         )
 
-    update_data = tenant_update.model_dump(exclude_unset=True) if hasattr(tenant_update, "model_dump") else tenant_update.dict(exclude_unset=True)
-
-    if "email" in update_data and update_data["email"]:
-        clean_update_email = update_data["email"].lower().strip()
-        update_data["email"] = clean_update_email
-        if clean_update_email != (db_tenant.email or "").lower().strip():
-            email_check = db.scalar(
-                select(models.Tenant).where(
-                    models.Tenant.organization_id == organization_id,
-                    models.Tenant.email.ilike(clean_update_email),
-                    models.Tenant.id != db_tenant.id
-                )
-            )
-            if email_check:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Email '{clean_update_email}' is already assigned to another tenant."
-                )
-
-    for field, value in update_data.items():
+    for field, value in tenant_update.items():
         if hasattr(db_tenant, field):
             setattr(db_tenant, field, value)
 
     db.commit()
     db.refresh(db_tenant)
-    return db_tenant
+
+    t_id = str(getattr(db_tenant, "id", "") or "")
+    code = getattr(db_tenant, "tenant_id", None) or getattr(db_tenant, "tnt_id", None) or f"TNT-{t_id[:6].upper()}"
+    return {
+        "id": t_id,
+        "tenant_id": code,
+        "name": getattr(db_tenant, "name", "") or getattr(db_tenant, "full_name", "") or "Resident Tenant",
+        "email": getattr(db_tenant, "email", "") or "",
+        "phone": getattr(db_tenant, "phone", "") or "",
+        "status": getattr(db_tenant, "status", "Active") or "Active"
+    }
 
 
-# 5. DELETE /api/tenants/{tenant_id} - Safe remove tenant record
+# ---------------------------------------------------------------------
+# 5. DELETE TENANT
+# ---------------------------------------------------------------------
 @router.delete("/{tenant_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{tenant_id}/", status_code=status.HTTP_204_NO_CONTENT)
 def delete_tenant(
     tenant_id: str,
-    organization_id: uuid.UUID = Query(default=DEFAULT_ORG_ID),
+    organization_id: Optional[str] = Query(default=None),
     db: Session = Depends(get_db)
 ):
-    db_tenant = find_tenant_by_identifier(db, tenant_id, organization_id)
+    org_id = parse_org_id(organization_id)
+    db_tenant = find_tenant_by_identifier(db, tenant_id, org_id)
     if not db_tenant:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
