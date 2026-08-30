@@ -829,17 +829,15 @@
                         <textarea id="modalPropLoc" rows="2" placeholder="e.g. 123 Solar St., Parañaque, Metro Manila"></textarea>
                     </div>
 
-                    <!-- SEARCHABLE COMBOBOX: ASSIGN REGISTERED OWNER (FROM USERS/INDEX.HTML) -->
+                    <!-- DIRECT AUTOMATIC OWNER SELECTION (DIRECT FROM DATABASE) -->
                     <div class="form-group" style="grid-column: span 2; border-top:1px dashed var(--border, #E2E8F0); padding-top:12px;">
                         <label style="display:flex; justify-content:space-between; align-items:center;">
                             <span>Assign Registered Owner (Optional)</span>
-                            <span style="font-size:11px; color:var(--primary, #2563EB); font-weight:normal;">Searches active Owner accounts</span>
+                            <span style="font-size:11px; color:#059669; font-weight:600;"><i class="bi bi-database-check me-1"></i>Direct from Database</span>
                         </label>
-                        <input type="text" id="ownerSearchCombobox" list="registeredOwnersList" placeholder="Type to search registered owner by name or email..." oninput="handleOwnerSelect(this.value)" autocomplete="off" style="width:100%;">
-                        <datalist id="registeredOwnersList">
-                            <!-- Populated dynamically with registered owner users -->
-                        </datalist>
-                        <input type="hidden" id="modalSelectedOwnerId" value="">
+                        <select id="modalOwnerSelect" style="width:100%;">
+                            <option value="">Select Registered Property Owner...</option>
+                        </select>
                     </div>
 
                     <div class="form-group">
@@ -1120,23 +1118,6 @@
         return [];
     }
 
-    async function getRegisteredUsers() {
-        try {
-            const orgId = getOrgId();
-            const res = await fetch(`${USERS_API_URL}?organization_id=${orgId}&role=owner`, { 
-                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
-                cache: 'no-store'
-            });
-            if (res.ok) {
-                const data = await res.json();
-                return Array.isArray(data) ? data : (data.items || data.users || data.data || []);
-            }
-        } catch (e) {
-            console.warn("Live Users API fetch failed:", e);
-        }
-        return [];
-    }
-
     async function getLeases() {
         try {
             const orgId = getOrgId();
@@ -1171,69 +1152,38 @@
         return [];
     }
 
-    // Populate All Registered Owners into Select Dropdowns
+    // Direct Database Population of Owner Dropdowns
     async function populateOwnersDropdowns() {
-        const [users, owners] = await Promise.all([
-            getRegisteredUsers(),
-            getOwners()
-        ]);
+        const owners = await getOwners();
+        registeredOwnersCache = owners;
 
-        const ownerMap = new Map();
-
-        // 1. Map registered users with owner role
-        users.forEach(u => {
-            const role = (u.role || '').toLowerCase();
-            if (role.includes('owner') || role.includes('investor')) {
-                const name = u.name || u.full_name || 'Owner User';
-                const key = String(u.email || u.id).toLowerCase();
-                ownerMap.set(key, {
-                    id: u.id,
-                    name: name,
-                    email: u.email || '',
-                    type: 'Individual'
-                });
-            }
-        });
-
-        // 2. Map verified Owner profiles
-        owners.forEach(o => {
-            const name = o.name || 'Property Owner';
-            const key = String(o.email || o.id || o.own_id).toLowerCase();
-            if (!ownerMap.has(key)) {
-                ownerMap.set(key, {
-                    id: o.id || o.own_id,
-                    name: name,
-                    email: o.email || '',
-                    type: o.type || 'Individual'
-                });
-            }
-        });
-
-        registeredOwnersCache = Array.from(ownerMap.values());
-
-        // Fill modal owner dropdown
+        // 1. Modal New Property Owner Dropdown
         const modalOwnerSelect = document.getElementById('modalOwnerSelect');
         if (modalOwnerSelect) {
             modalOwnerSelect.innerHTML = '<option value="">Select Registered Property Owner...</option>';
-            if (registeredOwnersCache.length > 0) {
-                registeredOwnersCache.forEach(o => {
+            if (owners && owners.length > 0) {
+                owners.forEach(o => {
                     const opt = document.createElement('option');
-                    opt.value = o.id;
-                    opt.textContent = `${o.name} (${o.email || 'Registered Owner'})`;
+                    opt.value = o.id || o.user_id || o.own_id;
+                    const displayName = o.name || o.full_name || 'Owner';
+                    opt.textContent = `${displayName} (${o.email || o.own_id || 'Registered Owner'})`;
                     modalOwnerSelect.appendChild(opt);
                 });
             } else {
-                modalOwnerSelect.innerHTML += '<option value="" disabled>No registered owners found. Register an owner account first.</option>';
+                modalOwnerSelect.innerHTML += '<option value="" disabled>No registered owners in database.</option>';
             }
         }
 
-        // Fill fractional equity modal owner dropdown
+        // 2. Modal Fractional Equity Share Dropdown
         const ownOwnerSelect = document.getElementById('modalOwnOwner');
         if (ownOwnerSelect) {
             ownOwnerSelect.innerHTML = '<option value="">Select Owner...</option>';
-            registeredOwnersCache.forEach(o => {
-                ownOwnerSelect.innerHTML += `<option value="${o.id}">${o.name} (${o.email || o.type})</option>`;
-            });
+            if (owners && owners.length > 0) {
+                owners.forEach(o => {
+                    const displayName = o.name || o.full_name || 'Owner';
+                    ownOwnerSelect.innerHTML += `<option value="${o.id || o.user_id}">${displayName} (${o.email || o.type || 'Owner'})</option>`;
+                });
+            }
         }
     }
 
@@ -1394,7 +1344,7 @@
         let createdProperty = null;
 
         try {
-            const res = await fetch(PROPERTIES_API_URL, {
+            const res = await fetch(`${PROPERTIES_API_URL}?organization_id=${orgId}`, {
                 method: 'POST',
                 headers: getAuthHeaders(),
                 body: JSON.stringify(payload)
@@ -1418,7 +1368,7 @@
         // Auto-assign fractional equity ownership
         if (selectedOwnerId && newPropId) {
             try {
-                await fetch(OWNERSHIP_API_URL, {
+                await fetch(`${OWNERSHIP_API_URL}?organization_id=${orgId}`, {
                     method: 'POST',
                     headers: getAuthHeaders(),
                     body: JSON.stringify({
@@ -1455,7 +1405,8 @@
         if (!confirm(`Are you sure you want to permanently delete "${displayName}" and all its linked units/records from the database?`)) return;
 
         try {
-            const res = await fetch(`${PROPERTIES_API_URL}/${encodeURIComponent(id)}`, {
+            const orgId = getOrgId();
+            const res = await fetch(`${PROPERTIES_API_URL}/${encodeURIComponent(id)}?organization_id=${orgId}`, {
                 method: 'DELETE',
                 headers: getAuthHeaders()
             });
@@ -1539,7 +1490,7 @@
         };
 
         try {
-            const res = await fetch(OWNERSHIP_API_URL, {
+            const res = await fetch(`${OWNERSHIP_API_URL}?organization_id=${orgId}`, {
                 method: 'POST',
                 headers: getAuthHeaders(),
                 body: JSON.stringify(payload)
@@ -1572,7 +1523,8 @@
         if (!confirm("Are you sure you want to remove this ownership assignment?")) return;
 
         try {
-            const res = await fetch(`${OWNERSHIP_API_URL}/${encodeURIComponent(id)}`, {
+            const orgId = getOrgId();
+            const res = await fetch(`${OWNERSHIP_API_URL}/${encodeURIComponent(id)}?organization_id=${orgId}`, {
                 method: 'DELETE',
                 headers: getAuthHeaders()
             });
@@ -1705,3 +1657,4 @@
         });
     }
 </script>
+</body>
