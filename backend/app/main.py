@@ -1,14 +1,19 @@
 import os
+import uuid
+from typing import Optional, List, Dict, Any
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Depends, status
+from fastapi import FastAPI, Depends, status, Query, HTTPException, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse, JSONResponse
-from sqlalchemy import text
+from sqlalchemy import text, select, or_
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 
 from .database import engine, Base, get_db
-from . import models
+from . import models, schemas
+
+# Core Routers
 from .routers import (
     units, 
     properties, 
@@ -20,7 +25,7 @@ from .routers import (
     users
 )
 
-# Dynamic imports for optional/supplementary modules
+# Optional / Supplementary Routers
 try:
     from .routers import buildings
 except ImportError:
@@ -57,13 +62,21 @@ except ImportError:
     documents = None
 
 
+DEFAULT_ORG_ID = uuid.UUID("a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11")
+
+
+def parse_uuid_safely(val: Optional[str]) -> Optional[uuid.UUID]:
+    if not val or str(val).strip().lower() in ("undefined", "null", ""):
+        return None
+    try:
+        return uuid.UUID(str(val).strip())
+    except Exception:
+        return None
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """
-    Application Lifespan Context Manager:
-    Verifies live database connectivity on startup and cleanly disposes the pool on shutdown.
-    """
-    # 1. Test live PostgreSQL connection
+    """Verifies live database connectivity on startup and cleanly disposes the pool on shutdown."""
     try:
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
@@ -71,7 +84,6 @@ async def lifespan(app: FastAPI):
     except Exception as db_err:
         print(f"⚠️ [Database] Connection warning on startup: {db_err}")
 
-    # 2. Auto-create tables if AUTO_CREATE_TABLES=true
     if os.getenv("AUTO_CREATE_TABLES", "false").lower() in ("true", "1", "t"):
         try:
             Base.metadata.create_all(bind=engine)
@@ -81,7 +93,6 @@ async def lifespan(app: FastAPI):
 
     yield
 
-    # Teardown logic
     engine.dispose()
     print("🔌 [Database] PostgreSQL connection pool disposed cleanly.")
 
@@ -90,8 +101,8 @@ app = FastAPI(
     title="ARGO Property Management API",
     description="Multi-Tenant Property Operations Backend Gateway",
     version="0.5.0",
-    lifespan=lifespan,
-    redirect_slashes=False  # Prevents 307 redirect errors on missing trailing slashes
+    lifespan=lifespan
+    # redirect_slashes left at default (True) so both /api/properties and /api/properties/ resolve seamlessly
 )
 
 # ==========================================
@@ -134,7 +145,6 @@ app.include_router(leases.router, prefix="/api/leases", tags=["Leases"])
 app.include_router(invoices.router, prefix="/api/invoices", tags=["Invoices & Rent Collection"])
 app.include_router(maintenance.router, prefix="/api/maintenance", tags=["Maintenance Work Orders"])
 
-# Mount supplementary routers if present
 if buildings and hasattr(buildings, "router"):
     app.include_router(buildings.router, prefix="/api/buildings", tags=["Buildings"])
 
@@ -158,7 +168,117 @@ if documents and hasattr(documents, "router"):
 
 
 # ==========================================
-# 2. SYSTEM HEALTH & DIAGNOSTIC ENDPOINTS
+# 2. DEDICATED PROPERTY OWNERSHIP ROUTER
+# ==========================================
+ownership_router = APIRouter()
+
+
+@ownership_router.get("/")
+def get_property_ownerships(
+    organization_id: Optional[str] = Query(default=None),
+    property_id: Optional[str] = Query(default=None),
+    owner_id: Optional[str] = Query(default=None),
+    db: Session = Depends(get_db)
+):
+    org_uuid = parse_uuid_safely(organization_id) or DEFAULT_ORG_ID
+    prop_uuid = parse_uuid_safely(property_id)
+    own_uuid = parse_uuid_safely(owner_id)
+
+    stmt = select(models.PropertyOwnership).where(
+        or_(
+            models.PropertyOwnership.organization_id == org_uuid,
+            models.PropertyOwnership.organization_id.is_(None)
+        )
+    )
+    if prop_uuid:
+        stmt = stmt.where(models.PropertyOwnership.property_id == prop_uuid)
+    if own_uuid:
+        stmt = stmt.where(models.PropertyOwnership.owner_id == own_uuid)
+
+    shares = list(db.scalars(stmt).all())
+    results = []
+
+    # Cache properties and owners for lookup
+    props_map = {p.id: (getattr(p, 'name', '') or getattr(p, 'property_name', '') or 'Property') for p in db.scalars(select(models.Property)).all()}
+    owners_map = {o.id: (getattr(o, 'name', '') or getattr(o, 'full_name', '') or 'Owner') for o in db.scalars(select(models.Owner)).all()}
+    for u in db.scalars(select(models.User)).all():
+        if u.id not in owners_map:
+            owners_map[u.id] = getattr(u, 'name', '') or getattr(u, 'full_name', '') or 'Registered Owner'
+
+    for s in shares:
+        s_id = str(s.id)
+        p_id = s.property_id
+        o_id = s.owner_id
+        results.append({
+            "id": s_id,
+            "organization_id": str(s.organization_id or org_uuid),
+            "property_id": str(p_id),
+            "property_name": props_map.get(p_id, "Property Asset"),
+            "owner_id": str(o_id),
+            "owner_name": owners_map.get(o_id, "Property Owner"),
+            "owner_type": "Individual",
+            "share_percent": float(s.share_percent or 100.0),
+            "role": s.role or "Primary Managing Owner",
+            "is_primary": "primary" in (s.role or "").lower()
+        })
+
+    return results
+
+
+@ownership_router.post("/", status_code=status.HTTP_201_CREATED)
+def assign_property_ownership_endpoint(
+    share_payload: Dict[str, Any],
+    db: Session = Depends(get_db)
+):
+    org_id = parse_uuid_safely(share_payload.get("organization_id")) or DEFAULT_ORG_ID
+    prop_id = parse_uuid_safely(share_payload.get("property_id"))
+    own_id = parse_uuid_safely(share_payload.get("owner_id"))
+
+    if not prop_id or not own_id:
+        raise HTTPException(status_code=400, detail="Valid property_id and owner_id are required.")
+
+    share_record = models.PropertyOwnership(
+        id=uuid.uuid4(),
+        organization_id=org_id,
+        property_id=prop_id,
+        owner_id=own_id,
+        share_percent=float(share_payload.get("share_percent", 100.0)),
+        role=share_payload.get("role", "Primary Managing Owner")
+    )
+    db.add(share_record)
+    db.commit()
+    db.refresh(share_record)
+    return {
+        "id": str(share_record.id),
+        "property_id": str(share_record.property_id),
+        "owner_id": str(share_record.owner_id),
+        "share_percent": float(share_record.share_percent),
+        "role": share_record.role
+    }
+
+
+@ownership_router.delete("/{share_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_property_ownership_endpoint(
+    share_id: str,
+    db: Session = Depends(get_db)
+):
+    share_uuid = parse_uuid_safely(share_id)
+    if not share_uuid:
+        raise HTTPException(status_code=400, detail="Invalid share ID.")
+
+    share = db.scalar(select(models.PropertyOwnership).where(models.PropertyOwnership.id == share_uuid))
+    if not share:
+        raise HTTPException(status_code=404, detail="Ownership share not found.")
+
+    db.delete(share)
+    db.commit()
+    return None
+
+app.include_router(ownership_router, prefix="/api/property-ownership", tags=["Property Ownership"])
+
+
+# ==========================================
+# 3. SYSTEM HEALTH & DIAGNOSTIC ENDPOINTS
 # ==========================================
 @app.get("/api/health", tags=["System Health"])
 @app.get("/health", tags=["System Health"])
@@ -182,15 +302,18 @@ def health_check(db: Session = Depends(get_db)):
         )
 
 
+# ==========================================
+# 4. STATIC FILES MOUNT
+# ==========================================
 current_dir = os.path.dirname(os.path.abspath(__file__))
 candidate_paths = [
-    os.path.abspath(os.path.join(current_dir, "../../frontend")),  # Root /frontend
-    os.path.abspath(os.path.join(current_dir, "../frontend")),    # /backend/frontend
-    os.path.abspath(os.path.join(current_dir, "frontend")),        # ./frontend
-    os.path.abspath(os.path.join(current_dir, "..")),              # Repo root (where HTML files live)
+    os.path.abspath(os.path.join(current_dir, "../../frontend")),
+    os.path.abspath(os.path.join(current_dir, "../frontend")),
+    os.path.abspath(os.path.join(current_dir, "frontend")),
+    os.path.abspath(os.path.join(current_dir, "..")),
     os.path.abspath(os.path.join(current_dir, "static")),
     os.path.abspath(os.path.join(current_dir, "../static")),
-    current_dir                                                   # ./
+    current_dir
 ]
 
 frontend_path = None
@@ -205,12 +328,3 @@ if frontend_path:
     app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend_root")
 else:
     print("⚠️ [StaticFiles] WARNING: Could not find HTML files in candidate paths.")
-
-
-# ==========================================
-# 4. ROOT REDIRECT
-# ==========================================
-@app.get("/")
-def read_root():
-    """Auto-redirect root traffic straight to login/dashboard."""
-    return RedirectResponse(url="/index.html")
