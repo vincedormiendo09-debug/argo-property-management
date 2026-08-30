@@ -3,7 +3,7 @@ import logging
 from datetime import datetime
 from typing import List, Optional, Any, Dict
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select, or_
+from sqlalchemy import select, or_, delete
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
@@ -38,8 +38,126 @@ def ensure_sandbox_organization(db: Session, org_id: uuid.UUID):
         db.commit()
 
 
+def find_tenant_by_identifier(db: Session, tenant_id: str, organization_id: uuid.UUID):
+    """Robustly locates a tenant by UUID, user_id, custom TNT code, email, or User record."""
+    clean_id = tenant_id.strip()
+
+    # 1. Search Tenant table by UUID (id or user_id)
+    try:
+        parsed_uuid = uuid.UUID(clean_id)
+        tenant = db.scalar(
+            select(models.Tenant).where(
+                or_(
+                    models.Tenant.id == parsed_uuid,
+                    models.Tenant.user_id == parsed_uuid
+                ),
+                or_(
+                    models.Tenant.organization_id == organization_id,
+                    models.Tenant.organization_id.is_(None)
+                )
+            )
+        )
+        if tenant:
+            return tenant
+    except ValueError:
+        pass
+
+    # 2. Search Tenant table by custom identifier code (tenant_id or tnt_id)
+    if hasattr(models.Tenant, "tenant_id"):
+        tenant = db.scalar(
+            select(models.Tenant).where(
+                models.Tenant.tenant_id.ilike(clean_id),
+                or_(
+                    models.Tenant.organization_id == organization_id,
+                    models.Tenant.organization_id.is_(None)
+                )
+            )
+        )
+        if tenant:
+            return tenant
+
+    if hasattr(models.Tenant, "tnt_id"):
+        tenant = db.scalar(
+            select(models.Tenant).where(
+                models.Tenant.tnt_id.ilike(clean_id),
+                or_(
+                    models.Tenant.organization_id == organization_id,
+                    models.Tenant.organization_id.is_(None)
+                )
+            )
+        )
+        if tenant:
+            return tenant
+
+    # 3. Search Tenant table by email
+    tenant = db.scalar(
+        select(models.Tenant).where(
+            models.Tenant.email.ilike(clean_id),
+            or_(
+                models.Tenant.organization_id == organization_id,
+                models.Tenant.organization_id.is_(None)
+            )
+        )
+    )
+    if tenant:
+        return tenant
+
+    # 4. Fallback: Search User table directly if role is client/tenant
+    user = None
+    try:
+        user_uuid = uuid.UUID(clean_id)
+        user = db.scalar(
+            select(models.User).where(
+                models.User.id == user_uuid,
+                or_(
+                    models.User.role.ilike("%client%"),
+                    models.User.role.ilike("%tenant%"),
+                    models.User.role.ilike("%resident%")
+                )
+            )
+        )
+    except ValueError:
+        pass
+
+    if not user:
+        user = db.scalar(
+            select(models.User).where(
+                models.User.email.ilike(clean_id),
+                or_(
+                    models.User.role.ilike("%client%"),
+                    models.User.role.ilike("%tenant%"),
+                    models.User.role.ilike("%resident%")
+                )
+            )
+        )
+
+    if user:
+        t_id = str(user.id)
+        virtual_tenant = models.Tenant(
+            id=user.id,
+            organization_id=organization_id,
+            name=user.name or getattr(user, "full_name", None) or "Registered Tenant",
+            email=user.email,
+            phone=getattr(user, "phone", "") or "",
+            status="Active"
+        )
+        if hasattr(virtual_tenant, "user_id"):
+            virtual_tenant.user_id = user.id
+        if hasattr(virtual_tenant, "tenant_id"):
+            virtual_tenant.tenant_id = f"TNT-{t_id[:6].upper()}"
+        if hasattr(virtual_tenant, "tnt_id"):
+            virtual_tenant.tnt_id = f"TNT-{t_id[:6].upper()}"
+        if hasattr(virtual_tenant, "unit"):
+            virtual_tenant.unit = "No Current Unit"
+        if hasattr(virtual_tenant, "type"):
+            virtual_tenant.type = "Individual"
+        return virtual_tenant
+
+    return None
+
+
 # ---------------------------------------------------------------------
-# 1. GET TENANTS (Reads Tenants + Client Users directly from Neon DB)
+# 1. GET TENANTS (Dual Route: Merges Tenants Table + Registered Users)
 # ---------------------------------------------------------------------
 @router.get("")
 @router.get("/")
@@ -50,14 +168,17 @@ def read_tenants(
     search: Optional[str] = Query(default=None),
     db: Session = Depends(get_db)
 ):
+    """
+    Returns live database tenant profiles merged with registered client users.
+    Returns clean dictionary objects to prevent 500 Pydantic serialization errors.
+    """
     org_id = parse_org_id(organization_id)
     ensure_sandbox_organization(db, org_id)
 
     results: List[Dict[str, Any]] = []
-    seen_ids = set()
-    seen_emails = set()
+    seen_identifiers = set()
 
-    # Step 1: Query explicit records in 'tenants' table
+    # 1. Fetch from 'tenants' table
     try:
         db_tenants = list(db.scalars(
             select(models.Tenant).where(
@@ -69,22 +190,22 @@ def read_tenants(
         ).all())
 
         for t in db_tenants:
-            t_id = str(t.id)
-            t_user_id = str(getattr(t, "user_id", "") or t_id)
+            t_id = str(getattr(t, "id", "") or "")
+            t_user_id = str(getattr(t, "user_id", "") or "")
             t_email = (getattr(t, "email", "") or "").lower().strip()
-            t_name = getattr(t, "name", None) or getattr(t, "full_name", None) or "Resident Tenant"
+            t_name = getattr(t, "name", "") or getattr(t, "full_name", "") or "Resident Tenant"
             code = getattr(t, "tenant_id", None) or getattr(t, "tnt_id", None) or f"TNT-{t_id[:6].upper()}"
 
             if t_id:
-                seen_ids.add(t_id)
+                seen_identifiers.add(t_id)
             if t_user_id:
-                seen_ids.add(t_user_id)
+                seen_identifiers.add(t_user_id)
             if t_email:
-                seen_emails.add(t_email)
+                seen_identifiers.add(t_email)
 
             results.append({
                 "id": t_id,
-                "user_id": t_user_id,
+                "user_id": t_user_id or t_id,
                 "tenant_id": code,
                 "tnt_id": code,
                 "name": t_name,
@@ -92,36 +213,43 @@ def read_tenants(
                 "email": getattr(t, "email", "") or "",
                 "phone": getattr(t, "phone", "") or "",
                 "type": getattr(t, "type", "Individual") or "Individual",
-                "unit": getattr(t, "unit", "No Current Unit") or "No Current Unit",
+                "unit": getattr(t, "unit", "") or "No Current Unit",
                 "lease_id": getattr(t, "lease_id", None),
                 "emergency_contact": getattr(t, "emergency_contact", ""),
                 "status": getattr(t, "status", "Active") or "Active"
             })
     except Exception as e:
-        logger.warning(f"Notice fetching tenants table: {e}")
+        logger.warning(f"Notice querying tenants table: {e}")
 
-    # Step 2: Query registered users with client/tenant/resident roles (Maria Santos & Carlos Mendoza)
+    # 2. Fetch directly from 'users' table (Maria Santos & Carlos Mendoza)
     try:
-        db_users = list(db.scalars(
-            select(models.User).where(
+        user_stmt = select(models.User).where(
+            or_(
+                models.User.role.ilike("%client%"),
+                models.User.role.ilike("%tenant%"),
+                models.User.role.ilike("%resident%")
+            )
+        )
+        if hasattr(models.User, "organization_id"):
+            user_stmt = user_stmt.where(
                 or_(
-                    models.User.role.ilike("%client%"),
-                    models.User.role.ilike("%tenant%"),
-                    models.User.role.ilike("%resident%")
+                    models.User.organization_id == org_id,
+                    models.User.organization_id.is_(None)
                 )
             )
-        ).all())
+
+        db_users = list(db.scalars(user_stmt).all())
 
         for u in db_users:
-            u_id = str(u.id)
+            u_id = str(getattr(u, "id", "") or "")
             u_email = (getattr(u, "email", "") or "").lower().strip()
             u_name = getattr(u, "name", None) or getattr(u, "full_name", None) or "Resident Tenant"
 
-            # Check if this user is already registered in the tenants table
-            if u_id not in seen_ids and u_email not in seen_emails:
-                seen_ids.add(u_id)
+            if u_id not in seen_identifiers and u_email not in seen_identifiers:
+                if u_id:
+                    seen_identifiers.add(u_id)
                 if u_email:
-                    seen_emails.add(u_email)
+                    seen_identifiers.add(u_email)
 
                 code = f"TNT-{u_id[:6].upper()}"
                 results.append({
@@ -140,9 +268,9 @@ def read_tenants(
                     "status": "Active"
                 })
     except Exception as e:
-        logger.warning(f"Notice fetching client users: {e}")
+        logger.warning(f"Notice querying users table: {e}")
 
-    # Step 3: Apply Filters
+    # 3. Apply optional filters
     if status_filter:
         s_filt = status_filter.strip().lower()
         results = [r for r in results if s_filt in (r.get("status") or "").lower()]
@@ -181,10 +309,31 @@ def create_tenant(
 
     name = (tenant_in.get("name") or tenant_in.get("full_name") or "").strip()
     if not name:
-        raise HTTPException(status_code=400, detail="Tenant name is required.")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Tenant name is required."
+        )
 
     clean_email = (tenant_in.get("email") or "").strip().lower() or None
     code = (tenant_in.get("tenant_id") or tenant_in.get("tnt_id") or f"TNT-{datetime.now().year}-{str(uuid.uuid4())[:4].upper()}").strip()
+
+    duplicate_filters = []
+    if hasattr(models.Tenant, "tenant_id"):
+        duplicate_filters.append(models.Tenant.tenant_id.ilike(code))
+    if hasattr(models.Tenant, "tnt_id"):
+        duplicate_filters.append(models.Tenant.tnt_id.ilike(code))
+    if clean_email and hasattr(models.Tenant, "email"):
+        duplicate_filters.append(models.Tenant.email.ilike(clean_email))
+
+    if duplicate_filters:
+        existing = db.scalar(
+            select(models.Tenant).where(
+                models.Tenant.organization_id == org_id,
+                or_(*duplicate_filters)
+            )
+        )
+        if existing:
+            code = f"{code}-{str(uuid.uuid4())[:3].upper()}"
 
     new_id = uuid.uuid4()
     if tenant_in.get("id"):
@@ -250,44 +399,71 @@ def get_tenant(
     db: Session = Depends(get_db)
 ):
     org_id = parse_org_id(organization_id)
-    clean_id = tenant_id.strip()
+    tenant = find_tenant_by_identifier(db, tenant_id, org_id)
+    if not tenant:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Tenant not found."
+        )
 
-    # 1. Search in 'tenants' table
-    for t in db.scalars(select(models.Tenant)).all():
-        if str(t.id) == clean_id or str(getattr(t, "user_id", "")) == clean_id or (t.email or "").lower() == clean_id.lower() or str(getattr(t, "tenant_id", "")).lower() == clean_id.lower():
-            code = getattr(t, "tenant_id", None) or getattr(t, "tnt_id", None) or f"TNT-{str(t.id)[:6].upper()}"
-            return {
-                "id": str(t.id),
-                "user_id": str(getattr(t, "user_id", "") or str(t.id)),
-                "tenant_id": code,
-                "name": t.name,
-                "email": t.email or "",
-                "phone": t.phone or "",
-                "type": getattr(t, "type", "Individual"),
-                "unit": getattr(t, "unit", "No Current Unit"),
-                "status": getattr(t, "status", "Active")
-            }
-
-    # 2. Search in 'users' table
-    for u in db.scalars(select(models.User)).all():
-        if str(u.id) == clean_id or (u.email or "").lower() == clean_id.lower():
-            return {
-                "id": str(u.id),
-                "user_id": str(u.id),
-                "tenant_id": f"TNT-{str(u.id)[:6].upper()}",
-                "name": getattr(u, "name", None) or getattr(u, "full_name", None) or "Resident Tenant",
-                "email": u.email or "",
-                "phone": getattr(u, "phone", "") or "",
-                "type": "Individual",
-                "unit": "No Current Unit",
-                "status": "Active"
-            }
-
-    raise HTTPException(status_code=404, detail="Tenant not found.")
+    t_id = str(getattr(tenant, "id", "") or "")
+    code = getattr(tenant, "tenant_id", None) or getattr(tenant, "tnt_id", None) or f"TNT-{t_id[:6].upper()}"
+    return {
+        "id": t_id,
+        "user_id": str(getattr(tenant, "user_id", "") or t_id),
+        "tenant_id": code,
+        "tnt_id": code,
+        "name": getattr(tenant, "name", "") or getattr(tenant, "full_name", "") or "Resident Tenant",
+        "email": getattr(tenant, "email", "") or "",
+        "phone": getattr(tenant, "phone", "") or "",
+        "type": getattr(tenant, "type", "Individual") or "Individual",
+        "unit": getattr(tenant, "unit", "") or "No Current Unit",
+        "status": getattr(tenant, "status", "Active") or "Active"
+    }
 
 
 # ---------------------------------------------------------------------
-# 4. DELETE TENANT (Permanent removal from DB & Role Revocation)
+# 4. UPDATE TENANT (PUT / PATCH)
+# ---------------------------------------------------------------------
+@router.put("/{tenant_id}")
+@router.put("/{tenant_id}/")
+@router.patch("/{tenant_id}")
+@router.patch("/{tenant_id}/")
+def update_tenant(
+    tenant_id: str,
+    tenant_update: Dict[str, Any],
+    organization_id: Optional[str] = Query(default=None),
+    db: Session = Depends(get_db)
+):
+    org_id = parse_org_id(organization_id)
+    db_tenant = find_tenant_by_identifier(db, tenant_id, org_id)
+    if not db_tenant:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Tenant not found."
+        )
+
+    for field, value in tenant_update.items():
+        if hasattr(db_tenant, field):
+            setattr(db_tenant, field, value)
+
+    db.commit()
+    db.refresh(db_tenant)
+
+    t_id = str(getattr(db_tenant, "id", "") or "")
+    code = getattr(db_tenant, "tenant_id", None) or getattr(db_tenant, "tnt_id", None) or f"TNT-{t_id[:6].upper()}"
+    return {
+        "id": t_id,
+        "tenant_id": code,
+        "name": getattr(db_tenant, "name", "") or getattr(db_tenant, "full_name", "") or "Resident Tenant",
+        "email": getattr(db_tenant, "email", "") or "",
+        "phone": getattr(db_tenant, "phone", "") or "",
+        "status": getattr(db_tenant, "status", "Active") or "Active"
+    }
+
+
+# ---------------------------------------------------------------------
+# 5. DELETE TENANT (Permanent removal from Database & Revoke Role)
 # ---------------------------------------------------------------------
 @router.delete("/{tenant_id}", status_code=status.HTTP_204_NO_CONTENT)
 @router.delete("/{tenant_id}/", status_code=status.HTTP_204_NO_CONTENT)
@@ -299,7 +475,7 @@ def delete_tenant(
     org_id = parse_org_id(organization_id)
     clean_id = tenant_id.strip()
 
-    # Find row in tenants table
+    # 1. Locate explicit Tenant table row
     db_tenant = None
     try:
         parsed_uuid = uuid.UUID(clean_id)
@@ -315,9 +491,14 @@ def delete_tenant(
         pass
 
     if not db_tenant:
-        db_tenant = db.scalar(select(models.Tenant).where(models.Tenant.email.ilike(clean_id)))
+        if hasattr(models.Tenant, "tenant_id"):
+            db_tenant = db.scalar(select(models.Tenant).where(models.Tenant.tenant_id.ilike(clean_id)))
+        if not db_tenant and hasattr(models.Tenant, "tnt_id"):
+            db_tenant = db.scalar(select(models.Tenant).where(models.Tenant.tnt_id.ilike(clean_id)))
+        if not db_tenant:
+            db_tenant = db.scalar(select(models.Tenant).where(models.Tenant.email.ilike(clean_id)))
 
-    # Find row in users table
+    # 2. Locate corresponding User record to revoke client role so it won't respawn
     target_email = getattr(db_tenant, "email", clean_id) if db_tenant else clean_id
     target_user = None
 
@@ -331,13 +512,15 @@ def delete_tenant(
         target_user = db.scalar(select(models.User).where(models.User.email.ilike(target_email)))
 
     if not db_tenant and not target_user:
-        raise HTTPException(status_code=404, detail="Tenant record not found.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Tenant record not found."
+        )
 
     try:
         if db_tenant:
             db.delete(db_tenant)
 
-        # Update user role to 'inactive' so it does not reappear in the tenant list
         if target_user and any(k in (target_user.role or "").lower() for k in ["client", "tenant", "resident"]):
             target_user.role = "inactive"
 
