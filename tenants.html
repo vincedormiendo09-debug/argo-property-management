@@ -762,7 +762,7 @@
             <div>
                 <div class="eyebrow" id="pageEyebrow">TENANT DIRECTORY</div>
                 <h1 id="pageTitle">Tenants</h1>
-                <p id="pageDesc">Manage tenant profiles, identity verification, unit assignments, and occupancy history.</p>
+                <p id="pageDesc">Manage tenant profiles, registered client accounts, unit assignments, and occupancy history.</p>
             </div>
 
             <button class="primary-button primary-btn" id="newTenantBtn" onclick="openModal('tenantModal')">
@@ -846,7 +846,7 @@
                         </tr>
                     </thead>
                     <tbody id="tenantTable">
-                        <!-- RENDERED DYNAMICALLY FROM DATABASE -->
+                        <!-- RENDERED DYNAMICALLY FROM NEON DATABASE -->
                     </tbody>
                 </table>
             </div>
@@ -876,11 +876,11 @@
                     <div class="form-group" style="grid-column: span 2;">
                         <label style="display:flex; justify-content:space-between; align-items:center;">
                             <span>Link Registered User Account (Optional)</span>
-                            <span style="font-size:11px; color:var(--primary, #2563EB); font-weight:normal;">Auto-fills from sign-ups</span>
+                            <span style="font-size:11px; color:var(--primary, #2563EB); font-weight:normal;">Auto-fills from registered client accounts</span>
                         </label>
                         <input type="text" id="clientSearchCombobox" list="unassignedClientsList" placeholder="Type to search registered client by name or email..." oninput="handleClientAccountSelect(this.value)" autocomplete="off" style="width:100%;">
                         <datalist id="unassignedClientsList">
-                            <!-- Populated dynamically with clients not yet assigned -->
+                            <!-- Populated dynamically with registered client users -->
                         </datalist>
                         <input type="hidden" id="modalUserId" value="">
                     </div>
@@ -903,7 +903,7 @@
 
                     <div class="form-group" style="grid-column: span 2;">
                         <label>Full Name / Legal Entity Name <span style="color:var(--danger, #EF4444);">*</span></label>
-                        <input type="text" id="modalTenantName" placeholder="e.g. Juan Santos / ABC Corp">
+                        <input type="text" id="modalTenantName" placeholder="e.g. Maria Santos / ABC Corp">
                     </div>
 
                     <div class="form-group">
@@ -989,11 +989,11 @@
             ? 'https://argo-management-2026.onrender.com/api'
             : '/api';
 
-    const TENANTS_API_URL = `${API_BASE_URL}/tenants`;
-    const USERS_API_URL = `${API_BASE_URL}/users`;
-    const UNITS_API_URL = `${API_BASE_URL}/units`;
-    const LEASES_API_URL = `${API_BASE_URL}/leases`;
-    const NOTIFICATIONS_API_URL = `${API_BASE_URL}/notifications`;
+    const TENANTS_API_URL = `${API_BASE_URL}/tenants/`;
+    const USERS_API_URL = `${API_BASE_URL}/users/`;
+    const UNITS_API_URL = `${API_BASE_URL}/units/`;
+    const LEASES_API_URL = `${API_BASE_URL}/leases/`;
+    const NOTIFICATIONS_API_URL = `${API_BASE_URL}/notifications/`;
 
     let currentInspectedTenantId = null;
     let registeredClientsCache = [];
@@ -1196,23 +1196,17 @@
         } catch (e) {}
     }
 
-    // Populate Searchable Client Combobox Directly from Registered Index Users
+    // Populate Searchable Client Combobox Directly from Registered Neon Users
     async function populateUnassignedClientsCombobox() {
         const users = await getRegisteredUsers();
-        const existingTenants = await getTenants();
         const datalist = document.getElementById('unassignedClientsList');
         if (!datalist) return;
 
         datalist.innerHTML = '';
 
-        const assignedUserIds = new Set(existingTenants.map(t => String(t.user_id || t.id)).filter(Boolean));
-        const assignedEmails = new Set(existingTenants.map(t => (t.email || '').toLowerCase().trim()).filter(Boolean));
-
         registeredClientsCache = users.filter(u => {
             const role = (u.role || '').toLowerCase().trim();
-            const isClientRole = role.includes('client') || role.includes('tenant') || role.includes('resident') || role.includes('user');
-            const isAssigned = assignedUserIds.has(String(u.id)) || assignedEmails.has((u.email || '').toLowerCase().trim());
-            return isClientRole && !isAssigned;
+            return role.includes('client') || role.includes('tenant') || role.includes('resident');
         });
 
         registeredClientsCache.forEach(u => {
@@ -1269,7 +1263,7 @@
         }
     }
 
-    // Live Render Tenant Table
+    // Live Render Tenant Table from Neon DB
     async function renderTenantTable() {
         const tenants = await getTenants();
         const leases = await getLeasesList();
@@ -1278,7 +1272,7 @@
         tbody.innerHTML = '';
 
         if (!tenants || tenants.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--muted, #64748B); padding:30px;">No tenant profiles registered in database. Click "New Tenant" to register one.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--muted, #64748B); padding:30px;">No registered client accounts or tenant profiles found in database.</td></tr>`;
             const countEl = document.getElementById('showingCountText');
             if (countEl) countEl.textContent = `Showing 0 tenants`;
             updateKPIsWithData([], []);
@@ -1375,7 +1369,7 @@
         openModal('viewTenantModal');
     }
 
-    // LIVE CREATE TENANT (POST /api/tenants)
+    // LIVE CREATE TENANT (POST /api/tenants/)
     async function saveTenant() {
         const nameInput = document.getElementById('modalTenantName');
         const emailInput = document.getElementById('modalTenantEmail');
@@ -1447,14 +1441,14 @@
         await populateUnassignedClientsCombobox();
     }
 
-    // LIVE DELETE TENANT (DELETE /api/tenants/{id})
+    // LIVE DELETE TENANT (DELETE /api/tenants/{id}/)
     async function deleteTenant(id, name) {
         const displayName = name || id;
         if (!confirm(`Are you sure you want to permanently delete tenant profile "${displayName}" from the database?`)) return;
 
         try {
             const orgId = getOrgId();
-            const res = await fetch(`${TENANTS_API_URL}/${encodeURIComponent(id)}?organization_id=${orgId}`, {
+            const res = await fetch(`${TENANTS_API_URL}${encodeURIComponent(id)}?organization_id=${orgId}`, {
                 method: 'DELETE',
                 headers: getAuthHeaders()
             });
@@ -1603,3 +1597,4 @@
         });
     }
 </script>
+</body>
