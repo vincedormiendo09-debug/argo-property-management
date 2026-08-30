@@ -878,6 +878,7 @@
     </div>
 
 <script>
+    const DEFAULT_ORG_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
     const API_BASE_URL = (
         window.location.origin.includes('localhost') || 
         window.location.origin.includes('127.0.0.1')
@@ -887,14 +888,27 @@
             ? 'https://argo-management-2026.onrender.com/api'
             : '/api';
 
-    const MAINTENANCE_API_URL = `${API_BASE_URL}/maintenance/`;
-    const UNITS_API_URL = `${API_BASE_URL}/units/`;
-    const LEASES_API_URL = `${API_BASE_URL}/leases/`;
-    const PROPERTIES_API_URL = `${API_BASE_URL}/properties/`;
-    const TRANSACTIONS_API_URL = `${API_BASE_URL}/transactions/`;
-    const NOTIFICATIONS_API_URL = `${API_BASE_URL}/notifications/`;
+    const MAINTENANCE_API_URL = `${API_BASE_URL}/maintenance`;
+    const UNITS_API_URL = `${API_BASE_URL}/units`;
+    const LEASES_API_URL = `${API_BASE_URL}/leases`;
+    const PROPERTIES_API_URL = `${API_BASE_URL}/properties`;
+    const TRANSACTIONS_API_URL = `${API_BASE_URL}/transactions`;
+    const NOTIFICATIONS_API_URL = `${API_BASE_URL}/notifications`;
 
     let currentEditingTicketId = null;
+
+    function parseCurrency(val) {
+        if (val === undefined || val === null || val === '') return 0;
+        if (typeof val === 'number') return isNaN(val) ? 0 : val;
+        const clean = val.toString().replace(/[^0-9.-]+/g, "");
+        const parsed = parseFloat(clean);
+        return isNaN(parsed) ? 0 : parsed;
+    }
+
+    function formatPeso(val) {
+        const num = parseCurrency(val);
+        return '₱' + num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
 
     function getAuthHeaders() {
         const token = localStorage.getItem('token') || localStorage.getItem('argo_token');
@@ -906,6 +920,7 @@
 
     function logoutUser() {
         localStorage.clear();
+        sessionStorage.clear();
         window.location.replace('index.html');
     }
 
@@ -1019,92 +1034,83 @@
         }
     }
 
-    // Database Fetchers
+    // Direct Database Fetchers
     async function getTickets() {
-        let liveTickets = [];
         try {
-            const response = await fetch(MAINTENANCE_API_URL, { headers: getAuthHeaders() });
+            const response = await fetch(MAINTENANCE_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (response.ok) {
                 const data = await response.json();
-                const list = Array.isArray(data) ? data : (data.items || data.tickets || data.data || []);
-                liveTickets = list;
-                localStorage.setItem('argo_maintenance_tickets', JSON.stringify(list));
+                return Array.isArray(data) ? data : (data.items || data.tickets || data.data || []);
             }
         } catch (e) {
-            console.warn("Maintenance API offline, using local cache:", e);
+            console.error("Live Maintenance API fetch failed:", e);
         }
-
-        if (liveTickets.length === 0) {
-            const raw = localStorage.getItem('argo_maintenance_tickets');
-            liveTickets = raw ? JSON.parse(raw) : [];
-        }
-
-        return liveTickets;
-    }
-
-    function saveTickets(tickets) {
-        localStorage.setItem('argo_maintenance_tickets', JSON.stringify(tickets));
+        return [];
     }
 
     async function getUnits() {
         try {
-            const res = await fetch(UNITS_API_URL, { headers: getAuthHeaders() });
+            const res = await fetch(UNITS_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (res.ok) {
                 const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.units || data.data || []);
-                localStorage.setItem('argo_units', JSON.stringify(list));
-                return list;
+                return Array.isArray(data) ? data : (data.items || data.units || data.data || []);
             }
-        } catch (e) {}
-
-        const raw = localStorage.getItem('argo_units');
-        return raw ? JSON.parse(raw) : [];
+        } catch (e) {
+            console.warn("Live Units fetch error:", e);
+        }
+        return [];
     }
 
     async function getProperties() {
         try {
-            const res = await fetch(PROPERTIES_API_URL, { headers: getAuthHeaders() });
+            const res = await fetch(PROPERTIES_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (res.ok) {
                 const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.properties || data.data || []);
-                localStorage.setItem('argo_properties', JSON.stringify(list));
-                return list;
+                return Array.isArray(data) ? data : (data.items || data.properties || data.data || []);
             }
-        } catch (e) {}
-
-        const raw = localStorage.getItem('argo_properties');
-        return raw ? JSON.parse(raw) : [];
+        } catch (e) {
+            console.warn("Live Properties fetch error:", e);
+        }
+        return [];
     }
 
     async function getLeases() {
         try {
-            const res = await fetch(LEASES_API_URL, { headers: getAuthHeaders() });
+            const res = await fetch(LEASES_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (res.ok) {
                 const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.leases || data.data || []);
-                localStorage.setItem('argo_leases', JSON.stringify(list));
-                return list;
+                return Array.isArray(data) ? data : (data.items || data.leases || data.data || []);
+            }
+        } catch (e) {
+            console.warn("Live Leases fetch error:", e);
+        }
+        return [];
+    }
+
+    async function getNotifications() {
+        try {
+            const res = await fetch(NOTIFICATIONS_API_URL, { 
+                headers: getAuthHeaders(),
+                cache: 'no-store'
+            });
+            if (res.ok) {
+                const data = await res.json();
+                return Array.isArray(data) ? data : (data.items || data.notifications || data.data || []);
             }
         } catch (e) {}
-
-        const raw = localStorage.getItem('argo_leases');
-        return raw ? JSON.parse(raw) : [];
-    }
-
-    function getNotifications() {
-        return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
-    }
-
-    function saveNotifications(notifications) {
-        localStorage.setItem('argo_notifications', JSON.stringify(notifications));
-    }
-
-    function getTransactions() {
-        return JSON.parse(localStorage.getItem('argo_transactions') || '[]');
-    }
-
-    function saveTransactions(transactions) {
-        localStorage.setItem('argo_transactions', JSON.stringify(transactions));
+        return [];
     }
 
     async function updateHeaderBadge() {
@@ -1119,11 +1125,12 @@
         if (['client', 'tenant', 'client_pov'].includes(rawRole)) role = 'client';
         else if (['owner', 'property_owner', 'investor'].includes(rawRole)) role = 'owner';
 
-        const notifs = getNotifications().filter(n => (n.pov === role || !n.pov || n.pov === 'all') && (n.status === 'unread' || n.is_read === false));
+        const notifs = (await getNotifications()).filter(n => (n.pov === role || !n.pov || n.pov === 'all') && (!n.is_read || n.status === 'unread'));
         const badge = document.getElementById('headerNotifBadge');
         if (badge) badge.textContent = notifs.length;
     }
 
+    // Populate Modal Dynamic Location Dropdowns
     async function populateModalDropdowns() {
         const locationSelect = document.getElementById('modalTicketLocation');
         if (!locationSelect) return;
@@ -1138,11 +1145,12 @@
             unitGroup.label = 'Specific Units';
             units.forEach(u => {
                 const uName = u.unit_no || u.unit_number || `Unit #${u.id}`;
-                const bName = u.building || u.building_name || 'Building';
-                const pName = (u.property ? (u.property.name || u.property.property_name) : '') || u.property_name || 'Property';
+                const pName = u.property_name || (u.property ? (u.property.name || u.property.property_name) : '') || 'Property';
                 const opt = document.createElement('option');
-                opt.value = `${pName} • ${bName} • ${uName}`;
-                opt.textContent = `${pName} • ${bName} • ${uName}`;
+                opt.value = u.id;
+                opt.dataset.unitId = u.id;
+                opt.dataset.location = `${pName} • ${uName}`;
+                opt.textContent = `${pName} • ${uName}`;
                 unitGroup.appendChild(opt);
             });
             locationSelect.appendChild(unitGroup);
@@ -1154,7 +1162,9 @@
             properties.forEach(p => {
                 const pName = p.name || p.property_name || 'Property';
                 const opt = document.createElement('option');
-                opt.value = `${pName} (Common Area)`;
+                opt.value = p.id;
+                opt.dataset.propertyId = p.id;
+                opt.dataset.location = `${pName} (Common Area)`;
                 opt.textContent = `${pName} — (Common Facility)`;
                 propGroup.appendChild(opt);
             });
@@ -1163,33 +1173,38 @@
     }
 
     async function autoFillTenantFromLocation() {
-        const locationVal = document.getElementById('modalTicketLocation').value;
+        const locationSelect = document.getElementById('modalTicketLocation');
         const tenantInput = document.getElementById('modalTicketTenant');
-        if (!locationVal || !tenantInput) return;
+        if (!locationSelect || !tenantInput) return;
 
-        if (locationVal.includes('Common Area')) {
+        const selectedOpt = locationSelect.options[locationSelect.selectedIndex];
+        if (!selectedOpt || !selectedOpt.value) {
+            tenantInput.value = '';
+            return;
+        }
+
+        const locationText = selectedOpt.dataset.location || selectedOpt.text;
+        if (locationText.includes('Common Area') || locationText.includes('Common Facility')) {
             tenantInput.value = 'N/A (Building Facility)';
             return;
         }
 
+        const unitId = selectedOpt.dataset.unitId || selectedOpt.value;
         const leases = await getLeases();
-        const parts = locationVal.split('•');
-        const unitName = parts[parts.length - 1] ? parts[parts.length - 1].trim() : '';
 
-        if (unitName) {
-            const matchedLease = leases.find(l => 
-                ((l.unit && l.unit.includes(unitName)) || (l.unit_number && l.unit_number.includes(unitName))) &&
-                (l.status || '').toUpperCase() === 'ACTIVE'
-            );
-            if (matchedLease && (matchedLease.tenant_name || matchedLease.tenantName)) {
-                tenantInput.value = matchedLease.tenant_name || matchedLease.tenantName;
-                return;
-            }
+        const matchedLease = leases.find(l => 
+            (String(l.unit_id) === String(unitId) || (l.unit_number && locationText.includes(l.unit_number))) &&
+            (l.status || '').toUpperCase() === 'ACTIVE'
+        );
+
+        if (matchedLease && matchedLease.tenant_name) {
+            tenantInput.value = matchedLease.tenant_name;
+        } else {
+            tenantInput.value = '';
         }
-
-        tenantInput.value = '';
     }
 
+    // Live Render Maintenance Table
     async function renderMaintenanceTable() {
         const rawRole = (
             localStorage.getItem('argo_pov') || 
@@ -1199,6 +1214,8 @@
         ).toLowerCase().trim();
 
         let tickets = await getTickets();
+        const units = await getUnits();
+        const properties = await getProperties();
         const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
         const loggedInName = (user.name || '').toLowerCase();
 
@@ -1221,29 +1238,41 @@
 
         tickets.forEach(t => {
             const tr = document.createElement('tr');
-            const status = t.status || 'Open';
-            const priority = t.priority || 'Normal';
+            const status = (t.status || 'Open').trim();
+            const priority = (t.priority || 'Medium').trim();
 
             tr.dataset.status = status;
             tr.dataset.priority = priority;
 
             let statusBadge = '';
-            const s = status.toLowerCase();
-            if (s === 'resolved' || s === 'completed') {
+            const s = status.toUpperCase();
+            if (s === 'RESOLVED' || s === 'COMPLETED') {
                 statusBadge = `<span class="status completed" style="background:#ECFDF5; color:#059669; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-check-circle me-1"></i> Resolved & Completed</span>`;
-            } else if (s === 'in progress' || s === 'assigned') {
-                statusBadge = `<span class="status progress" style="background:#FEF3C7; color:#B45309; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-clock-history me-1"></i> Dispatched (${t.technician || 'Tech Assigned'})</span>`;
+            } else if (s === 'IN PROGRESS' || s === 'ASSIGNED') {
+                statusBadge = `<span class="status progress" style="background:#FEF3C7; color:#B45309; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-clock-history me-1"></i> In Progress (${t.technician || 'Tech Assigned'})</span>`;
             } else {
                 statusBadge = `<span class="status open" style="background:#EFF6FF; color:#2563EB; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-exclamation-circle me-1"></i> Open / Unassigned</span>`;
             }
 
-            const isHigh = priority === 'High' || priority === 'Urgent';
+            const isHigh = priority.toUpperCase() === 'HIGH' || priority.toUpperCase() === 'URGENT';
             const priorityBadge = isHigh
                 ? `<span class="priority urgent" style="background:#FFF1F2; color:#E11D48; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;">${priority}</span>`
                 : `<span class="priority medium" style="background:#F1F5F9; color:#475569; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;">${priority}</span>`;
 
-            const displayId = t.ticket_id || t.id || 'TCK';
-            const locTag = t.property_location || t.fullLocation || 'Location';
+            const displayId = t.ticket_id || t.id;
+            const ticketDbId = t.id;
+            
+            // Resolve Location Display
+            let locTag = t.property_location || t.fullLocation || 'Building Facility';
+            if (t.unit_id && (!t.property_location || locTag === 'Location')) {
+                const matchedUnit = units.find(u => String(u.id) === String(t.unit_id));
+                if (matchedUnit) {
+                    const matchedProp = properties.find(p => String(p.id) === String(matchedUnit.property_id));
+                    const pName = matchedProp ? (matchedProp.name || matchedProp.property_name) : 'Property';
+                    locTag = `${pName} • ${matchedUnit.unit_no || matchedUnit.unit_number}`;
+                }
+            }
+
             const tenantName = t.tenant_name || t.tenantName || 'Occupant';
 
             tr.innerHTML = `
@@ -1258,12 +1287,12 @@
                 </td>
                 <td>${priorityBadge}</td>
                 <td><strong>${t.technician || 'Unassigned'}</strong></td>
-                <td>${t.scheduledTime || t.scheduled_time || 'Pending Dispatch'}</td>
+                <td>${t.created_at ? t.created_at.split('T')[0] : 'Recently'}</td>
                 <td>${statusBadge}</td>
                 <td>
                     <div style="display:flex; gap:6px;">
-                        <button class="action-btn dispatch-btn" title="Assign Contractor & Schedule" onclick="openDispatchModal('${displayId}')"><i class="bi bi-person-gear"></i></button>
-                        <button class="action-btn" title="Delete Ticket" onclick="deleteTicket('${displayId}')"><i class="bi bi-trash"></i></button>
+                        <button class="action-btn dispatch-btn" title="Assign Contractor & Update Status" onclick="openDispatchModal('${ticketDbId}')"><i class="bi bi-person-gear"></i></button>
+                        <button class="action-btn" title="Delete Ticket" onclick="deleteTicket('${ticketDbId}', '${displayId}')"><i class="bi bi-trash"></i></button>
                     </div>
                 </td>
             `;
@@ -1280,21 +1309,24 @@
         const tickets = await getTickets();
 
         const openReqs = tickets.filter(t => {
-            const s = (t.status || '').toLowerCase();
-            return s === 'open' || s === 'submitted';
+            const s = (t.status || '').toUpperCase();
+            return s === 'OPEN' || s === 'SUBMITTED';
         }).length;
 
         const inProg = tickets.filter(t => {
-            const s = (t.status || '').toLowerCase();
-            return s === 'in progress' || s === 'assigned';
+            const s = (t.status || '').toUpperCase();
+            return s === 'IN PROGRESS' || s === 'ASSIGNED';
         }).length;
 
         const completed = tickets.filter(t => {
-            const s = (t.status || '').toLowerCase();
-            return s === 'resolved' || s === 'completed';
+            const s = (t.status || '').toUpperCase();
+            return s === 'RESOLVED' || s === 'COMPLETED';
         }).length;
 
-        const urgent = tickets.filter(t => t.priority === 'High' || t.priority === 'Urgent').length;
+        const urgent = tickets.filter(t => {
+            const p = (t.priority || '').toUpperCase();
+            return p === 'HIGH' || p === 'URGENT';
+        }).length;
 
         const openEl = document.getElementById('kpiOpenRequests');
         const progEl = document.getElementById('kpiInProgress');
@@ -1313,6 +1345,7 @@
         if (modal) modal.classList.add("show");
     }
 
+    // LIVE CREATE TICKET (POST /api/maintenance)
     async function saveNewTicket() {
         const titleInput = document.getElementById('modalTicketTitle');
         const locationSelect = document.getElementById('modalTicketLocation');
@@ -1322,74 +1355,61 @@
         const costInput = document.getElementById('modalTicketCost');
         const contractorSelect = document.getElementById('modalTicketContractor');
         const descInput = document.getElementById('modalTicketDesc');
+        const orgId = localStorage.getItem('organization_id') || DEFAULT_ORG_ID;
 
         const title = titleInput ? titleInput.value.trim() : '';
-        const location = locationSelect ? locationSelect.value : '';
-        const tenant = tenantInput ? tenantInput.value.trim() : '';
+        const selectedOpt = locationSelect && locationSelect.selectedIndex >= 0 ? locationSelect.options[locationSelect.selectedIndex] : null;
+        const unitId = selectedOpt ? (selectedOpt.dataset.unitId || (selectedOpt.value.length === 36 ? selectedOpt.value : null)) : null;
+        const locationTag = selectedOpt ? (selectedOpt.dataset.location || selectedOpt.text) : 'Managed Asset';
+        const tenant = tenantInput ? tenantInput.value.trim() : 'Occupant';
         const category = categorySelect ? categorySelect.value : 'General Maintenance';
-        const priority = prioritySelect ? prioritySelect.value : 'Normal';
+        const priority = prioritySelect ? prioritySelect.value : 'Medium';
         const cost = parseFloat(costInput ? costInput.value : 0) || 0;
         const contractor = contractorSelect ? contractorSelect.value : 'Unassigned';
         const description = descInput ? descInput.value.trim() : '';
 
-        if (!title || !location) {
-            alert("Please provide both an issue title and a property/unit location.");
+        if (!title || !locationSelect.value) {
+            alert("Please provide both an issue title and a target property/unit location.");
             return;
         }
 
-        const newTicketId = `TCK-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
-        const today = new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+        const newTicketCode = `TCK-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
         const isAssigned = contractor !== 'Unassigned';
 
         const payload = {
-            ticket_id: newTicketId,
+            organization_id: orgId,
+            unit_id: unitId,
+            ticket_id: newTicketCode,
             title: title,
             category: category,
             description: description || 'Issue logged via Property Operations Desk.',
             tenant_name: tenant || 'Occupant',
-            property_location: location,
-            fullLocation: location,
+            property_location: locationTag,
             priority: priority,
-            technician: contractor,
-            scheduled_time: isAssigned ? 'Scheduled by Dispatch Desk' : 'Pending Dispatch',
             status: isAssigned ? 'In Progress' : 'Open',
-            cost: cost,
-            date_filed: today,
-            created_at: new Date().toISOString()
+            technician: contractor,
+            cost: cost
         };
 
         try {
-            await fetch(MAINTENANCE_API_URL, {
+            const res = await fetch(MAINTENANCE_API_URL, {
                 method: 'POST',
                 headers: getAuthHeaders(),
                 body: JSON.stringify(payload)
             });
+
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                alert(`Error saving ticket: ${errData.detail || 'Could not save to Neon database.'}`);
+                return;
+            }
         } catch (e) {
-            console.warn("Backend save bypassed, keeping locally.", e);
+            console.error("Network error creating maintenance ticket:", e);
+            alert("Network connection error. Check server connection.");
+            return;
         }
 
-        let tickets = await getTickets();
-        tickets.unshift({ ...payload, id: newTicketId });
-        saveTickets(tickets);
-
-        // Push System Notification
-        let notifications = getNotifications();
-        notifications.unshift({
-            id: `NOTIF-${Date.now()}`,
-            pov: 'admin',
-            category: 'maintenance',
-            status: 'unread',
-            is_read: false,
-            title: `New Operations Ticket: ${title}`,
-            time: 'Just now',
-            description: `Maintenance ticket <strong>${newTicketId}</strong> created for <strong>${location}</strong>. Priority: <strong>${priority}</strong>.`,
-            property: location,
-            actionUrl: 'maintenance.html',
-            actionText: 'Inspect Ticket'
-        });
-        saveNotifications(notifications);
-
-        await renderMaintenanceTable();
+        alert(`Operations Ticket (${newTicketCode}) created successfully in database!`);
         closeModal('createTicketModal');
 
         if (titleInput) titleInput.value = '';
@@ -1398,7 +1418,7 @@
         if (costInput) costInput.value = '';
         if (descInput) descInput.value = '';
 
-        alert(`Operations Ticket (${newTicketId}) successfully created!`);
+        await renderMaintenanceTable();
     }
 
     async function openDispatchModal(ticketId) {
@@ -1408,23 +1428,30 @@
         const t = tickets.find(item => String(item.id) === String(ticketId) || String(item.ticket_id) === String(ticketId));
         if (!t) return;
 
-        document.getElementById('modalTicketHeading').textContent = `Work Order Dispatch — ${t.ticket_id || t.id}`;
-        document.getElementById('dModalTitle').textContent = t.title || 'Work Order Details';
-        document.getElementById('dModalLocation').innerHTML = `<i class="bi bi-geo-alt"></i> ${t.tenant_name || t.tenantName || 'Occupant'} • ${t.property_location || t.fullLocation || 'Location'}`;
+        const headingEl = document.getElementById('modalTicketHeading');
+        const titleEl = document.getElementById('dModalTitle');
+        const locEl = document.getElementById('dModalLocation');
 
-        if (t.technician && t.technician !== 'Unassigned') {
-            document.getElementById('dModalContractor').value = t.technician;
+        if (headingEl) headingEl.textContent = `Work Order Dispatch — ${t.ticket_id || t.id}`;
+        if (titleEl) titleEl.textContent = t.title || 'Work Order Details';
+        if (locEl) locEl.innerHTML = `<i class="bi bi-geo-alt"></i> ${t.tenant_name || 'Occupant'} • ${t.category || 'General'}`;
+
+        const contractorInput = document.getElementById('dModalContractor');
+        const statusInput = document.getElementById('dModalStatus');
+        const costInput = document.getElementById('dModalCost');
+        const scheduleInput = document.getElementById('dModalSchedule');
+
+        if (contractorInput && t.technician && t.technician !== 'Unassigned') {
+            contractorInput.value = t.technician;
         }
-        if (t.scheduledTime || t.scheduled_time) {
-            document.getElementById('dModalSchedule').value = t.scheduledTime || t.scheduled_time;
-        } else {
-            document.getElementById('dModalSchedule').value = 'Today at 02:00 PM';
+        if (statusInput && t.status) {
+            statusInput.value = t.status === 'Open' ? 'In Progress' : t.status;
         }
-        if (t.status) {
-            document.getElementById('dModalStatus').value = t.status === 'Open' ? 'In Progress' : t.status;
+        if (costInput && t.cost !== undefined) {
+            costInput.value = t.cost;
         }
-        if (t.cost !== undefined) {
-            document.getElementById('dModalCost').value = t.cost;
+        if (scheduleInput && t.scheduled_time) {
+            scheduleInput.value = t.scheduled_time;
         }
 
         const modal = document.getElementById('dispatchModal');
@@ -1437,126 +1464,131 @@
         if (modalId === 'dispatchModal') currentEditingTicketId = null;
     }
 
+    // LIVE UPDATE STATUS, DISPATCH & AUTO-ALERT TENANT (PUT/PATCH /api/maintenance/{id} + NOTIFICATIONS + LEDGER)
     async function saveDispatch() {
         if (!currentEditingTicketId) return;
 
-        const contractor = document.getElementById('dModalContractor').value;
-        const schedule = document.getElementById('dModalSchedule').value.trim() || 'Scheduled';
-        const status = document.getElementById('dModalStatus').value;
-        const cost = parseFloat(document.getElementById('dModalCost').value) || 0;
+        const tickets = await getTickets();
+        const activeTicket = tickets.find(item => String(item.id) === String(currentEditingTicketId) || String(item.ticket_id) === String(currentEditingTicketId));
 
-        let tickets = await getTickets();
-        let targetTicket = null;
+        const contractorInput = document.getElementById('dModalContractor');
+        const statusInput = document.getElementById('dModalStatus');
+        const costInput = document.getElementById('dModalCost');
+        const scheduleInput = document.getElementById('dModalSchedule');
 
-        tickets = tickets.map(t => {
-            if (String(t.id) === String(currentEditingTicketId) || String(t.ticket_id) === String(currentEditingTicketId)) {
-                targetTicket = {
-                    ...t,
-                    technician: contractor,
-                    scheduledTime: schedule,
-                    scheduled_time: schedule,
-                    status: status,
-                    cost: cost
-                };
-                return targetTicket;
-            }
-            return t;
-        });
-        saveTickets(tickets);
+        const contractor = contractorInput ? contractorInput.value : 'Unassigned';
+        const status = statusInput ? statusInput.value : 'In Progress';
+        const cost = parseFloat(costInput ? costInput.value : 0) || 0;
+        const scheduledTime = scheduleInput ? scheduleInput.value : null;
+        const orgId = localStorage.getItem('organization_id') || DEFAULT_ORG_ID;
+
+        const updatePayload = {
+            technician: contractor,
+            status: status,
+            cost: cost,
+            scheduled_time: scheduledTime
+        };
 
         try {
-            await fetch(`${MAINTENANCE_API_URL}${encodeURIComponent(currentEditingTicketId)}`, {
+            const res = await fetch(`${MAINTENANCE_API_URL}/${encodeURIComponent(currentEditingTicketId)}`, {
                 method: 'PATCH',
                 headers: getAuthHeaders(),
-                body: JSON.stringify({
-                    technician: contractor,
-                    scheduled_time: schedule,
-                    status: status,
-                    cost: cost
-                })
+                body: JSON.stringify(updatePayload)
             });
+
+            if (!res.ok) {
+                await fetch(`${MAINTENANCE_API_URL}/${encodeURIComponent(currentEditingTicketId)}`, {
+                    method: 'PUT',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify(updatePayload)
+                });
+            }
         } catch (e) {
-            console.warn("Backend maintenance patch bypassed:", e);
+            console.error("Backend maintenance update error:", e);
         }
 
-        // ================= ROUTE COST TO TRANSACTION LEDGER ON RESOLUTION =================
-        if (status === 'Resolved' && cost > 0 && targetTicket) {
-            let transactions = getTransactions();
-            const txnId = `TXN-EXP-${Date.now().toString().slice(-4)}`;
-            const loc = targetTicket.property_location || targetTicket.fullLocation || 'Property Location';
-
-            transactions.unshift({
-                id: txnId,
-                txn_id: txnId,
-                ref_code: `#TCK-${targetTicket.ticket_id || targetTicket.id}`,
-                refCode: `#TCK-${targetTicket.ticket_id || targetTicket.id}`,
-                payer: 'ARGO Operations Dispatch',
-                property_location: loc,
-                fullLocation: loc,
-                category: 'Maintenance & Repairs',
-                direction: 'OUTFLOW',
-                amount: cost,
-                gross_amount: `-₱${cost.toLocaleString('en-US', {minimumFractionDigits: 2})}`,
-                channel: 'Contractor Settlement',
-                status: 'Verified',
-                timestamp: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
-            });
-            saveTransactions(transactions);
+        // 1. Auto-dispatch Notification to Tenant Portal
+        if (activeTicket) {
+            const locName = activeTicket.property_location || 'Your Unit';
+            const ticketTitle = activeTicket.title || 'Work Order';
+            const isResolved = status.toUpperCase() === 'RESOLVED' || status.toUpperCase() === 'COMPLETED';
 
             try {
-                await fetch(`${TRANSACTIONS_API_URL}`, {
+                await fetch(NOTIFICATIONS_API_URL, {
                     method: 'POST',
                     headers: getAuthHeaders(),
-                    body: JSON.stringify(transactions[0])
+                    body: JSON.stringify({
+                        organization_id: orgId,
+                        pov: 'client',
+                        category: 'maintenance',
+                        status: 'Active',
+                        is_read: false,
+                        title: isResolved ? `Maintenance Request Resolved: ${ticketTitle}` : `Technician Assigned: ${ticketTitle}`,
+                        description: isResolved 
+                            ? `Your maintenance request "${ticketTitle}" has been verified and marked as Resolved by ${contractor}.`
+                            : `Technician ${contractor} has been dispatched. Status: ${status}${scheduledTime ? ` (Scheduled: ${scheduledTime})` : ''}.`,
+                        property: locName,
+                        urgent: false
+                    })
                 });
-            } catch (e) {}
+            } catch (err) {}
         }
 
-        // Notify Tenant
-        if (targetTicket && targetTicket.tenant_name && targetTicket.tenant_name !== 'N/A') {
-            let notifications = getNotifications();
-            notifications.unshift({
-                id: `NOTIF-${Date.now()}`,
-                pov: 'client',
-                category: 'maintenance',
-                status: 'unread',
-                is_read: false,
-                title: status === 'Resolved' ? 'Maintenance Request Resolved' : 'Technician Scheduled for Visit',
-                time: 'Just now',
-                description: status === 'Resolved' 
-                    ? `Your maintenance request "${targetTicket.title}" has been marked as resolved and verified by operations.`
-                    : `Contractor <strong>${contractor}</strong> scheduled for arrival: <strong>${schedule}</strong> for "${targetTicket.title}".`,
-                property: targetTicket.property_location || targetTicket.fullLocation || 'Assigned Unit',
-                actionUrl: 'client-maintenance.html',
-                actionText: 'View Work Order'
-            });
-            saveNotifications(notifications);
+        // 2. Auto-post maintenance repair cost to Master Transactions Ledger on Resolution
+        if ((status.toUpperCase() === 'RESOLVED' || status.toUpperCase() === 'COMPLETED') && cost > 0) {
+            const txnId = `TXN-EXP-${Date.now().toString().slice(-4)}`;
+            const ticketRef = activeTicket ? (activeTicket.ticket_id || String(currentEditingTicketId).slice(-4)) : String(currentEditingTicketId).slice(-4);
+            const ticketLocation = activeTicket ? (activeTicket.property_location || 'Managed Unit / Facility') : 'Managed Facility';
+
+            try {
+                await fetch(TRANSACTIONS_API_URL, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({
+                        organization_id: orgId,
+                        txn_id: txnId,
+                        ref_code: `#${ticketRef}`,
+                        payer: 'ARGO Operations Dispatch',
+                        property_location: ticketLocation,
+                        category: 'Maintenance & Repairs',
+                        direction: 'OUTFLOW',
+                        gross_amount: cost,
+                        channel: 'Contractor Settlement',
+                        status: 'Completed'
+                    })
+                });
+            } catch (err) {}
         }
 
-        await renderMaintenanceTable();
-        await updateKPIs();
-        updateHeaderBadge();
+        alert(`Work order updated! Ticket status set to "${status}" and synced with tenant notification feed.`);
         closeModal('dispatchModal');
-
-        alert(`Work order updated! Ticket marked as "${status}".`);
+        await renderMaintenanceTable();
     }
 
-    async function deleteTicket(id) {
-        if (!confirm("Are you sure you want to delete this work order ticket?")) return;
+    // LIVE DELETE TICKET (DELETE /api/maintenance/{id})
+    async function deleteTicket(id, displayCode) {
+        const name = displayCode || id;
+        if (!confirm(`Are you sure you want to permanently delete ticket "${name}" from the database?`)) return;
         
         try {
-            await fetch(`${MAINTENANCE_API_URL}${encodeURIComponent(id)}`, {
+            const res = await fetch(`${MAINTENANCE_API_URL}/${encodeURIComponent(id)}`, {
                 method: 'DELETE',
                 headers: getAuthHeaders()
             });
-        } catch (e) {}
 
-        let tickets = await getTickets();
-        tickets = tickets.filter(t => String(t.id) !== String(id) && String(t.ticket_id) !== String(id));
-        saveTickets(tickets);
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                alert(`Cannot delete ticket: ${errData.detail || 'Database error.'}`);
+                return;
+            }
+        } catch (e) {
+            console.error("Delete request failed:", e);
+            alert("Network error deleting ticket.");
+            return;
+        }
 
+        alert(`Ticket "${name}" deleted permanently!`);
         await renderMaintenanceTable();
-        await updateKPIs();
     }
 
     window.onclick = function(event) {
@@ -1583,8 +1615,8 @@
             const rowPriority = row.dataset.priority || "";
 
             const matchesSearch = text.includes(searchValue);
-            const matchesStatus = statusValue === "" || rowStatus.toLowerCase().includes(statusValue.toLowerCase());
-            const matchesPriority = priorityValue === "" || rowPriority.toLowerCase().includes(priorityValue.toLowerCase());
+            const matchesStatus = statusValue === "" || rowStatus.toLowerCase() === statusValue.toLowerCase();
+            const matchesPriority = priorityValue === "" || rowPriority.toLowerCase() === priorityValue.toLowerCase();
 
             if (matchesSearch && matchesStatus && matchesPriority) {
                 row.style.display = "";
@@ -1606,17 +1638,6 @@
         document.getElementById("priorityFilter").value = "";
         filterTable();
     }
-
-    // Real-Time Cross-Tab Listener
-    window.addEventListener('storage', async (e) => {
-        if (['argo_maintenance_tickets', 'argo_notifications', 'argo_units', 'argo_properties', 'argo_leases', 'argo_user', 'argo_pov'].includes(e.key)) {
-            renderSidebar();
-            loadUserData();
-            await populateModalDropdowns();
-            await renderMaintenanceTable();
-            updateHeaderBadge();
-        }
-    });
 
     // Page Load Initialization
     document.addEventListener('DOMContentLoaded', async () => {

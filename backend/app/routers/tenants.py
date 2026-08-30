@@ -18,7 +18,7 @@ def ensure_sandbox_organization(db: Session, org_id: uuid.UUID):
     """Ensures a stub Organization exists in local DB to satisfy FK constraints."""
     org = db.scalar(select(models.Organization).where(models.Organization.id == org_id))
     if not org:
-        sandbox_org = models.Organization(id=org_id, name="Sunrise Property Group")
+        sandbox_org = models.Organization(id=org_id, name="ARGO Property Management Corp.")
         db.add(sandbox_org)
         db.commit()
 
@@ -82,7 +82,7 @@ def read_tenants(
 # 2. POST /api/tenants/ - Create a new tenant with org-scoped email duplicate check
 @router.post("/", response_model=schemas.TenantSchema, status_code=status.HTTP_201_CREATED)
 def create_tenant(tenant_in: schemas.TenantCreate, db: Session = Depends(get_db)):
-    org_id = getattr(tenant_in, "organization_id", DEFAULT_ORG_ID)
+    org_id = getattr(tenant_in, "organization_id", DEFAULT_ORG_ID) or DEFAULT_ORG_ID
     ensure_sandbox_organization(db, org_id)
 
     # Org-scoped email duplicate check
@@ -98,10 +98,10 @@ def create_tenant(tenant_in: schemas.TenantCreate, db: Session = Depends(get_db)
                 detail=f"Tenant with email '{tenant_in.email}' already exists in this organization."
             )
 
-    tenant_data = tenant_in.dict(exclude_unset=True)
+    tenant_data = tenant_in.model_dump(exclude_unset=True) if hasattr(tenant_in, "model_dump") else tenant_in.dict(exclude_unset=True)
     if "id" not in tenant_data or not tenant_data["id"]:
         tenant_data["id"] = uuid.uuid4()
-    if "organization_id" not in tenant_data:
+    if "organization_id" not in tenant_data or not tenant_data["organization_id"]:
         tenant_data["organization_id"] = org_id
     if "tnt_id" not in tenant_data and hasattr(models.Tenant, "tnt_id"):
         tenant_data["tnt_id"] = f"TNT-{datetime.now().year}-{str(uuid.uuid4())[:4].upper()}"
@@ -139,7 +139,6 @@ def get_tenant(
             )
 
     tenant = db.scalar(stmt)
-
     if not tenant:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -149,7 +148,7 @@ def get_tenant(
     return tenant
 
 
-# 4. PUT /api/tenants/{tenant_id} - Update tenant profile, contact, or status
+# 4. PUT / PATCH /api/tenants/{tenant_id} - Update tenant profile, contact, or status
 @router.put("/{tenant_id}", response_model=schemas.TenantSchema)
 @router.patch("/{tenant_id}", response_model=schemas.TenantSchema)
 def update_tenant(
@@ -183,7 +182,7 @@ def update_tenant(
             detail="Tenant not found."
         )
 
-    update_data = tenant_update.dict(exclude_unset=True)
+    update_data = tenant_update.model_dump(exclude_unset=True) if hasattr(tenant_update, "model_dump") else tenant_update.dict(exclude_unset=True)
 
     # If updating email, check for duplicate within organization
     if "email" in update_data and update_data["email"] and update_data["email"] != db_tenant.email:

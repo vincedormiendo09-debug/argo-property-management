@@ -391,9 +391,9 @@
                 : '/api';
 
         const AUTH_API_URL = `${API_BASE_URL}/auth`;
-        const USERS_API_URL = `${API_BASE_URL}/users/`;
+        const USERS_API_URL = `${API_BASE_URL}/users`;
 
-        let currentAuthMode = 'signin'; // 'signin' or 'register'
+        let currentAuthMode = 'signin';
 
         window.addEventListener('pageshow', () => {
             clearActiveSession();
@@ -413,6 +413,7 @@
                 'tenant_id', 'unit_id', 'property_id', 'owner_id', 'user_email'
             ];
             keysToRemove.forEach(k => localStorage.removeItem(k));
+            sessionStorage.clear();
         }
 
         function initSystemStorage() {
@@ -433,7 +434,11 @@
             const statusText = document.getElementById('dbStatusText');
 
             try {
-                const response = await fetch(`${API_BASE_URL}/health`, { method: 'GET' });
+                const response = await fetch(`${API_BASE_URL}/health`, { 
+                    method: 'GET',
+                    headers: { 'Cache-Control': 'no-cache' }
+                });
+                
                 if (response.ok) {
                     const health = await response.json().catch(() => ({}));
                     statusDot.className = 'status-dot online';
@@ -443,11 +448,11 @@
                     return;
                 }
             } catch (err) {
-                console.warn("Health check fallback:", err);
+                console.warn("Health check notice:", err);
             }
 
-            statusDot.className = 'status-dot online';
-            statusText.textContent = 'System Gateway Active';
+            statusDot.className = 'status-dot offline';
+            statusText.textContent = 'Backend Connecting...';
         }
 
         function switchAuthMode(mode) {
@@ -485,6 +490,8 @@
             const largeLogo = document.getElementById('largeBrandLogo');
             const btnSubmit = document.getElementById('btnSubmit');
 
+            if (!largeLogo || !btnSubmit) return;
+
             if (role === 'admin') {
                 largeLogo.style.background = '#2563EB';
                 btnSubmit.style.background = '#2563EB';
@@ -499,32 +506,25 @@
 
         function storeUnifiedSession(token, userObj, role) {
             const normalizedRole = (role || userObj.role || 'admin').toLowerCase().trim();
-            const fullName = userObj.name || userObj.full_name || (normalizedRole === 'admin' ? 'Property Admin' : (normalizedRole === 'owner' ? 'Property Owner' : 'Resident Tenant'));
+            const fullName = userObj.name || userObj.full_name || (
+                normalizedRole === 'admin' ? 'Property Admin' : 
+                normalizedRole === 'owner' ? 'Property Owner' : 'Resident Tenant'
+            );
             
             const sessionPayload = {
                 token: token,
                 role: normalizedRole,
                 user: {
-                    id: userObj.id || userObj.user_id || `usr_${Date.now()}`,
+                    id: userObj.id || userObj.user_id,
                     email: userObj.email || '',
                     name: fullName,
                     phone: userObj.phone || '',
                     role: normalizedRole,
                     avatar: userObj.avatar || fullName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'U',
                     avatarBg: normalizedRole === 'admin' ? '#2563EB' : (normalizedRole === 'owner' ? '#059669' : '#D97706'),
-                    organization_id: DEFAULT_ORG_ID
+                    organization_id: userObj.organization_id || DEFAULT_ORG_ID
                 }
             };
-
-            // Register newly created user into global users directory cache if not present
-            try {
-                let allUsers = JSON.parse(localStorage.getItem('argo_users') || '[]');
-                const exists = allUsers.some(u => (u.email && u.email.toLowerCase() === sessionPayload.user.email.toLowerCase()) || String(u.id) === String(sessionPayload.user.id));
-                if (!exists && sessionPayload.user.email) {
-                    allUsers.unshift(sessionPayload.user);
-                    localStorage.setItem('argo_users', JSON.stringify(allUsers));
-                }
-            } catch (e) {}
 
             localStorage.setItem('argo_session', JSON.stringify(sessionPayload));
             localStorage.setItem('token', token);
@@ -534,6 +534,7 @@
             localStorage.setItem('role', normalizedRole);
             localStorage.setItem('argo_user', JSON.stringify(sessionPayload.user));
             localStorage.setItem('user_email', sessionPayload.user.email);
+            localStorage.setItem('organization_id', sessionPayload.user.organization_id);
         }
 
         async function handleAuthSubmit(event) {
@@ -556,12 +557,23 @@
             }
 
             btnSubmit.disabled = true;
-            btnSubmit.innerHTML = '<span>Communicating with gateway...</span>';
+            btnSubmit.innerHTML = '<span>Verifying with Neon Database...</span>';
 
             const endpoint = currentAuthMode === 'register' ? `${AUTH_API_URL}/register` : `${AUTH_API_URL}/login`;
             const payload = currentAuthMode === 'register' 
-                ? { email, password, name, phone, role: selectedRole }
-                : { email, password };
+                ? { 
+                    email: email, 
+                    password: password, 
+                    name: name, 
+                    full_name: name,
+                    phone: phone, 
+                    role: selectedRole,
+                    organization_id: DEFAULT_ORG_ID
+                  }
+                : { 
+                    email: email, 
+                    password: password 
+                  };
 
             try {
                 const response = await fetch(endpoint, {
@@ -570,48 +582,44 @@
                     body: JSON.stringify(payload)
                 });
 
+                const data = await response.json().catch(() => ({}));
+
                 if (response.ok) {
-                    const data = await response.json();
-                    const token = data.access_token || data.token || `tok_${Date.now()}`;
-                    const user = data.user || { id: data.id || `usr_${Date.now()}`, email, name: name || email.split('@')[0], phone, role: selectedRole };
+                    const token = data.access_token || data.token || `live_token_${Date.now()}`;
+                    const user = data.user || {
+                        id: data.id,
+                        email: email,
+                        name: name || data.name || email.split('@')[0],
+                        phone: phone || data.phone || '',
+                        role: data.role || selectedRole,
+                        organization_id: data.organization_id || DEFAULT_ORG_ID
+                    };
                     
                     storeUnifiedSession(token, user, user.role || selectedRole);
                     redirectByRole(user.role || selectedRole);
-                    return;
                 } else {
-                    const errData = await response.json().catch(() => ({}));
-                    console.warn("Backend auth notice:", errData.detail || "Fallback to sandbox authentication.");
+                    const errorMsg = data.detail || (typeof data === 'string' ? data : 'Authentication request failed.');
+                    alert(`⚠️ ${currentAuthMode === 'register' ? 'Registration Failed' : 'Login Failed'}:\n${errorMsg}`);
                 }
             } catch (error) {
-                console.warn("Live API unavailable, establishing verified local sandbox session:", error);
+                console.error("Network or API Error:", error);
+                alert("⚠️ Cannot connect to backend server. If using Render, please wait 30 seconds for the instance to wake up and try again.");
             } finally {
                 btnSubmit.disabled = false;
                 btnSubmit.innerHTML = `<span>${currentAuthMode === 'register' ? 'Create Account & Proceed' : 'Sign In & Route'}</span><i class="bi bi-arrow-right"></i>`;
             }
-
-            // Fallback authenticated sandbox account
-            const fallbackUser = {
-                id: `usr_${Date.now()}`,
-                name: name || (email.split('@')[0].replace('.', ' ').toUpperCase()),
-                email: email,
-                phone: phone,
-                role: selectedRole
-            };
-            const fallbackToken = `argo_jwt_${selectedRole}_${Date.now()}`;
-            storeUnifiedSession(fallbackToken, fallbackUser, selectedRole);
-            redirectByRole(selectedRole);
         }
 
         function quickLaunchPortal(role) {
             const emailInput = document.getElementById('emailInput').value.trim();
-            const token = `argo_live_token_${role}_${Date.now()}`;
+            const token = `live_portal_token_${role}_${Date.now()}`;
 
             let defaultName = 'System Admin';
             if (role === 'owner') defaultName = 'Property Owner';
             if (role === 'client') defaultName = 'Resident Tenant';
 
-            const mockUser = {
-                id: `usr_${role}_${Date.now()}`,
+            const quickUser = {
+                id: `usr_${role}_direct`,
                 name: defaultName,
                 email: emailInput || `${role}@argo.ph`,
                 phone: '+63 900 000 0000',
@@ -619,7 +627,7 @@
                 organization_id: DEFAULT_ORG_ID
             };
 
-            storeUnifiedSession(token, mockUser, role);
+            storeUnifiedSession(token, quickUser, role);
             redirectByRole(role);
         }
 

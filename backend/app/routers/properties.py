@@ -17,7 +17,7 @@ def ensure_sandbox_organization(db: Session, org_id: uuid.UUID):
     """Ensures a stub Organization exists in local DB to satisfy FK constraints."""
     org = db.scalar(select(models.Organization).where(models.Organization.id == org_id))
     if not org:
-        sandbox_org = models.Organization(id=org_id, name="Sunrise Property Group")
+        sandbox_org = models.Organization(id=org_id, name="ARGO Property Management Corp.")
         db.add(sandbox_org)
         db.commit()
 
@@ -88,10 +88,10 @@ def read_properties(
     return props
 
 
-# 2. POST /api/properties/ - Create a property with org-scoped duplicate check and initial equity linkage
+# 2. POST /api/properties/ - Create a property with org-scoped duplicate check
 @router.post("/", response_model=schemas.PropertySchema, status_code=status.HTTP_201_CREATED)
 def create_property(prop_in: schemas.PropertyCreate, db: Session = Depends(get_db)):
-    org_id = getattr(prop_in, "organization_id", DEFAULT_ORG_ID)
+    org_id = getattr(prop_in, "organization_id", DEFAULT_ORG_ID) or DEFAULT_ORG_ID
     ensure_sandbox_organization(db, org_id)
 
     prop_code = prop_in.code or f"PROP-{str(uuid.uuid4())[:4].upper()}"
@@ -109,11 +109,11 @@ def create_property(prop_in: schemas.PropertyCreate, db: Session = Depends(get_d
             detail=f"Property code '{prop_code}' already exists for this organization."
         )
 
-    prop_data = prop_in.dict(exclude_unset=True)
+    prop_data = prop_in.model_dump(exclude_unset=True) if hasattr(prop_in, "model_dump") else prop_in.dict(exclude_unset=True)
     prop_id = uuid.uuid4()
     if "id" not in prop_data or not prop_data["id"]:
         prop_data["id"] = prop_id
-    if "organization_id" not in prop_data:
+    if "organization_id" not in prop_data or not prop_data["organization_id"]:
         prop_data["organization_id"] = org_id
     prop_data["code"] = prop_code
 
@@ -150,7 +150,6 @@ def get_property(
             )
 
     prop = db.scalar(stmt)
-
     if not prop:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -160,7 +159,7 @@ def get_property(
     return prop
 
 
-# 4. PUT /api/properties/{property_id} - Update property specifications
+# 4. PUT / PATCH /api/properties/{property_id} - Update property specifications
 @router.put("/{property_id}", response_model=schemas.PropertySchema)
 @router.patch("/{property_id}", response_model=schemas.PropertySchema)
 def update_property(
@@ -194,7 +193,7 @@ def update_property(
             detail="Property not found."
         )
 
-    update_data = prop_update.dict(exclude_unset=True)
+    update_data = prop_update.model_dump(exclude_unset=True) if hasattr(prop_update, "model_dump") else prop_update.dict(exclude_unset=True)
     for field, value in update_data.items():
         if hasattr(db_prop, field):
             setattr(db_prop, field, value)

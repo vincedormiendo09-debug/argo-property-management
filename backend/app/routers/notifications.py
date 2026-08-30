@@ -15,7 +15,7 @@ DEFAULT_ORG_ID = uuid.UUID("a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11")
 def ensure_sandbox_organization(db: Session, org_id: uuid.UUID):
     org = db.scalar(select(models.Organization).where(models.Organization.id == org_id))
     if not org:
-        sandbox_org = models.Organization(id=org_id, name="Sunrise Property Group")
+        sandbox_org = models.Organization(id=org_id, name="ARGO Property Management Corp.")
         db.add(sandbox_org)
         db.commit()
 
@@ -32,6 +32,8 @@ def read_notifications(
     stmt = select(models.Notification).where(models.Notification.organization_id == organization_id)
 
     # Strict role-scoped filtering (pov: admin, owner, client) at database query level
+    raw_pov = "all"
+    normalized_pov = "all"
     if pov and pov.lower() != "all":
         raw_pov = pov.lower().strip()
         normalized_pov = raw_pov
@@ -119,10 +121,11 @@ def create_notification(
     notif_in: schemas.NotificationCreate,
     db: Session = Depends(get_db)
 ):
-    org_id = getattr(notif_in, "organization_id", DEFAULT_ORG_ID)
+    org_id = getattr(notif_in, "organization_id", DEFAULT_ORG_ID) or DEFAULT_ORG_ID
     ensure_sandbox_organization(db, org_id)
 
-    notif_data = notif_in.dict(exclude_unset=True)
+    notif_data = notif_in.model_dump(exclude_unset=True) if hasattr(notif_in, "model_dump") else notif_in.dict(exclude_unset=True)
+    
     if "id" not in notif_data or not notif_data["id"]:
         notif_data["id"] = uuid.uuid4()
     notif_data["organization_id"] = org_id

@@ -962,6 +962,7 @@
     </div>
 
 <script>
+    const DEFAULT_ORG_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
     const API_BASE_URL = (
         window.location.origin.includes('localhost') || 
         window.location.origin.includes('127.0.0.1')
@@ -971,10 +972,12 @@
             ? 'https://argo-management-2026.onrender.com/api'
             : '/api';
 
-    const INVOICES_API_URL = `${API_BASE_URL}/invoices/`;
-    const LEASES_API_URL = `${API_BASE_URL}/leases/`;
-    const TRANSACTIONS_API_URL = `${API_BASE_URL}/transactions/`;
-    const NOTIFICATIONS_API_URL = `${API_BASE_URL}/notifications/`;
+    const INVOICES_API_URL = `${API_BASE_URL}/invoices`;
+    const LEASES_API_URL = `${API_BASE_URL}/leases`;
+    const TENANTS_API_URL = `${API_BASE_URL}/tenants`;
+    const UNITS_API_URL = `${API_BASE_URL}/units`;
+    const TRANSACTIONS_API_URL = `${API_BASE_URL}/transactions`;
+    const NOTIFICATIONS_API_URL = `${API_BASE_URL}/notifications`;
 
     function parseCurrency(val) {
         if (val === undefined || val === null || val === '') return 0;
@@ -999,6 +1002,7 @@
 
     function logoutUser() {
         localStorage.clear();
+        sessionStorage.clear();
         window.location.replace('index.html');
     }
 
@@ -1041,89 +1045,145 @@
         nav.innerHTML = html;
     }
 
-    // Database Fetchers
+    // Direct Live Database Fetchers (No Stale LocalStorage Cache Poisoning)
     async function getInvoices() {
         try {
-            const res = await fetch(INVOICES_API_URL, { headers: getAuthHeaders() });
+            const res = await fetch(INVOICES_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (res.ok) {
                 const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.invoices || data.data || []);
-                localStorage.setItem('argo_invoices', JSON.stringify(list));
-                return list;
+                return Array.isArray(data) ? data : (data.items || data.invoices || data.data || []);
             }
-        } catch (e) {}
-
-        const raw = localStorage.getItem('argo_invoices');
-        return raw ? JSON.parse(raw) : [];
-    }
-
-    function saveInvoices(invoices) { 
-        localStorage.setItem('argo_invoices', JSON.stringify(invoices)); 
+        } catch (e) {
+            console.error("Live Invoices API fetch failed:", e);
+        }
+        return [];
     }
 
     async function getLeases() { 
         try {
-            const res = await fetch(LEASES_API_URL, { headers: getAuthHeaders() });
+            const res = await fetch(LEASES_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (res.ok) {
                 const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.leases || data.data || []);
-                localStorage.setItem('argo_leases', JSON.stringify(list));
-                return list;
+                return Array.isArray(data) ? data : (data.items || data.leases || data.data || []);
+            }
+        } catch (e) {
+            console.warn("Live Leases fetch failed:", e);
+        }
+        return [];
+    }
+
+    async function getTenants() {
+        try {
+            const res = await fetch(TENANTS_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
+            if (res.ok) {
+                const data = await res.json();
+                return Array.isArray(data) ? data : (data.items || data.tenants || data.data || []);
+            }
+        } catch (e) {
+            console.warn("Live Tenants fetch failed:", e);
+        }
+        return [];
+    }
+
+    async function getUnits() {
+        try {
+            const res = await fetch(UNITS_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
+            if (res.ok) {
+                const data = await res.json();
+                return Array.isArray(data) ? data : (data.items || data.units || data.data || []);
+            }
+        } catch (e) {
+            console.warn("Live Units fetch failed:", e);
+        }
+        return [];
+    }
+
+    async function getNotifications() { 
+        try {
+            const res = await fetch(NOTIFICATIONS_API_URL, { 
+                headers: getAuthHeaders(),
+                cache: 'no-store'
+            });
+            if (res.ok) {
+                const data = await res.json();
+                return Array.isArray(data) ? data : (data.items || data.notifications || data.data || []);
             }
         } catch (e) {}
-
-        const raw = localStorage.getItem('argo_leases');
-        return raw ? JSON.parse(raw) : [];
+        return [];
     }
 
-    function getTransactions() { 
-        return JSON.parse(localStorage.getItem('argo_transactions') || '[]'); 
-    }
-
-    function saveTransactions(transactions) { 
-        localStorage.setItem('argo_transactions', JSON.stringify(transactions)); 
-    }
-
-    function getNotifications() { 
-        return JSON.parse(localStorage.getItem('argo_notifications') || '[]'); 
-    }
-
-    function saveNotifications(notifications) { 
-        localStorage.setItem('argo_notifications', JSON.stringify(notifications)); 
-    }
-
-    // Dynamic Tenant Resolution (Strictly Scoped by Logged-In User)
+    // Dynamic Tenant Resolution (Strictly Scoped by Logged-In User in Neon DB)
     async function getActiveTenantContext() {
         const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
         const userEmail = (user.email || localStorage.getItem('user_email') || '').toLowerCase().trim();
         const userName = user.name || user.full_name || 'Resident Tenant';
         const userId = user.id || null;
 
+        const tenants = await getTenants();
         const leases = await getLeases();
+        const units = await getUnits();
 
+        // Match tenant profile from Neon DB
+        const matchedTenant = tenants.find(t => {
+            const tUserId = String(t.user_id || t.userId || '');
+            const tEmail = (t.email || '').toLowerCase().trim();
+            const tName = (t.name || '').toLowerCase().trim();
+            
+            return (userId && tUserId === String(userId)) ||
+                   (userEmail && tEmail === userEmail) ||
+                   (userName && tName === userName.toLowerCase());
+        }) || null;
+
+        const tenantId = matchedTenant ? matchedTenant.id : userId;
+
+        // Match leases belonging to this tenant
         const userLeases = leases.filter(l => {
             const lTenantId = String(l.tenant_id || l.tenantId || '');
             const lEmail = (l.tenant_email || l.email || '').toLowerCase().trim();
             const lName = (l.tenant_name || l.tenantName || '').toLowerCase().trim();
             
-            return (userId && lTenantId === String(userId)) ||
+            return (tenantId && lTenantId === String(tenantId)) ||
+                   (userId && lTenantId === String(userId)) ||
                    (userEmail && lEmail === userEmail) ||
                    (userName && lName === userName.toLowerCase());
         });
 
         const activeLease = userLeases.find(l => (l.status || '').toUpperCase() === 'ACTIVE') || userLeases[0] || null;
 
+        // Resolve unit and property location
         let fullTag = 'No Active Unit Assigned';
         if (activeLease) {
-            const u = activeLease.unit_number || activeLease.unit || 'Unit';
-            const p = activeLease.property_name || activeLease.property || 'Property';
-            fullTag = `${p} • ${u}`;
+            let uNum = activeLease.unit_number || activeLease.unit || 'Unit';
+            let pName = activeLease.property_name || activeLease.property || 'Property';
+
+            if (activeLease.unit_id) {
+                const matchedUnit = units.find(u => String(u.id) === String(activeLease.unit_id));
+                if (matchedUnit) {
+                    uNum = matchedUnit.unit_no || matchedUnit.unit_number || uNum;
+                    pName = matchedUnit.property_name || pName;
+                }
+            }
+            fullTag = `${pName} • ${uNum}`;
         }
 
         return {
             user,
             userId,
-            name: userName,
+            tenant: matchedTenant,
+            tenantId,
+            name: matchedTenant?.name || userName,
             email: userEmail,
             leases: userLeases,
             activeLease: activeLease,
@@ -1134,7 +1194,7 @@
     async function getTenantInvoices() {
         const ctx = await getActiveTenantContext();
         const allInvoices = await getInvoices();
-        const activeLeaseIds = new Set(ctx.leases.map(l => String(l.lease_id || l.id)).filter(Boolean));
+        const activeLeaseIds = new Set(ctx.leases.map(l => String(l.id || l.lease_id)).filter(Boolean));
 
         return allInvoices.filter(inv => {
             const invEmail = (inv.tenant_email || '').toLowerCase().trim();
@@ -1164,7 +1224,7 @@
     }
 
     async function renderTable() {
-        let invoices = await getTenantInvoices();
+        const invoices = await getTenantInvoices();
         const tbody = document.getElementById('invoiceTable');
         if (!tbody) return;
         tbody.innerHTML = '';
@@ -1182,13 +1242,23 @@
 
         invoices.forEach(inv => {
             const tr = document.createElement('tr');
-            const statusStr = (inv.status || 'Unpaid').toLowerCase();
-            tr.dataset.status = statusStr.includes('pending') ? 'Pending Verification' : (statusStr === 'paid' ? 'Paid' : 'Unpaid');
+            const rawStatus = (inv.status || 'UNPAID').toUpperCase();
+            
+            let statusCategory = 'Unpaid';
+            if (rawStatus === 'PAID') {
+                statusCategory = 'Paid';
+            } else if (rawStatus.includes('PENDING')) {
+                statusCategory = 'Pending Verification';
+            } else {
+                statusCategory = 'Unpaid';
+            }
+
+            tr.dataset.status = statusCategory;
 
             let badgeHtml = '';
-            if (statusStr === 'paid') {
+            if (statusCategory === 'Paid') {
                 badgeHtml = `<span class="status-badge status-paid" style="background:#ECFDF5; color:#059669; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-check-circle" style="margin-right:4px;"></i> Paid (Verified)</span>`;
-            } else if (statusStr.includes('pending')) {
+            } else if (statusCategory === 'Pending Verification') {
                 badgeHtml = `<span class="status-badge status-pending" style="background:#FEF3C7; color:#B45309; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-clock-history" style="margin-right:4px;"></i> Pending Verification</span>`;
             } else {
                 badgeHtml = `<span class="status-badge status-unpaid" style="background:#FFF1F2; color:#E11D48; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-exclamation-circle" style="margin-right:4px;"></i> Unpaid</span>`;
@@ -1196,9 +1266,10 @@
 
             let typePill = '';
             const typeText = (inv.type || '').toLowerCase();
-            if (typeText.includes('electricity') || (inv.category_type || '').toLowerCase().includes('elec')) {
+            const catType = (inv.category_type || '').toLowerCase();
+            if (typeText.includes('electricity') || catType.includes('elec')) {
                 typePill = `<span class="type-pill type-elec" style="background:#FEF3C7; color:#92400E; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:600;"><i class="bi bi-lightning-charge"></i> Electricity</span>`;
-            } else if (typeText.includes('water') || (inv.category_type || '').toLowerCase().includes('water')) {
+            } else if (typeText.includes('water') || catType.includes('water')) {
                 typePill = `<span class="type-pill type-water" style="background:#DBEAFE; color:#1D4ED8; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:600;"><i class="bi bi-droplet"></i> Water</span>`;
             } else {
                 typePill = `<span class="type-pill type-rent" style="background:#EFF6FF; color:#2563EB; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:600;"><i class="bi bi-house-door"></i> Base Rent</span>`;
@@ -1222,7 +1293,7 @@
                 <td>
                     <div style="display:flex; gap:6px;">
                         <button class="action-button" title="View Breakdown" onclick="alert('Invoice Details for ${displayId}:\\nType: ${inv.type}\\nLocation: ${locationTag}\\nDue Date: ${inv.due_date || inv.dueDate}\\nAmount: ${formatPeso(inv.amount || 0)}\\nStatus: ${inv.status}')"><i class="bi bi-eye"></i></button>
-                        ${statusStr === 'paid' ? `<button class="action-button" title="Download Official Receipt" onclick="alert('Downloading official statement receipt for ${displayId} (${ctx.name} • ${locationTag})')"><i class="bi bi-download"></i></button>` : ''}
+                        ${statusCategory === 'Paid' ? `<button class="action-button" title="Download Official Receipt" onclick="alert('Downloading official statement receipt for ${displayId} (${ctx.name} • ${locationTag})')"><i class="bi bi-download"></i></button>` : ''}
                     </div>
                 </td>
             `;
@@ -1234,7 +1305,7 @@
     }
 
     async function updateKPIs() {
-        let invoices = await getTenantInvoices();
+        const invoices = await getTenantInvoices();
 
         let totalOutstanding = 0;
         let totalPending = 0;
@@ -1243,14 +1314,14 @@
 
         invoices.forEach(inv => {
             const amt = parseCurrency(inv.amount || 0);
-            const s = (inv.status || 'Unpaid').toLowerCase();
-            if (s === 'unpaid' || s === 'overdue') {
+            const s = (inv.status || 'UNPAID').toUpperCase();
+            if (s === 'UNPAID' || s === 'OVERDUE') {
                 totalOutstanding += amt;
                 const due = inv.due_date || inv.dueDate;
                 if (!earliestDueDate && due) earliestDueDate = due;
-            } else if (s.includes('pending')) {
+            } else if (s.includes('PENDING')) {
                 totalPending += amt;
-            } else if (s === 'paid') {
+            } else if (s === 'PAID') {
                 totalYtdPaid += amt;
             }
         });
@@ -1286,13 +1357,18 @@
     }
 
     function updateHeaderBadge() {
-        const notifs = getNotifications().filter(n => (n.pov === 'client' || n.pov === 'tenant' || n.pov === 'all') && (n.status === 'unread' || n.is_read === false));
-        const badge = document.getElementById('clientHeaderNotifBadge');
-        if (badge) badge.textContent = notifs.length;
+        getNotifications().then(notifs => {
+            const unread = notifs.filter(n => (n.pov === 'client' || n.pov === 'tenant' || n.pov === 'all') && (!n.is_read || n.status === 'unread'));
+            const badge = document.getElementById('clientHeaderNotifBadge');
+            if (badge) badge.textContent = unread.length;
+        });
     }
 
     function updateQrDisplay() {
-        const channel = document.getElementById('modalChannelSelect').value;
+        const channelSelect = document.getElementById('modalChannelSelect');
+        if (!channelSelect) return;
+
+        const channel = channelSelect.value;
         const titleLabel = document.getElementById('qrTitleLabel');
         const qrImage = document.getElementById('qrImagePreview');
         const accountName = document.getElementById('qrAccountName');
@@ -1327,14 +1403,14 @@
     }
 
     async function populateModalInvoices() {
-        let invoices = await getTenantInvoices();
+        const invoices = await getTenantInvoices();
         const select = document.getElementById('modalInvoiceSelect');
         if (!select) return;
         select.innerHTML = '';
 
         const payableInvoices = invoices.filter(inv => {
-            const s = (inv.status || '').toLowerCase();
-            return s === 'unpaid' || s === 'overdue';
+            const s = (inv.status || '').toUpperCase();
+            return s !== 'PAID';
         });
 
         if (payableInvoices.length === 0) {
@@ -1346,12 +1422,14 @@
 
         payableInvoices.forEach(inv => {
             const opt = document.createElement('option');
-            const invId = inv.invoice_id || inv.id;
+            const invId = inv.id;
             opt.value = invId;
-            opt.textContent = `${invId} — ${inv.type || 'Invoice'} (${formatPeso(inv.amount || 0)})`;
+            opt.dataset.amount = inv.amount || 0;
+            opt.textContent = `${inv.invoice_id || inv.id} — ${inv.type || 'Invoice'} (${formatPeso(inv.amount || 0)})`;
             select.appendChild(opt);
         });
 
+        select.onchange = autoFillInvoiceAmount;
         await autoFillInvoiceAmount();
     }
 
@@ -1359,17 +1437,15 @@
         const select = document.getElementById('modalInvoiceSelect');
         if (!select) return;
 
-        const invId = select.value;
-        if (!invId) return;
+        const selectedOpt = select.options[select.selectedIndex];
+        const amtInput = document.getElementById('modalAmountInput');
 
-        const invoices = await getTenantInvoices();
-        const selected = invoices.find(i => String(i.id) === String(invId) || String(i.invoice_id) === String(invId));
-        if (selected) {
-            const amtInput = document.getElementById('modalAmountInput');
-            if (amtInput) amtInput.value = parseFloat(selected.amount || 0).toFixed(2);
+        if (selectedOpt && selectedOpt.dataset.amount && amtInput) {
+            amtInput.value = parseFloat(selectedOpt.dataset.amount || 0).toFixed(2);
         }
     }
 
+    // LIVE SUBMIT PAYMENT PROOF (PATCH /api/invoices/{id} + POST /api/transactions + POST /api/notifications)
     async function submitPaymentProof() {
         const ctx = await getActiveTenantContext();
         const invoiceSelect = document.getElementById('modalInvoiceSelect');
@@ -1385,6 +1461,7 @@
         let refNo = refInput ? refInput.value.trim() : '';
         const notes = notesInput ? notesInput.value.trim() : '';
         const receiptFile = fileInput && fileInput.files ? fileInput.files[0] : null;
+        const orgId = localStorage.getItem('organization_id') || DEFAULT_ORG_ID;
 
         if (!invoiceId) {
             alert("No active unpaid invoice selected.");
@@ -1397,83 +1474,82 @@
         }
 
         if (!refNo) {
-            alert("Please enter a valid Payment Reference Number.");
+            alert("Please enter a valid Payment Reference Number (e.g. GCash / Bank reference code).");
             return;
         }
 
         if (!refNo.startsWith('#')) refNo = '#' + refNo;
         const locationStr = ctx.fullTag;
 
-        // 1. Update Invoice in Database / Local Storage
-        let invoices = await getInvoices();
-        invoices = invoices.map(inv => {
-            if (String(inv.id) === String(invoiceId) || String(inv.invoice_id) === String(invoiceId)) {
-                return { 
-                    ...inv, 
-                    status: 'Pending Verification', 
-                    channel: channel, 
-                    ref_no: refNo, 
-                    refNo: refNo,
-                    receipt_attachment: receiptFile ? receiptFile.name : null,
-                    notes: notes 
-                };
-            }
-            return inv;
-        });
-        saveInvoices(invoices);
-
+        // 1. Submit Payment Verification to Neon PostgreSQL
         try {
-            await fetch(`${INVOICES_API_URL}${encodeURIComponent(invoiceId)}`, {
+            const res = await fetch(`${INVOICES_API_URL}/${encodeURIComponent(invoiceId)}`, {
                 method: 'PATCH',
                 headers: getAuthHeaders(),
                 body: JSON.stringify({
-                    status: 'Pending Verification',
+                    status: 'PENDING',
                     channel: channel,
                     ref_no: refNo,
-                    notes: notes
+                    sub: notes || `Payment submitted via Tenant Self-Service (${channel})`
                 })
             });
-        } catch (e) {}
 
-        // 2. Log Master Audit Transaction
-        const transactions = getTransactions();
-        const newTxn = {
-            id: `TXN-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
-            txn_id: `TXN-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
-            ref_code: refNo,
-            refCode: refNo,
-            payer: ctx.name,
-            property_location: locationStr,
-            fullLocation: locationStr,
-            category: invoiceId.includes('ELE') ? 'Electricity Charges' : (invoiceId.includes('WTR') ? 'Water Charges' : 'Monthly Base Rent'),
-            direction: 'INFLOW',
-            gross_amount: formatPeso(amount),
-            amount: amount,
-            channel: channel,
-            status: 'Pending',
-            receipt_attachment: receiptFile ? receiptFile.name : null,
-            timestamp: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
-        };
-        transactions.unshift(newTxn);
-        saveTransactions(transactions);
+            if (!res.ok) {
+                // Fallback PUT
+                await fetch(`${INVOICES_API_URL}/${encodeURIComponent(invoiceId)}`, {
+                    method: 'PUT',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({
+                        status: 'PENDING',
+                        channel: channel,
+                        ref_no: refNo,
+                        sub: notes
+                    })
+                });
+            }
+        } catch (e) {
+            console.error("Payment submit error:", e);
+        }
+
+        // 2. Dispatch Live Ledger Transaction
+        const txnId = `TXN-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+        try {
+            await fetch(TRANSACTIONS_API_URL, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({
+                    organization_id: orgId,
+                    txn_id: txnId,
+                    ref_code: refNo,
+                    payer: ctx.name,
+                    property_location: locationStr,
+                    category: 'Monthly Base Rent',
+                    direction: 'INFLOW',
+                    gross_amount: amount,
+                    channel: channel,
+                    status: 'Pending'
+                })
+            });
+        } catch (err) {}
 
         // 3. Dispatch Notification Alert to Admin POV (rent-collection.html)
-        const notifications = getNotifications();
-        notifications.unshift({
-            id: `NOTIF-${Date.now()}`,
-            pov: 'admin',
-            category: 'payment',
-            status: 'unread',
-            is_read: false,
-            title: `${channel} Payment Proof Submitted`,
-            time: 'Just now',
-            description: `Payment proof uploaded by <strong>${ctx.name}</strong> (${locationStr}) for Invoice <strong>${invoiceId}</strong>. Ref Code: <code>${refNo}</code>.`,
-            property: locationStr,
-            amount: formatPeso(amount),
-            actionUrl: 'rent-collection.html',
-            actionText: 'Verify Payment'
-        });
-        saveNotifications(notifications);
+        try {
+            await fetch(NOTIFICATIONS_API_URL, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({
+                    organization_id: orgId,
+                    pov: 'admin',
+                    category: 'payment',
+                    status: 'Active',
+                    is_read: false,
+                    title: `${channel} Payment Proof Submitted`,
+                    description: `Payment proof uploaded by ${ctx.name} (${locationStr}) for Invoice ${invoiceId}. Ref Code: ${refNo}.`,
+                    property: locationStr,
+                    urgent: false
+                })
+            });
+        } catch (err) {}
 
         await renderTable();
         await updateKPIs();
@@ -1483,7 +1559,7 @@
         if (notesInput) notesInput.value = '';
         if (fileInput) fileInput.value = '';
 
-        alert(`Payment proof (${refNo}) submitted successfully!\n\nProperty Manager has been notified for verification.`);
+        alert(`Payment proof (${refNo}) submitted successfully!\n\nProperty Manager has been notified for audit verification.`);
     }
 
     window.onclick = function(event) {
@@ -1554,17 +1630,6 @@
         await updateKPIs();
         await populateModalInvoices();
         updateHeaderBadge();
-    });
-
-    // Cross-Tab Real-Time Sync Listener
-    window.addEventListener('storage', async (e) => {
-        if (['argo_invoices', 'argo_leases', 'argo_notifications', 'argo_user', 'argo_pov'].includes(e.key)) {
-            await loadUserData();
-            await renderTable();
-            await updateKPIs();
-            await populateModalInvoices();
-            updateHeaderBadge();
-        }
     });
 </script>
 </body>

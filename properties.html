@@ -915,6 +915,7 @@
     </div>
 
 <script>
+    const DEFAULT_ORG_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
     const API_BASE_URL = (
         window.location.origin.includes('localhost') || 
         window.location.origin.includes('127.0.0.1')
@@ -924,14 +925,14 @@
             ? 'https://argo-management-2026.onrender.com/api'
             : '/api';
 
-    const PROPERTIES_API_URL = `${API_BASE_URL}/properties/`;
-    const BUILDINGS_API_URL = `${API_BASE_URL}/buildings/`;
-    const UNITS_API_URL = `${API_BASE_URL}/units/`;
-    const LEASES_API_URL = `${API_BASE_URL}/leases/`;
-    const OWNERS_API_URL = `${API_BASE_URL}/owners/`;
-    const USERS_API_URL = `${API_BASE_URL}/users/`;
-    const OWNERSHIP_API_URL = `${API_BASE_URL}/property-ownership/`;
-    const NOTIFICATIONS_API_URL = `${API_BASE_URL}/notifications/`;
+    const PROPERTIES_API_URL = `${API_BASE_URL}/properties`;
+    const BUILDINGS_API_URL = `${API_BASE_URL}/buildings`;
+    const UNITS_API_URL = `${API_BASE_URL}/units`;
+    const LEASES_API_URL = `${API_BASE_URL}/leases`;
+    const OWNERS_API_URL = `${API_BASE_URL}/owners`;
+    const USERS_API_URL = `${API_BASE_URL}/users`;
+    const OWNERSHIP_API_URL = `${API_BASE_URL}/property-ownership`;
+    const NOTIFICATIONS_API_URL = `${API_BASE_URL}/notifications`;
 
     let registeredOwnersCache = [];
 
@@ -945,6 +946,7 @@
 
     function logoutUser() {
         localStorage.clear();
+        sessionStorage.clear();
         window.location.replace('index.html');
     }
 
@@ -1027,138 +1029,137 @@
         if (avatarEl) avatarEl.textContent = user.avatar || (user.name ? user.name.charAt(0) : 'SA');
     }
 
-    function getNotifications() {
+    async function updateHeaderBadge() {
         try {
-            return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
-        } catch (e) {
-            return [];
-        }
+            const res = await fetch(NOTIFICATIONS_API_URL, { 
+                headers: getAuthHeaders(),
+                cache: 'no-store'
+            });
+            if (res.ok) {
+                const notifs = await res.json();
+                const unread = (Array.isArray(notifs) ? notifs : []).filter(n => 
+                    (n.pov === 'admin' || !n.pov) && (!n.is_read || n.status === 'unread')
+                );
+                const badge = document.getElementById('headerNotifBadge');
+                if (badge) badge.textContent = unread.length;
+            }
+        } catch (e) {}
     }
 
-    function updateHeaderBadge() {
-        const notifs = getNotifications().filter(n => (n.pov === 'admin' || !n.pov) && (n.status === 'unread' || n.is_read === false));
-        const badge = document.getElementById('headerNotifBadge');
-        if (badge) badge.textContent = notifs.length;
-    }
-
-    // Database Fetchers
+    // Direct Live API Fetchers (No LocalStorage Cache Poisoning)
     async function getProperties() {
         try {
-            const response = await fetch(PROPERTIES_API_URL, { headers: getAuthHeaders() });
+            const response = await fetch(PROPERTIES_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (response.ok) {
                 const data = await response.json();
-                const list = Array.isArray(data) ? data : (data.items || data.properties || data.data || []);
-                localStorage.setItem('argo_properties', JSON.stringify(list));
-                return list;
+                return Array.isArray(data) ? data : (data.items || data.properties || data.data || []);
             }
         } catch (e) {
-            console.warn("Properties API offline, using local cache:", e);
-        }
-
-        const raw = localStorage.getItem('argo_properties');
-        if (raw) {
-            try {
-                const parsed = JSON.parse(raw);
-                if (Array.isArray(parsed)) return parsed;
-            } catch (e) {}
+            console.error("Live Properties API fetch failed:", e);
         }
         return [];
     }
 
     async function getBuildings() {
         try {
-            const response = await fetch(BUILDINGS_API_URL, { headers: getAuthHeaders() });
+            const response = await fetch(BUILDINGS_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (response.ok) {
                 const data = await response.json();
-                const list = Array.isArray(data) ? data : (data.items || data.buildings || data.data || []);
-                localStorage.setItem('argo_buildings', JSON.stringify(list));
-                return list;
+                return Array.isArray(data) ? data : (data.items || data.buildings || data.data || []);
             }
-        } catch (e) {}
-
-        const raw = localStorage.getItem('argo_buildings');
-        return raw ? JSON.parse(raw) : [];
+        } catch (e) {
+            console.warn("Live Buildings API fetch failed:", e);
+        }
+        return [];
     }
 
     async function getUnits() {
         try {
-            const response = await fetch(UNITS_API_URL, { headers: getAuthHeaders() });
+            const response = await fetch(UNITS_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (response.ok) {
                 const data = await response.json();
-                const list = Array.isArray(data) ? data : (data.items || data.units || data.data || []);
-                localStorage.setItem('argo_units', JSON.stringify(list));
-                return list;
+                return Array.isArray(data) ? data : (data.items || data.units || data.data || []);
             }
-        } catch (e) {}
-
-        const raw = localStorage.getItem('argo_units');
-        return raw ? JSON.parse(raw) : [];
+        } catch (e) {
+            console.warn("Live Units API fetch failed:", e);
+        }
+        return [];
     }
 
     async function getOwners() {
         try {
-            const response = await fetch(OWNERS_API_URL, { headers: getAuthHeaders() });
+            const response = await fetch(OWNERS_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (response.ok) {
                 const data = await response.json();
-                const list = Array.isArray(data) ? data : (data.items || data.owners || data.data || []);
-                localStorage.setItem('argo_owners', JSON.stringify(list));
-                return list;
+                return Array.isArray(data) ? data : (data.items || data.owners || data.data || []);
             }
-        } catch (e) {}
-
-        const raw = localStorage.getItem('argo_owners');
-        return raw ? JSON.parse(raw) : [];
+        } catch (e) {
+            console.error("Live Owners API fetch failed:", e);
+        }
+        return [];
     }
 
     async function getRegisteredUsers() {
         try {
-            const res = await fetch(USERS_API_URL, { headers: getAuthHeaders() });
+            const res = await fetch(USERS_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (res.ok) {
                 const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.users || data.data || []);
-                return list;
+                return Array.isArray(data) ? data : (data.items || data.users || data.data || []);
             }
-        } catch (e) {}
-
-        const raw = localStorage.getItem('argo_users') || '[]';
-        return JSON.parse(raw);
+        } catch (e) {
+            console.warn("Live Users API fetch failed:", e);
+        }
+        return [];
     }
 
     async function getLeases() {
         try {
-            const res = await fetch(LEASES_API_URL, { headers: getAuthHeaders() });
+            const res = await fetch(LEASES_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (res.ok) {
                 const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.leases || data.data || []);
-                localStorage.setItem('argo_leases', JSON.stringify(list));
-                return list;
+                return Array.isArray(data) ? data : (data.items || data.leases || data.data || []);
             }
-        } catch (e) {}
-
-        const raw = localStorage.getItem('argo_leases');
-        return raw ? JSON.parse(raw) : [];
+        } catch (e) {
+            console.warn("Live Leases API fetch failed:", e);
+        }
+        return [];
     }
 
     async function getOwnership() {
         try {
-            const res = await fetch(OWNERSHIP_API_URL, { headers: getAuthHeaders() });
+            const res = await fetch(OWNERSHIP_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (res.ok) {
                 const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.ownership || data.data || []);
-                localStorage.setItem('argo_ownership', JSON.stringify(list));
-                return list;
+                return Array.isArray(data) ? data : (data.items || data.ownership || data.data || []);
             }
-        } catch (e) {}
-
-        const raw = localStorage.getItem('argo_ownership');
-        return raw ? JSON.parse(raw) : [];
+        } catch (e) {
+            console.warn("Live Ownership API fetch failed:", e);
+        }
+        return [];
     }
 
-    function saveOwnershipList(list) {
-        localStorage.setItem('argo_ownership', JSON.stringify(list));
-    }
-
-    // Populate Searchable Owner Combobox
+    // Populate Searchable Owner Combobox Dynamically from Live DB
     async function populateOwnersDatalist() {
         const users = await getRegisteredUsers();
         const owners = await getOwners();
@@ -1168,7 +1169,7 @@
         datalist.innerHTML = '';
         const ownerMap = new Map();
 
-        // 1. Add users with owner role from index.html registration
+        // 1. Registered users with owner role
         users.forEach(u => {
             const role = (u.role || '').toLowerCase();
             if (role === 'owner' || role === 'property_owner' || role === 'investor') {
@@ -1182,7 +1183,7 @@
             }
         });
 
-        // 2. Add existing owners profiles
+        // 2. Verified Property Owner profiles
         owners.forEach(o => {
             const name = o.name || 'Property Owner';
             ownerMap.set(String(o.id || o.own_id), {
@@ -1245,7 +1246,7 @@
             owners.forEach(o => {
                 const oId = o.id || o.own_id;
                 const oName = o.name || 'Owner';
-                const oType = o.type || 'Individual';
+                const oType = (o.type || 'Individual').toUpperCase();
                 ownOwnerSelect.innerHTML += `<option value="${oId}">${oName} (${oType})</option>`;
             });
         }
@@ -1263,7 +1264,7 @@
         tbody.innerHTML = '';
 
         if (!props || props.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--muted, #64748B); padding:30px;">No managed properties found. Click "New Property" to register an asset.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--muted, #64748B); padding:30px;">No managed properties found in database. Click "New Property" to register an asset.</td></tr>`;
             const countEl = document.getElementById('propertyCountText');
             if (countEl) countEl.textContent = `Showing 0 properties`;
             return;
@@ -1274,27 +1275,27 @@
             const propName = p.name || p.property_name || 'Property Asset';
             const propIdStr = String(p.id || '');
             const propCode = p.code || 'PROP';
-            const propTct = p.tct_number || p.tct_no || p.land_title || 'TCT Reg.';
+            const propTct = p.tct_number || p.land_title || 'TCT Registered';
 
             tr.dataset.type = p.type || 'Residential Multi-Family';
-            tr.dataset.status = p.status || 'Active';
+            tr.dataset.status = (p.status || 'Active').toUpperCase();
 
-            // 1. Dynamic Buildings Count
+            // 1. Live Linked Buildings
             const matchedBuildings = buildings.filter(b => {
                 const bPropId = String(b.property_id || '');
                 const bPropName = (b.property ? (b.property.name || b.property) : '') || b.property_name || '';
-                return (propIdStr && bPropId === propIdStr) || bPropName.toLowerCase() === propName.toLowerCase();
+                return (propIdStr && bPropId === propIdStr) || (bPropName && bPropName.toLowerCase() === propName.toLowerCase());
             });
             const bldgCount = matchedBuildings.length;
 
-            // 2. Dynamic Total Units & Occupancy
+            // 2. Live Linked Units & Leased Metrics
             const matchedUnits = units.filter(u => {
                 const uPropId = String(u.property_id || '');
                 const uPropName = (u.property ? (u.property.name || u.property.property_name) : '') || u.property_name || u.property || '';
-                return (propIdStr && uPropId === propIdStr) || uPropName.toLowerCase().includes(propName.toLowerCase());
+                return (propIdStr && uPropId === propIdStr) || (uPropName && uPropName.toLowerCase().includes(propName.toLowerCase()));
             });
 
-            const totalUnitsCount = matchedUnits.length > 0 ? matchedUnits.length : parseInt(p.units_count || p.units || 0);
+            const totalUnitsCount = matchedUnits.length > 0 ? matchedUnits.length : parseInt(p.units_count || 0);
 
             let occupiedCount = 0;
             matchedUnits.forEach(u => {
@@ -1304,7 +1305,7 @@
                 }
             });
 
-            if (occupiedCount === 0) {
+            if (occupiedCount === 0 && matchedUnits.length === 0) {
                 const matchedLeases = leases.filter(l => {
                     const lProp = l.property || l.property_name || '';
                     return (lProp.toLowerCase().includes(propName.toLowerCase()) || propName.toLowerCase().includes(lProp.toLowerCase())) && 
@@ -1313,7 +1314,7 @@
                 occupiedCount = matchedLeases.length;
             }
 
-            // 3. Primary Owner & Equity Representation
+            // 3. Live Matched Ownership Shares
             const matchedOwnership = ownershipList.filter(shr => {
                 const shrProp = shr.property || shr.propertyName || shr.property_name || '';
                 return shrProp.toLowerCase() === propName.toLowerCase() || String(shr.property_id || '') === propIdStr;
@@ -1321,13 +1322,13 @@
 
             let ownerDisplay = '<span style="color:var(--muted, #64748B); font-size:11px;">Unassigned</span>';
             if (matchedOwnership.length > 0) {
-                const primary = matchedOwnership.find(shr => shr.role === 'Primary' || (shr.role || '').includes('Primary')) || matchedOwnership[0];
+                const primary = matchedOwnership.find(shr => (shr.role || '').toLowerCase().includes('primary')) || matchedOwnership[0];
                 ownerDisplay = `<div><strong>${primary.owner_name || primary.ownerName || 'Owner'}</strong></div><div style="font-size:11px; color:#059669; font-weight:600;">${parseFloat(primary.share_percent || primary.share || 100).toFixed(1)}% Share</div>`;
             } else if (p.owner_name) {
                 ownerDisplay = `<div><strong>${p.owner_name}</strong></div><div style="font-size:11px; color:#059669; font-weight:600;">100.0% Share</div>`;
             }
 
-            const badgeHtml = (p.status || 'Active').toLowerCase() === 'active'
+            const badgeHtml = (p.status || 'Active').toUpperCase() === 'ACTIVE'
                 ? '<span class="status status-active" style="background:#ECFDF5; color:#059669; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;">Active</span>' 
                 : '<span class="status status-pending" style="background:#FEF3C7; color:#D97706; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;">Pending</span>';
 
@@ -1337,7 +1338,7 @@
                     <div class="property-code" style="font-size:11px; color:var(--muted, #64748B);">${propCode} • <span style="color:#2563EB;">${propTct}</span></div>
                 </td>
                 <td>${p.type || 'Residential Multi-Family'}</td>
-                <td><i class="bi bi-geo-alt me-1"></i> ${p.location || 'Parañaque, Metro Manila'}</td>
+                <td><i class="bi bi-geo-alt me-1"></i> ${p.location || 'Metro Manila'}</td>
                 <td><strong>${bldgCount} ${bldgCount === 1 ? 'Building' : 'Buildings'}</strong></td>
                 <td><strong>${totalUnitsCount} Units</strong> <span style="font-size:11px; color:var(--muted, #64748B);">(${occupiedCount} Leased)</span></td>
                 <td>${ownerDisplay}</td>
@@ -1355,6 +1356,7 @@
         if (countEl) countEl.textContent = `Showing 1–${props.length} of ${props.length} properties`;
     }
 
+    // LIVE CREATE PROPERTY (POST /api/properties)
     async function saveProperty() {
         const name = document.getElementById('modalPropName').value.trim();
         const code = document.getElementById('modalPropCode').value.trim() || `PROP-${Math.floor(100 + Math.random() * 900)}`;
@@ -1365,6 +1367,7 @@
         const selectedOwnerId = document.getElementById('modalSelectedOwnerId').value.trim();
         const initialShare = parseFloat(document.getElementById('modalInitialShare').value) || 100.00;
         const ownerRole = document.getElementById('modalOwnerRole').value;
+        const orgId = localStorage.getItem('organization_id') || DEFAULT_ORG_ID;
 
         if (!name || !location) {
             alert("Please fill in both the Property Name and Legal Address.");
@@ -1372,17 +1375,18 @@
         }
 
         const payload = {
+            organization_id: orgId,
             code: code,
             name: name,
             property_name: name,
-            land_title: tct,
-            tct_number: tct,
             type: type,
             location: location,
+            tct_number: tct,
+            units_count: 0,
             status: "Active"
         };
 
-        let createdPropertyId = null;
+        let createdProperty = null;
 
         try {
             const res = await fetch(PROPERTIES_API_URL, {
@@ -1390,63 +1394,55 @@
                 headers: getAuthHeaders(),
                 body: JSON.stringify(payload)
             });
+
             if (res.ok) {
-                const savedData = await res.json().catch(() => ({}));
-                createdPropertyId = savedData.id || code;
+                createdProperty = await res.json().catch(() => ({}));
+            } else {
+                const errData = await res.json().catch(() => ({}));
+                alert(`Error saving property: ${errData.detail || 'Could not save to Neon database.'}`);
+                return;
             }
         } catch (e) {
-            console.warn("Backend save bypassed, persisting locally:", e);
+            console.error("Network error while creating property:", e);
+            alert("Network connection error. Check server connection.");
+            return;
         }
 
-        let props = await getProperties();
-        props.unshift({ ...payload, id: createdPropertyId || code });
-        localStorage.setItem('argo_properties', JSON.stringify(props));
+        const newPropId = createdProperty?.id || code;
 
-        // If an owner was assigned in the form, immediately link in Ownership records
-        if (ownerSearchText || selectedOwnerId) {
+        // If an owner was assigned during creation, link them directly via POST /api/property-ownership
+        if ((ownerSearchText || selectedOwnerId) && newPropId) {
             const matchedOwner = registeredOwnersCache.find(o => 
                 (selectedOwnerId && String(o.id) === String(selectedOwnerId)) ||
                 `${o.name} (${o.email || o.id})`.toLowerCase() === ownerSearchText.toLowerCase() ||
                 o.name.toLowerCase() === ownerSearchText.toLowerCase()
             );
 
-            const ownerName = matchedOwner ? matchedOwner.name : ownerSearchText.split('(')[0].trim();
-            const ownerType = matchedOwner ? matchedOwner.type : 'Individual';
+            const resolvedOwnerId = matchedOwner ? matchedOwner.id : selectedOwnerId;
 
-            const newOwnershipShare = {
-                id: `OWN-SHR-${Date.now().toString().slice(-4)}`,
-                property_id: createdPropertyId || code,
-                property: name,
-                propertyName: name,
-                owner_id: selectedOwnerId || `OWN-${Date.now().toString().slice(-4)}`,
-                ownerId: selectedOwnerId || `OWN-${Date.now().toString().slice(-4)}`,
-                owner_name: ownerName,
-                ownerName: ownerName,
-                owner_type: ownerType,
-                ownerType: ownerType,
-                share_percent: initialShare,
-                share: initialShare,
-                role: ownerRole,
-                is_primary: ownerRole.includes('Primary'),
-                isPrimary: ownerRole.includes('Primary')
-            };
-
-            let ownershipList = await getOwnership();
-            ownershipList.unshift(newOwnershipShare);
-            saveOwnershipList(ownershipList);
-
-            try {
-                await fetch(OWNERSHIP_API_URL, {
-                    method: 'POST',
-                    headers: getAuthHeaders(),
-                    body: JSON.stringify(newOwnershipShare)
-                });
-            } catch (err) {}
+            if (resolvedOwnerId) {
+                try {
+                    await fetch(OWNERSHIP_API_URL, {
+                        method: 'POST',
+                        headers: getAuthHeaders(),
+                        body: JSON.stringify({
+                            organization_id: orgId,
+                            property_id: newPropId,
+                            owner_id: resolvedOwnerId,
+                            share_percent: initialShare,
+                            role: ownerRole
+                        })
+                    });
+                } catch (err) {
+                    console.warn("Ownership link warning:", err);
+                }
+            }
         }
 
         alert(`Property asset "${name}" registered successfully!`);
         closeModal('propertyModal');
 
+        // Reset form
         document.getElementById('modalPropName').value = '';
         document.getElementById('modalPropCode').value = '';
         document.getElementById('modalPropTct').value = '';
@@ -1455,22 +1451,24 @@
         document.getElementById('modalSelectedOwnerId').value = '';
 
         await renderPropertiesTable();
+        await renderOwnershipTable();
         await populateModalDropdowns();
     }
 
+    // LIVE DELETE PROPERTY (DELETE /api/properties/{id})
     async function deleteProperty(id, name) {
         const displayName = name || id;
-        if (!confirm(`Are you sure you want to permanently delete "${displayName}" and decouple its assets from the database?`)) return;
+        if (!confirm(`Are you sure you want to permanently delete "${displayName}" and all its linked units/records from the database?`)) return;
 
         try {
-            const res = await fetch(`${PROPERTIES_API_URL}${encodeURIComponent(id)}`, {
+            const res = await fetch(`${PROPERTIES_API_URL}/${encodeURIComponent(id)}`, {
                 method: 'DELETE',
                 headers: getAuthHeaders()
             });
 
             if (!res.ok) {
                 const errData = await res.json().catch(() => ({}));
-                alert(`Cannot delete property: ${errData.detail || 'Property has active records attached.'}`);
+                alert(`Cannot delete property: ${errData.detail || 'Database foreign key error.'}`);
                 return;
             }
         } catch (e) {
@@ -1479,12 +1477,9 @@
             return;
         }
 
-        let props = await getProperties();
-        props = props.filter(p => String(p.id) !== String(id) && String(p.code) !== String(id));
-        localStorage.setItem('argo_properties', JSON.stringify(props));
-
-        alert(`Property "${displayName}" deleted successfully!`);
+        alert(`Property "${displayName}" deleted permanently from database!`);
         await renderPropertiesTable();
+        await renderOwnershipTable();
         await populateModalDropdowns();
     }
 
@@ -1504,12 +1499,12 @@
 
         ownership.forEach(o => {
             const tr = document.createElement('tr');
-            const isPrimary = (o.role || '').toLowerCase().includes('primary') || o.isPrimary;
+            const isPrimary = (o.role || '').toLowerCase().includes('primary') || o.is_primary;
 
             tr.innerHTML = `
-                <td><strong>${o.propertyName || o.property || 'Property'}</strong></td>
-                <td>${o.ownerName || o.owner_name || 'Owner'}</td>
-                <td><span class="type-badge" style="background:#F1F5F9; color:#475569; padding:2px 8px; border-radius:4px; font-size:11px;">${o.ownerType || o.owner_type || 'Individual'}</span></td>
+                <td><strong>${o.property_name || o.propertyName || o.property || 'Property'}</strong></td>
+                <td>${o.owner_name || o.ownerName || 'Owner'}</td>
+                <td><span class="type-badge" style="background:#F1F5F9; color:#475569; padding:2px 8px; border-radius:4px; font-size:11px;">${(o.owner_type || o.ownerType || 'Individual').toUpperCase()}</span></td>
                 <td><strong style="color:#059669;">${parseFloat(o.share_percent || o.share || 100).toFixed(2)}%</strong></td>
                 <td>${isPrimary ? '<span style="color:#059669; font-weight:600;"><i class="bi bi-check2-circle me-1"></i> Yes (Managing)</span>' : '<span style="color:var(--muted, #64748B);">No (Fractional)</span>'}</td>
                 <td>
@@ -1523,11 +1518,13 @@
         if (countEl) countEl.textContent = `Showing 1–${ownership.length} of ${ownership.length} ownership shares`;
     }
 
+    // LIVE ASSIGN OWNERSHIP SHARE (POST /api/property-ownership)
     async function saveOwnership() {
         const propertyId = document.getElementById('modalOwnProperty').value;
         const ownerId = document.getElementById('modalOwnOwner').value;
         const share = parseFloat(document.getElementById('modalOwnShare').value);
         const role = document.getElementById('modalOwnRole').value;
+        const orgId = localStorage.getItem('organization_id') || DEFAULT_ORG_ID;
 
         if (!propertyId || !ownerId) {
             alert("Please select both a property and an owner.");
@@ -1539,65 +1536,66 @@
             return;
         }
 
-        const props = await getProperties();
-        const owners = await getOwners();
-
-        const matchedProp = props.find(p => String(p.id) === String(propertyId) || String(p.code) === String(propertyId)) || { name: 'Property' };
-        const matchedOwner = owners.find(o => String(o.id) === String(ownerId) || String(o.own_id) === String(ownerId)) || { name: 'Owner', type: 'Individual' };
-
-        const newRecord = {
-            id: `OWN-SHR-${Date.now().toString().slice(-4)}`,
+        const payload = {
+            organization_id: orgId,
             property_id: propertyId,
-            propertyId: propertyId,
-            propertyName: matchedProp.name,
-            property: matchedProp.name,
             owner_id: ownerId,
-            ownerId: ownerId,
-            ownerName: matchedOwner.name,
-            owner_name: matchedOwner.name,
-            ownerType: matchedOwner.type || 'Individual',
             share_percent: share,
-            share: share,
-            role: role,
-            is_primary: role.toLowerCase().includes('primary'),
-            isPrimary: role.toLowerCase().includes('primary')
+            role: role
         };
 
         try {
-            await fetch(OWNERSHIP_API_URL, {
+            const res = await fetch(OWNERSHIP_API_URL, {
                 method: 'POST',
                 headers: getAuthHeaders(),
-                body: JSON.stringify(newRecord)
+                body: JSON.stringify(payload)
             });
-        } catch (e) {}
 
-        let ownership = await getOwnership();
-        ownership.unshift(newRecord);
-        saveOwnershipList(ownership);
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                alert(`Error: ${err.detail || 'Could not assign ownership share.'}`);
+                return;
+            }
+        } catch (e) {
+            console.error("Ownership endpoint error:", e);
+            alert("Network error assigning share.");
+            return;
+        }
 
-        await renderOwnershipTable();
+        alert(`Ownership share of ${share}% assigned successfully!`);
         closeModal('ownershipModal');
 
         document.getElementById('modalOwnProperty').value = '';
         document.getElementById('modalOwnOwner').value = '';
         document.getElementById('modalOwnShare').value = '100.00';
 
-        alert(`Ownership share of ${share}% assigned to ${matchedOwner.name}!`);
+        await renderPropertiesTable();
+        await renderOwnershipTable();
     }
 
+    // LIVE DELETE OWNERSHIP (DELETE /api/property-ownership/{id})
     async function deleteOwnership(id) {
         if (!confirm("Are you sure you want to remove this ownership assignment?")) return;
 
         try {
-            await fetch(`${OWNERSHIP_API_URL}${encodeURIComponent(id)}`, {
+            const res = await fetch(`${OWNERSHIP_API_URL}/${encodeURIComponent(id)}`, {
                 method: 'DELETE',
                 headers: getAuthHeaders()
             });
-        } catch (e) {}
 
-        let ownership = await getOwnership();
-        ownership = ownership.filter(o => String(o.id) !== String(id));
-        saveOwnershipList(ownership);
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                alert(`Cannot delete share: ${err.detail || 'Server error.'}`);
+                return;
+            }
+        } catch (e) {
+            console.error("Delete ownership error:", e);
+            alert("Network error removing share.");
+            return;
+        }
+
+        alert("Ownership share removed successfully!");
+        await renderPropertiesTable();
         await renderOwnershipTable();
     }
 
@@ -1665,7 +1663,7 @@
 
             const matchesSearch = text.includes(searchQuery);
             const matchesType = typeVal === "" || rowType === typeVal;
-            const matchesStatus = statusVal === "" || rowStatus === statusVal;
+            const matchesStatus = statusVal === "" || rowStatus === statusVal.toUpperCase();
 
             if (matchesSearch && matchesType && matchesStatus) {
                 row.style.display = "";
@@ -1681,35 +1679,12 @@
         }
     }
 
-    function filterTable(tableId, query) {
-        const rows = document.querySelectorAll(`#${tableId} tr`);
-        const lowerQuery = query.toLowerCase().trim();
-
-        rows.forEach(row => {
-            if (row.cells.length === 1) return;
-            const text = row.innerText.toLowerCase();
-            row.style.display = text.includes(lowerQuery) ? '' : 'none';
-        });
-    }
-
     function resetPropertyFilters() {
         document.getElementById("propertySearch").value = "";
         document.getElementById("propertyTypeFilter").value = "";
         document.getElementById("propertyStatusFilter").value = "";
         filterPropertiesTable();
     }
-
-    // Real-Time Cross-Tab Listener
-    window.addEventListener('storage', async (e) => {
-        if (['argo_properties', 'argo_buildings', 'argo_ownership', 'argo_units', 'argo_leases', 'argo_owners', 'argo_notifications', 'argo_user', 'argo_pov'].includes(e.key)) {
-            renderSidebar();
-            loadUserData();
-            await renderPropertiesTable();
-            await renderOwnershipTable();
-            await populateModalDropdowns();
-            updateHeaderBadge();
-        }
-    });
 
     // Page Load Initialization
     document.addEventListener('DOMContentLoaded', async () => {
@@ -1736,4 +1711,3 @@
         });
     }
 </script>
-</body>

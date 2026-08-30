@@ -943,6 +943,7 @@
     </div>
 
 <script>
+    const DEFAULT_ORG_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
     const API_BASE_URL = (
         window.location.origin.includes('localhost') || 
         window.location.origin.includes('127.0.0.1')
@@ -952,19 +953,11 @@
             ? 'https://argo-management-2026.onrender.com/api'
             : '/api';
 
-    const SETTLEMENTS_API_URL = `${API_BASE_URL}/settlements/`;
-    const LEASES_API_URL = `${API_BASE_URL}/leases/`;
-    const UNITS_API_URL = `${API_BASE_URL}/units/`;
-    const TRANSACTIONS_API_URL = `${API_BASE_URL}/transactions/`;
-    const NOTIFICATIONS_API_URL = `${API_BASE_URL}/notifications/`;
-
-    function getAuthHeaders() {
-        const token = localStorage.getItem('token') || localStorage.getItem('argo_token');
-        return {
-            'Content-Type': 'application/json',
-            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-        };
-    }
+    const INSPECTIONS_API_URL = `${API_BASE_URL}/inspections`;
+    const LEASES_API_URL = `${API_BASE_URL}/leases`;
+    const UNITS_API_URL = `${API_BASE_URL}/units`;
+    const TRANSACTIONS_API_URL = `${API_BASE_URL}/transactions`;
+    const NOTIFICATIONS_API_URL = `${API_BASE_URL}/notifications`;
 
     function parseCurrency(val) {
         if (val === undefined || val === null || val === '') return 0;
@@ -979,8 +972,17 @@
         return '₱' + num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
 
+    function getAuthHeaders() {
+        const token = localStorage.getItem('token') || localStorage.getItem('argo_token');
+        return {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        };
+    }
+
     function logoutUser() {
         localStorage.clear();
+        sessionStorage.clear();
         window.location.replace('index.html');
     }
 
@@ -1066,77 +1068,68 @@
         if (avatarEl) avatarEl.textContent = user.avatar || 'SA';
     }
 
-    // Database Fetchers
+    // Direct Database Fetchers (No LocalStorage Cache Poisoning)
     async function getSettlements() {
-        let liveSettlements = [];
         try {
-            const res = await fetch(SETTLEMENTS_API_URL, { headers: getAuthHeaders() });
+            const res = await fetch(INSPECTIONS_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (res.ok) {
                 const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.settlements || data.data || []);
-                liveSettlements = list;
-                localStorage.setItem('argo_settlements', JSON.stringify(list));
+                const list = Array.isArray(data) ? data : (data.items || data.inspections || data.data || []);
+                return list.filter(i => (i.type || '').toLowerCase().includes('move-out') || (i.type || '').toLowerCase().includes('move out') || (i.type || '').toLowerCase().includes('settlement'));
             }
         } catch (e) {
-            console.warn("Settlements API offline, using cache:", e);
+            console.error("Live Settlements API fetch failed:", e);
         }
-
-        if (liveSettlements.length === 0) {
-            const raw = localStorage.getItem('argo_settlements');
-            liveSettlements = raw ? JSON.parse(raw) : [];
-        }
-
-        return liveSettlements;
-    }
-
-    function saveSettlements(list) {
-        localStorage.setItem('argo_settlements', JSON.stringify(list));
+        return [];
     }
 
     async function getLeases() {
         try {
-            const res = await fetch(LEASES_API_URL, { headers: getAuthHeaders() });
+            const res = await fetch(LEASES_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (res.ok) {
                 const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.leases || data.data || []);
-                localStorage.setItem('argo_leases', JSON.stringify(list));
-                return list;
+                return Array.isArray(data) ? data : (data.items || data.leases || data.data || []);
             }
-        } catch (e) {}
-
-        const raw = localStorage.getItem('argo_leases');
-        return raw ? JSON.parse(raw) : [];
+        } catch (e) {
+            console.warn("Live Leases fetch error:", e);
+        }
+        return [];
     }
 
     async function getUnits() {
         try {
-            const res = await fetch(UNITS_API_URL, { headers: getAuthHeaders() });
+            const res = await fetch(UNITS_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (res.ok) {
                 const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.units || data.data || []);
-                localStorage.setItem('argo_units', JSON.stringify(list));
-                return list;
+                return Array.isArray(data) ? data : (data.items || data.units || data.data || []);
+            }
+        } catch (e) {
+            console.warn("Live Units fetch error:", e);
+        }
+        return [];
+    }
+
+    async function getNotifications() {
+        try {
+            const res = await fetch(NOTIFICATIONS_API_URL, { 
+                headers: getAuthHeaders(),
+                cache: 'no-store'
+            });
+            if (res.ok) {
+                const data = await res.json();
+                return Array.isArray(data) ? data : (data.items || data.notifications || data.data || []);
             }
         } catch (e) {}
-
-        const raw = localStorage.getItem('argo_units');
-        return raw ? JSON.parse(raw) : [];
-    }
-
-    function getNotifications() {
-        return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
-    }
-
-    function saveNotifications(notifications) {
-        localStorage.setItem('argo_notifications', JSON.stringify(notifications));
-    }
-
-    function getTransactions() {
-        return JSON.parse(localStorage.getItem('argo_transactions') || '[]');
-    }
-
-    function saveTransactions(transactions) {
-        localStorage.setItem('argo_transactions', JSON.stringify(transactions));
+        return [];
     }
 
     async function populateModalDropdowns() {
@@ -1148,24 +1141,26 @@
             leaseSelect.innerHTML = '<option value="">Select Exiting Lease / Tenant...</option>';
             if (leases.length > 0) {
                 leases.forEach(l => {
-                    const leaseId = l.lease_id || l.id || 'LSE';
+                    const leaseDisplayCode = l.lease_id || l.id;
+                    const leaseId = l.id;
                     const tenantName = l.tenant_name || l.tenantName || 'Tenant';
                     const propName = l.property_name || l.property || 'Property';
                     const unitName = l.unit_number || l.unit || 'Unit';
                     const fullUnitLocation = `${propName} • ${unitName}`;
-                    const depositVal = parseCurrency(l.deposit_amount || l.deposit || (parseCurrency(l.rent || 0) * 2));
+                    const depositVal = parseCurrency(l.deposit || l.deposit_amount || (parseCurrency(l.rent || 0) * 2));
                     const statusTag = (l.status || 'ACTIVE').toUpperCase();
 
                     leaseSelect.innerHTML += `
                         <option value="${leaseId}" 
                                 data-deposit="${depositVal}" 
                                 data-lease="${leaseId}" 
+                                data-code="${leaseDisplayCode}"
                                 data-tenant="${tenantName}" 
                                 data-tenant-email="${l.tenant_email || ''}"
                                 data-property="${propName}" 
-                                data-unit="${fullUnitLocation}"
+                                data-unit="${unitName}"
                                 data-unit-id="${l.unit_id || ''}">
-                            ${leaseId} — ${tenantName} (${fullUnitLocation}) [${statusTag}]
+                            ${leaseDisplayCode} — ${tenantName} (${fullUnitLocation}) [${statusTag}]
                         </option>`;
                 });
             } else {
@@ -1212,6 +1207,7 @@
         document.getElementById("netRefundDisplay").textContent = formatPeso(netRefund);
     }
 
+    // Live Render Move-out Settlements Table
     async function renderSettlementTable() {
         const settlements = await getSettlements();
         const tbody = document.getElementById('settlementTable');
@@ -1228,49 +1224,67 @@
 
         settlements.forEach(s => {
             const tr = document.createElement('tr');
-            const prop = s.property_name || s.property || 'Property Location';
-            const status = s.status || 'Pending Audit';
-            const displayId = s.settlement_id || s.id || 'SET';
+            const prop = s.property_info || 'Property Location';
+            const status = (s.status || 'Pending Audit').trim();
+            const displayId = s.inspection_id || `SET-${String(s.id).slice(-4)}`;
+            const settlementDbId = s.id;
+
             tr.dataset.property = prop;
             tr.dataset.status = status;
 
             let badgeHtml = '';
-            if (status === 'Full Refund') {
+            const statusUpper = status.toUpperCase();
+            if (statusUpper === 'FULL REFUND') {
                 badgeHtml = `<span class="status-badge status-full" style="background:#ECFDF5; color:#059669; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-check-circle" style="margin-right:4px;"></i> Full Refund</span>`;
-            } else if (status === 'Partial Refund') {
+            } else if (statusUpper === 'PARTIAL REFUND') {
                 badgeHtml = `<span class="status-badge status-partial" style="background:#FEF3C7; color:#D97706; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-pie-chart" style="margin-right:4px;"></i> Partial Refund</span>`;
-            } else if (status === 'Forfeited') {
+            } else if (statusUpper === 'FORFEITED') {
                 badgeHtml = `<span class="status-badge status-forfeited" style="background:#FFF1F2; color:#E11D48; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-x-circle" style="margin-right:4px;"></i> Forfeited</span>`;
             } else {
-                badgeHtml = `<span class="status-badge status-pending" style="background:#EFF6FF; color:#2563EB; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-clock-history" style="margin-right:4px;"></i> Pending Audit</span>`;
+                badgeHtml = `<span class="status-badge status-pending" style="background:#EFF6FF; color:#2563EB; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-clock-history" style="margin-right:4px;"></i> Completed Exit</span>`;
             }
 
-            const initialDep = parseCurrency(s.initial_deposit || s.initialDeposit || 0);
-            const deductions = parseCurrency(s.deductions);
-            const netRefund = parseCurrency(s.net_refund || s.netRefund || 0);
+            // Extract financial totals from notes metadata
+            let initialDep = 0;
+            let deductions = 0;
+            let netRefund = 0;
+
+            if (s.notes) {
+                const depMatch = s.notes.match(/Deposit:\s*₱?([0-9,.]+)/i);
+                if (depMatch) initialDep = parseCurrency(depMatch[1]);
+
+                const deductMatch = s.notes.match(/Deductions:\s*₱?([0-9,.]+)/i);
+                if (deductMatch) deductions = parseCurrency(deductMatch[1]);
+
+                const refMatch = s.notes.match(/Net Refund:\s*₱?([0-9,.]+)/i);
+                if (refMatch) netRefund = parseCurrency(refMatch[1]);
+            }
 
             const netColor = netRefund > 0 ? 'var(--success, #059669)' : 'var(--muted, #64748B)';
             const deductColor = deductions > 0 ? 'var(--danger, #E11D48)' : 'var(--success, #059669)';
+            const vacateDate = s.date ? s.date.split('T')[0] : '—';
+            const tenantName = s.tenant || 'Tenant';
+            const unitName = s.unit_name || 'Unit';
 
             tr.innerHTML = `
                 <td><div class="settlement-id" style="font-weight:600; color:#2563EB;">${displayId}</div></td>
                 <td>
-                    <div class="tenant-name" style="font-weight:600;">${s.tenant_name || s.tenantName || 'Tenant'}</div>
-                    <div class="property-info" style="font-size:11px; color:var(--muted, #64748B);">Lease: ${s.lease_id || s.leaseId || '—'}</div>
+                    <div class="tenant-name" style="font-weight:600;">${tenantName}</div>
+                    <div class="property-info" style="font-size:11px; color:var(--muted, #64748B);">Inspector: ${s.inspector || 'Property Manager'}</div>
                 </td>
                 <td>
                     <div style="font-weight:600;">${prop}</div>
-                    <div class="property-info" style="font-size:11px; color:var(--muted, #64748B);"><i class="bi bi-geo-alt"></i> ${s.unit_no || s.unit || 'Unit'}</div>
+                    <div class="property-info" style="font-size:11px; color:var(--muted, #64748B);"><i class="bi bi-geo-alt"></i> ${unitName}</div>
                 </td>
-                <td>${s.vacate_date || s.vacateDate || '—'}</td>
+                <td>${vacateDate}</td>
                 <td>${formatPeso(initialDep)}</td>
                 <td><span style="color:${deductColor}; font-weight:600;">${deductions > 0 ? `-${formatPeso(deductions)}` : '₱0.00'}</span></td>
                 <td><strong style="color:${netColor}; font-size:13px;">${formatPeso(netRefund)}</strong></td>
                 <td>${badgeHtml}</td>
                 <td>
                     <div class="actions" style="display:flex; gap:6px;">
-                        <button class="action-button" title="View Statement Certificate" onclick="viewStatement('${displayId}')"><i class="bi bi-file-earmark-text"></i></button>
-                        <button class="action-button delete" title="Delete Log" onclick="deleteSettlement('${displayId}')"><i class="bi bi-trash"></i></button>
+                        <button class="action-button" title="View Statement Certificate" onclick="viewStatement('${settlementDbId}')"><i class="bi bi-file-earmark-text"></i></button>
+                        <button class="action-button delete" title="Delete Log" onclick="deleteSettlement('${settlementDbId}', '${displayId}')"><i class="bi bi-trash"></i></button>
                     </div>
                 </td>
             `;
@@ -1282,6 +1296,7 @@
         await updateKPIs();
     }
 
+    // LIVE SAVE MOVE-OUT SETTLEMENT (POST /api/inspections + PATCH /api/leases + PATCH /api/units + POST /api/transactions)
     async function saveSettlement() {
         const select = document.getElementById("leaseSelect");
         if (!select.value) {
@@ -1290,12 +1305,11 @@
         }
 
         const selectedOpt = select.options[select.selectedIndex];
-        const leaseId = selectedOpt.dataset.lease || select.value;
+        const leaseId = selectedOpt.value;
         const tenantName = selectedOpt.dataset.tenant || 'Tenant';
-        const tenantEmail = selectedOpt.dataset.tenantEmail || '';
         const property = selectedOpt.dataset.property || 'Property Location';
         const unit = selectedOpt.dataset.unit || 'Unit';
-        const unitId = selectedOpt.dataset.unitId || '';
+        const unitId = selectedOpt.dataset.unitId && selectedOpt.dataset.unitId.length === 36 ? selectedOpt.dataset.unitId : null;
 
         const vacateDateInput = document.getElementById("modalVacateDate").value || new Date().toISOString().split('T')[0];
         const baseDeposit = Math.max(0, parseCurrency(document.getElementById("baseDeposit").value));
@@ -1309,9 +1323,10 @@
         const totalDeductions = rnt + ele + wat + dam + cln;
         const netRefund = Math.max(0, baseDeposit - totalDeductions);
 
-        const payMethod = document.getElementById("modalPayMethod").value;
+        const payMethod = document.getElementById("modalPayMethod").value || 'GCash / Bank Transfer';
         let refCode = document.getElementById("modalRefCode").value.trim() || `REF-${Math.floor(100000 + Math.random() * 900000)}`;
         const notes = document.getElementById("modalNotes").value.trim();
+        const orgId = localStorage.getItem('organization_id') || DEFAULT_ORG_ID;
 
         if (!refCode.startsWith('#')) refCode = '#' + refCode;
 
@@ -1319,83 +1334,78 @@
         if (totalDeductions === 0 && baseDeposit > 0) statusType = 'Full Refund';
         else if (netRefund === 0) statusType = 'Forfeited';
 
-        const newId = `SET-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+        const newInspectionCode = `SET-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+        const settlementNotes = `Move-Out Exit Settlement. Deposit: ₱${baseDeposit.toFixed(2)}, Deductions: ₱${totalDeductions.toFixed(2)} (Rent: ₱${rnt}, Elec: ₱${ele}, Water: ₱${wat}, Damage: ₱${dam}, Cleaning: ₱${cln}), Net Refund: ₱${netRefund.toFixed(2)} via ${payMethod} (Ref: ${refCode}). Remarks: ${notes || 'Exit clearance signed.'}`;
 
         const payload = {
-            settlement_id: newId,
-            lease_id: leaseId,
-            tenant_name: tenantName,
-            tenant_email: tenantEmail,
-            property_name: property,
-            unit_no: unit,
-            vacate_date: vacateDateInput,
-            initial_deposit: baseDeposit,
-            deductions: totalDeductions,
-            net_refund: netRefund,
+            organization_id: orgId,
+            unit_id: unitId,
+            inspection_id: newInspectionCode,
+            unit_name: unit,
+            property_info: property,
+            tenant: tenantName,
+            type: 'Move-Out',
+            date: vacateDateInput,
+            inspector: 'Property Manager',
             status: statusType,
-            payment_method: payMethod,
-            reference_code: refCode,
-            notes: notes || 'Exit clearance finalized and deposit disbursed.'
+            notes: settlementNotes
         };
 
-        // 1. Live API Dispatch
+        // 1. Post Move-out Inspection / Settlement Audit to Neon Database
         try {
-            await fetch(SETTLEMENTS_API_URL, {
+            const res = await fetch(INSPECTIONS_API_URL, {
                 method: 'POST',
                 headers: getAuthHeaders(),
                 body: JSON.stringify(payload)
             });
-        } catch (e) {
-            console.warn("Backend save bypassed, keeping locally.", e);
-        }
 
-        let list = await getSettlements();
-        list.unshift({ ...payload, id: newId });
-        saveSettlements(list);
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                alert(`Error saving settlement: ${errData.detail || 'Could not save to Neon database.'}`);
+                return;
+            }
+        } catch (e) {
+            console.error("Network error saving settlement:", e);
+            alert("Network connection error. Check server connection.");
+            return;
+        }
 
         // 2. Post Outflow Transaction to Ledger if net refund > 0
         if (netRefund > 0) {
-            let txns = getTransactions();
-            txns.unshift({
-                id: `TXN-REF-${Date.now().toString().slice(-4)}`,
-                txn_id: `TXN-REF-${Date.now().toString().slice(-4)}`,
-                ref_code: refCode,
-                refCode: refCode,
-                payer: tenantName,
-                property_location: unit,
-                fullLocation: unit,
-                category: 'Security Deposit Refund',
-                direction: 'OUTFLOW',
-                amount: netRefund,
-                gross_amount: `-${formatPeso(netRefund)}`,
-                channel: payMethod,
-                status: 'Disbursed',
-                timestamp: new Date().toLocaleDateString('en-US', { month:'short', day:'2-digit', year:'numeric' })
-            });
-            saveTransactions(txns);
-
+            const txnId = `TXN-REF-${Date.now().toString().slice(-4)}`;
             try {
                 await fetch(TRANSACTIONS_API_URL, {
                     method: 'POST',
                     headers: getAuthHeaders(),
-                    body: JSON.stringify(txns[0])
+                    body: JSON.stringify({
+                        organization_id: orgId,
+                        txn_id: txnId,
+                        ref_code: refCode,
+                        payer: tenantName,
+                        property_location: `${property} • ${unit}`,
+                        category: 'Security Deposit Refund',
+                        direction: 'OUTFLOW',
+                        gross_amount: netRefund,
+                        channel: payMethod,
+                        status: 'Completed'
+                    })
                 });
             } catch (err) {}
         }
 
         // 3. Automatically Transition Lease status to ENDED
         try {
-            await fetch(`${LEASES_API_URL}${encodeURIComponent(leaseId)}`, {
+            await fetch(`${LEASES_API_URL}/${encodeURIComponent(leaseId)}`, {
                 method: 'PATCH',
                 headers: getAuthHeaders(),
-                body: JSON.stringify({ status: 'ENDED', move_out_date: vacateDateInput })
+                body: JSON.stringify({ status: 'Ended', end_date: vacateDateInput })
             });
         } catch (e) {}
 
         // 4. Automatically Revert Unit status back to Available (VACANT)
         if (unitId) {
             try {
-                await fetch(`${UNITS_API_URL}${encodeURIComponent(unitId)}`, {
+                await fetch(`${UNITS_API_URL}/${encodeURIComponent(unitId)}`, {
                     method: 'PATCH',
                     headers: getAuthHeaders(),
                     body: JSON.stringify({ status: 'Available', tenant_name: null })
@@ -1403,24 +1413,24 @@
             } catch (e) {}
         }
 
-        // 5. Trigger System Notification
-        let notifications = getNotifications();
-        notifications.unshift({
-            id: `NOTIF-${Date.now()}`,
-            pov: 'client',
-            category: 'payment',
-            status: 'unread',
-            is_read: false,
-            title: 'Move-Out Security Deposit Refund Disbursed',
-            time: 'Just now',
-            description: `Exit settlement ${newId} finalized for ${unit}. Deposit held: ${formatPeso(baseDeposit)} | Deductions: ${formatPeso(totalDeductions)} | Net Refund: <strong>${formatPeso(netRefund)}</strong> disbursed via ${payMethod}.`,
-            property: unit,
-            tag: `Ref ${refCode}`,
-            tagColor: 'var(--success, #059669)',
-            actionUrl: 'client-billing.html',
-            actionText: 'View Settlement Details'
-        });
-        saveNotifications(notifications);
+        // 5. Trigger Notification Alert to Tenant
+        try {
+            await fetch(NOTIFICATIONS_API_URL, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({
+                    organization_id: orgId,
+                    pov: 'client',
+                    category: 'payment',
+                    status: 'Active',
+                    is_read: false,
+                    title: 'Move-Out Security Deposit Refund Disbursed',
+                    description: `Exit settlement ${newInspectionCode} finalized for ${property} • ${unit}. Deposit held: ${formatPeso(baseDeposit)} | Deductions: ${formatPeso(totalDeductions)} | Net Refund: ${formatPeso(netRefund)} disbursed via ${payMethod}.`,
+                    property: `${property} • ${unit}`,
+                    urgent: false
+                })
+            });
+        } catch (err) {}
 
         await renderSettlementTable();
         closeModal('settlementModal');
@@ -1433,54 +1443,68 @@
         document.getElementById("deductCleaning").value = '0';
         document.getElementById("modalNotes").value = '';
 
-        alert(`Move-out settlement certificate (${newId}) recorded successfully! Unit reverted to Available.`);
+        alert(`Move-out settlement certificate (${newInspectionCode}) recorded successfully! Unit reverted to Available status.`);
     }
 
-    async function deleteSettlement(id) {
-        if (!confirm("Are you sure you want to delete this move-out settlement log?")) return;
+    // LIVE DELETE SETTLEMENT (DELETE /api/inspections/{id})
+    async function deleteSettlement(dbId, displayCode) {
+        const name = displayCode || dbId;
+        if (!confirm(`Are you sure you want to delete move-out settlement log "${name}" from the database?`)) return;
         
         try {
-            await fetch(`${SETTLEMENTS_API_URL}${encodeURIComponent(id)}`, {
+            const res = await fetch(`${INSPECTIONS_API_URL}/${encodeURIComponent(dbId)}`, {
                 method: 'DELETE',
                 headers: getAuthHeaders()
             });
-        } catch (e) {}
 
-        let list = await getSettlements();
-        list = list.filter(s => String(s.id || s.settlement_id) !== String(id));
-        saveSettlements(list);
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                alert(`Cannot delete settlement: ${errData.detail || 'Database error.'}`);
+                return;
+            }
+        } catch (e) {
+            console.error("Delete request failed:", e);
+            alert("Network error occurred deleting settlement log.");
+            return;
+        }
+
+        alert(`Settlement log "${name}" deleted successfully!`);
         await renderSettlementTable();
     }
 
-    async function viewStatement(id) {
+    async function viewStatement(dbId) {
         const list = await getSettlements();
-        const item = list.find(s => String(s.id || s.settlement_id) === String(id));
-        if (item) {
-            alert(`ARGO Move-Out Settlement Certificate — ${item.settlement_id || item.id}\n\n` +
-                  `Tenant: ${item.tenant_name || item.tenantName}\n` +
-                  `Lease ID: ${item.lease_id || item.leaseId}\n` +
-                  `Property & Unit: ${item.unit_no || item.unit || item.property_name}\n` +
-                  `Vacate Date: ${item.vacate_date || item.vacateDate}\n` +
-                  `Initial Deposit Held: ${formatPeso(item.initial_deposit || item.initialDeposit)}\n` +
-                  `Total Deductions: ${formatPeso(item.deductions)}\n` +
-                  `Net Disbursed Refund: ${formatPeso(item.net_refund || item.netRefund)}\n` +
-                  `Disbursement Method: ${item.payment_method || item.paymentMethod} (${item.reference_code || item.referenceCode})\n` +
-                  `Status: ${item.status}\n` +
-                  `Remarks: ${item.notes || 'No remarks provided.'}`);
-        }
+        const item = list.find(s => String(s.id) === String(dbId) || String(s.inspection_id) === String(dbId));
+        if (!item) return;
+
+        alert(
+            `ARGO Move-Out Settlement Certificate — ${item.inspection_id || item.id}\n\n` +
+            `Tenant: ${item.tenant}\n` +
+            `Property & Unit: ${item.property_info} • ${item.unit_name}\n` +
+            `Vacate Date: ${item.date ? item.date.split('T')[0] : '—'}\n` +
+            `Inspector: ${item.inspector || 'Property Manager'}\n` +
+            `Status: ${item.status}\n\n` +
+            `[Itemized Financial Audit & Remarks]\n` +
+            `${item.notes || 'Exit clearance finalized.'}`
+        );
     }
 
     async function updateKPIs() {
         const settlements = await getSettlements();
-        const completed = settlements.filter(s => ['Full Refund', 'Partial Refund', 'Forfeited', 'Completed'].includes(s.status)).length;
-        const pending = settlements.filter(s => ['Pending Audit', 'Pending'].includes(s.status)).length;
+        const completed = settlements.filter(s => ['Full Refund', 'Partial Refund', 'Forfeited', 'Completed', 'Passed'].includes(s.status)).length;
+        const pending = settlements.filter(s => ['Pending Audit', 'Pending', 'Scheduled'].includes(s.status)).length;
 
         let totalDeductions = 0;
         let totalNetRefunds = 0;
 
         settlements.forEach(s => {
-            totalDeductions += parseCurrency(s.deductions);
-            totalNetRefunds += parseCurrency(s.net_refund || s.netRefund);
+            if (s.notes) {
+                const deductMatch = s.notes.match(/Deductions:\s*₱?([0-9,.]+)/i);
+                if (deductMatch) totalDeductions += parseCurrency(deductMatch[1]);
+
+                const refMatch = s.notes.match(/Net Refund:\s*₱?([0-9,.]+)/i);
+                if (refMatch) totalNetRefunds += parseCurrency(refMatch[1]);
+            }
         });
 
         const compEl = document.getElementById('kpiCompleted');
@@ -1495,9 +1519,11 @@
     }
 
     function updateHeaderBadge() {
-        const notifs = getNotifications().filter(n => (n.pov === 'admin' || !n.pov) && (n.status === 'unread' || n.is_read === false));
-        const badge = document.getElementById('headerNotifBadge');
-        if (badge) badge.textContent = notifs.length;
+        getNotifications().then(notifs => {
+            const unread = notifs.filter(n => (n.pov === 'admin' || !n.pov) && (!n.is_read || n.status === 'unread'));
+            const badge = document.getElementById('headerNotifBadge');
+            if (badge) badge.textContent = unread.length;
+        });
     }
 
     function openSettlementModal() { 
@@ -1536,7 +1562,7 @@
 
             const matchesSearch = text.includes(searchValue);
             const matchesProperty = propertyValue === "" || rowProperty.includes(propertyValue);
-            const matchesStatus = statusValue === "" || rowStatus === statusValue;
+            const matchesStatus = statusValue === "" || rowStatus.toUpperCase() === statusValue.toUpperCase();
 
             if (matchesSearch && matchesProperty && matchesStatus) {
                 row.style.display = "";
@@ -1552,17 +1578,6 @@
         document.getElementById("statusFilter").value = "";
         filterTable();
     }
-
-    // Real-Time Cross-Tab Listener
-    window.addEventListener('storage', async (e) => {
-        if (['argo_settlements', 'argo_leases', 'argo_properties', 'argo_transactions', 'argo_units', 'argo_notifications', 'argo_user', 'argo_pov'].includes(e.key)) {
-            renderSidebar();
-            loadUserData();
-            await populateModalDropdowns();
-            await renderSettlementTable();
-            updateHeaderBadge();
-        }
-    });
 
     // Page Load Initialization
     document.addEventListener('DOMContentLoaded', async () => {

@@ -960,6 +960,7 @@
     </div>
 
 <script>
+    const DEFAULT_ORG_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
     const API_BASE_URL = (
         window.location.origin.includes('localhost') || 
         window.location.origin.includes('127.0.0.1')
@@ -969,10 +970,13 @@
             ? 'https://argo-management-2026.onrender.com/api'
             : '/api';
 
-    const UNITS_API_URL = `${API_BASE_URL}/units/`;
-    const PROPERTIES_API_URL = `${API_BASE_URL}/properties/`;
-    const BUILDINGS_API_URL = `${API_BASE_URL}/buildings/`;
-    const LEASES_API_URL = `${API_BASE_URL}/leases/`;
+    const UNITS_API_URL = `${API_BASE_URL}/units`;
+    const PROPERTIES_API_URL = `${API_BASE_URL}/properties`;
+    const BUILDINGS_API_URL = `${API_BASE_URL}/buildings`;
+    const LEASES_API_URL = `${API_BASE_URL}/leases`;
+    const NOTIFICATIONS_API_URL = `${API_BASE_URL}/notifications`;
+
+    let activeTabStatus = "ALL";
 
     function getAuthHeaders() {
         const token = localStorage.getItem('token') || localStorage.getItem('argo_token');
@@ -984,6 +988,7 @@
 
     function logoutUser() {
         localStorage.clear();
+        sessionStorage.clear();
         window.location.replace('index.html');
     }
 
@@ -1080,96 +1085,89 @@
         if (avatarEl) avatarEl.textContent = user.avatar || (user.name ? user.name.charAt(0) : 'SA');
     }
 
-    function getNotifications() {
+    async function updateHeaderBadge() {
         try {
-            return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
-        } catch (e) {
-            return [];
-        }
-    }
-
-    function updateHeaderBadge() {
-        const notifs = getNotifications().filter(n => (n.pov === 'admin' || !n.pov) && (n.status === 'unread' || n.is_read === false));
-        const badge = document.getElementById('headerNotifBadge');
-        if (badge) badge.textContent = notifs.length;
-    }
-
-    // Database & Storage Fetchers
-    async function getProperties() {
-        try {
-            const res = await fetch(PROPERTIES_API_URL, { headers: getAuthHeaders() });
+            const res = await fetch(NOTIFICATIONS_API_URL, { 
+                headers: getAuthHeaders(),
+                cache: 'no-store'
+            });
             if (res.ok) {
-                const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.properties || data.data || []);
-                localStorage.setItem('argo_properties', JSON.stringify(list));
-                return list;
+                const notifs = await res.json();
+                const unread = (Array.isArray(notifs) ? notifs : []).filter(n => 
+                    (n.pov === 'admin' || !n.pov) && (!n.is_read || n.status === 'unread')
+                );
+                const badge = document.getElementById('headerNotifBadge');
+                if (badge) badge.textContent = unread.length;
             }
         } catch (e) {}
+    }
+
+    // Direct Database Fetchers (No LocalStorage Cache Poisoning)
+    async function getProperties() {
         try {
-            return JSON.parse(localStorage.getItem('argo_properties') || '[]');
+            const res = await fetch(PROPERTIES_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
+            if (res.ok) {
+                const data = await res.json();
+                return Array.isArray(data) ? data : (data.items || data.properties || data.data || []);
+            }
         } catch (e) {
-            return [];
+            console.error("Live Properties API fetch failed:", e);
         }
+        return [];
     }
 
     async function getBuildings() {
         try {
-            const res = await fetch(BUILDINGS_API_URL, { headers: getAuthHeaders() });
+            const res = await fetch(BUILDINGS_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (res.ok) {
                 const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.buildings || data.data || []);
-                localStorage.setItem('argo_buildings', JSON.stringify(list));
-                return list;
+                return Array.isArray(data) ? data : (data.items || data.buildings || data.data || []);
             }
-        } catch (e) {}
-        try {
-            return JSON.parse(localStorage.getItem('argo_buildings') || '[]');
         } catch (e) {
-            return [];
+            console.warn("Live Buildings API fetch failed:", e);
         }
+        return [];
     }
 
     async function getUnits() {
         try {
-            const response = await fetch(UNITS_API_URL, { headers: getAuthHeaders() });
+            const response = await fetch(UNITS_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (response.ok) {
                 const data = await response.json();
-                const list = Array.isArray(data) ? data : (data.items || data.units || data.data || []);
-                localStorage.setItem('argo_units', JSON.stringify(list));
-                return list;
+                return Array.isArray(data) ? data : (data.items || data.units || data.data || []);
             }
         } catch (error) {
-            console.warn("Units API offline, checking local cache:", error);
-        }
-
-        const raw = localStorage.getItem('argo_units');
-        if (raw) {
-            try {
-                const parsed = JSON.parse(raw);
-                if (Array.isArray(parsed)) return parsed;
-            } catch (e) {}
+            console.error("Live Units API fetch failed:", error);
         }
         return [];
     }
 
     async function getLeases() {
         try {
-            const res = await fetch(LEASES_API_URL, { headers: getAuthHeaders() });
+            const res = await fetch(LEASES_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (res.ok) {
                 const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.leases || data.data || []);
-                localStorage.setItem('argo_leases', JSON.stringify(list));
-                return list;
+                return Array.isArray(data) ? data : (data.items || data.leases || data.data || []);
             }
-        } catch (e) {}
-        try {
-            return JSON.parse(localStorage.getItem('argo_leases') || '[]');
         } catch (e) {
-            return [];
+            console.warn("Live Leases API fetch failed:", e);
         }
+        return [];
     }
 
-    // ================= CASCADING DROPDOWN LOGIC =================
+    // Dynamic Cascading Dropdowns
     async function populatePropertyDropdowns() {
         const props = await getProperties();
         const filterSelect = document.getElementById('propertyFilter');
@@ -1191,6 +1189,10 @@
                 const pCode = p.code || 'PROP';
                 modalPropSelect.innerHTML += `<option value="${pId}">${pName} (${pCode})</option>`;
             });
+
+            modalPropSelect.onchange = function() {
+                cascadeBuildingsForProperty(this.value);
+            };
         }
     }
 
@@ -1206,7 +1208,7 @@
         const buildings = await getBuildings();
         const matchedBuildings = buildings.filter(b => {
             const bPropId = String(b.property_id || '');
-            return bPropId === String(propertyId) || b.property === propertyId;
+            return bPropId === String(propertyId) || String(b.property) === String(propertyId);
         });
 
         if (matchedBuildings.length > 0) {
@@ -1216,9 +1218,12 @@
                 buildingSelect.innerHTML += `<option value="${bId}" data-floors="${b.floors || 5}">${bName} (${b.code || 'BLDG'})</option>`;
             });
         } else {
-            // Fallback default building if none created in buildings.html
-            buildingSelect.innerHTML += `<option value="BLDG-DEFAULT" data-floors="5">Tower A (Default)</option>`;
+            buildingSelect.innerHTML += `<option value="" data-floors="5">Main Structure (No separate building records)</option>`;
         }
+
+        buildingSelect.onchange = function() {
+            cascadeFloorsForBuilding(this.value);
+        };
     }
 
     async function cascadeFloorsForBuilding(buildingId) {
@@ -1226,13 +1231,12 @@
         if (!floorSelect) return;
 
         floorSelect.innerHTML = '<option value="">Select floor...</option>';
-        if (!buildingId) return;
 
         const buildingSelect = document.getElementById('modalBuildingSelect');
-        const selectedOpt = buildingSelect.options[buildingSelect.selectedIndex];
+        const selectedOpt = buildingSelect ? buildingSelect.options[buildingSelect.selectedIndex] : null;
         const floorsCount = selectedOpt ? parseInt(selectedOpt.dataset.floors) || 5 : 5;
 
-        const floorLabels = ['First Floor', 'Second Floor', 'Third Floor', 'Fourth Floor', 'Fifth Floor', 'Sixth Floor', 'Seventh Floor', 'Eighth Floor', 'Ninth Floor', 'Tenth Floor'];
+        const floorLabels = ['1st Floor', '2nd Floor', '3rd Floor', '4th Floor', '5th Floor', '6th Floor', '7th Floor', '8th Floor', '9th Floor', '10th Floor'];
 
         for (let i = 1; i <= Math.min(floorsCount, 20); i++) {
             const fName = floorLabels[i - 1] || `Floor ${i}`;
@@ -1240,10 +1244,11 @@
         }
     }
 
-    let activeTabStatus = "ALL";
-
     async function renderUnitsTable() {
         const units = await getUnits();
+        const properties = await getProperties();
+        const buildings = await getBuildings();
+        const leases = await getLeases();
         const tbody = document.getElementById('unitTable');
         if (!tbody) return;
         tbody.innerHTML = '';
@@ -1258,54 +1263,83 @@
 
         units.forEach(u => {
             const tr = document.createElement('tr');
-            const unitName = u.unit_no || u.unit_number || u.name || `Unit #${u.id}`;
-            const propName = u.property ? (u.property.name || u.property.property_name) : (u.property_name || 'Sunrise Residences');
-            const buildingTag = u.building ? ` • ${u.building}` : '';
-            const unitRent = parseFloat(u.rent || u.rent_amount || u.monthly_rent || 0);
-            const occupant = u.tenant_name || u.tenant || '';
-            const rawStatus = (u.status || 'VACANT').toUpperCase();
-            const sqm = u.sqm || u.floor_area || '45.0';
+            const unitNo = u.unit_no || u.unit_number || `Unit #${u.id}`;
+            const unitId = u.id;
 
-            let normalizedStatus = 'VACANT';
-            if (occupant || rawStatus === 'OCCUPIED' || rawStatus === 'LEASED') {
-                normalizedStatus = 'OCCUPIED';
-            } else if (rawStatus === 'MAINTENANCE' || rawStatus === 'UNDER_MAINTENANCE') {
-                normalizedStatus = 'MAINTENANCE';
-            } else {
-                normalizedStatus = 'VACANT';
+            // Resolve Property Name
+            let propName = 'Unassigned Property';
+            if (u.property_name) {
+                propName = u.property_name;
+            } else if (u.property && typeof u.property === 'object') {
+                propName = u.property.name || u.property.property_name || 'Property';
+            } else if (u.property_id) {
+                const matchedP = properties.find(p => String(p.id) === String(u.property_id));
+                if (matchedP) propName = matchedP.name || matchedP.property_name;
             }
 
-            tr.dataset.status = normalizedStatus;
+            // Resolve Building Name
+            let buildingTag = '';
+            if (u.building_id) {
+                const matchedB = buildings.find(b => String(b.id) === String(u.building_id));
+                if (matchedB) buildingTag = ` • ${matchedB.name}`;
+            }
+
+            const unitRent = parseFloat(u.rent || u.rent_amount || u.monthly_rent || 0);
+            const sqm = parseFloat(u.sqm || 45.0).toFixed(1);
+            const rawStatus = (u.status || 'Available').toUpperCase();
+
+            // Status Resolution & Leases Check
+            let normalizedStatus = 'Available';
+            let occupant = u.tenant_name || '';
+
+            if (!occupant) {
+                const activeLease = leases.find(l => 
+                    String(l.unit_id) === String(u.id) && 
+                    (l.status || '').toUpperCase() === 'ACTIVE'
+                );
+                if (activeLease) {
+                    occupant = activeLease.tenant_name || 'Active Tenant';
+                }
+            }
+
+            if (occupant || rawStatus === 'OCCUPIED' || rawStatus === 'LEASED') {
+                normalizedStatus = 'Occupied';
+            } else if (rawStatus === 'MAINTENANCE' || rawStatus === 'UNDER_MAINTENANCE' || rawStatus === 'UNDER MAINTENANCE') {
+                normalizedStatus = 'Under Maintenance';
+            } else {
+                normalizedStatus = 'Available';
+            }
+
+            tr.dataset.status = normalizedStatus.toUpperCase();
             tr.dataset.property = propName;
-            tr.dataset.type = u.type || u.unit_type || 'Apartment';
+            tr.dataset.type = u.type || 'Standard Residential';
 
             let badgeHtml = '';
-            if (normalizedStatus === 'OCCUPIED') {
-                badgeHtml = `<span class="status-badge status-occupied"><i class="bi bi-person-check me-1"></i> OCCUPIED</span>`;
-            } else if (normalizedStatus === 'VACANT') {
-                badgeHtml = `<span class="status-badge status-available"><i class="bi bi-check2-circle me-1"></i> Available (VACANT)</span>`;
+            if (normalizedStatus === 'Occupied') {
+                badgeHtml = `<span class="status-badge status-occupied" style="background:#EFF6FF; color:#2563EB; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-person-check me-1"></i> Occupied</span>`;
+            } else if (normalizedStatus === 'Available') {
+                badgeHtml = `<span class="status-badge status-available" style="background:#ECFDF5; color:#059669; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-check2-circle me-1"></i> Available</span>`;
             } else {
-                badgeHtml = `<span class="status-badge status-maintenance"><i class="bi bi-tools me-1"></i> UNDER MAINTENANCE</span>`;
+                badgeHtml = `<span class="status-badge status-maintenance" style="background:#FEF3C7; color:#D97706; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-tools me-1"></i> Under Maintenance</span>`;
             }
 
             const occupantInfo = occupant ? `<span style="color:#2563EB; font-weight:600;"><i class="bi bi-person me-1"></i>${occupant}</span>` : '';
-            const desc = u.subtitle || u.description || `${sqm} sq.m`;
+            const desc = u.subtitle || `${sqm} sq.m`;
             const subtitleHtml = [occupantInfo, desc].filter(Boolean).join(' · ');
-            const unitId = u.id || unitName;
 
             tr.innerHTML = `
                 <td>
-                    <div class="unit-name" style="font-weight:600;">${unitName}</div>
+                    <div class="unit-name" style="font-weight:600;">${unitNo}</div>
                     <div class="unit-subtitle" style="font-size:11px; color:var(--muted, #64748B); margin-top:2px;">${subtitleHtml}</div>
                 </td>
                 <td><strong>${propName}</strong><div style="font-size:11px; color:var(--muted, #64748B);">${buildingTag.replace(' • ', '')}</div></td>
-                <td>${u.type || u.unit_type || 'Apartment'}</td>
+                <td>${u.type || 'Standard Residential'}</td>
                 <td>${u.floor || '1st Floor'} (${sqm} sq.m)</td>
                 <td><strong>₱${unitRent.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong></td>
                 <td>${badgeHtml}</td>
                 <td>
                     <div style="display:flex; gap:6px;">
-                        <button class="action-button delete" title="Delete Unit" onclick="deleteUnit('${unitId}', '${unitName}')"><i class="bi bi-trash"></i></button>
+                        <button class="action-button delete" title="Delete Unit" onclick="deleteUnit('${unitId}', '${unitNo}')"><i class="bi bi-trash"></i></button>
                     </div>
                 </td>
             `;
@@ -1316,6 +1350,7 @@
         updateKPIsWithData(units);
     }
 
+    // LIVE CREATE UNIT (POST /api/units)
     async function saveUnit() {
         const unitNo = document.getElementById('modalUnitNo').value.trim();
         const type = document.getElementById('modalUnitType').value;
@@ -1326,47 +1361,39 @@
         const rentInput = document.getElementById('modalRent');
         const statusSelect = document.getElementById('modalStatus');
         const subtitleInput = document.getElementById('modalSubtitle');
+        const orgId = localStorage.getItem('organization_id') || DEFAULT_ORG_ID;
 
         const propertyId = propertySelect ? propertySelect.value : '';
-        const propertyName = propertySelect && propertySelect.selectedIndex > 0 ? propertySelect.options[propertySelect.selectedIndex].text.split('(')[0].trim() : 'Sunrise Residences';
-        const buildingId = buildingSelect ? buildingSelect.value : '';
-        const buildingName = buildingSelect && buildingSelect.selectedIndex > 0 ? buildingSelect.options[buildingSelect.selectedIndex].text.split('(')[0].trim() : 'Tower A';
+        const buildingId = buildingSelect && buildingSelect.value ? buildingSelect.value : null;
         const floorVal = floorSelect ? floorSelect.value : '1st Floor';
+        const floorNum = parseInt(floorVal.replace(/\D/g, '')) || 1;
         const sqm = sqmInput ? parseFloat(sqmInput.value) || 45.0 : 45.0;
         const rent = rentInput ? parseFloat(rentInput.value) || 0 : 0;
-        const lifecycleStatus = statusSelect ? statusSelect.value : 'VACANT';
+        const lifecycleStatus = statusSelect ? statusSelect.value : 'Available';
         const subtitle = subtitleInput ? subtitleInput.value.trim() : '';
 
-        if (!unitNo || !propertyId || !buildingId || !floorVal) {
-            alert("Please fill in all required fields (Unit Number, Property, Building, Floor Level).");
+        if (!unitNo || !propertyId) {
+            alert("Please fill in the required fields: Unit Number and Parent Property.");
             return;
         }
 
-        const newUnitId = `UNT-${Math.floor(1000 + Math.random() * 9000)}`;
-
         const payload = {
-            id: newUnitId,
+            organization_id: orgId,
             property_id: propertyId,
-            property_name: propertyName,
-            property: propertyName,
             building_id: buildingId,
-            building: buildingName,
             unit_no: unitNo,
             unit_number: unitNo,
             type: type,
-            unit_type: type,
             floor: floorVal,
+            floor_number: floorNum,
             sqm: sqm,
-            floor_area: sqm,
             rent: rent,
             rent_amount: rent,
             monthly_rent: rent,
-            status: lifecycleStatus,
-            subtitle: subtitle || `${sqm} sq.m · ${type}`,
-            description: subtitle || `${sqm} sq.m · ${type}`
+            status: lifecycleStatus === 'VACANT' ? 'Available' : lifecycleStatus,
+            subtitle: subtitle || `${sqm} sq.m · ${type}`
         };
 
-        // 1. Live Database POST
         try {
             const res = await fetch(UNITS_API_URL, {
                 method: 'POST',
@@ -1376,66 +1403,65 @@
 
             if (!res.ok) {
                 const errData = await res.json().catch(() => ({}));
-                alert(`Error saving unit: ${errData.detail || 'Could not save unit to database'}`);
+                alert(`Error saving unit: ${errData.detail || 'Could not save unit to Neon database.'}`);
                 return;
             }
         } catch (e) {
-            console.warn("Backend unit create bypassed, saving locally:", e);
+            console.error("Network error while creating unit:", e);
+            alert("Network connection error. Check server connection.");
+            return;
         }
 
-        // 2. Local Storage Sync
-        let units = await getUnits();
-        units.unshift(payload);
-        localStorage.setItem('argo_units', JSON.stringify(units));
-
-        alert(`Unit "${unitNo}" saved successfully with lifecycle state: ${lifecycleStatus}!`);
+        alert(`Unit "${unitNo}" created successfully in database!`);
         closeModal();
-        await renderUnitsTable();
 
+        // Reset inputs
         document.getElementById('modalUnitNo').value = '';
+        if (subtitleInput) subtitleInput.value = '';
         if (propertySelect) propertySelect.value = '';
         if (buildingSelect) buildingSelect.innerHTML = '<option value="">Select building structure...</option>';
         if (floorSelect) floorSelect.innerHTML = '<option value="">Select floor...</option>';
+
+        await renderUnitsTable();
     }
 
+    // LIVE DELETE UNIT (DELETE /api/units/{id})
     async function deleteUnit(id, unitName) {
         const displayName = unitName || id;
-        if (!confirm(`Are you sure you want to permanently delete ${displayName} from the database?`)) return;
+        if (!confirm(`Are you sure you want to permanently delete "${displayName}" from the database?`)) return;
 
         try {
-            const response = await fetch(`${UNITS_API_URL}${encodeURIComponent(id)}`, {
+            const response = await fetch(`${UNITS_API_URL}/${encodeURIComponent(id)}`, {
                 method: 'DELETE',
                 headers: getAuthHeaders()
             });
 
             if (!response.ok) {
                 const errData = await response.json().catch(() => ({}));
-                alert(`Cannot delete unit: ${errData.detail || 'Unit is currently linked to an active lease.'}`);
+                alert(`Cannot delete unit: ${errData.detail || 'Unit is currently referenced by an active lease.'}`);
                 return;
             }
         } catch (err) {
             console.error("Delete request failed:", err);
+            alert("Network error occurred while deleting unit.");
+            return;
         }
 
-        let units = await getUnits();
-        units = units.filter(u => String(u.id) !== String(id) && String(u.unit_number || u.unit_no) !== String(unitName));
-        localStorage.setItem('argo_units', JSON.stringify(units));
-
-        alert(`${displayName} deleted successfully!`);
+        alert(`Unit "${displayName}" deleted successfully!`);
         await renderUnitsTable();
     }
 
     function updateKPIsWithData(units) {
-        let total = units.length;
+        const total = units.length;
         let available = 0, occupied = 0, maintenance = 0;
 
         units.forEach(u => {
             const occupant = u.tenant_name || u.tenant;
-            const s = (u.status || 'VACANT').toUpperCase();
+            const s = (u.status || 'AVAILABLE').toUpperCase();
 
             if (occupant || s === 'OCCUPIED' || s === 'LEASED') {
                 occupied++;
-            } else if (s === 'MAINTENANCE' || s === 'UNDER_MAINTENANCE') {
+            } else if (s === 'MAINTENANCE' || s === 'UNDER_MAINTENANCE' || s === 'UNDER MAINTENANCE') {
                 maintenance++;
             } else {
                 available++;
@@ -1448,8 +1474,8 @@
         if (document.getElementById('kpiMaintenance')) document.getElementById('kpiMaintenance').textContent = maintenance;
     }
 
-    function openModal() { 
-        populatePropertyDropdowns();
+    async function openModal() { 
+        await populatePropertyDropdowns();
         const modal = document.getElementById("unitModal");
         if (modal) modal.classList.add("show"); 
     }
@@ -1518,16 +1544,6 @@
         const firstTab = document.querySelectorAll('.tab')[0];
         if (firstTab) setTabFilter('ALL', firstTab);
     }
-
-    window.addEventListener('storage', async (e) => {
-        if (['argo_units', 'argo_properties', 'argo_buildings', 'argo_tenants', 'argo_leases', 'argo_notifications', 'argo_user', 'argo_pov'].includes(e.key)) {
-            renderSidebar();
-            loadUserData();
-            updateHeaderBadge();
-            await populatePropertyDropdowns();
-            await renderUnitsTable();
-        }
-    });
 
     document.addEventListener('DOMContentLoaded', async () => {
         renderSidebar();

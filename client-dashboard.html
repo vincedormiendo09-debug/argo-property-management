@@ -900,6 +900,7 @@
     </div>
 
 <script>
+    const DEFAULT_ORG_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
     const API_BASE_URL = (
         window.location.origin.includes('localhost') || 
         window.location.origin.includes('127.0.0.1')
@@ -909,11 +910,13 @@
             ? 'https://argo-management-2026.onrender.com/api'
             : '/api';
 
-    const INVOICES_API_URL = `${API_BASE_URL}/invoices/`;
-    const LEASES_API_URL = `${API_BASE_URL}/leases/`;
-    const MAINTENANCE_API_URL = `${API_BASE_URL}/maintenance/`;
-    const TRANSACTIONS_API_URL = `${API_BASE_URL}/transactions/`;
-    const NOTIFICATIONS_API_URL = `${API_BASE_URL}/notifications/`;
+    const INVOICES_API_URL = `${API_BASE_URL}/invoices`;
+    const LEASES_API_URL = `${API_BASE_URL}/leases`;
+    const MAINTENANCE_API_URL = `${API_BASE_URL}/maintenance`;
+    const TRANSACTIONS_API_URL = `${API_BASE_URL}/transactions`;
+    const NOTIFICATIONS_API_URL = `${API_BASE_URL}/notifications`;
+    const TENANTS_API_URL = `${API_BASE_URL}/tenants`;
+    const UNITS_API_URL = `${API_BASE_URL}/units`;
 
     function parseCurrency(val) {
         if (val === undefined || val === null || val === '') return 0;
@@ -938,6 +941,7 @@
 
     function logoutUser() {
         localStorage.clear();
+        sessionStorage.clear();
         window.location.replace('index.html');
     }
 
@@ -980,108 +984,169 @@
         nav.innerHTML = html;
     }
 
-    // Database Fetchers
+    // Direct Live Database Fetchers (No Stale LocalStorage Cache Poisoning)
     async function getInvoices() {
         try {
-            const res = await fetch(INVOICES_API_URL, { headers: getAuthHeaders() });
+            const res = await fetch(INVOICES_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (res.ok) {
                 const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.invoices || data.data || []);
-                localStorage.setItem('argo_invoices', JSON.stringify(list));
-                return list;
+                return Array.isArray(data) ? data : (data.items || data.invoices || data.data || []);
             }
-        } catch (e) {}
-
-        const raw = localStorage.getItem('argo_invoices');
-        return raw ? JSON.parse(raw) : [];
-    }
-
-    function saveInvoices(invoices) {
-        localStorage.setItem('argo_invoices', JSON.stringify(invoices));
+        } catch (e) {
+            console.error("Live Invoices API fetch failed:", e);
+        }
+        return [];
     }
 
     async function getLeases() {
         try {
-            const res = await fetch(LEASES_API_URL, { headers: getAuthHeaders() });
+            const res = await fetch(LEASES_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (res.ok) {
                 const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.leases || data.data || []);
-                localStorage.setItem('argo_leases', JSON.stringify(list));
-                return list;
+                return Array.isArray(data) ? data : (data.items || data.leases || data.data || []);
             }
-        } catch (e) {}
+        } catch (e) {
+            console.error("Live Leases API fetch failed:", e);
+        }
+        return [];
+    }
 
-        const raw = localStorage.getItem('argo_leases');
-        return raw ? JSON.parse(raw) : [];
+    async function getTenants() {
+        try {
+            const res = await fetch(TENANTS_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
+            if (res.ok) {
+                const data = await res.json();
+                return Array.isArray(data) ? data : (data.items || data.tenants || data.data || []);
+            }
+        } catch (e) {
+            console.warn("Live Tenants API fetch failed:", e);
+        }
+        return [];
+    }
+
+    async function getUnits() {
+        try {
+            const res = await fetch(UNITS_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
+            if (res.ok) {
+                const data = await res.json();
+                return Array.isArray(data) ? data : (data.items || data.units || data.data || []);
+            }
+        } catch (e) {
+            console.warn("Live Units API fetch failed:", e);
+        }
+        return [];
     }
 
     async function getTickets() {
         try {
-            const res = await fetch(MAINTENANCE_API_URL, { headers: getAuthHeaders() });
+            const res = await fetch(MAINTENANCE_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (res.ok) {
                 const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.tickets || data.data || []);
-                localStorage.setItem('argo_maintenance_tickets', JSON.stringify(list));
-                return list;
+                return Array.isArray(data) ? data : (data.items || data.tickets || data.data || []);
+            }
+        } catch (e) {
+            console.warn("Live Maintenance API fetch failed:", e);
+        }
+        return [];
+    }
+
+    async function getNotifications() {
+        try {
+            const res = await fetch(NOTIFICATIONS_API_URL, { 
+                headers: getAuthHeaders(),
+                cache: 'no-store'
+            });
+            if (res.ok) {
+                const data = await res.json();
+                return Array.isArray(data) ? data : (data.items || data.notifications || data.data || []);
             }
         } catch (e) {}
-
-        const raw = localStorage.getItem('argo_maintenance_tickets');
-        return raw ? JSON.parse(raw) : [];
+        return [];
     }
 
-    function getTransactions() {
-        return JSON.parse(localStorage.getItem('argo_transactions') || '[]');
-    }
-
-    function saveTransactions(transactions) {
-        localStorage.setItem('argo_transactions', JSON.stringify(transactions));
-    }
-
-    function getNotifications() {
-        return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
-    }
-
-    function saveNotifications(notifications) {
-        localStorage.setItem('argo_notifications', JSON.stringify(notifications));
-    }
-
-    // Dynamic Tenant Resolution (Strictly Scoped by Logged-In User)
+    // Dynamic Tenant Resolution (Strictly Scoped by Logged-In User in Neon DB)
     async function getActiveTenantContext() {
         const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
         const userEmail = (user.email || localStorage.getItem('user_email') || '').toLowerCase().trim();
         const userName = user.name || user.full_name || 'Resident Tenant';
         const userId = user.id || null;
 
+        const tenants = await getTenants();
         const leases = await getLeases();
+        const units = await getUnits();
 
-        // Scope leases strictly to logged-in user credentials
+        // Match tenant profile in Neon DB
+        const matchedTenant = tenants.find(t => {
+            const tUserId = String(t.user_id || t.userId || '');
+            const tEmail = (t.email || '').toLowerCase().trim();
+            const tName = (t.name || '').toLowerCase().trim();
+
+            return (userId && tUserId === String(userId)) ||
+                   (userEmail && tEmail === userEmail) ||
+                   (userName && tName === userName.toLowerCase());
+        }) || null;
+
+        const tenantId = matchedTenant ? matchedTenant.id : userId;
+
+        // Match lease records belonging to this tenant
         const userLeases = leases.filter(l => {
             const lTenantId = String(l.tenant_id || l.tenantId || '');
             const lEmail = (l.tenant_email || l.email || '').toLowerCase().trim();
             const lName = (l.tenant_name || l.tenantName || '').toLowerCase().trim();
             
-            return (userId && lTenantId === String(userId)) ||
+            return (tenantId && lTenantId === String(tenantId)) ||
+                   (userId && lTenantId === String(userId)) ||
                    (userEmail && lEmail === userEmail) ||
                    (userName && lName === userName.toLowerCase());
         });
 
         const activeLease = userLeases.find(l => (l.status || '').toUpperCase() === 'ACTIVE') || userLeases[0] || null;
 
+        // Resolve exact Unit details from Units table if linked
+        let resolvedUnitName = activeLease ? (activeLease.unit_number || activeLease.unit || 'Unit') : 'No Unit';
+        let resolvedPropName = activeLease ? (activeLease.property_name || activeLease.property || 'Property') : 'Property';
+
+        if (activeLease && activeLease.unit_id) {
+            const matchedUnit = units.find(u => String(u.id) === String(activeLease.unit_id));
+            if (matchedUnit) {
+                resolvedUnitName = matchedUnit.unit_no || matchedUnit.unit_number || resolvedUnitName;
+                resolvedPropName = matchedUnit.property_name || resolvedPropName;
+            }
+        }
+
         return {
             user,
             userId,
-            name: userName,
+            tenant: matchedTenant,
+            tenantId,
+            name: matchedTenant?.name || userName,
             email: userEmail,
             leases: userLeases,
-            activeLease: activeLease
+            activeLease: activeLease,
+            unitName: resolvedUnitName,
+            propertyName: resolvedPropName
         };
     }
 
     async function getTenantInvoices() {
         const ctx = await getActiveTenantContext();
         const allInvoices = await getInvoices();
-        const activeLeaseIds = new Set(ctx.leases.map(l => String(l.lease_id || l.id)).filter(Boolean));
+        const activeLeaseIds = new Set(ctx.leases.map(l => String(l.id || l.lease_id)).filter(Boolean));
 
         return allInvoices.filter(inv => {
             const invEmail = (inv.tenant_email || '').toLowerCase().trim();
@@ -1097,15 +1162,18 @@
     async function getTenantTickets() {
         const ctx = await getActiveTenantContext();
         const allTickets = await getTickets();
+        const activeUnitIds = new Set(ctx.leases.map(l => String(l.unit_id || '')).filter(Boolean));
         const activeUnitNames = new Set(ctx.leases.map(l => (l.unit_number || l.unit || '').toLowerCase()).filter(Boolean));
 
         return allTickets.filter(t => {
             const tEmail = (t.tenant_email || '').toLowerCase().trim();
             const tName = (t.tenant_name || t.tenantName || '').toLowerCase().trim();
             const tLoc = (t.property_location || t.fullLocation || '').toLowerCase();
+            const tUnitId = String(t.unit_id || '');
 
             return (ctx.email && tEmail === ctx.email) ||
                    (ctx.name && tName === ctx.name.toLowerCase()) ||
+                   (tUnitId && activeUnitIds.has(tUnitId)) ||
                    ([...activeUnitNames].some(u => u && tLoc.includes(u)));
         });
     }
@@ -1119,9 +1187,7 @@
         if (nameEl) nameEl.textContent = ctx.name;
 
         if (ctx.activeLease) {
-            const unit = ctx.activeLease.unit_number || ctx.activeLease.unit || 'Unit Occupant';
-            const prop = ctx.activeLease.property_name || ctx.activeLease.property || 'Property';
-            if (roleEl) roleEl.textContent = `${prop} • ${unit}`;
+            if (roleEl) roleEl.textContent = `${ctx.propertyName} • ${ctx.unitName}`;
         } else {
             if (roleEl) roleEl.textContent = 'Resident Account (No Active Unit)';
         }
@@ -1133,6 +1199,7 @@
         }
     }
 
+    // Dynamic Live KPI Computation for Tenant
     async function updateDashboardKPIs() {
         const ctx = await getActiveTenantContext();
         const invoices = await getTenantInvoices();
@@ -1141,13 +1208,13 @@
         const welcomeEl = document.getElementById('welcomeHeaderTitle');
         if (welcomeEl) welcomeEl.textContent = `Welcome Home, ${ctx.name.split(' ')[0]}`;
 
-        // 1. Outstanding Balance Calculation
+        // 1. Outstanding Balance Calculation strictly for this tenant
         let totalUnpaid = 0;
         let earliestDueDate = null;
 
         invoices.forEach(inv => {
-            const status = (inv.status || '').toLowerCase();
-            if (status === 'unpaid' || status === 'overdue' || status === 'pending') {
+            const rawStatus = (inv.status || 'UNPAID').toUpperCase();
+            if (rawStatus !== 'PAID') {
                 totalUnpaid += parseCurrency(inv.amount || 0);
                 const due = inv.due_date || inv.dueDate;
                 if (!earliestDueDate && due) earliestDueDate = due;
@@ -1164,7 +1231,7 @@
                 kpiBal.style.color = 'var(--success, #059669)';
                 kpiBalIcon.style.background = '#ECFDF5';
                 kpiBalIcon.style.color = 'var(--success, #059669)';
-                kpiBalDesc.textContent = 'Account is fully up to date';
+                kpiBalDesc.textContent = 'Account is fully settled with zero balance';
             } else {
                 kpiBal.style.color = 'var(--warning, #D97706)';
                 kpiBalIcon.style.background = '#FEF3C7';
@@ -1175,7 +1242,7 @@
 
         // 2. Next Due Date
         const kpiNextDue = document.getElementById('kpiNextDueDate');
-        if (kpiNextDue) kpiNextDue.textContent = earliestDueDate || (totalUnpaid > 0 ? 'Due Immediately' : 'No Pending Due');
+        if (kpiNextDue) kpiNextDue.textContent = earliestDueDate || (totalUnpaid > 0 ? 'Due Immediately' : 'No Pending Dues');
 
         // 3. Active Lease Status
         const kpiLeaseStatus = document.getElementById('kpiLeaseStatus');
@@ -1184,11 +1251,9 @@
 
         if (kpiLeaseStatus && kpiLeaseLocation && kpiLeaseIcon) {
             if (ctx.activeLease) {
-                const uNum = ctx.activeLease.unit_number || ctx.activeLease.unit || 'Unit';
-                const pName = ctx.activeLease.property_name || ctx.activeLease.property || 'Property';
-                kpiLeaseStatus.textContent = `ACTIVE (${uNum})`;
+                kpiLeaseStatus.textContent = `ACTIVE (${ctx.unitName})`;
                 kpiLeaseStatus.style.color = 'var(--success, #059669)';
-                kpiLeaseLocation.textContent = `${pName} • ${uNum}`;
+                kpiLeaseLocation.textContent = `${ctx.propertyName} • ${ctx.unitName}`;
                 kpiLeaseIcon.style.background = '#ECFDF5';
                 kpiLeaseIcon.style.color = 'var(--success, #059669)';
             } else {
@@ -1202,8 +1267,8 @@
 
         // 4. Maintenance Requests Count
         const activeTickets = tickets.filter(t => {
-            const s = (t.status || '').toLowerCase();
-            return s === 'open' || s === 'in progress' || s === 'assigned' || s === 'pending';
+            const s = (t.status || '').toUpperCase();
+            return s === 'OPEN' || s === 'IN PROGRESS' || s === 'ASSIGNED' || s === 'PENDING';
         });
         
         const kpiMaint = document.getElementById('kpiActiveMaintenance');
@@ -1215,7 +1280,7 @@
                 const target = activeTickets[0];
                 kpiMaintDesc.textContent = `${target.title || 'Work Order'} (${target.technician || 'Assigned'})`;
             } else {
-                kpiMaintDesc.textContent = 'No active tickets';
+                kpiMaintDesc.textContent = 'No active maintenance tickets';
             }
         }
     }
@@ -1245,19 +1310,20 @@
         }
 
         const rent = parseCurrency(l.rent || l.rent_amount || l.monthly_rent || 0);
-        const deposit = parseCurrency(l.deposit_amount || l.deposit || (rent * 2));
-        const unitLocation = l.property_name && l.unit_number ? `${l.property_name} • ${l.unit_number}` : (l.unit || 'Assigned Unit');
+        const deposit = parseCurrency(l.deposit || l.deposit_amount || (rent * 2));
+        const unitLocation = `${ctx.propertyName} • ${ctx.unitName}`;
         const termDisplay = (l.start_date && l.end_date) ? `${l.start_date} – ${l.end_date}` : (l.start_date ? `Since ${l.start_date}` : 'Open-Ended');
 
         if (badgeTag) {
             badgeTag.className = 'status-badge status-active';
+            badgeTag.style.cssText = 'background:#ECFDF5; color:#059669; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;';
             badgeTag.textContent = 'Verified Lease';
         }
         if (dispLeaseId) dispLeaseId.textContent = l.lease_id || l.id || 'LSE';
         if (dispUnitLocation) dispUnitLocation.textContent = unitLocation;
         if (dispLeaseTerm) dispLeaseTerm.textContent = termDisplay;
         if (dispMonthlyRent) dispMonthlyRent.textContent = `${formatPeso(rent)} / month`;
-        if (dispDeposit) dispDeposit.textContent = `${formatPeso(deposit)} (Verified Deposit)`;
+        if (dispDeposit) dispDeposit.textContent = `${formatPeso(deposit)} (Security Deposit)`;
     }
 
     async function renderRecentPayments() {
@@ -1275,33 +1341,33 @@
         invoices.slice(0, 5).forEach(inv => {
             const row = document.createElement('div');
             row.className = 'info-row';
+            row.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid #F1F5F9;';
 
-            const status = (inv.status || 'Unpaid').toLowerCase();
-            let statusColor = 'var(--muted, #64748B)';
-            if (status === 'paid') statusColor = 'var(--success, #059669)';
-            else if (status.includes('pending')) statusColor = 'var(--warning, #D97706)';
-            else statusColor = 'var(--danger, #E11D48)';
+            const rawStatus = (inv.status || 'UNPAID').toUpperCase();
+            let statusColor = 'var(--danger, #E11D48)';
+            if (rawStatus === 'PAID') statusColor = 'var(--success, #059669)';
+            else if (rawStatus.includes('PENDING')) statusColor = 'var(--warning, #D97706)';
 
             const refLabel = inv.ref_no || inv.refNo || (inv.due_date ? `Due: ${inv.due_date}` : 'Billing Notice');
 
             row.innerHTML = `
                 <div>
-                    <strong>${inv.type || 'Monthly Dues'}</strong>
+                    <strong>${inv.type || 'Monthly Rent'}</strong>
                     <div style="font-size:11px; color:var(--muted, #64748B);">${refLabel}</div>
                 </div>
                 <div style="text-align:right;">
                     <strong style="color:${statusColor};">${formatPeso(inv.amount || 0)}</strong>
-                    <div style="font-size:11px; color:${statusColor}; font-weight:600;">${inv.status || 'Unpaid'}</div>
+                    <div style="font-size:11px; color:${statusColor}; font-weight:600;">${rawStatus}</div>
                 </div>
             `;
             container.appendChild(row);
         });
     }
 
-    function updateHeaderBadge() {
-        const notifs = getNotifications().filter(n => 
+    async function updateHeaderBadge() {
+        const notifs = (await getNotifications()).filter(n => 
             (n.pov === 'client' || n.pov === 'tenant' || n.pov === 'all') && 
-            (n.status === 'unread' || n.is_read === false)
+            (!n.is_read || n.status === 'unread')
         );
         const badge = document.getElementById('clientHeaderNotifBadge');
         if (badge) badge.textContent = notifs.length;
@@ -1334,7 +1400,7 @@
         const ctx = await getActiveTenantContext();
         const modalTag = document.getElementById('modalTenantTag');
         if (modalTag) {
-            const loc = ctx.activeLease ? (ctx.activeLease.property_name && ctx.activeLease.unit_number ? `${ctx.activeLease.property_name} • ${ctx.activeLease.unit_number}` : ctx.activeLease.unit) : 'No Unit Assigned';
+            const loc = ctx.activeLease ? `${ctx.propertyName} • ${ctx.unitName}` : 'No Unit Assigned';
             modalTag.textContent = `${ctx.name} — ${loc}`;
         }
         
@@ -1358,8 +1424,8 @@
         select.innerHTML = '';
 
         const payableInvoices = invoices.filter(inv => {
-            const s = (inv.status || '').toLowerCase();
-            return s === 'unpaid' || s === 'overdue';
+            const s = (inv.status || '').toUpperCase();
+            return s !== 'PAID';
         });
 
         if (payableInvoices.length === 0) {
@@ -1371,12 +1437,14 @@
 
         payableInvoices.forEach(inv => {
             const opt = document.createElement('option');
-            const invId = inv.invoice_id || inv.id;
+            const invId = inv.id;
             opt.value = invId;
-            opt.textContent = `${invId} — ${inv.type || 'Invoice'} (${formatPeso(inv.amount || 0)})`;
+            opt.dataset.amount = inv.amount || 0;
+            opt.textContent = `${inv.invoice_id || inv.id} — ${inv.type || 'Invoice'} (${formatPeso(inv.amount || 0)})`;
             select.appendChild(opt);
         });
 
+        select.onchange = autoFillInvoiceAmount;
         autoFillInvoiceAmount();
     }
 
@@ -1384,18 +1452,15 @@
         const select = document.getElementById('modalInvoiceSelect');
         if (!select) return;
 
-        const invId = select.value;
-        if (!invId) return;
-
-        const invoices = await getTenantInvoices();
-        const selected = invoices.find(i => (i.id || i.invoice_id) === invId);
+        const selectedOpt = select.options[select.selectedIndex];
         const amountInput = document.getElementById('modalAmountInput');
 
-        if (selected && amountInput) {
-            amountInput.value = parseFloat(selected.amount || 0).toFixed(2);
+        if (selectedOpt && selectedOpt.dataset.amount && amountInput) {
+            amountInput.value = parseFloat(selectedOpt.dataset.amount).toFixed(2);
         }
     }
 
+    // LIVE SUBMIT PAYMENT PROOF (PATCH /api/invoices/{id} + POST /api/transactions + POST /api/notifications)
     async function submitPayment() {
         const ctx = await getActiveTenantContext();
         const invoiceSelect = document.getElementById('modalInvoiceSelect');
@@ -1409,8 +1474,8 @@
         const channel = channelSelect ? channelSelect.value : 'GCash';
         const amount = parseFloat(amountInput ? amountInput.value : 0) || 0;
         let refNo = refInput ? refInput.value.trim() : '';
-        const receiptFile = fileInput && fileInput.files ? fileInput.files[0] : null;
         const remarks = notesInput ? notesInput.value.trim() : '';
+        const orgId = localStorage.getItem('organization_id') || DEFAULT_ORG_ID;
 
         if (!invoiceId) {
             alert("No active unpaid invoice selected.");
@@ -1423,82 +1488,82 @@
         }
 
         if (!refNo) {
-            alert("Please enter a valid Payment Reference Number.");
+            alert("Please enter a valid Payment Reference Number (e.g., GCash / Bank reference).");
             return;
         }
 
         if (!refNo.startsWith('#')) refNo = '#' + refNo;
-        const locationStr = ctx.activeLease ? (ctx.activeLease.property_name && ctx.activeLease.unit_number ? `${ctx.activeLease.property_name} • ${ctx.activeLease.unit_number}` : ctx.activeLease.unit) : 'Resident Unit';
+        const locationStr = ctx.activeLease ? `${ctx.propertyName} • ${ctx.unitName}` : 'Resident Unit';
 
-        // 1. Update Invoice Status
-        let invoices = await getInvoices();
-        invoices = invoices.map(inv => {
-            if ((inv.id || inv.invoice_id) === invoiceId) {
-                return { 
-                    ...inv, 
-                    status: 'Pending Verification', 
-                    channel: channel, 
-                    ref_no: refNo,
-                    refNo: refNo,
-                    receipt_attachment: receiptFile ? receiptFile.name : null,
-                    notes: remarks
-                };
-            }
-            return inv;
-        });
-        saveInvoices(invoices);
-
+        // 1. Submit Payment Verification to Neon PostgreSQL
         try {
-            await fetch(`${INVOICES_API_URL}${encodeURIComponent(invoiceId)}`, {
+            const res = await fetch(`${INVOICES_API_URL}/${encodeURIComponent(invoiceId)}`, {
                 method: 'PATCH',
                 headers: getAuthHeaders(),
                 body: JSON.stringify({
-                    status: 'Pending Verification',
+                    status: 'PENDING',
                     channel: channel,
                     ref_no: refNo,
-                    notes: remarks
+                    sub: remarks || `Payment submitted via Tenant Self-Service (${channel})`
                 })
             });
-        } catch (e) {}
 
-        // 2. Add Inflow Entry to Master Transactions Ledger
-        const transactions = getTransactions();
-        transactions.unshift({
-            id: `TXN-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
-            txn_id: `TXN-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
-            ref_code: refNo,
-            refCode: refNo,
-            payer: ctx.name,
-            property_location: locationStr,
-            fullLocation: locationStr,
-            category: String(invoiceId).startsWith('UTL') ? 'Utility Charges' : 'Monthly Base Rent',
-            direction: 'INFLOW',
-            gross_amount: formatPeso(amount),
-            amount: amount,
-            channel: channel,
-            status: 'Pending',
-            receipt_attachment: receiptFile ? receiptFile.name : null,
-            timestamp: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
-        });
-        saveTransactions(transactions);
+            if (!res.ok) {
+                // Fallback PUT
+                await fetch(`${INVOICES_API_URL}/${encodeURIComponent(invoiceId)}`, {
+                    method: 'PUT',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({
+                        status: 'PENDING',
+                        channel: channel,
+                        ref_no: refNo,
+                        sub: remarks
+                    })
+                });
+            }
+        } catch (e) {
+            console.error("Payment submit error:", e);
+        }
+
+        // 2. Dispatch Live Ledger Transaction
+        const txnId = `TXN-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+        try {
+            await fetch(TRANSACTIONS_API_URL, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({
+                    organization_id: orgId,
+                    txn_id: txnId,
+                    ref_code: refNo,
+                    payer: ctx.name,
+                    property_location: locationStr,
+                    category: 'Monthly Base Rent',
+                    direction: 'INFLOW',
+                    gross_amount: amount,
+                    channel: channel,
+                    status: 'Pending'
+                })
+            });
+        } catch (err) {}
 
         // 3. Dispatch Notification Alert to Admin POV
-        let notifications = getNotifications();
-        notifications.unshift({
-            id: `NOTIF-${Date.now()}`,
-            pov: 'admin',
-            category: 'payment',
-            status: 'unread',
-            is_read: false,
-            title: `${channel} Payment Proof Submitted`,
-            time: 'Just now',
-            description: `Payment proof uploaded by <strong>${ctx.name}</strong> (${locationStr}) for Invoice <strong>${invoiceId}</strong>. Ref Code: <code>${refNo}</code>.`,
-            property: locationStr,
-            amount: formatPeso(amount),
-            actionUrl: 'rent-collection.html',
-            actionText: 'Verify Payment'
-        });
-        saveNotifications(notifications);
+        try {
+            await fetch(NOTIFICATIONS_API_URL, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({
+                    organization_id: orgId,
+                    pov: 'admin',
+                    category: 'payment',
+                    status: 'Active',
+                    is_read: false,
+                    title: `${channel} Payment Proof Submitted`,
+                    description: `Payment proof uploaded by ${ctx.name} (${locationStr}) for Invoice ${invoiceId}. Ref Code: ${refNo}.`,
+                    property: locationStr,
+                    urgent: false
+                })
+            });
+        } catch (err) {}
 
         await updateDashboardKPIs();
         await renderRecentPayments();
@@ -1508,14 +1573,14 @@
         if (notesInput) notesInput.value = '';
         if (fileInput) fileInput.value = '';
 
-        alert(`Payment proof (${refNo}) submitted successfully!\n\nProperty Manager has been notified for verification.`);
+        alert(`Payment proof (${refNo}) submitted successfully!\n\nProperty Manager has been notified for audit verification.`);
     }
 
     async function downloadContractPdf() {
         const ctx = await getActiveTenantContext();
         if (ctx.activeLease) {
             const leaseCode = ctx.activeLease.lease_id || ctx.activeLease.id || 'LSE';
-            alert(`Downloading official lease agreement PDF for ${leaseCode} (${ctx.name} • ${ctx.activeLease.unit || 'Unit'})...`);
+            alert(`Downloading official lease agreement PDF for ${leaseCode} (${ctx.name} • ${ctx.unitName})...`);
         } else {
             alert("No active lease agreement registered for this account.");
         }
@@ -1560,7 +1625,7 @@
         await updateDashboardKPIs();
         await renderLeaseSummary();
         await renderRecentPayments();
-        updateHeaderBadge();
+        await updateHeaderBadge();
     });
 
     // Real-Time Cross-Tab Listener
@@ -1570,7 +1635,7 @@
             await updateDashboardKPIs();
             await renderLeaseSummary();
             await renderRecentPayments();
-            updateHeaderBadge();
+            await updateHeaderBadge();
         }
     });
 </script>

@@ -16,7 +16,7 @@ DEFAULT_ORG_ID = uuid.UUID("a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11")
 def ensure_sandbox_organization(db: Session, org_id: uuid.UUID):
     org = db.scalar(select(models.Organization).where(models.Organization.id == org_id))
     if not org:
-        sandbox_org = models.Organization(id=org_id, name="Sunrise Property Group")
+        sandbox_org = models.Organization(id=org_id, name="ARGO Property Management Corp.")
         db.add(sandbox_org)
         db.commit()
 
@@ -33,6 +33,7 @@ def read_documents(
     stmt = select(models.Document).where(models.Document.organization_id == organization_id)
 
     # Role-scoped filtering (pov: admin, owner, client) at the database query level
+    normalized_pov = "all"
     if pov and pov.lower() != "all":
         raw_pov = pov.lower().strip()
         normalized_pov = raw_pov
@@ -136,10 +137,11 @@ def create_document(
     doc_in: schemas.DocumentCreate,
     db: Session = Depends(get_db)
 ):
-    org_id = getattr(doc_in, "organization_id", DEFAULT_ORG_ID)
+    org_id = getattr(doc_in, "organization_id", DEFAULT_ORG_ID) or DEFAULT_ORG_ID
     ensure_sandbox_organization(db, org_id)
 
-    doc_data = doc_in.dict(exclude_unset=True)
+    doc_data = doc_in.model_dump(exclude_unset=True) if hasattr(doc_in, "model_dump") else doc_in.dict(exclude_unset=True)
+    
     if "id" not in doc_data or not doc_data["id"]:
         doc_data["id"] = uuid.uuid4()
     doc_data["organization_id"] = org_id

@@ -19,7 +19,7 @@ def ensure_sandbox_organization(db: Session, org_id: uuid.UUID):
     """Ensures a stub Organization exists in local DB to satisfy FK constraints."""
     org = db.scalar(select(models.Organization).where(models.Organization.id == org_id))
     if not org:
-        sandbox_org = models.Organization(id=org_id, name="Sunrise Property Group")
+        sandbox_org = models.Organization(id=org_id, name="ARGO Property Management Corp.")
         db.add(sandbox_org)
         db.commit()
 
@@ -134,7 +134,7 @@ def find_unit_by_identifier(db: Session, unit_id: str, organization_id: uuid.UUI
     return None
 
 
-# 1. GET /api/units/ - Read units scoped by organization_id with cascading filters (Property -> Building -> Floor) & Lifecycle States
+# 1. GET /api/units/ - Read units scoped by organization_id with cascading filters & Lifecycle States
 @router.get("/", response_model=List[schemas.UnitSchema])
 def read_units(
     organization_id: uuid.UUID = Query(default=DEFAULT_ORG_ID),
@@ -232,7 +232,7 @@ def read_units(
 # 2. POST /api/units/ - Create a new unit with lifecycle state, sqm, and monthly rent specifications
 @router.post("/", response_model=schemas.UnitSchema, status_code=status.HTTP_201_CREATED)
 def create_unit(unit_in: schemas.UnitCreate, db: Session = Depends(get_db)):
-    org_id = getattr(unit_in, "organization_id", DEFAULT_ORG_ID)
+    org_id = getattr(unit_in, "organization_id", DEFAULT_ORG_ID) or DEFAULT_ORG_ID
     ensure_sandbox_organization(db, org_id)
 
     # 1. Resolve or verify parent property
@@ -266,14 +266,14 @@ def create_unit(unit_in: schemas.UnitCreate, db: Session = Depends(get_db)):
         )
 
     # 3. Save new unit
-    unit_data = unit_in.dict(exclude_unset=True)
+    unit_data = unit_in.model_dump(exclude_unset=True) if hasattr(unit_in, "model_dump") else unit_in.dict(exclude_unset=True)
     if "id" not in unit_data or not unit_data["id"]:
         unit_data["id"] = uuid.uuid4()
-    if "organization_id" not in unit_data:
+    if "organization_id" not in unit_data or not unit_data["organization_id"]:
         unit_data["organization_id"] = org_id
     unit_data["property_id"] = prop_id
 
-    # Normalize lifecycle status representation (VACANT / Available, OCCUPIED, MAINTENANCE)
+    # Normalize lifecycle status representation
     if "status" in unit_data and unit_data["status"]:
         s = unit_data["status"].upper()
         if s in ("AVAILABLE", "VACANT"):
@@ -328,7 +328,7 @@ def update_unit(
             detail="Unit not found."
         )
 
-    update_data = unit_update.dict(exclude_unset=True)
+    update_data = unit_update.model_dump(exclude_unset=True) if hasattr(unit_update, "model_dump") else unit_update.dict(exclude_unset=True)
 
     if "status" in update_data and update_data["status"]:
         s = update_data["status"].upper()

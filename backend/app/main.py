@@ -91,7 +91,8 @@ app = FastAPI(
     title="ARGO Property Management API",
     description="Multi-Tenant Property Operations Backend Gateway",
     version="0.5.0",
-    lifespan=lifespan
+    lifespan=lifespan,
+    redirect_slashes=False  # Prevents 307 redirect errors on missing trailing slashes
 )
 
 # ==========================================
@@ -192,12 +193,12 @@ def health_check(db: Session = Depends(get_db)):
 current_dir = os.path.dirname(os.path.abspath(__file__))
 candidate_paths = [
     os.path.abspath(os.path.join(current_dir, "../../frontend")),  # Root /frontend
-    os.path.abspath(os.path.join(current_dir, "../frontend")),     # /backend/frontend
+    os.path.abspath(os.path.join(current_dir, "../frontend")),    # /backend/frontend
     os.path.abspath(os.path.join(current_dir, "frontend")),        # ./frontend
     os.path.abspath(os.path.join(current_dir, "..")),              # Repo root (where HTML files live)
     os.path.abspath(os.path.join(current_dir, "static")),
     os.path.abspath(os.path.join(current_dir, "../static")),
-    current_dir                                                  # ./
+    current_dir                                                   # ./
 ]
 
 frontend_path = None

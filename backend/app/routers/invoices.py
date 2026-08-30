@@ -18,7 +18,7 @@ def ensure_sandbox_organization(db: Session, org_id: uuid.UUID):
     """Ensures a stub Organization exists in local DB to satisfy FK constraints."""
     org = db.scalar(select(models.Organization).where(models.Organization.id == org_id))
     if not org:
-        sandbox_org = models.Organization(id=org_id, name="Sunrise Property Group")
+        sandbox_org = models.Organization(id=org_id, name="ARGO Property Management Corp.")
         db.add(sandbox_org)
         db.commit()
 
@@ -181,13 +181,15 @@ def read_invoices(
 # 2. POST /api/invoices/ - Create a new billing invoice
 @router.post("/", response_model=schemas.InvoiceSchema, status_code=status.HTTP_201_CREATED)
 def create_invoice(invoice_in: schemas.InvoiceCreate, db: Session = Depends(get_db)):
-    org_id = getattr(invoice_in, "organization_id", DEFAULT_ORG_ID)
+    org_id = getattr(invoice_in, "organization_id", DEFAULT_ORG_ID) or DEFAULT_ORG_ID
     ensure_sandbox_organization(db, org_id)
 
-    invoice_data = invoice_in.dict(exclude_unset=True)
+    # Use model_dump for Pydantic V2 compatibility
+    invoice_data = invoice_in.model_dump(exclude_unset=True) if hasattr(invoice_in, "model_dump") else invoice_in.dict(exclude_unset=True)
+    
     if "id" not in invoice_data or not invoice_data["id"]:
         invoice_data["id"] = uuid.uuid4()
-    if "organization_id" not in invoice_data:
+    if "organization_id" not in invoice_data or not invoice_data["organization_id"]:
         invoice_data["organization_id"] = org_id
     if "invoice_id" not in invoice_data or not invoice_data["invoice_id"]:
         invoice_data["invoice_id"] = f"INV-{datetime.now().year}-{str(uuid.uuid4())[:4].upper()}"
@@ -227,7 +229,7 @@ def get_invoice(
     return invoice
 
 
-# 4. PUT / PATCH /api/invoices/{invoice_id} - Update invoice payment status (Verified / Paid vs Overdue)
+# 4. PUT / PATCH /api/invoices/{invoice_id} - Update invoice payment status
 @router.put("/{invoice_id}", response_model=schemas.InvoiceSchema)
 @router.patch("/{invoice_id}", response_model=schemas.InvoiceSchema)
 def update_invoice(
@@ -255,7 +257,7 @@ def update_invoice(
             detail="Invoice not found."
         )
 
-    update_data = invoice_update.dict(exclude_unset=True)
+    update_data = invoice_update.model_dump(exclude_unset=True) if hasattr(invoice_update, "model_dump") else invoice_update.dict(exclude_unset=True)
     for field, value in update_data.items():
         if hasattr(db_invoice, field):
             setattr(db_invoice, field, value)

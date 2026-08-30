@@ -961,6 +961,7 @@
     </div>
 
 <script>
+    const DEFAULT_ORG_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
     const API_BASE_URL = (
         window.location.origin.includes('localhost') || 
         window.location.origin.includes('127.0.0.1')
@@ -970,9 +971,9 @@
             ? 'https://argo-management-2026.onrender.com/api'
             : '/api';
 
-    const TRANSACTIONS_API_URL = `${API_BASE_URL}/transactions/`;
-    const INVOICES_API_URL = `${API_BASE_URL}/invoices/`;
-    const NOTIFICATIONS_API_URL = `${API_BASE_URL}/notifications/`;
+    const TRANSACTIONS_API_URL = `${API_BASE_URL}/transactions`;
+    const INVOICES_API_URL = `${API_BASE_URL}/invoices`;
+    const NOTIFICATIONS_API_URL = `${API_BASE_URL}/notifications`;
 
     let currentInspectedTxn = null;
 
@@ -999,6 +1000,7 @@
 
     function logoutUser() {
         localStorage.clear();
+        sessionStorage.clear();
         window.location.replace('index.html');
     }
 
@@ -1181,84 +1183,73 @@
         }
     }
 
-    // Database Fetchers & Inflow Synchronizer
+    // Direct Database Fetchers
     async function getTransactions() {
         let liveTxns = [];
         try {
-            const res = await fetch(TRANSACTIONS_API_URL, { headers: getAuthHeaders() });
+            const res = await fetch(TRANSACTIONS_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (res.ok) {
                 const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.transactions || data.data || []);
-                liveTxns = list;
-                localStorage.setItem('argo_transactions', JSON.stringify(list));
+                liveTxns = Array.isArray(data) ? data : (data.items || data.transactions || data.data || []);
             }
         } catch (e) {
-            console.warn("Transactions API offline, using local cache:", e);
+            console.error("Live Transactions API fetch error:", e);
         }
 
-        if (liveTxns.length === 0) {
-            const raw = localStorage.getItem('argo_transactions');
-            liveTxns = raw ? JSON.parse(raw) : [];
-        }
-
-        // Synchronize paid invoices into the transaction ledger
-        let invoices = [];
+        // Cross-sync completed / verified invoices from database
         try {
-            const invRes = await fetch(INVOICES_API_URL, { headers: getAuthHeaders() });
+            const invRes = await fetch(INVOICES_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (invRes.ok) {
                 const invData = await invRes.json();
-                invoices = Array.isArray(invData) ? invData : (invData.items || invData.invoices || invData.data || []);
+                const invoices = Array.isArray(invData) ? invData : (invData.items || invData.invoices || invData.data || []);
+                
+                invoices.forEach(inv => {
+                    const s = (inv.status || '').toUpperCase();
+                    const ref = inv.ref_no || `#INV-${inv.invoice_id || inv.id}`;
+                    const isAlreadyLogged = liveTxns.some(t => (t.ref_code && t.ref_code === ref) || String(t.txn_id).includes(inv.id));
+
+                    if (!isAlreadyLogged && s === 'PAID') {
+                        const amt = parseCurrency(inv.amount);
+                        const categoryType = inv.category_type || (inv.type?.includes('Elec') ? 'Electricity Charges' : (inv.type?.includes('Water') ? 'Water Charges' : 'Monthly Base Rent'));
+                        liveTxns.unshift({
+                            id: `TXN-${inv.id}`,
+                            txn_id: `TXN-${inv.invoice_id || inv.id}`,
+                            ref_code: ref,
+                            payer: inv.tenant_name || 'Tenant',
+                            property_location: inv.property_location || inv.sub || 'Property Location',
+                            category: categoryType,
+                            direction: 'INFLOW',
+                            gross_amount: amt,
+                            channel: inv.channel || 'GCash',
+                            status: 'Completed',
+                            created_at: inv.due_date || new Date().toISOString()
+                        });
+                    }
+                });
             }
         } catch (e) {}
-
-        if (invoices.length === 0) {
-            invoices = JSON.parse(localStorage.getItem('argo_invoices') || '[]');
-        }
-
-        let newlySynced = false;
-        invoices.forEach(inv => {
-            const s = (inv.status || '').toLowerCase();
-            const ref = inv.ref_no || inv.refNo || `#INV-${inv.id}`;
-            const isAlreadyLogged = liveTxns.some(t => t.ref_code === ref || t.refCode === ref || String(t.txn_id).includes(inv.id));
-
-            if (!isAlreadyLogged && (s === 'paid' || s.includes('pending'))) {
-                const amt = parseCurrency(inv.amount);
-                const categoryType = inv.category_type || inv.categoryType || (inv.type?.includes('Elec') ? 'Electricity Charges' : (inv.type?.includes('Water') ? 'Water Charges' : 'Monthly Base Rent'));
-                const newTxn = {
-                    id: `TXN-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
-                    txn_id: `TXN-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
-                    ref_code: ref,
-                    refCode: ref,
-                    payer: inv.tenant_name || inv.tenantName || 'Tenant',
-                    property_location: inv.property_location || inv.sub || 'Property Location',
-                    fullLocation: inv.property_location || inv.sub || 'Property Location',
-                    category: categoryType,
-                    direction: 'INFLOW',
-                    gross_amount: formatPeso(amt),
-                    grossAmount: formatPeso(amt),
-                    amount: amt,
-                    channel: inv.channel || 'GCash',
-                    status: s === 'paid' ? 'Verified' : 'Pending',
-                    timestamp: inv.due_date || inv.dueDate || new Date().toISOString().split('T')[0]
-                };
-                liveTxns.unshift(newTxn);
-                newlySynced = true;
-            }
-        });
-
-        if (newlySynced) {
-            localStorage.setItem('argo_transactions', JSON.stringify(liveTxns));
-        }
 
         return liveTxns;
     }
 
-    function saveTransactions(transactions) {
-        localStorage.setItem('argo_transactions', JSON.stringify(transactions));
-    }
-
-    function getNotifications() {
-        return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
+    async function getNotifications() {
+        try {
+            const res = await fetch(NOTIFICATIONS_API_URL, { 
+                headers: getAuthHeaders(),
+                cache: 'no-store'
+            });
+            if (res.ok) {
+                const data = await res.json();
+                return Array.isArray(data) ? data : (data.items || data.notifications || data.data || []);
+            }
+        } catch (e) {}
+        return [];
     }
 
     async function updateHeaderBadge() {
@@ -1273,11 +1264,12 @@
         if (['client', 'tenant', 'client_pov'].includes(rawRole)) role = 'client';
         else if (['owner', 'property_owner', 'investor'].includes(rawRole)) role = 'owner';
 
-        const notifs = getNotifications().filter(n => (n.pov === role || !n.pov || n.pov === 'all') && (n.status === 'unread' || n.is_read === false));
+        const notifs = (await getNotifications()).filter(n => (n.pov === role || !n.pov || n.pov === 'all') && (!n.is_read || n.status === 'unread'));
         const badge = document.getElementById('headerNotifBadge');
         if (badge) badge.textContent = notifs.length;
     }
 
+    // Live Render Transactions Table
     async function renderTransactionTable() {
         const rawRole = (
             localStorage.getItem('argo_pov') || 
@@ -1290,7 +1282,7 @@
         const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
         const loggedInName = (user.name || '').toLowerCase();
 
-        // Role Scoping
+        // Scoping per role POV
         if (['client', 'tenant', 'client_pov'].includes(rawRole) && loggedInName) {
             transactions = transactions.filter(t => (t.payer || '').toLowerCase().includes(loggedInName));
         } else if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
@@ -1303,50 +1295,51 @@
 
         if (!transactions || transactions.length === 0) {
             tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:var(--muted, #64748B); padding:30px;">No transaction records found in ledger.</td></tr>`;
-            document.getElementById('showingCountText').textContent = `Showing 0 ledger records`;
+            const countEl = document.getElementById('showingCountText');
+            if (countEl) countEl.textContent = `Showing 0 ledger records`;
             await updateKPIs();
             return;
         }
 
         transactions.forEach(t => {
             const tr = document.createElement('tr');
-            const refCode = t.ref_code || t.refCode || '#REF';
-            const txnId = t.txn_id || t.txnId || 'TXN';
+            const refCode = t.ref_code || '#REF';
+            const txnId = t.txn_id || t.id || 'TXN';
             const channel = t.channel || 'Cash';
-            const status = t.status || 'Verified';
+            const rawStatus = (t.status || 'Completed').toUpperCase();
             const isOutflow = (t.direction || '').toUpperCase() === 'OUTFLOW';
-            const amt = parseCurrency(t.amount || t.gross_amount || t.grossAmount);
-            const grossFormatted = t.gross_amount || t.grossAmount || (isOutflow ? `-${formatPeso(amt)}` : formatPeso(amt));
+            const amt = parseCurrency(t.gross_amount || t.amount);
+            const grossFormatted = isOutflow ? `-${formatPeso(amt)}` : formatPeso(amt);
+            const timeFormatted = t.created_at ? t.created_at.split('T')[0] : (t.timestamp || 'Recently');
 
             tr.dataset.channel = channel;
-            tr.dataset.status = status;
-            tr.dataset.date = t.timestamp || '';
+            tr.dataset.status = rawStatus;
+            tr.dataset.date = timeFormatted;
 
             const directionBadge = isOutflow 
                 ? `<span class="direction-badge outflow" style="background:#FFF1F2; color:#E11D48; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:700;"><i class="bi bi-arrow-up-right"></i> OUTFLOW</span>`
                 : `<span class="direction-badge inflow" style="background:#ECFDF5; color:#059669; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:700;"><i class="bi bi-arrow-down-left"></i> INFLOW</span>`;
 
             let statusBadge = '';
-            const s = status.toLowerCase();
-            if (s === 'verified' || s === 'paid') {
-                statusBadge = `<span class="status-badge status-verified" style="background:#ECFDF5; color:#059669; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-check-circle" style="margin-right:4px;"></i> Verified</span>`;
-            } else if (s.includes('pending')) {
+            if (rawStatus === 'COMPLETED' || rawStatus === 'VERIFIED' || rawStatus === 'PAID') {
+                statusBadge = `<span class="status-badge status-verified" style="background:#ECFDF5; color:#059669; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-check-circle" style="margin-right:4px;"></i> Completed</span>`;
+            } else if (rawStatus.includes('PENDING')) {
                 statusBadge = `<span class="status-badge status-pending" style="background:#FEF3C7; color:#B45309; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-clock-history" style="margin-right:4px;"></i> Pending Audit</span>`;
             } else {
-                statusBadge = `<span class="status-badge status-disbursed" style="background:#EFF6FF; color:#2563EB; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-box-arrow-up-right" style="margin-right:4px;"></i> ${status}</span>`;
+                statusBadge = `<span class="status-badge status-disbursed" style="background:#EFF6FF; color:#2563EB; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-box-arrow-up-right" style="margin-right:4px;"></i> ${rawStatus}</span>`;
             }
 
-            const locTag = t.property_location || t.fullLocation || 'Property Location';
-            const refColor = isOutflow ? '#6D28D9' : (s.includes('pending') ? 'var(--warning, #D97706)' : 'var(--primary, #2563EB)');
-            const amountColor = isOutflow ? 'var(--danger, #E11D48)' : (s.includes('pending') ? 'var(--warning, #D97706)' : 'var(--success, #059669)');
+            const locTag = t.property_location || 'Property Location';
+            const refColor = isOutflow ? '#6D28D9' : (rawStatus.includes('PENDING') ? 'var(--warning, #D97706)' : 'var(--primary, #2563EB)');
+            const amountColor = isOutflow ? 'var(--danger, #E11D48)' : (rawStatus.includes('PENDING') ? 'var(--warning, #D97706)' : 'var(--success, #059669)');
 
             let actionsHtml = `
-                <button class="action-button" title="Inspect Audit Trail" onclick="inspectTxnAudit('${escapeQuotes(refCode)}', '${escapeQuotes(txnId)}', '${escapeQuotes(t.payer || 'Tenant')}', '${escapeQuotes(locTag)}', '${escapeQuotes(t.category || 'Monthly Rent')}', '${t.direction || 'INFLOW'}', '${escapeQuotes(grossFormatted)}', '${escapeQuotes(channel)}', '${escapeQuotes(status)}', '${escapeQuotes(t.timestamp || 'Recently')}')"><i class="bi bi-eye"></i></button>
+                <button class="action-button" title="Inspect Audit Trail" onclick="inspectTxnAudit('${escapeQuotes(refCode)}', '${escapeQuotes(txnId)}', '${escapeQuotes(t.payer || 'Tenant')}', '${escapeQuotes(locTag)}', '${escapeQuotes(t.category || 'Monthly Rent')}', '${t.direction || 'INFLOW'}', '${escapeQuotes(grossFormatted)}', '${escapeQuotes(channel)}', '${escapeQuotes(rawStatus)}', '${escapeQuotes(timeFormatted)}')"><i class="bi bi-eye"></i></button>
             `;
 
-            if (!['client', 'tenant', 'owner', 'property_owner'].includes(rawRole) && s.includes('pending')) {
+            if (!['client', 'tenant', 'owner', 'property_owner'].includes(rawRole) && rawStatus.includes('PENDING')) {
                 actionsHtml += `
-                    <button class="action-button" title="Approve Transaction" style="color:#059669;" onclick="approveTransaction('${refCode}')"><i class="bi bi-check2-square" style="font-size:16px;"></i></button>
+                    <button class="action-button" title="Approve Transaction" style="color:#059669;" onclick="approveTransaction('${t.id || txnId}', '${refCode}')"><i class="bi bi-check2-square" style="font-size:16px;"></i></button>
                 `;
             }
 
@@ -1363,7 +1356,7 @@
                 </td>
                 <td><strong style="color:${amountColor}; font-size:13px;">${grossFormatted}</strong></td>
                 <td>${channel}</td>
-                <td>${t.timestamp || 'Recently'}</td>
+                <td>${timeFormatted}</td>
                 <td>${statusBadge}</td>
                 <td><div style="display:flex; gap:6px;">${actionsHtml}</div></td>
             `;
@@ -1371,7 +1364,8 @@
             tbody.appendChild(tr);
         });
 
-        document.getElementById('showingCountText').textContent = `Showing 1–${transactions.length} of ${transactions.length} ledger records`;
+        const countEl = document.getElementById('showingCountText');
+        if (countEl) countEl.textContent = `Showing 1–${transactions.length} of ${transactions.length} ledger records`;
         await updateKPIs();
     }
 
@@ -1379,18 +1373,18 @@
         return (str || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
     }
 
-    async function approveTransaction(refCode) {
-        if (!confirm(`Verify transaction ${refCode} and clear matching ledger entries?`)) return;
+    async function approveTransaction(txnId, refCode) {
+        if (!confirm(`Verify transaction ${refCode} and clear matching ledger entries in database?`)) return;
 
-        let transactions = await getTransactions();
-        transactions = transactions.map(t => {
-            const r = t.ref_code || t.refCode;
-            if (r === refCode) {
-                return { ...t, status: 'Verified' };
-            }
-            return t;
-        });
-        saveTransactions(transactions);
+        try {
+            await fetch(`${TRANSACTIONS_API_URL}/${encodeURIComponent(txnId)}`, {
+                method: 'PATCH',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({ status: 'Completed' })
+            });
+        } catch (e) {
+            console.error("Approve transaction error:", e);
+        }
 
         await renderTransactionTable();
         await updateKPIs();
@@ -1421,13 +1415,13 @@
             document.getElementById('kpiLabel3').textContent = 'Pending Audits';
             document.getElementById('kpiLabel4').textContent = 'Active Billing Unit';
 
-            let verifiedCount = transactions.filter(t => (t.status || '').toLowerCase() === 'verified' || (t.status || '').toLowerCase() === 'paid').length;
-            let pendingCount = transactions.filter(t => (t.status || '').toLowerCase().includes('pending')).length;
+            let verifiedCount = transactions.filter(t => (t.status || '').toUpperCase() === 'COMPLETED' || (t.status || '').toUpperCase() === 'VERIFIED').length;
+            let pendingCount = transactions.filter(t => (t.status || '').toUpperCase().includes('PENDING')).length;
             
             let sumPaid = 0;
             transactions.forEach(t => {
-                if ((t.status || '').toLowerCase() === 'verified' || (t.status || '').toLowerCase() === 'paid') {
-                    sumPaid += parseCurrency(t.gross_amount || t.grossAmount || t.amount);
+                if ((t.status || '').toUpperCase() === 'COMPLETED' || (t.status || '').toUpperCase() === 'VERIFIED') {
+                    sumPaid += parseCurrency(t.gross_amount || t.amount);
                 }
             });
 
@@ -1453,7 +1447,7 @@
             let verifiedRecords = 0;
 
             transactions.forEach(t => {
-                const amt = parseCurrency(t.gross_amount || t.grossAmount || t.amount);
+                const amt = parseCurrency(t.gross_amount || t.amount);
                 if ((t.direction || '').toUpperCase() === 'INFLOW') {
                     grossInflows += amt;
                     verifiedRecords++;
@@ -1473,27 +1467,27 @@
             return;
         }
 
-        // Admin KPI Calculations across all active transactions
+        // Admin KPI Calculations
         let verifiedCount = 0;
         let pendingCount = 0;
         let totalInflows = 0;
         let totalDisbursed = 0;
 
         transactions.forEach(t => {
-            const amt = parseCurrency(t.gross_amount || t.grossAmount || t.amount);
-            const s = (t.status || '').toLowerCase();
+            const amt = parseCurrency(t.gross_amount || t.amount);
+            const s = (t.status || '').toUpperCase();
             const isOut = (t.direction || '').toUpperCase() === 'OUTFLOW';
 
-            if (!isOut && (s === 'verified' || s === 'paid')) {
+            if (!isOut && (s === 'COMPLETED' || s === 'VERIFIED')) {
                 totalInflows += amt;
             }
-            if (isOut || s === 'disbursed') {
+            if (isOut || s === 'DISBURSED') {
                 totalDisbursed += amt;
             }
 
-            if (s === 'verified' || s === 'paid') {
+            if (s === 'COMPLETED' || s === 'VERIFIED') {
                 verifiedCount++;
-            } else if (s.includes('pending')) {
+            } else if (s.includes('PENDING')) {
                 pendingCount++;
             }
         });
@@ -1575,16 +1569,16 @@ This official electronic receipt confirms verified settlement in the ARGO Master
 
         let csv = 'Gateway Ref Code,Internal TXN ID,Payer,Location,Category,Direction,Gross Amount,Channel,Timestamp,Status\n';
         transactions.forEach(t => {
-            const ref = t.ref_code || t.refCode || '';
-            const txn = t.txn_id || t.txnId || '';
+            const ref = t.ref_code || '';
+            const txn = t.txn_id || t.id || '';
             const payer = t.payer || 'Tenant';
-            const loc = t.property_location || t.fullLocation || 'Property Location';
+            const loc = t.property_location || 'Property Location';
             const cat = t.category || 'Monthly Rent';
             const dir = t.direction || 'INFLOW';
-            const amt = t.gross_amount || t.grossAmount || formatPeso(t.amount);
+            const amt = formatPeso(t.gross_amount || t.amount);
             const chan = t.channel || 'Cash';
-            const time = t.timestamp || '';
-            const status = t.status || 'Verified';
+            const time = t.created_at ? t.created_at.split('T')[0] : (t.timestamp || '');
+            const status = (t.status || 'Completed').toUpperCase();
             csv += `"${ref}","${txn}","${payer}","${loc}","${cat}","${dir}","${amt}","${chan}","${time}","${status}"\n`;
         });
 
@@ -1664,16 +1658,6 @@ This official electronic receipt confirms verified settlement in the ARGO Master
         document.getElementById("statusFilter").value = "";
         filterTable();
     }
-
-    // Cross-Tab Real-Time Sync Listener
-    window.addEventListener('storage', async (e) => {
-        if (['argo_transactions', 'argo_invoices', 'argo_notifications', 'argo_user', 'argo_pov'].includes(e.key)) {
-            applyRoleLayout();
-            loadUserData();
-            await renderTransactionTable();
-            updateHeaderBadge();
-        }
-    });
 
     // Page Load Initialization
     document.addEventListener('DOMContentLoaded', async () => {

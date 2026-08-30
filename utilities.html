@@ -964,6 +964,7 @@
     </div>
 
 <script>
+    const DEFAULT_ORG_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
     const API_BASE_URL = (
         window.location.origin.includes('localhost') || 
         window.location.origin.includes('127.0.0.1')
@@ -973,11 +974,11 @@
             ? 'https://argo-management-2026.onrender.com/api'
             : '/api';
 
-    const UTILITY_CHARGES_API_URL = `${API_BASE_URL}/utility-charges/`;
-    const INVOICES_API_URL = `${API_BASE_URL}/invoices/`;
-    const METER_READINGS_API_URL = `${API_BASE_URL}/meter-readings/`;
-    const LEASES_API_URL = `${API_BASE_URL}/leases/`;
-    const NOTIFICATIONS_API_URL = `${API_BASE_URL}/notifications/`;
+    const UTILITY_CHARGES_API_URL = `${API_BASE_URL}/utility-charges`;
+    const INVOICES_API_URL = `${API_BASE_URL}/invoices`;
+    const METER_READINGS_API_URL = `${API_BASE_URL}/meter-readings`;
+    const LEASES_API_URL = `${API_BASE_URL}/leases`;
+    const NOTIFICATIONS_API_URL = `${API_BASE_URL}/notifications`;
 
     function getMasterRates() {
         try {
@@ -1018,6 +1019,7 @@
 
     function logoutUser() {
         localStorage.clear();
+        sessionStorage.clear();
         window.location.replace('index.html');
     }
 
@@ -1196,96 +1198,81 @@
         }
     }
 
-    // Live Database Fetchers
+    // Direct Live API Fetchers (No LocalStorage Cache Poisoning)
     async function getUtilityCharges() {
-        let liveCharges = [];
         try {
-            const response = await fetch(UTILITY_CHARGES_API_URL, { headers: getAuthHeaders() });
+            const response = await fetch(UTILITY_CHARGES_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (response.ok) {
                 const data = await response.json();
-                const list = Array.isArray(data) ? data : (data.items || data.charges || data.data || []);
-                liveCharges = list;
-                localStorage.setItem('argo_utility_charges', JSON.stringify(list));
+                return Array.isArray(data) ? data : (data.items || data.charges || data.data || []);
             }
         } catch (e) {
-            console.warn("Utility Charges API offline, using local cache:", e);
+            console.error("Live Utility Charges API fetch failed:", e);
         }
-
-        if (liveCharges.length === 0) {
-            const raw = localStorage.getItem('argo_utility_charges');
-            liveCharges = raw ? JSON.parse(raw) : [];
-        }
-
-        return liveCharges;
-    }
-
-    function saveUtilityCharges(charges) {
-        localStorage.setItem('argo_utility_charges', JSON.stringify(charges));
+        return [];
     }
 
     async function getInvoices() {
         try {
-            const res = await fetch(INVOICES_API_URL, { headers: getAuthHeaders() });
+            const res = await fetch(INVOICES_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (res.ok) {
                 const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.invoices || data.data || []);
-                localStorage.setItem('argo_invoices', JSON.stringify(list));
-                return list;
+                return Array.isArray(data) ? data : (data.items || data.invoices || data.data || []);
             }
         } catch (e) {}
-
-        const raw = localStorage.getItem('argo_invoices');
-        return raw ? JSON.parse(raw) : [];
-    }
-
-    function saveInvoices(invoices) {
-        localStorage.setItem('argo_invoices', JSON.stringify(invoices));
+        return [];
     }
 
     async function getReadings() {
         try {
-            const res = await fetch(METER_READINGS_API_URL, { headers: getAuthHeaders() });
+            const res = await fetch(METER_READINGS_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (res.ok) {
                 const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.readings || data.data || []);
-                localStorage.setItem('argo_meter_readings', JSON.stringify(list));
-                return list;
+                return Array.isArray(data) ? data : (data.items || data.readings || data.data || []);
             }
         } catch (e) {}
-
-        const raw = localStorage.getItem('argo_meter_readings');
-        return raw ? JSON.parse(raw) : [];
-    }
-
-    function saveReadings(readings) {
-        localStorage.setItem('argo_meter_readings', JSON.stringify(readings));
+        return [];
     }
 
     async function getLeases() {
         try {
-            const res = await fetch(LEASES_API_URL, { headers: getAuthHeaders() });
+            const res = await fetch(LEASES_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (res.ok) {
                 const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.leases || data.data || []);
-                localStorage.setItem('argo_leases', JSON.stringify(list));
-                return list;
+                return Array.isArray(data) ? data : (data.items || data.leases || data.data || []);
             }
         } catch (e) {}
-
-        const raw = localStorage.getItem('argo_leases');
-        return raw ? JSON.parse(raw) : [];
+        return [];
     }
 
-    function getNotifications() {
-        return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
-    }
-
-    function saveNotifications(notifications) {
-        localStorage.setItem('argo_notifications', JSON.stringify(notifications));
+    async function getNotifications() {
+        try {
+            const res = await fetch(NOTIFICATIONS_API_URL, { 
+                headers: getAuthHeaders(),
+                cache: 'no-store'
+            });
+            if (res.ok) {
+                const data = await res.json();
+                return Array.isArray(data) ? data : (data.items || data.notifications || data.data || []);
+            }
+        } catch (e) {}
+        return [];
     }
 
     async function updateHeaderBadge() {
-        const notifs = getNotifications().filter(n => (n.pov === 'admin' || !n.pov) && (n.status === 'unread' || n.is_read === false));
+        const notifs = (await getNotifications()).filter(n => (n.pov === 'admin' || !n.pov) && (!n.is_read || n.status === 'unread'));
         const badge = document.getElementById('headerNotifBadge');
         if (badge) badge.textContent = notifs.length;
     }
@@ -1302,11 +1289,11 @@
                 const tName = l.tenant_name || l.tenantName || 'Tenant';
                 const uLoc = l.property_name && l.unit_number ? `${l.property_name} • ${l.unit_number}` : (l.unit || 'Unit Location');
                 const tEmail = l.tenant_email || '';
-                const lId = l.lease_id || l.id;
+                const lId = l.id || l.lease_id;
                 select.innerHTML += `<option value="${tName}|${uLoc}|${tEmail}|${lId}">${tName} — ${uLoc}</option>`;
             });
         } else {
-            select.innerHTML += '<option value="" disabled>No active leases found. Create an active lease first.</option>';
+            select.innerHTML += '<option value="" disabled>No active leases found in database. Create an active lease first.</option>';
         }
     }
 
@@ -1330,58 +1317,7 @@
         }
     }
 
-    // ================= AUTOMATIC SYNC FROM METER READINGS =================
-    async function syncUnbilledMeterReadingsIntoCharges() {
-        const readings = await getReadings();
-        const charges = await getUtilityCharges();
-        const rates = getMasterRates();
-        let hasChanges = false;
-
-        readings.forEach(r => {
-            const isUnbilled = (r.status || '').toLowerCase().includes('unbilled') || (r.status || '').toLowerCase().includes('ready') || !r.status;
-            const utilityType = (r.utility || r.type || '').toLowerCase().includes('water') ? 'Water' : 'Electricity';
-            const chargePrefix = utilityType === 'Electricity' ? 'UTL-ELE-' : 'UTL-WTR-';
-            const targetId = r.charge_id || `${chargePrefix}${r.id ? String(r.id).replace(/[^0-9]/g, '') : Math.floor(1000 + Math.random() * 9000)}`;
-
-            const existingIndex = charges.findIndex(c => 
-                String(c.id) === String(targetId) || 
-                String(c.charge_id) === String(targetId)
-            );
-
-            if (existingIndex === -1 && isUnbilled) {
-                const isElec = utilityType === 'Electricity';
-                const rate = isElec ? rates.MERALCO_KWH : rates.MAYNILAD_CUM;
-                const consumptionVal = parseCurrency(r.consumption || 0);
-                const calculatedAmount = r.totalBilledAmount ? parseCurrency(r.totalBilledAmount) : (consumptionVal * rate);
-                const unitSym = isElec ? 'kWh' : 'cu.m';
-                const period = r.period || new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-
-                charges.unshift({
-                    id: targetId,
-                    charge_id: targetId,
-                    tenant_name: r.tenant_name || r.tenantName || 'Tenant',
-                    tenantName: r.tenant_name || r.tenantName || 'Tenant',
-                    tenant_email: r.tenant_email || '',
-                    unit_location: r.unitLocation || r.unit || 'Unit Location',
-                    unitLocation: r.unitLocation || r.unit || 'Unit Location',
-                    type: utilityType,
-                    breakdown: `${utilityType} Sub-Meter ${consumptionVal.toFixed(2)} ${unitSym} @ ₱${rate.toFixed(2)}/${unitSym}`,
-                    period: period,
-                    due_date: r.readingDate || new Date().toISOString().split('T')[0],
-                    dueDate: r.readingDate || new Date().toISOString().split('T')[0],
-                    amount: calculatedAmount,
-                    status: 'Pending',
-                    created_at: new Date().toISOString()
-                });
-                hasChanges = true;
-            }
-        });
-
-        if (hasChanges) {
-            saveUtilityCharges(charges);
-        }
-    }
-
+    // Live Render Utilities Table
     async function renderUtilityTable() {
         const rawRole = (
             localStorage.getItem('argo_pov') || 
@@ -1395,7 +1331,7 @@
         const loggedInName = (user.name || '').toLowerCase();
 
         if (['client', 'tenant', 'client_pov'].includes(rawRole) && loggedInName) {
-            charges = charges.filter(c => (c.tenantName || c.tenant_name || '').toLowerCase().includes(loggedInName));
+            charges = charges.filter(c => (c.tenant_name || c.tenantName || '').toLowerCase().includes(loggedInName));
         }
 
         const tbody = document.getElementById('utilityTable');
@@ -1404,7 +1340,8 @@
 
         if (!charges || charges.length === 0) {
             tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--muted, #64748B); padding:30px;">No utility charges logged yet. Click "Add Manual Utility Charge" to create one.</td></tr>`;
-            document.getElementById('showingCountText').textContent = `Showing 0 utility charges`;
+            const countEl = document.getElementById('showingCountText');
+            if (countEl) countEl.textContent = `Showing 0 utility charges`;
             await updateKPIs();
             return;
         }
@@ -1412,7 +1349,8 @@
         charges.forEach(c => {
             const tr = document.createElement('tr');
             tr.dataset.type = c.type || 'Other';
-            tr.dataset.status = c.status || 'Pending';
+            const rawStatus = (c.status || 'UNPAID').toUpperCase();
+            tr.dataset.status = rawStatus;
 
             let badgeType = 'electricity';
             let iconBi = 'bi-lightning-charge';
@@ -1429,17 +1367,17 @@
             }
 
             let statusBadge = '';
-            const s = (c.status || '').toLowerCase();
-            if (s === 'paid') {
+            if (rawStatus === 'PAID') {
                 statusBadge = `<span class="status paid" style="background:#ECFDF5; color:#059669; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-check-circle" style="margin-right:4px;"></i> Paid</span>`;
-            } else if (s === 'overdue') {
+            } else if (rawStatus === 'OVERDUE') {
                 statusBadge = `<span class="status overdue" style="background:#FFF1F2; color:#E11D48; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-exclamation-circle" style="margin-right:4px;"></i> Overdue</span>`;
             } else {
-                statusBadge = `<span class="status pending" style="background:#FEF3C7; color:#D97706; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-clock" style="margin-right:4px;"></i> Unpaid / Dispatched</span>`;
+                statusBadge = `<span class="status pending" style="background:#FEF3C7; color:#D97706; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-clock" style="margin-right:4px;"></i> Unpaid / Ready</span>`;
             }
 
             const locationTag = c.unit_location || c.unitLocation || 'Unit Location';
-            const displayId = c.charge_id || c.id || 'UTL';
+            const displayId = c.charge_id || c.id;
+            const chargeDbId = c.id;
             const tenantName = c.tenant_name || c.tenantName || 'Tenant';
 
             let actionsHtml = `
@@ -1447,15 +1385,15 @@
             `;
 
             if (!['client', 'tenant', 'owner', 'property_owner'].includes(rawRole)) {
-                if (s === 'pending' || s === 'unpaid') {
+                if (rawStatus !== 'PAID') {
                     actionsHtml = `
                         <button class="action-button dispatch-btn" title="Dispatch Utility Invoice to Tenant Portal" style="color:#2563EB;" onclick="dispatchUtilityInvoice('${displayId}', '${escapeQuotes(tenantName)}', '${escapeQuotes(locationTag)}', ${parseCurrency(c.amount)}, '${escapeQuotes(c.period || '')}', '${escapeQuotes(c.breakdown || '')}', '${escapeQuotes(c.type || 'Utilities')}')"><i class="bi bi-send-check" style="font-size:16px;"></i></button>
                         <button class="action-button" title="View Breakdown" onclick="alert('Utility Statement Details for ${displayId}:\\nTenant: ${escapeQuotes(tenantName)}\\nBreakdown: ${escapeQuotes(c.breakdown || '')}')"><i class="bi bi-eye"></i></button>
-                        <button class="action-button delete" title="Delete Charge" onclick="deleteUtilityCharge('${displayId}')"><i class="bi bi-trash"></i></button>
+                        <button class="action-button delete" title="Delete Charge" onclick="deleteUtilityCharge('${chargeDbId}', '${displayId}')"><i class="bi bi-trash"></i></button>
                     `;
                 } else {
                     actionsHtml += `
-                        <button class="action-button delete" title="Delete Charge" onclick="deleteUtilityCharge('${displayId}')"><i class="bi bi-trash"></i></button>
+                        <button class="action-button delete" title="Delete Charge" onclick="deleteUtilityCharge('${chargeDbId}', '${displayId}')"><i class="bi bi-trash"></i></button>
                     `;
                 }
             }
@@ -1481,73 +1419,66 @@
             tbody.appendChild(tr);
         });
 
-        document.getElementById('showingCountText').textContent = `Showing 1–${charges.length} of ${charges.length} utility charges`;
+        const countEl = document.getElementById('showingCountText');
+        if (countEl) countEl.textContent = `Showing 1–${charges.length} of ${charges.length} utility charges`;
         await updateKPIs();
     }
 
+    // DISPATCH UTILITY TO INVOICE (POST /api/invoices + POST /api/notifications)
     async function dispatchUtilityInvoice(chargeId, tenantName, locationTag, amount, period, breakdown, type) {
         if (!confirm(`Dispatch ${type} utility invoice (${chargeId}) for ${formatPeso(amount)} directly to ${tenantName}'s billing portal?`)) return;
 
-        let invoices = await getInvoices();
+        const orgId = localStorage.getItem('organization_id') || DEFAULT_ORG_ID;
         const categoryType = type === 'Electricity' ? 'Electricity' : (type === 'Water' ? 'Water' : 'Utilities');
 
-        const newInvoice = {
-            id: chargeId,
+        const newInvoicePayload = {
+            organization_id: orgId,
             invoice_id: chargeId,
             tenant_name: tenantName,
-            tenantName: tenantName,
             type: `${type} Bill — ${period}`,
-            property_location: locationTag,
             sub: locationTag,
             category_type: categoryType,
-            categoryType: categoryType,
             due_date: new Date().toISOString().split('T')[0],
-            dueDate: new Date().toISOString().split('T')[0],
             amount: amount,
-            status: 'Unpaid',
-            channel: 'Pending Payment',
-            ref_no: `#${chargeId}`,
-            refNo: `#${chargeId}`,
-            notes: breakdown || `Sub-meter consumption for ${period}`,
-            created_at: new Date().toISOString()
+            status: 'UNPAID',
+            channel: 'GCASH / Online Bank',
+            ref_no: `#${chargeId}`
         };
 
         try {
             await fetch(INVOICES_API_URL, {
                 method: 'POST',
                 headers: getAuthHeaders(),
-                body: JSON.stringify(newInvoice)
+                body: JSON.stringify(newInvoicePayload)
             });
         } catch (e) {
-            console.warn("Backend invoice save bypassed:", e);
+            console.error("Invoice dispatch error:", e);
         }
 
-        invoices = invoices.filter(i => String(i.id) !== String(chargeId) && String(i.invoice_id) !== String(chargeId));
-        invoices.unshift(newInvoice);
-        saveInvoices(invoices);
-
-        // System notification
-        let notifications = getNotifications();
-        notifications.unshift({
-            id: `NOTIF-${Date.now()}`,
-            pov: 'client',
-            category: 'payment',
-            status: 'unread',
-            is_read: false,
-            title: `New ${type} Utility Invoice Issued (${period})`,
-            time: 'Just now',
-            description: `A ${type.toLowerCase()} bill of ${formatPeso(amount)} (${breakdown}) has been posted directly to your account.`,
-            property: locationTag,
-            amount: formatPeso(amount),
-            actionUrl: 'client-billing.html',
-            actionText: 'Pay Utility Bill'
-        });
-        saveNotifications(notifications);
+        // Push Alert to Tenant Notification Center
+        try {
+            await fetch(NOTIFICATIONS_API_URL, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({
+                    organization_id: orgId,
+                    pov: 'client',
+                    category: 'payment',
+                    status: 'Active',
+                    is_read: false,
+                    title: `New ${type} Utility Invoice Issued (${period})`,
+                    description: `A ${type.toLowerCase()} bill of ${formatPeso(amount)} (${breakdown}) has been posted to your account.`,
+                    property: locationTag,
+                    urgent: false
+                })
+            });
+        } catch (err) {}
 
         alert(`Utility invoice ${chargeId} dispatched successfully to ${tenantName}'s billing portal!`);
         await renderUtilityTable();
     }
 
+    // LIVE CREATE UTILITY CHARGE (POST /api/utility-charges)
     async function saveUtility() {
         const selectVal = document.getElementById('modalTenantSelect').value;
         if (!selectVal) {
@@ -1563,8 +1494,9 @@
         const period = document.getElementById('modalPeriod').value.trim() || new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
         const amount = parseFloat(document.getElementById('modalAmount').value) || 0;
         const dueDate = document.getElementById('modalDueDate').value || new Date().toISOString().split('T')[0];
-        const status = document.getElementById('modalStatusSelect').value;
+        const status = (document.getElementById('modalStatusSelect').value || 'UNPAID').toUpperCase();
         const notes = document.getElementById('modalNotes').value.trim() || `${type} billing charge for ${period}`;
+        const orgId = localStorage.getItem('organization_id') || DEFAULT_ORG_ID;
 
         if (amount <= 0) {
             alert("Please enter a valid utility charge amount.");
@@ -1572,10 +1504,11 @@
         }
 
         const chargePrefix = type === 'Electricity' ? 'UTL-ELE-' : (type === 'Water' ? 'UTL-WTR-' : 'UTL-');
-        const chargeId = `${chargePrefix}${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+        const chargeCode = `${chargePrefix}${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
         const payload = {
-            charge_id: chargeId,
+            organization_id: orgId,
+            charge_id: chargeCode,
             tenant_name: tenantName,
             tenant_email: tenantEmail,
             unit_location: locationTag,
@@ -1584,24 +1517,28 @@
             period: period,
             due_date: dueDate,
             amount: amount,
-            status: status
+            status: status === 'PAID' ? 'PAID' : 'UNPAID'
         };
 
         try {
-            await fetch(UTILITY_CHARGES_API_URL, {
+            const res = await fetch(UTILITY_CHARGES_API_URL, {
                 method: 'POST',
                 headers: getAuthHeaders(),
                 body: JSON.stringify(payload)
             });
+
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                alert(`Error saving utility charge: ${errData.detail || 'Could not save to Neon database.'}`);
+                return;
+            }
         } catch (e) {
-            console.warn("Backend save bypassed, keeping locally.", e);
+            console.error("Network error while creating utility charge:", e);
+            alert("Network connection error. Check server connection.");
+            return;
         }
 
-        let charges = await getUtilityCharges();
-        charges.unshift({ ...payload, id: chargeId });
-        saveUtilityCharges(charges);
-
-        alert(`Utility charge (${chargeId}) logged successfully!`);
+        alert(`Utility charge (${chargeCode}) logged successfully in database!`);
         closeModal('utilityModal');
 
         document.getElementById('modalAmount').value = '';
@@ -1611,24 +1548,29 @@
         await renderUtilityTable();
     }
 
-    async function deleteUtilityCharge(id) {
-        if (!confirm("Are you sure you want to delete this utility charge?")) return;
+    // LIVE DELETE UTILITY CHARGE (DELETE /api/utility-charges/{id})
+    async function deleteUtilityCharge(dbId, displayCode) {
+        const name = displayCode || dbId;
+        if (!confirm(`Are you sure you want to delete utility charge "${name}" from the database?`)) return;
 
         try {
-            await fetch(`${UTILITY_CHARGES_API_URL}${encodeURIComponent(id)}`, {
+            const res = await fetch(`${UTILITY_CHARGES_API_URL}/${encodeURIComponent(dbId)}`, {
                 method: 'DELETE',
                 headers: getAuthHeaders()
             });
-        } catch (e) {}
 
-        let charges = await getUtilityCharges();
-        charges = charges.filter(c => String(c.id) !== String(id) && String(c.charge_id) !== String(id));
-        saveUtilityCharges(charges);
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                alert(`Cannot delete charge: ${errData.detail || 'Database error.'}`);
+                return;
+            }
+        } catch (e) {
+            console.error("Delete request error:", e);
+            alert("Network error deleting utility charge.");
+            return;
+        }
 
-        let invoices = await getInvoices();
-        invoices = invoices.filter(i => String(i.id) !== String(id) && String(i.invoice_id) !== String(id));
-        saveInvoices(invoices);
-
+        alert(`Utility charge "${name}" deleted successfully!`);
         await renderUtilityTable();
     }
 
@@ -1666,9 +1608,9 @@
         charges.forEach(c => {
             const amt = parseCurrency(c.amount);
             total += amt;
-            const s = (c.status || '').toLowerCase();
-            if (s === 'paid') paid += amt;
-            else if (s === 'overdue') overdue += amt;
+            const s = (c.status || '').toUpperCase();
+            if (s === 'PAID') paid += amt;
+            else if (s === 'OVERDUE') overdue += amt;
             else pending += amt;
         });
 
@@ -1749,26 +1691,12 @@
         filterTable();
     }
 
-    // Real-Time Cross-Tab Listener
-    window.addEventListener('storage', async (e) => {
-        if (['argo_utility_charges', 'argo_invoices', 'argo_meter_readings', 'argo_leases', 'argo_notifications', 'argo_user', 'argo_pov'].includes(e.key)) {
-            renderSidebar();
-            applyRoleLayout();
-            loadUserData();
-            await populateModalDropdowns();
-            await syncUnbilledMeterReadingsIntoCharges();
-            await renderUtilityTable();
-            updateHeaderBadge();
-        }
-    });
-
     // Page Load Initialization
     document.addEventListener('DOMContentLoaded', async () => {
         renderSidebar();
         applyRoleLayout();
         loadUserData();
         await populateModalDropdowns();
-        await syncUnbilledMeterReadingsIntoCharges();
         await renderUtilityTable();
         updateHeaderBadge();
 

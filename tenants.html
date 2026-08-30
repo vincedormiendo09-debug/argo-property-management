@@ -979,6 +979,7 @@
     </div>
 
 <script>
+    const DEFAULT_ORG_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
     const API_BASE_URL = (
         window.location.origin.includes('localhost') || 
         window.location.origin.includes('127.0.0.1')
@@ -988,14 +989,15 @@
             ? 'https://argo-management-2026.onrender.com/api'
             : '/api';
 
-    const TENANTS_API_URL = `${API_BASE_URL}/tenants/`;
-    const USERS_API_URL = `${API_BASE_URL}/users/`;
-    const UNITS_API_URL = `${API_BASE_URL}/units/`;
-    const LEASES_API_URL = `${API_BASE_URL}/leases/`;
-    const NOTIFICATIONS_API_URL = `${API_BASE_URL}/notifications/`;
+    const TENANTS_API_URL = `${API_BASE_URL}/tenants`;
+    const USERS_API_URL = `${API_BASE_URL}/users`;
+    const UNITS_API_URL = `${API_BASE_URL}/units`;
+    const LEASES_API_URL = `${API_BASE_URL}/leases`;
+    const NOTIFICATIONS_API_URL = `${API_BASE_URL}/notifications`;
 
     let currentInspectedTenantId = null;
     let unassignedClientsCache = [];
+    let activeTabStatus = "ALL";
 
     function getAuthHeaders() {
         const token = localStorage.getItem('token') || localStorage.getItem('argo_token');
@@ -1007,6 +1009,7 @@
 
     function logoutUser() {
         localStorage.clear();
+        sessionStorage.clear();
         window.location.replace('index.html');
     }
 
@@ -1095,10 +1098,10 @@
         const avatarEl = document.getElementById('userAvatar');
 
         if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
-            if (nameEl) nameEl.textContent = 'Don Ramon Santos';
+            if (nameEl) nameEl.textContent = user.name || 'Property Owner';
             if (roleEl) roleEl.textContent = 'Property Owner';
             if (avatarEl) {
-                avatarEl.textContent = 'RS';
+                avatarEl.textContent = user.avatar || 'PO';
                 avatarEl.style.background = '#059669';
             }
         } else if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
@@ -1120,110 +1123,86 @@
         }
     }
 
-    // Database Fetchers
+    // Direct Database Fetchers (No LocalStorage Cache Traps)
     async function getTenants() {
         try {
-            const response = await fetch(TENANTS_API_URL, { headers: getAuthHeaders() });
+            const response = await fetch(TENANTS_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (response.ok) {
                 const data = await response.json();
-                const list = Array.isArray(data) ? data : (data.items || data.tenants || data.data || []);
-                localStorage.setItem('argo_tenants', JSON.stringify(list));
-                return list;
+                return Array.isArray(data) ? data : (data.items || data.tenants || data.data || []);
             }
         } catch (error) {
-            console.warn("Tenants API offline, checking cache:", error);
-        }
-
-        const raw = localStorage.getItem('argo_tenants');
-        if (raw) {
-            try {
-                const parsed = JSON.parse(raw);
-                if (Array.isArray(parsed)) return parsed;
-            } catch (e) {}
+            console.error("Live Tenants API fetch failed:", error);
         }
         return [];
     }
 
     async function getRegisteredUsers() {
         try {
-            const res = await fetch(USERS_API_URL, { headers: getAuthHeaders() });
+            const res = await fetch(USERS_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (res.ok) {
                 const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.users || data.data || []);
-                return list;
+                return Array.isArray(data) ? data : (data.items || data.users || data.data || []);
             }
         } catch (e) {
-            console.warn("Users API offline, falling back to local user store:", e);
+            console.warn("Live Users API fetch failed:", e);
         }
-
-        const raw = localStorage.getItem('argo_users') || '[]';
-        return JSON.parse(raw);
+        return [];
     }
 
     async function getUnitsList() {
         try {
-            const res = await fetch(UNITS_API_URL, { headers: getAuthHeaders() });
+            const res = await fetch(UNITS_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (res.ok) {
                 const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.units || data.data || []);
-                localStorage.setItem('argo_units', JSON.stringify(list));
-                return list;
+                return Array.isArray(data) ? data : (data.items || data.units || data.data || []);
             }
         } catch (e) {
-            console.warn("Units API offline, checking cache:", e);
-        }
-
-        const raw = localStorage.getItem('argo_units');
-        if (raw) {
-            try {
-                const parsed = JSON.parse(raw);
-                if (Array.isArray(parsed)) return parsed;
-            } catch (e) {}
+            console.warn("Live Units API fetch failed:", e);
         }
         return [];
     }
 
     async function getLeasesList() {
         try {
-            const res = await fetch(LEASES_API_URL, { headers: getAuthHeaders() });
+            const res = await fetch(LEASES_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (res.ok) {
                 const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.leases || data.data || []);
-                localStorage.setItem('argo_leases', JSON.stringify(list));
-                return list;
+                return Array.isArray(data) ? data : (data.items || data.leases || data.data || []);
             }
         } catch (e) {
-            console.warn("Leases API offline, checking cache:", e);
-        }
-
-        const raw = localStorage.getItem('argo_leases');
-        if (raw) {
-            try {
-                const parsed = JSON.parse(raw);
-                if (Array.isArray(parsed)) return parsed;
-            } catch (e) {}
+            console.warn("Live Leases API fetch failed:", e);
         }
         return [];
     }
 
-    async function getNotifications() {
+    async function updateHeaderBadge() {
         try {
-            const res = await fetch(NOTIFICATIONS_API_URL, { headers: getAuthHeaders() });
+            const res = await fetch(NOTIFICATIONS_API_URL, { 
+                headers: getAuthHeaders(),
+                cache: 'no-store'
+            });
             if (res.ok) {
-                const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.notifications || data.data || []);
-                localStorage.setItem('argo_notifications', JSON.stringify(list));
-                return list;
+                const notifs = await res.json();
+                const unread = (Array.isArray(notifs) ? notifs : []).filter(n => 
+                    (n.pov === 'admin' || !n.pov) && (!n.is_read || n.status === 'unread')
+                );
+                const badge = document.getElementById('headerNotifBadge');
+                if (badge) badge.textContent = unread.length;
             }
         } catch (e) {}
-        const raw = localStorage.getItem('argo_notifications');
-        return raw ? JSON.parse(raw) : [];
-    }
-
-    async function updateHeaderBadge() {
-        const notifs = (await getNotifications()).filter(n => (n.pov === 'admin' || !n.pov) && (n.status === 'unread' || n.is_read === false));
-        const badge = document.getElementById('headerNotifBadge');
-        if (badge) badge.textContent = notifs.length;
     }
 
     // Populate Searchable Client Combobox (Excludes already assigned clients)
@@ -1235,7 +1214,6 @@
 
         datalist.innerHTML = '';
 
-        // Filter registered users with role 'client' / 'tenant' who are NOT yet in existingTenants
         const assignedUserIds = new Set(existingTenants.map(t => String(t.user_id || t.id)).filter(Boolean));
         const assignedEmails = new Set(existingTenants.map(t => (t.email || '').toLowerCase()).filter(Boolean));
 
@@ -1248,9 +1226,10 @@
 
         unassignedClientsCache.forEach(u => {
             const option = document.createElement('option');
-            option.value = `${u.name || u.full_name || 'Client'} (${u.email || ''})`;
+            const fullName = u.name || u.full_name || 'Client';
+            option.value = `${fullName} (${u.email || ''})`;
             option.dataset.userId = u.id;
-            option.dataset.name = u.name || u.full_name || '';
+            option.dataset.name = fullName;
             option.dataset.email = u.email || '';
             option.dataset.phone = u.phone || '';
             datalist.appendChild(option);
@@ -1262,7 +1241,8 @@
 
         const matched = unassignedClientsCache.find(u => {
             const entryText = `${u.name || u.full_name || 'Client'} (${u.email || ''})`;
-            return entryText.toLowerCase() === selectedValue.toLowerCase() || (u.email && u.email.toLowerCase() === selectedValue.toLowerCase());
+            return entryText.toLowerCase() === selectedValue.toLowerCase() || 
+                   (u.email && u.email.toLowerCase() === selectedValue.toLowerCase());
         });
 
         if (matched) {
@@ -1283,15 +1263,14 @@
         if (units && units.length > 0) {
             units.forEach(u => {
                 const uName = u.unit_no || u.unit_number || `Unit #${u.id}`;
-                const pName = (u.property ? (u.property.name || u.property.property_name) : '') || u.property_name || 'Property';
+                const pName = u.property_name || (u.property ? (u.property.name || u.property.property_name) : '') || 'Property';
                 const statusTag = (u.status || 'Available').toUpperCase();
                 modalSelect.innerHTML += `<option value="${pName} • ${uName}">${pName} • ${uName} (${statusTag})</option>`;
             });
         }
     }
 
-    let activeTabStatus = "ALL";
-
+    // Live Render Tenant Table
     async function renderTenantTable() {
         const tenants = await getTenants();
         const leases = await getLeasesList();
@@ -1320,25 +1299,24 @@
             // Cross-reference with live database leases
             const matchedLease = leases.find(l => 
                 (l.tenant_id && String(l.tenant_id) === String(t.id)) ||
-                (l.tenant_name && l.tenant_name.toLowerCase() === tenantName.toLowerCase()) ||
-                (l.tenantName && l.tenantName.toLowerCase() === tenantName.toLowerCase())
+                (l.tenant_name && l.tenant_name.toLowerCase() === tenantName.toLowerCase())
             );
 
             const hasActiveLease = matchedLease && (matchedLease.status || '').toUpperCase() === 'ACTIVE';
-            const leaseCode = matchedLease ? (matchedLease.lease_id || matchedLease.id || 'Active Lease') : 'No Active Lease';
+            const leaseCode = matchedLease ? (matchedLease.lease_id || 'Active Lease') : 'No Active Lease';
 
             tr.dataset.type = tenantType;
             tr.dataset.status = tenantStatus;
 
-            let typeBadge = tenantType.toLowerCase() === 'individual' 
+            const typeBadge = tenantType.toLowerCase() === 'individual' 
                 ? `<span class="badge badge-individual" style="background:#F1F5F9; color:#475569; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-person" style="margin-right:4px;"></i> Individual</span>`
                 : `<span class="badge badge-organization" style="background:#FEF3C7; color:#92400E; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-building" style="margin-right:4px;"></i> Organization</span>`;
 
-            let leaseBadge = hasActiveLease
+            const leaseBadge = hasActiveLease
                 ? `<span class="badge badge-active" style="background:#ECFDF5; color:#059669; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-check-circle" style="margin-right:3px;"></i> ${leaseCode}</span>`
                 : `<span class="badge badge-inactive" style="background:#F3F4F6; color:#6B7280; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;">No Active Lease</span>`;
 
-            let accountBadge = tenantStatus.toLowerCase() === 'active'
+            const accountBadge = tenantStatus.toLowerCase() === 'active'
                 ? `<span class="badge badge-active" style="background:#ECFDF5; color:#059669; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;">Active</span>`
                 : `<span class="badge badge-inactive" style="background:#F3F4F6; color:#6B7280; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;">Inactive</span>`;
 
@@ -1383,7 +1361,7 @@
             (l.tenant_name && l.tenant_name.toLowerCase() === tenantName.toLowerCase())
         );
         const leaseStatusText = matchedLease && (matchedLease.status || '').toUpperCase() === 'ACTIVE'
-            ? `${matchedLease.lease_id || 'Active Lease'} (Monthly Rent: ₱${parseFloat(matchedLease.rent || 0).toLocaleString('en-US')})`
+            ? `${matchedLease.lease_id || 'Active Lease'} (Monthly Rent: ₱${parseFloat(matchedLease.rent || 0).toLocaleString('en-US', {minimumFractionDigits: 2})})`
             : 'No Active Lease Registered';
 
         if (document.getElementById('vTenantHeading')) document.getElementById('vTenantHeading').textContent = `Tenant Profile — ${displayId}`;
@@ -1398,6 +1376,7 @@
         openModal('viewTenantModal');
     }
 
+    // LIVE CREATE TENANT (POST /api/tenants)
     async function saveTenant() {
         const nameInput = document.getElementById('modalTenantName');
         const emailInput = document.getElementById('modalTenantEmail');
@@ -1414,6 +1393,7 @@
         const status = statusSelect ? statusSelect.value : 'Active';
         const unit = unitSelect ? unitSelect.value : 'No Current Unit';
         const userId = userIdInput ? userIdInput.value.trim() : null;
+        const orgId = localStorage.getItem('organization_id') || DEFAULT_ORG_ID;
 
         if (!name) {
             alert("Please enter a tenant full name or entity name.");
@@ -1423,7 +1403,9 @@
         const newTenantCode = `TNT-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
         const payload = {
+            organization_id: orgId,
             tenant_id: newTenantCode,
+            tnt_id: newTenantCode,
             user_id: userId || null,
             name: name,
             email: email,
@@ -1442,7 +1424,7 @@
 
             if (!res.ok) {
                 const errData = await res.json().catch(() => ({}));
-                alert(`Error saving tenant: ${errData.detail || 'Could not save to database'}`);
+                alert(`Error saving tenant: ${errData.detail || 'Could not save to Neon database.'}`);
                 return;
             }
         } catch (error) {
@@ -1451,7 +1433,7 @@
             return;
         }
 
-        alert(`Tenant profile "${name}" registered successfully!`);
+        alert(`Tenant profile "${name}" registered successfully in database!`);
         closeModal('tenantModal');
 
         // Reset Form Fields
@@ -1466,12 +1448,13 @@
         await populateUnassignedClientsCombobox();
     }
 
+    // LIVE DELETE TENANT (DELETE /api/tenants/{id})
     async function deleteTenant(id, name) {
         const displayName = name || id;
         if (!confirm(`Are you sure you want to permanently delete tenant profile "${displayName}" from the database?`)) return;
 
         try {
-            const res = await fetch(`${TENANTS_API_URL}${encodeURIComponent(id)}`, {
+            const res = await fetch(`${TENANTS_API_URL}/${encodeURIComponent(id)}`, {
                 method: 'DELETE',
                 headers: getAuthHeaders()
             });
@@ -1487,23 +1470,22 @@
             return;
         }
 
-        alert(`Tenant profile "${displayName}" deleted successfully!`);
+        alert(`Tenant profile "${displayName}" deleted permanently from database!`);
         await renderTenantTable();
         await populateUnassignedClientsCombobox();
     }
 
     function updateKPIsWithData(tenants, leases) {
-        let total = tenants.length;
-        let individual = tenants.filter(t => (t.type || 'Individual').toLowerCase() === 'individual').length;
-        let org = tenants.filter(t => (t.type || '').toLowerCase() === 'organization').length;
+        const total = tenants.length;
+        const individual = tenants.filter(t => (t.type || 'Individual').toLowerCase() === 'individual').length;
+        const org = tenants.filter(t => (t.type || '').toLowerCase() === 'organization').length;
 
         let activeLeaseCount = 0;
         tenants.forEach(t => {
             const tenantName = t.name || '';
             const hasActiveLease = leases.some(l => 
                 ((l.tenant_id && String(l.tenant_id) === String(t.id)) ||
-                 (l.tenant_name && l.tenant_name.toLowerCase() === tenantName.toLowerCase()) ||
-                 (l.tenantName && l.tenantName.toLowerCase() === tenantName.toLowerCase())) &&
+                 (l.tenant_name && l.tenant_name.toLowerCase() === tenantName.toLowerCase())) &&
                 ((l.status || '').toUpperCase() === 'ACTIVE')
             );
             if (hasActiveLease) activeLeaseCount++;
@@ -1591,18 +1573,6 @@
         const firstTab = document.querySelectorAll('.tab')[0];
         if (firstTab) setTabFilter('ALL', firstTab);
     }
-
-    // Real-Time Cross-Tab Listener
-    window.addEventListener('storage', async (e) => {
-        if (['argo_tenants', 'argo_leases', 'argo_units', 'argo_notifications', 'argo_user', 'argo_pov'].includes(e.key)) {
-            renderSidebar();
-            loadUserData();
-            await populateUnassignedClientsCombobox();
-            await populateUnitDropdown();
-            await renderTenantTable();
-            await updateHeaderBadge();
-        }
-    });
 
     // Page Load Initialization
     document.addEventListener('DOMContentLoaded', async () => {

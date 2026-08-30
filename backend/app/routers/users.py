@@ -123,7 +123,7 @@ def update_user_profile(
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    update_data = user_update.dict(exclude_unset=True)
+    update_data = user_update.model_dump(exclude_unset=True) if hasattr(user_update, "model_dump") else user_update.dict(exclude_unset=True)
     
     if "name" in update_data and "full_name" not in update_data and update_data["name"]:
         update_data["full_name"] = update_data["name"]

@@ -18,7 +18,7 @@ def ensure_sandbox_organization(db: Session, org_id: uuid.UUID):
     """Ensures a stub Organization exists in local DB to satisfy FK constraints."""
     org = db.scalar(select(models.Organization).where(models.Organization.id == org_id))
     if not org:
-        sandbox_org = models.Organization(id=org_id, name="Sunrise Property Group")
+        sandbox_org = models.Organization(id=org_id, name="ARGO Property Management Corp.")
         db.add(sandbox_org)
         db.commit()
 
@@ -162,7 +162,7 @@ def read_leases(
 # 2. POST /api/leases/ - Create a new lease with FK validation & unit occupancy update
 @router.post("/", response_model=schemas.LeaseSchema, status_code=status.HTTP_201_CREATED)
 def create_lease(lease_in: schemas.LeaseCreate, db: Session = Depends(get_db)):
-    org_id = getattr(lease_in, "organization_id", DEFAULT_ORG_ID)
+    org_id = getattr(lease_in, "organization_id", DEFAULT_ORG_ID) or DEFAULT_ORG_ID
     ensure_sandbox_organization(db, org_id)
 
     # 1. Validate Unit exists under this org
@@ -189,10 +189,10 @@ def create_lease(lease_in: schemas.LeaseCreate, db: Session = Depends(get_db)):
             detail=f"Tenant with ID '{lease_in.tenant_id}' not found in this organization."
         )
 
-    lease_data = lease_in.dict(exclude_unset=True)
+    lease_data = lease_in.model_dump(exclude_unset=True) if hasattr(lease_in, "model_dump") else lease_in.dict(exclude_unset=True)
     if "id" not in lease_data or not lease_data["id"]:
         lease_data["id"] = uuid.uuid4()
-    if "organization_id" not in lease_data:
+    if "organization_id" not in lease_data or not lease_data["organization_id"]:
         lease_data["organization_id"] = org_id
     if "lease_id" not in lease_data and hasattr(models.Lease, "lease_id"):
         lease_data["lease_id"] = f"LSE-{datetime.now().year}-{str(uuid.uuid4())[:6].upper()}"
@@ -235,7 +235,6 @@ def get_lease(
             )
 
     lease = db.scalar(stmt)
-
     if not lease:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -245,8 +244,9 @@ def get_lease(
     return lease
 
 
-# 4. PUT /api/leases/{lease_id} - Update lease status (e.g., Activation / Move-Out)
+# 4. PUT / PATCH /api/leases/{lease_id} - Update lease status
 @router.put("/{lease_id}", response_model=schemas.LeaseSchema)
+@router.patch("/{lease_id}", response_model=schemas.LeaseSchema)
 def update_lease(
     lease_id: str,
     lease_update: schemas.LeaseUpdate,
@@ -278,7 +278,7 @@ def update_lease(
             detail="Lease not found."
         )
 
-    update_data = lease_update.dict(exclude_unset=True)
+    update_data = lease_update.model_dump(exclude_unset=True) if hasattr(lease_update, "model_dump") else lease_update.dict(exclude_unset=True)
     for field, value in update_data.items():
         if hasattr(db_lease, field):
             setattr(db_lease, field, value)

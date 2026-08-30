@@ -15,7 +15,7 @@ DEFAULT_ORG_ID = uuid.UUID("a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11")
 def ensure_sandbox_organization(db: Session, org_id: uuid.UUID):
     org = db.scalar(select(models.Organization).where(models.Organization.id == org_id))
     if not org:
-        sandbox_org = models.Organization(id=org_id, name="Sunrise Property Group")
+        sandbox_org = models.Organization(id=org_id, name="ARGO Property Management Corp.")
         db.add(sandbox_org)
         db.commit()
 
@@ -94,10 +94,11 @@ def create_meter_reading(
     reading_in: schemas.MeterReadingCreate,
     db: Session = Depends(get_db)
 ):
-    org_id = getattr(reading_in, "organization_id", DEFAULT_ORG_ID)
+    org_id = getattr(reading_in, "organization_id", DEFAULT_ORG_ID) or DEFAULT_ORG_ID
     ensure_sandbox_organization(db, org_id)
 
-    reading_data = reading_in.dict(exclude_unset=True)
+    reading_data = reading_in.model_dump(exclude_unset=True) if hasattr(reading_in, "model_dump") else reading_in.dict(exclude_unset=True)
+    
     if "id" not in reading_data or not reading_data["id"]:
         reading_data["id"] = uuid.uuid4()
     reading_data["organization_id"] = org_id
@@ -147,7 +148,8 @@ def update_meter_reading(
     if not db_reading:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Meter reading not found.")
 
-    update_data = reading_update.dict(exclude_unset=True)
+    update_data = reading_update.model_dump(exclude_unset=True) if hasattr(reading_update, "model_dump") else reading_update.dict(exclude_unset=True)
+    
     for field, value in update_data.items():
         if hasattr(db_reading, field):
             setattr(db_reading, field, value)

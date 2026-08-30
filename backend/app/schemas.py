@@ -1,7 +1,21 @@
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from uuid import UUID
 from datetime import datetime, date
 from typing import Optional, List, Union, Dict, Any
+
+
+# ==========================================
+# 0. GLOBAL HELPER FOR OPTIONAL UUIDS
+# ==========================================
+def convert_empty_to_none(v: Any) -> Optional[UUID]:
+    if v == "" or v == "null" or v is None:
+        return None
+    if isinstance(v, str):
+        try:
+            return UUID(v)
+        except ValueError:
+            return None
+    return v
 
 
 # ==========================================
@@ -31,6 +45,11 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     organization_id: Optional[UUID] = None
     password: Optional[str] = None
+
+    @field_validator('organization_id', mode='before')
+    @classmethod
+    def clean_uuid(cls, v):
+        return convert_empty_to_none(v)
 
 
 class UserUpdate(BaseModel):
@@ -68,6 +87,11 @@ class PropertyCreate(PropertyBase):
     organization_id: Optional[UUID] = None
     created_by: Optional[UUID] = None
 
+    @field_validator('organization_id', 'created_by', mode='before')
+    @classmethod
+    def clean_uuids(cls, v):
+        return convert_empty_to_none(v)
+
 
 class PropertyUpdate(BaseModel):
     code: Optional[str] = None
@@ -78,6 +102,11 @@ class PropertyUpdate(BaseModel):
     units_count: Optional[int] = None
     status: Optional[str] = None
     updated_by: Optional[UUID] = None
+
+    @field_validator('updated_by', mode='before')
+    @classmethod
+    def clean_uuids(cls, v):
+        return convert_empty_to_none(v)
 
 
 class PropertySchema(PropertyBase):
@@ -110,6 +139,11 @@ class BuildingCreate(BuildingBase):
     property_id: UUID
     created_by: Optional[UUID] = None
 
+    @field_validator('organization_id', 'property_id', 'created_by', mode='before')
+    @classmethod
+    def clean_uuids(cls, v):
+        return convert_empty_to_none(v)
+
 
 class BuildingUpdate(BaseModel):
     code: Optional[str] = None
@@ -119,6 +153,11 @@ class BuildingUpdate(BaseModel):
     floor_distribution: Optional[Dict[str, Any]] = None
     status: Optional[str] = None
     updated_by: Optional[UUID] = None
+
+    @field_validator('updated_by', mode='before')
+    @classmethod
+    def clean_uuids(cls, v):
+        return convert_empty_to_none(v)
 
 
 class BuildingSchema(BuildingBase):
@@ -153,6 +192,11 @@ class UnitCreate(UnitBase):
     building_id: Optional[UUID] = None
     created_by: Optional[UUID] = None
 
+    @field_validator('organization_id', 'property_id', 'building_id', 'created_by', mode='before')
+    @classmethod
+    def clean_uuids(cls, v):
+        return convert_empty_to_none(v)
+
 
 class UnitUpdate(BaseModel):
     unit_no: Optional[str] = None
@@ -166,6 +210,11 @@ class UnitUpdate(BaseModel):
     building_id: Optional[UUID] = None
     property_id: Optional[UUID] = None
     updated_by: Optional[UUID] = None
+
+    @field_validator('building_id', 'property_id', 'updated_by', mode='before')
+    @classmethod
+    def clean_uuids(cls, v):
+        return convert_empty_to_none(v)
 
 
 class UnitSchema(UnitBase):
@@ -201,6 +250,11 @@ class TenantCreate(TenantBase):
     user_id: Optional[UUID] = None  # Loose reference to user (No FK)
     created_by: Optional[UUID] = None
 
+    @field_validator('organization_id', 'user_id', 'created_by', mode='before')
+    @classmethod
+    def clean_uuids(cls, v):
+        return convert_empty_to_none(v)
+
 
 class TenantUpdate(BaseModel):
     name: Optional[str] = None
@@ -210,6 +264,11 @@ class TenantUpdate(BaseModel):
     type: Optional[str] = None
     status: Optional[str] = None
     updated_by: Optional[UUID] = None
+
+    @field_validator('updated_by', mode='before')
+    @classmethod
+    def clean_uuids(cls, v):
+        return convert_empty_to_none(v)
 
 
 class TenantSchema(TenantBase):
@@ -243,6 +302,11 @@ class OwnerCreate(OwnerBase):
     user_id: Optional[UUID] = None
     created_by: Optional[UUID] = None
 
+    @field_validator('organization_id', 'user_id', 'created_by', mode='before')
+    @classmethod
+    def clean_uuids(cls, v):
+        return convert_empty_to_none(v)
+
 
 class OwnerUpdate(BaseModel):
     name: Optional[str] = None
@@ -252,6 +316,11 @@ class OwnerUpdate(BaseModel):
     type: Optional[str] = None
     status: Optional[str] = None
     updated_by: Optional[UUID] = None
+
+    @field_validator('updated_by', mode='before')
+    @classmethod
+    def clean_uuids(cls, v):
+        return convert_empty_to_none(v)
 
 
 class OwnerSchema(OwnerBase):
@@ -278,11 +347,21 @@ class PropertyOwnershipCreate(PropertyOwnershipBase):
     owner_id: UUID
     created_by: Optional[UUID] = None
 
+    @field_validator('organization_id', 'property_id', 'owner_id', 'created_by', mode='before')
+    @classmethod
+    def clean_uuids(cls, v):
+        return convert_empty_to_none(v)
+
 
 class PropertyOwnershipUpdate(BaseModel):
     share_percent: Optional[float] = None
     role: Optional[str] = None
     updated_by: Optional[UUID] = None
+
+    @field_validator('updated_by', mode='before')
+    @classmethod
+    def clean_uuids(cls, v):
+        return convert_empty_to_none(v)
 
 
 class PropertyOwnershipSchema(PropertyOwnershipBase):
@@ -317,6 +396,11 @@ class LeaseCreate(LeaseBase):
     tenant_id: UUID
     created_by: Optional[UUID] = None
 
+    @field_validator('organization_id', 'unit_id', 'tenant_id', 'created_by', mode='before')
+    @classmethod
+    def clean_uuids(cls, v):
+        return convert_empty_to_none(v)
+
 
 class LeaseUpdate(BaseModel):
     start_date: Optional[Union[date, str]] = None
@@ -327,6 +411,11 @@ class LeaseUpdate(BaseModel):
     lease_id: Optional[str] = None
     status: Optional[str] = None
     updated_by: Optional[UUID] = None
+
+    @field_validator('updated_by', mode='before')
+    @classmethod
+    def clean_uuids(cls, v):
+        return convert_empty_to_none(v)
 
 
 class LeaseSchema(LeaseBase):
@@ -365,6 +454,11 @@ class InvoiceCreate(InvoiceBase):
     lease_id: Optional[UUID] = None
     created_by: Optional[UUID] = None
 
+    @field_validator('organization_id', 'lease_id', 'created_by', mode='before')
+    @classmethod
+    def clean_uuids(cls, v):
+        return convert_empty_to_none(v)
+
 
 class InvoiceUpdate(BaseModel):
     amount: Optional[float] = None
@@ -376,6 +470,11 @@ class InvoiceUpdate(BaseModel):
     channel: Optional[str] = None
     ref_no: Optional[str] = None
     updated_by: Optional[UUID] = None
+
+    @field_validator('updated_by', mode='before')
+    @classmethod
+    def clean_uuids(cls, v):
+        return convert_empty_to_none(v)
 
 
 class InvoiceSchema(InvoiceBase):
@@ -415,12 +514,22 @@ class TransactionCreate(TransactionBase):
     organization_id: Optional[UUID] = None
     created_by: Optional[UUID] = None
 
+    @field_validator('organization_id', 'created_by', mode='before')
+    @classmethod
+    def clean_uuids(cls, v):
+        return convert_empty_to_none(v)
+
 
 class TransactionUpdate(BaseModel):
     status: Optional[str] = None
     gross_amount: Optional[float] = None
     channel: Optional[str] = None
     updated_by: Optional[UUID] = None
+
+    @field_validator('updated_by', mode='before')
+    @classmethod
+    def clean_uuids(cls, v):
+        return convert_empty_to_none(v)
 
 
 class TransactionSchema(TransactionBase):
@@ -454,6 +563,11 @@ class MaintenanceCreate(MaintenanceBase):
     ticket_id: Optional[str] = None
     created_by: Optional[UUID] = None
 
+    @field_validator('organization_id', 'unit_id', 'created_by', mode='before')
+    @classmethod
+    def clean_uuids(cls, v):
+        return convert_empty_to_none(v)
+
 
 class MaintenanceUpdate(BaseModel):
     description: Optional[str] = None
@@ -464,6 +578,11 @@ class MaintenanceUpdate(BaseModel):
     technician: Optional[str] = None
     cost: Optional[float] = None
     updated_by: Optional[UUID] = None
+
+    @field_validator('updated_by', mode='before')
+    @classmethod
+    def clean_uuids(cls, v):
+        return convert_empty_to_none(v)
 
 
 class MaintenanceSchema(MaintenanceBase):
@@ -500,12 +619,22 @@ class MeterReadingCreate(MeterReadingBase):
     unit_id: Optional[UUID] = None
     created_by: Optional[UUID] = None
 
+    @field_validator('organization_id', 'unit_id', 'created_by', mode='before')
+    @classmethod
+    def clean_uuids(cls, v):
+        return convert_empty_to_none(v)
+
 
 class MeterReadingUpdate(BaseModel):
     curr_dial: Optional[float] = None
     consumption: Optional[float] = None
     status: Optional[str] = None
     updated_by: Optional[UUID] = None
+
+    @field_validator('updated_by', mode='before')
+    @classmethod
+    def clean_uuids(cls, v):
+        return convert_empty_to_none(v)
 
 
 class MeterReadingSchema(MeterReadingBase):
@@ -540,12 +669,22 @@ class InspectionCreate(InspectionBase):
     unit_id: Optional[UUID] = None
     created_by: Optional[UUID] = None
 
+    @field_validator('organization_id', 'unit_id', 'created_by', mode='before')
+    @classmethod
+    def clean_uuids(cls, v):
+        return convert_empty_to_none(v)
+
 
 class InspectionUpdate(BaseModel):
     status: Optional[str] = None
     inspector: Optional[str] = None
     notes: Optional[str] = None
     updated_by: Optional[UUID] = None
+
+    @field_validator('updated_by', mode='before')
+    @classmethod
+    def clean_uuids(cls, v):
+        return convert_empty_to_none(v)
 
 
 class InspectionSchema(InspectionBase):
@@ -579,12 +718,22 @@ class DocumentCreate(DocumentBase):
     organization_id: Optional[UUID] = None
     created_by: Optional[UUID] = None
 
+    @field_validator('organization_id', 'created_by', mode='before')
+    @classmethod
+    def clean_uuids(cls, v):
+        return convert_empty_to_none(v)
+
 
 class DocumentUpdate(BaseModel):
     title: Optional[str] = None
     type: Optional[str] = None
     status: Optional[str] = None
     updated_by: Optional[UUID] = None
+
+    @field_validator('updated_by', mode='before')
+    @classmethod
+    def clean_uuids(cls, v):
+        return convert_empty_to_none(v)
 
 
 class DocumentSchema(DocumentBase):
@@ -617,11 +766,21 @@ class NotificationCreate(NotificationBase):
     organization_id: Optional[UUID] = None
     created_by: Optional[UUID] = None
 
+    @field_validator('organization_id', 'created_by', mode='before')
+    @classmethod
+    def clean_uuids(cls, v):
+        return convert_empty_to_none(v)
+
 
 class NotificationUpdate(BaseModel):
     status: Optional[str] = None
     is_read: Optional[bool] = None
     updated_by: Optional[UUID] = None
+
+    @field_validator('updated_by', mode='before')
+    @classmethod
+    def clean_uuids(cls, v):
+        return convert_empty_to_none(v)
 
 
 class NotificationSchema(NotificationBase):

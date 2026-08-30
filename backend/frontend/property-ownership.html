@@ -910,6 +910,7 @@
     </div>
 
 <script>
+    const DEFAULT_ORG_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
     const API_BASE_URL = (
         window.location.origin.includes('localhost') || 
         window.location.origin.includes('127.0.0.1')
@@ -919,10 +920,10 @@
             ? 'https://argo-management-2026.onrender.com/api'
             : '/api';
 
-    const PROPERTIES_API_URL = `${API_BASE_URL}/properties/`;
-    const OWNERS_API_URL = `${API_BASE_URL}/owners/`;
-    const OWNERSHIP_API_URL = `${API_BASE_URL}/property-ownership/`;
-    const NOTIFICATIONS_API_URL = `${API_BASE_URL}/notifications/`;
+    const PROPERTIES_API_URL = `${API_BASE_URL}/properties`;
+    const OWNERS_API_URL = `${API_BASE_URL}/owners`;
+    const OWNERSHIP_API_URL = `${API_BASE_URL}/property-ownership`;
+    const NOTIFICATIONS_API_URL = `${API_BASE_URL}/notifications`;
 
     function getAuthHeaders() {
         const token = localStorage.getItem('token') || localStorage.getItem('argo_token');
@@ -934,6 +935,7 @@
 
     function logoutUser() {
         localStorage.clear();
+        sessionStorage.clear();
         window.location.replace('index.html');
     }
 
@@ -1112,64 +1114,71 @@
         }
     }
 
-    // Live Database Fetchers
+    // Direct Live API Fetchers (No LocalStorage Cache Poisoning)
     async function getProperties() {
         try {
-            const response = await fetch(PROPERTIES_API_URL, { headers: getAuthHeaders() });
+            const response = await fetch(PROPERTIES_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (response.ok) {
                 const data = await response.json();
-                const list = Array.isArray(data) ? data : (data.items || data.properties || data.data || []);
-                localStorage.setItem('argo_properties', JSON.stringify(list));
-                return list;
+                return Array.isArray(data) ? data : (data.items || data.properties || data.data || []);
             }
         } catch (e) {
-            console.warn("Properties API offline, loading from cache:", e);
+            console.error("Live Properties API fetch failed:", e);
         }
-
-        const raw = localStorage.getItem('argo_properties');
-        return raw ? JSON.parse(raw) : [];
+        return [];
     }
 
     async function getOwners() {
         try {
-            const response = await fetch(OWNERS_API_URL, { headers: getAuthHeaders() });
+            const response = await fetch(OWNERS_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (response.ok) {
                 const data = await response.json();
-                const list = Array.isArray(data) ? data : (data.items || data.owners || data.data || []);
-                localStorage.setItem('argo_owners', JSON.stringify(list));
-                return list;
+                return Array.isArray(data) ? data : (data.items || data.owners || data.data || []);
             }
         } catch (e) {
-            console.warn("Owners API offline, loading from cache:", e);
+            console.error("Live Owners API fetch failed:", e);
         }
-
-        const raw = localStorage.getItem('argo_owners');
-        return raw ? JSON.parse(raw) : [];
+        return [];
     }
 
     async function getShares() {
         try {
-            const response = await fetch(OWNERSHIP_API_URL, { headers: getAuthHeaders() });
+            const response = await fetch(OWNERSHIP_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (response.ok) {
                 const data = await response.json();
-                const list = Array.isArray(data) ? data : (data.items || data.ownership || data.data || []);
-                localStorage.setItem('argo_ownership', JSON.stringify(list));
-                return list;
+                return Array.isArray(data) ? data : (data.items || data.ownership || data.data || []);
             }
         } catch (e) {
-            console.warn("Ownership API offline, loading from local cache:", e);
+            console.error("Live Ownership API fetch failed:", e);
         }
-
-        const raw = localStorage.getItem('argo_ownership') || localStorage.getItem('argo_shares');
-        return raw ? JSON.parse(raw) : [];
+        return [];
     }
 
-    function getNotifications() {
-        return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
+    async function getNotifications() {
+        try {
+            const res = await fetch(NOTIFICATIONS_API_URL, { 
+                headers: getAuthHeaders(),
+                cache: 'no-store'
+            });
+            if (res.ok) {
+                const data = await res.json();
+                return Array.isArray(data) ? data : (data.items || data.notifications || data.data || []);
+            }
+        } catch (e) {}
+        return [];
     }
 
     async function updateHeaderBadge() {
-        const notifs = getNotifications().filter(n => (n.pov === 'admin' || !n.pov) && (n.status === 'unread' || n.is_read === false));
+        const notifs = (await getNotifications()).filter(n => (n.pov === 'admin' || !n.pov) && (!n.is_read || n.status === 'unread'));
         const badge = document.getElementById('headerNotifBadge');
         if (badge) badge.textContent = notifs.length;
     }
@@ -1194,31 +1203,33 @@
             propModalSelect.innerHTML = '<option value="">Select Property...</option>';
             if (props.length > 0) {
                 props.forEach(p => {
-                    const pId = p.id || '';
+                    const pId = p.id;
                     const pName = p.name || p.property_name || 'Property';
                     const pCode = p.code || 'PROP';
                     propModalSelect.innerHTML += `<option value="${pId}" data-name="${pName}" data-code="${pCode}">${pName} (${pCode})</option>`;
                 });
             } else {
-                propModalSelect.innerHTML += '<option value="" disabled>No properties registered. Add a property first.</option>';
+                propModalSelect.innerHTML += '<option value="" disabled>No properties registered in database.</option>';
             }
+            propModalSelect.onchange = handleModalPropertyChange;
         }
 
         if (ownerModalSelect) {
             ownerModalSelect.innerHTML = '<option value="">Select Registered Owner...</option>';
             if (owners.length > 0) {
                 owners.forEach(o => {
-                    const oId = o.id || o.own_id;
+                    const oId = o.id;
                     const oName = o.name || 'Owner';
-                    const oType = o.type || 'INDIVIDUAL';
+                    const oType = (o.type || 'Individual').toUpperCase();
                     ownerModalSelect.innerHTML += `<option value="${oId}" data-name="${oName}" data-type="${oType}">${oName} (${oType})</option>`;
                 });
             } else {
-                ownerModalSelect.innerHTML += '<option value="" disabled>No owners registered. Add an owner first.</option>';
+                ownerModalSelect.innerHTML += '<option value="" disabled>No owners registered in database.</option>';
             }
         }
     }
 
+    // Dynamic 100% Cap Table Validation Calculator
     async function handleModalPropertyChange() {
         const propSelect = document.getElementById('modalPropertySelect');
         const shareInput = document.getElementById('modalSharePercent');
@@ -1229,17 +1240,17 @@
             return;
         }
 
-        const selectedPropertyId = propSelect.value;
+        const selectedPropertyId = String(propSelect.value);
         const shares = await getShares();
         const selectedOpt = propSelect.options[propSelect.selectedIndex];
-        const propName = selectedOpt ? selectedOpt.dataset.name : '';
+        const propName = (selectedOpt ? selectedOpt.dataset.name : '').toLowerCase().trim();
 
         // Calculate current allocated percentage for this property
         let totalAllocated = 0;
         shares.forEach(s => {
-            const pId = String(s.property_id || '');
-            const pNameField = s.property || s.propertyName || s.property_name || '';
-            if ((pId && pId === selectedPropertyId) || (propName && pNameField.toLowerCase() === propName.toLowerCase())) {
+            const pId = String(s.property_id || s.propertyId || '');
+            const pNameField = (s.property || s.propertyName || s.property_name || '').toLowerCase().trim();
+            if ((pId && pId === selectedPropertyId) || (propName && pNameField === propName)) {
                 totalAllocated += parseFloat(s.share_percent || s.sharePercent || s.share || 0);
             }
         });
@@ -1248,7 +1259,7 @@
         if (noticeEl) {
             noticeEl.textContent = remaining > 0 
                 ? `Remaining Unallocated Equity: ${remaining.toFixed(2)}%`
-                : `Fully Allocated (100.00%)`;
+                : `Fully Allocated (100.00% Maximum Reached)`;
             noticeEl.style.color = remaining > 0 ? '#059669' : '#EF4444';
         }
 
@@ -1257,6 +1268,7 @@
         }
     }
 
+    // Live Render Ownership Shares Table
     async function renderShareTable() {
         const rawRole = (
             localStorage.getItem('argo_pov') || 
@@ -1266,13 +1278,15 @@
         ).toLowerCase().trim();
 
         let shares = await getShares();
+        const properties = await getProperties();
+        const owners = await getOwners();
         const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
-        const ownerFilterName = user.name || '';
+        const ownerFilterName = (user.name || '').toLowerCase();
 
         if (['owner', 'property_owner', 'investor'].includes(rawRole) && ownerFilterName) {
             shares = shares.filter(s => {
-                const ownerField = (s.ownerName || s.owner_name || '').toLowerCase();
-                return ownerField.includes(ownerFilterName.toLowerCase());
+                const ownerField = (s.owner_name || s.ownerName || '').toLowerCase();
+                return ownerField.includes(ownerFilterName);
             });
         }
 
@@ -1290,19 +1304,40 @@
 
         shares.forEach(s => {
             const tr = document.createElement('tr');
-            const propName = s.propertyName || s.property_name || s.property || 'Property';
-            const propCode = s.propertyCode || s.property_code || 'PROP';
-            const ownerName = s.ownerName || s.owner_name || 'Owner';
-            const ownerType = s.ownerType || s.owner_type || 'Individual';
-            const shareVal = parseFloat(s.sharePercent || s.share_percent || s.share || 100);
-            const roleType = s.role || (s.is_primary || s.isPrimary ? 'Primary' : 'Co-Owner');
-            const startDate = s.startDate || s.start_date || (s.created_at ? s.created_at.split('T')[0] : '—');
-            const deedRef = s.contractRef || s.contract_ref || 'DEED-CONTRACT';
+            
+            // Resolve Property details
+            let propName = s.property_name || s.propertyName || s.property || 'Property';
+            let propCode = s.property_code || s.propertyCode || 'PROP';
+            if (s.property_id) {
+                const matchedProp = properties.find(p => String(p.id) === String(s.property_id));
+                if (matchedProp) {
+                    propName = matchedProp.name || matchedProp.property_name || propName;
+                    propCode = matchedProp.code || propCode;
+                }
+            }
+
+            // Resolve Owner details
+            let ownerName = s.owner_name || s.ownerName || 'Owner';
+            let ownerType = s.owner_type || s.ownerType || 'Individual';
+            if (s.owner_id) {
+                const matchedOwner = owners.find(o => String(o.id) === String(s.owner_id));
+                if (matchedOwner) {
+                    ownerName = matchedOwner.name || ownerName;
+                    ownerType = (matchedOwner.type || ownerType).toUpperCase();
+                }
+            }
+
+            const shareVal = parseFloat(s.share_percent || s.sharePercent || s.share || 100);
+            const roleType = s.role || 'Managing Owner';
+            const startDate = s.start_date || (s.created_at ? s.created_at.split('T')[0] : '—');
+            const deedRef = s.contract_ref || 'DEED-CONTRACT';
+            const shareDbId = s.id;
 
             tr.dataset.property = propName;
             tr.dataset.role = roleType;
 
-            let roleBadge = (roleType.toLowerCase().includes('primary') || s.is_primary || s.isPrimary)
+            const isPrimaryRole = roleType.toLowerCase().includes('primary') || s.is_primary || s.isPrimary;
+            const roleBadge = isPrimaryRole
                 ? `<span class="role-badge role-primary" style="background:#ECFDF5; color:#059669; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-shield-check" style="margin-right:4px;"></i> Primary Managing Owner</span>` 
                 : `<span class="role-badge role-coowner" style="background:#EFF6FF; color:#2563EB; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;">Co-Owner / Fractional</span>`;
 
@@ -1311,7 +1346,7 @@
                 actionHtml = `
                     <div class="actions" style="display:flex; gap:6px;">
                         <button class="action-button" title="View Cap Table Deed" onclick="alert('Deed Details for ${escapeQuotes(propName)}:\\nOwner: ${escapeQuotes(ownerName)}\\nEquity Share: ${shareVal.toFixed(2)}%\\nDeed Ref: ${escapeQuotes(deedRef)}')"><i class="bi bi-eye"></i></button>
-                        <button class="action-button delete" title="Remove Share" onclick="deleteShare('${s.id}', '${escapeQuotes(ownerName)}')"><i class="bi bi-trash"></i></button>
+                        <button class="action-button delete" title="Remove Share" onclick="deleteShare('${shareDbId}', '${escapeQuotes(ownerName)}')"><i class="bi bi-trash"></i></button>
                     </div>
                 `;
             } else {
@@ -1353,6 +1388,7 @@
         await updateKPIs();
     }
 
+    // LIVE ALLOCATE EQUITY SHARE (POST /api/property-ownership + STRICT CAP VALIDATION)
     async function saveShare() {
         const propSelect = document.getElementById('modalPropertySelect');
         const ownerSelect = document.getElementById('modalOwnerSelect');
@@ -1361,6 +1397,7 @@
         const startInput = document.getElementById('modalStartDate');
         const endInput = document.getElementById('modalEndDate');
         const contractInput = document.getElementById('modalContractRef');
+        const orgId = localStorage.getItem('organization_id') || DEFAULT_ORG_ID;
 
         const propertyId = propSelect ? propSelect.value : '';
         const ownerId = ownerSelect ? ownerSelect.value : '';
@@ -1368,10 +1405,8 @@
         const selectedPropOpt = propSelect && propSelect.selectedIndex >= 0 ? propSelect.options[propSelect.selectedIndex] : null;
         const selectedOwnerOpt = ownerSelect && ownerSelect.selectedIndex >= 0 ? ownerSelect.options[ownerSelect.selectedIndex] : null;
 
-        const propName = selectedPropOpt ? selectedPropOpt.dataset.name : '';
-        const propCode = selectedPropOpt ? selectedPropOpt.dataset.code : '';
-        const ownerName = selectedOwnerOpt ? selectedOwnerOpt.dataset.name : '';
-        const ownerType = selectedOwnerOpt ? selectedOwnerOpt.dataset.type : 'Individual';
+        const propName = selectedPropOpt ? selectedPropOpt.dataset.name : 'Property';
+        const ownerName = selectedOwnerOpt ? selectedOwnerOpt.dataset.name : 'Owner';
 
         const percent = parseFloat(shareInput ? shareInput.value : 0);
         const role = roleSelect ? roleSelect.value : 'Primary';
@@ -1388,26 +1423,23 @@
         const existingShares = await getShares();
         let currentTotal = 0;
         existingShares.forEach(s => {
-            const pId = String(s.property_id || '');
-            const pNameField = s.property || s.propertyName || s.property_name || '';
-            if ((pId && pId === String(propertyId)) || (propName && pNameField.toLowerCase() === propName.toLowerCase())) {
+            const pId = String(s.property_id || s.propertyId || '');
+            const pNameField = (s.property || s.propertyName || s.property_name || '').toLowerCase().trim();
+            if ((pId && pId === String(propertyId)) || (propName && pNameField === propName.toLowerCase().trim())) {
                 currentTotal += parseFloat(s.share_percent || s.sharePercent || s.share || 0);
             }
         });
 
-        const remainingEquity = 100.00 - currentTotal;
+        const remainingEquity = Math.max(0, 100.00 - currentTotal);
         if (percent > (remainingEquity + 0.001)) {
             alert(`Cap Table Overflow: Cannot allocate ${percent.toFixed(2)}% equity. Only ${remainingEquity.toFixed(2)}% unallocated equity remains for "${propName}".`);
             return;
         }
 
         const payload = {
+            organization_id: orgId,
             property_id: propertyId,
             owner_id: ownerId,
-            property_name: propName,
-            property_code: propCode,
-            owner_name: ownerName,
-            owner_type: ownerType,
             share_percent: percent,
             role: role === 'Primary' ? 'Primary Managing Owner' : 'Fractional Capital Partner',
             start_date: startDate,
@@ -1424,7 +1456,7 @@
 
             if (!res.ok) {
                 const errData = await res.json().catch(() => ({}));
-                alert(`Error saving equity share: ${errData.detail || 'Could not save equity allocation to database.'}`);
+                alert(`Error saving equity share: ${errData.detail || 'Could not save equity allocation to Neon database.'}`);
                 return;
             }
         } catch (e) {
@@ -1433,7 +1465,7 @@
             return;
         }
 
-        alert(`Equity share allocation of ${percent.toFixed(2)}% for "${propName}" assigned to ${ownerName} successfully!`);
+        alert(`Equity share allocation of ${percent.toFixed(2)}% for "${propName}" assigned to ${ownerName} successfully in database!`);
         closeModal('shareModal');
 
         if (propSelect) propSelect.value = '';
@@ -1449,12 +1481,13 @@
         await renderShareTable();
     }
 
-    async function deleteShare(id, ownerName) {
+    // LIVE DELETE EQUITY SHARE (DELETE /api/property-ownership/{id})
+    async function deleteShare(dbId, ownerName) {
         const displayOwner = ownerName || 'this owner';
         if (!confirm(`Are you sure you want to remove the equity share allocation for ${displayOwner}?`)) return;
 
         try {
-            const res = await fetch(`${OWNERSHIP_API_URL}${encodeURIComponent(id)}`, {
+            const res = await fetch(`${OWNERSHIP_API_URL}/${encodeURIComponent(dbId)}`, {
                 method: 'DELETE',
                 headers: getAuthHeaders()
             });
@@ -1470,7 +1503,7 @@
             return;
         }
 
-        alert("Equity share allocation removed successfully!");
+        alert("Equity share allocation removed successfully from database!");
         await renderShareTable();
     }
 
@@ -1489,12 +1522,12 @@
         let shares = await getShares();
         const props = await getProperties();
         const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
-        const ownerFilterName = user.name || '';
+        const ownerFilterName = (user.name || '').toLowerCase();
 
         if (['owner', 'property_owner', 'investor'].includes(rawRole) && ownerFilterName) {
             shares = shares.filter(s => {
-                const ownerField = (s.ownerName || s.owner_name || '').toLowerCase();
-                return ownerField.includes(ownerFilterName.toLowerCase());
+                const ownerField = (s.owner_name || s.ownerName || '').toLowerCase();
+                return ownerField.includes(ownerFilterName);
             });
 
             document.getElementById('kpiLabel1').textContent = 'Owned Portfolio Assets';
@@ -1502,12 +1535,12 @@
             document.getElementById('kpiLabel3').textContent = 'Fractional Co-Ownerships';
             document.getElementById('kpiLabel4').textContent = 'Average Portfolio Share';
 
-            const totalOwnedProps = new Set(shares.map(s => s.propertyName || s.property_name || s.property)).size;
+            const totalOwnedProps = new Set(shares.map(s => s.property_id || s.property_name || s.propertyName || s.property)).size;
             const primaryShares = shares.filter(s => (s.role || '').toLowerCase().includes('primary') || s.is_primary || s.isPrimary).length;
             const coOwnerShares = shares.filter(s => !(s.role || '').toLowerCase().includes('primary') && (!s.is_primary && !s.isPrimary)).length;
             
             let avgShareSum = 0;
-            shares.forEach(s => avgShareSum += parseFloat(s.sharePercent || s.share_percent || s.share || 0));
+            shares.forEach(s => avgShareSum += parseFloat(s.share_percent || s.sharePercent || s.share || 0));
             const avgShare = shares.length > 0 ? (avgShareSum / shares.length).toFixed(1) : "0.0";
 
             document.getElementById('kpiProperties').textContent = totalOwnedProps;
@@ -1517,22 +1550,22 @@
             return;
         }
 
-        // Admin KPI Calculations across all active assets
+        // Admin KPI Calculations
         let propShareMap = {};
         shares.forEach(s => {
-            const pName = s.propertyName || s.property_name || s.property || 'Property';
-            if (!propShareMap[pName]) propShareMap[pName] = { sum: 0, count: 0 };
-            propShareMap[pName].sum += parseFloat(s.sharePercent || s.share_percent || s.share || 0);
-            propShareMap[pName].count += 1;
+            const pKey = s.property_id || s.property_name || s.propertyName || s.property || 'Property';
+            if (!propShareMap[pKey]) propShareMap[pKey] = { sum: 0, count: 0 };
+            propShareMap[pKey].sum += parseFloat(s.share_percent || s.sharePercent || s.share || 0);
+            propShareMap[pKey].count += 1;
         });
 
         let totalProps = props.length;
         let fullyAllocated = 0;
         let totalOwnersCount = 0;
 
-        Object.keys(propShareMap).forEach(pName => {
-            if (propShareMap[pName].sum >= 99.99) fullyAllocated++;
-            totalOwnersCount += propShareMap[pName].count;
+        Object.keys(propShareMap).forEach(pKey => {
+            if (propShareMap[pKey].sum >= 99.99) fullyAllocated++;
+            totalOwnersCount += propShareMap[pKey].count;
         });
 
         let avgOwners = Object.keys(propShareMap).length > 0 
@@ -1612,17 +1645,6 @@
         document.getElementById("roleFilter").value = "";
         filterTable();
     }
-
-    // Cross-Tab Real-Time Sync Listener
-    window.addEventListener('storage', async (e) => {
-        if (['argo_ownership', 'argo_shares', 'argo_properties', 'argo_owners', 'argo_notifications', 'argo_user', 'argo_pov'].includes(e.key)) {
-            applyRoleLayout();
-            loadUserData();
-            await populateModalDropdowns();
-            await renderShareTable();
-            updateHeaderBadge();
-        }
-    });
 
     // Page Load Initialization
     document.addEventListener('DOMContentLoaded', async () => {

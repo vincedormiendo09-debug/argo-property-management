@@ -17,7 +17,7 @@ def ensure_sandbox_organization(db: Session, org_id: uuid.UUID):
     """Ensures a stub Organization exists in local DB to satisfy FK constraints."""
     org = db.scalar(select(models.Organization).where(models.Organization.id == org_id))
     if not org:
-        sandbox_org = models.Organization(id=org_id, name="Sunrise Property Group")
+        sandbox_org = models.Organization(id=org_id, name="ARGO Property Management Corp.")
         db.add(sandbox_org)
         db.commit()
 
@@ -59,7 +59,7 @@ def read_buildings(
 # 2. POST /api/buildings/ - Create building with floor-by-floor unit distribution and auto-provisioning
 @router.post("/", response_model=schemas.BuildingSchema, status_code=status.HTTP_201_CREATED)
 def create_building(bldg_in: schemas.BuildingCreate, db: Session = Depends(get_db)):
-    org_id = getattr(bldg_in, "organization_id", DEFAULT_ORG_ID)
+    org_id = getattr(bldg_in, "organization_id", DEFAULT_ORG_ID) or DEFAULT_ORG_ID
     ensure_sandbox_organization(db, org_id)
 
     bldg_code = bldg_in.code or f"BLDG-{str(uuid.uuid4())[:4].upper()}"
@@ -86,7 +86,8 @@ def create_building(bldg_in: schemas.BuildingCreate, db: Session = Depends(get_d
     calculated_total_units = sum(int(v) for v in floor_dist.values())
 
     bldg_id = uuid.uuid4()
-    bldg_data = bldg_in.dict(exclude_unset=True)
+    bldg_data = bldg_in.model_dump(exclude_unset=True) if hasattr(bldg_in, "model_dump") else bldg_in.dict(exclude_unset=True)
+    
     bldg_data["id"] = bldg_id
     bldg_data["organization_id"] = org_id
     bldg_data["code"] = bldg_code
@@ -191,7 +192,7 @@ def update_building(
             detail="Building not found."
         )
 
-    update_data = bldg_update.dict(exclude_unset=True)
+    update_data = bldg_update.model_dump(exclude_unset=True) if hasattr(bldg_update, "model_dump") else bldg_update.dict(exclude_unset=True)
     for field, value in update_data.items():
         if hasattr(db_bldg, field):
             setattr(db_bldg, field, value)
@@ -201,7 +202,7 @@ def update_building(
     return db_bldg
 
 
-# 5. DELETE /api/buildings/{building_id} - Cleanly delete building and associated units without 500 errors
+# 5. DELETE /api/buildings/{building_id} - Cleanly delete building and associated units
 @router.delete("/{building_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_building(
     building_id: str,

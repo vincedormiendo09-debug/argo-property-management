@@ -849,6 +849,7 @@
     </div>
 
 <script>
+    const DEFAULT_ORG_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
     const API_BASE_URL = (
         window.location.origin.includes('localhost') || 
         window.location.origin.includes('127.0.0.1')
@@ -858,10 +859,10 @@
             ? 'https://argo-management-2026.onrender.com/api'
             : '/api';
 
-    const INSPECTIONS_API_URL = `${API_BASE_URL}/inspections/`;
-    const UNITS_API_URL = `${API_BASE_URL}/units/`;
-    const LEASES_API_URL = `${API_BASE_URL}/leases/`;
-    const NOTIFICATIONS_API_URL = `${API_BASE_URL}/notifications/`;
+    const INSPECTIONS_API_URL = `${API_BASE_URL}/inspections`;
+    const UNITS_API_URL = `${API_BASE_URL}/units`;
+    const LEASES_API_URL = `${API_BASE_URL}/leases`;
+    const NOTIFICATIONS_API_URL = `${API_BASE_URL}/notifications`;
 
     function getAuthHeaders() {
         const token = localStorage.getItem('token') || localStorage.getItem('argo_token');
@@ -873,6 +874,7 @@
 
     function logoutUser() {
         localStorage.clear();
+        sessionStorage.clear();
         window.location.replace('index.html');
     }
 
@@ -1044,69 +1046,67 @@
         }
     }
 
-    // Database Fetchers
+    // Direct Database Fetchers (No LocalStorage Cache Poisoning)
     async function getInspections() {
-        let liveInspections = [];
         try {
-            const response = await fetch(INSPECTIONS_API_URL, { headers: getAuthHeaders() });
+            const response = await fetch(INSPECTIONS_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (response.ok) {
                 const data = await response.json();
-                const list = Array.isArray(data) ? data : (data.items || data.inspections || data.data || []);
-                liveInspections = list;
-                localStorage.setItem('argo_inspections', JSON.stringify(list));
+                return Array.isArray(data) ? data : (data.items || data.inspections || data.data || []);
             }
         } catch (e) {
-            console.warn("Inspections API offline, using cache:", e);
+            console.error("Live Inspections API fetch failed:", e);
         }
-
-        if (liveInspections.length === 0) {
-            const raw = localStorage.getItem('argo_inspections');
-            liveInspections = raw ? JSON.parse(raw) : [];
-        }
-
-        return liveInspections;
-    }
-
-    function saveInspections(inspections) {
-        localStorage.setItem('argo_inspections', JSON.stringify(inspections));
+        return [];
     }
 
     async function getUnits() {
         try {
-            const res = await fetch(UNITS_API_URL, { headers: getAuthHeaders() });
+            const res = await fetch(UNITS_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (res.ok) {
                 const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.units || data.data || []);
-                localStorage.setItem('argo_units', JSON.stringify(list));
-                return list;
+                return Array.isArray(data) ? data : (data.items || data.units || data.data || []);
             }
-        } catch (e) {}
-
-        const raw = localStorage.getItem('argo_units');
-        return raw ? JSON.parse(raw) : [];
+        } catch (e) {
+            console.warn("Live Units fetch error:", e);
+        }
+        return [];
     }
 
     async function getLeases() {
         try {
-            const res = await fetch(LEASES_API_URL, { headers: getAuthHeaders() });
+            const res = await fetch(LEASES_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (res.ok) {
                 const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.leases || data.data || []);
-                localStorage.setItem('argo_leases', JSON.stringify(list));
-                return list;
+                return Array.isArray(data) ? data : (data.items || data.leases || data.data || []);
+            }
+        } catch (e) {
+            console.warn("Live Leases fetch error:", e);
+        }
+        return [];
+    }
+
+    async function getNotifications() {
+        try {
+            const res = await fetch(NOTIFICATIONS_API_URL, { 
+                headers: getAuthHeaders(),
+                cache: 'no-store'
+            });
+            if (res.ok) {
+                const data = await res.json();
+                return Array.isArray(data) ? data : (data.items || data.notifications || data.data || []);
             }
         } catch (e) {}
-
-        const raw = localStorage.getItem('argo_leases');
-        return raw ? JSON.parse(raw) : [];
-    }
-
-    function getNotifications() {
-        return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
-    }
-
-    function saveNotifications(notifications) {
-        localStorage.setItem('argo_notifications', JSON.stringify(notifications));
+        return [];
     }
 
     async function populateUnitDropdown() {
@@ -1124,8 +1124,10 @@
             activeLeases.forEach(l => {
                 const uLoc = l.property_name && l.unit_number ? `${l.property_name} • ${l.unit_number}` : (l.unit || 'Unit');
                 const tName = l.tenant_name || l.tenantName || 'Tenant';
+                const uId = l.unit_id || '';
                 const opt = document.createElement('option');
-                opt.value = `${uLoc}|${tName}|${l.tenant_email || ''}`;
+                opt.value = `${uLoc}|${tName}|${l.tenant_email || ''}|${uId}`;
+                opt.dataset.unitId = uId;
                 opt.textContent = `${uLoc} (${tName})`;
                 leaseGroup.appendChild(opt);
             });
@@ -1137,9 +1139,11 @@
             vacantGroup.label = 'All Registered Units';
             units.forEach(u => {
                 const uName = u.unit_no || u.unit_number || `Unit #${u.id}`;
-                const pName = (u.property ? (u.property.name || u.property.property_name) : '') || u.property_name || 'Property';
+                const pName = u.property_name || (u.property ? (u.property.name || u.property.property_name) : '') || 'Property';
+                const uId = u.id;
                 const opt = document.createElement('option');
-                opt.value = `${pName} • ${uName}|N/A|`;
+                opt.value = `${pName} • ${uName}|N/A||${uId}`;
+                opt.dataset.unitId = uId;
                 opt.textContent = `${pName} • ${uName} (${u.status || 'Available'})`;
                 vacantGroup.appendChild(opt);
             });
@@ -1160,6 +1164,7 @@
         }
     }
 
+    // Live Render Inspection Audit Table
     async function renderInspectionTable() {
         const rawRole = (
             localStorage.getItem('argo_pov') || 
@@ -1181,8 +1186,9 @@
         tbody.innerHTML = '';
 
         if (!inspections || inspections.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:var(--muted, #64748B); padding:30px;">No inspection audit records found. Click "Schedule Inspection" to record an audit.</td></tr>`;
-            document.getElementById('showingCountText').textContent = `Showing 0 inspections`;
+            tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:var(--muted, #64748B); padding:30px;">No inspection audit records found in database. Click "Schedule Inspection" to record an audit.</td></tr>`;
+            const countEl = document.getElementById('showingCountText');
+            if (countEl) countEl.textContent = `Showing 0 inspections`;
             await updateKPIs();
             return;
         }
@@ -1190,43 +1196,50 @@
         inspections.forEach(ins => {
             const tr = document.createElement('tr');
             const type = ins.type || 'Routine';
-            const status = ins.status || 'Scheduled';
-            const condition = ins.condition || ins.condition_rating || 'Good';
+            const status = (ins.status || 'Scheduled').trim();
+            const condition = ins.notes && ins.notes.includes('Fail') ? 'Needs Repair' : (ins.notes && ins.notes.includes('Pass') ? 'Good' : (ins.condition || 'Good'));
 
             tr.dataset.type = type;
             tr.dataset.status = status;
 
             let typeClass = 'routine';
             const t = type.toLowerCase();
-            if (t.includes('move-in')) typeClass = 'move-in';
-            else if (t.includes('move-out')) typeClass = 'move-out';
+            if (t.includes('move-in') || t.includes('move in')) typeClass = 'move-in';
+            else if (t.includes('move-out') || t.includes('move out')) typeClass = 'move-out';
             else if (t.includes('maintenance')) typeClass = 'maintenance-type';
 
             let statusBadge = '';
-            const s = status.toLowerCase();
-            if (s === 'completed') statusBadge = `<span class="status completed" style="background:#ECFDF5; color:#059669; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-check-circle me-1"></i> Completed</span>`;
-            else if (s === 'scheduled') statusBadge = `<span class="status scheduled" style="background:#EFF6FF; color:#2563EB; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-calendar-check me-1"></i> Scheduled</span>`;
-            else if (s === 'pending') statusBadge = `<span class="status pending" style="background:#FEF3C7; color:#D97706; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-clock me-1"></i> Pending Review</span>`;
-            else statusBadge = `<span class="status cancelled" style="background:#FFF1F2; color:#E11D48; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;">Cancelled</span>`;
+            const s = status.toUpperCase();
+            if (s === 'COMPLETED' || s === 'PASSED') {
+                statusBadge = `<span class="status completed" style="background:#ECFDF5; color:#059669; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-check-circle me-1"></i> Completed</span>`;
+            } else if (s === 'SCHEDULED') {
+                statusBadge = `<span class="status scheduled" style="background:#EFF6FF; color:#2563EB; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-calendar-check me-1"></i> Scheduled</span>`;
+            } else if (s === 'PENDING') {
+                statusBadge = `<span class="status pending" style="background:#FEF3C7; color:#D97706; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-clock me-1"></i> Pending Review</span>`;
+            } else {
+                statusBadge = `<span class="status cancelled" style="background:#FFF1F2; color:#E11D48; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;">Cancelled</span>`;
+            }
 
-            let conditionBadge = `<span style="background:#ECFDF5; color:#059669; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-shield-check"></i> Good</span>`;
-            if (condition.toLowerCase().includes('repair')) {
+            let conditionBadge = `<span style="background:#ECFDF5; color:#059669; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-shield-check"></i> Good / Pass</span>`;
+            if (condition.toLowerCase().includes('repair') || condition.toLowerCase().includes('fail')) {
                 conditionBadge = `<span style="background:#FEF3C7; color:#D97706; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-tools"></i> Needs Repair</span>`;
             } else if (condition.toLowerCase().includes('damage')) {
                 conditionBadge = `<span style="background:#FFF1F2; color:#E11D48; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-exclamation-triangle"></i> Damaged</span>`;
             }
 
-            const displayId = ins.inspection_id || ins.id || 'INS';
-            const unitName = ins.unit_name || ins.unitName || 'Unit';
-            const propInfo = ins.property_info || ins.propertyInfo || 'Property Location';
-            const tenantName = ins.tenant || ins.tenant_name || 'Occupant';
+            const displayId = ins.inspection_id || `INS-${String(ins.id).slice(-4)}`;
+            const inspectionDbId = ins.id;
+            const unitName = ins.unit_name || 'Unit';
+            const propInfo = ins.property_info || 'Property Location';
+            const tenantName = ins.tenant || 'Occupant';
+            const dateStr = ins.date ? ins.date.split('T')[0] : '—';
 
             let actionButtons = `
-                <button class="action-btn" title="View Audit Report" onclick="viewInspectionReport('${displayId}')"><i class="bi bi-eye"></i></button>
+                <button class="action-btn" title="View Audit Report" onclick="viewInspectionReport('${inspectionDbId}')"><i class="bi bi-eye"></i></button>
             `;
             if (!['client', 'tenant', 'client_pov'].includes(rawRole)) {
                 actionButtons += `
-                    <button class="action-btn delete" title="Delete Audit" onclick="deleteInspection('${displayId}')"><i class="bi bi-trash"></i></button>
+                    <button class="action-btn delete" title="Delete Audit" onclick="deleteInspection('${inspectionDbId}', '${displayId}')"><i class="bi bi-trash"></i></button>
                 `;
             }
 
@@ -1238,19 +1251,21 @@
                 </td>
                 <td><strong>${tenantName}</strong></td>
                 <td><span class="inspection-type ${typeClass}" style="padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;">${type}</span></td>
-                <td>${ins.date || ins.inspection_date || '—'}</td>
+                <td>${dateStr}</td>
                 <td>${conditionBadge}</td>
-                <td>${ins.inspector || 'Inspector'}</td>
+                <td>${ins.inspector || 'Property Inspector'}</td>
                 <td>${statusBadge}</td>
                 <td><div class="actions" style="display:flex; gap:6px;">${actionButtons}</div></td>
             `;
             tbody.appendChild(tr);
         });
 
-        document.getElementById('showingCountText').textContent = `Showing 1–${inspections.length} of ${inspections.length} inspection records`;
+        const countEl = document.getElementById('showingCountText');
+        if (countEl) countEl.textContent = `Showing 1–${inspections.length} of ${inspections.length} inspection records`;
         await updateKPIs();
     }
 
+    // LIVE SAVE INSPECTION (POST /api/inspections + POST /api/notifications)
     async function saveInspection() {
         const unitSelect = document.getElementById('modalUnitSelect');
         const typeSelect = document.getElementById('modalTypeSelect');
@@ -1259,17 +1274,16 @@
         const tenantInput = document.getElementById('modalTenantInput');
         const conditionSelect = document.getElementById('modalConditionSelect');
         const statusSelect = document.getElementById('modalStatusSelect');
-        const photoInput = document.getElementById('modalPhotoInput');
         const notesInput = document.getElementById('modalNotesInput');
+        const orgId = localStorage.getItem('organization_id') || DEFAULT_ORG_ID;
 
         const unitRaw = unitSelect ? unitSelect.value : '';
         const type = typeSelect ? typeSelect.value : 'Routine';
         const date = dateInput && dateInput.value ? dateInput.value : new Date().toISOString().split('T')[0];
-        const inspector = inspectorInput && inspectorInput.value.trim() ? inspectorInput.value.trim() : 'Property Admin';
+        const inspector = inspectorInput && inspectorInput.value.trim() ? inspectorInput.value.trim() : 'Property Inspector';
         const tenant = tenantInput && tenantInput.value.trim() ? tenantInput.value.trim() : 'Occupant';
         const condition = conditionSelect ? conditionSelect.value : 'Good';
         const status = statusSelect ? statusSelect.value : 'Scheduled';
-        const photo = photoInput ? photoInput.value.trim() : '';
         const notes = notesInput ? notesInput.value.trim() : '';
 
         if (!unitRaw) {
@@ -1277,85 +1291,99 @@
             return;
         }
 
-        const parts = unitRaw.split('|')[0].split('•');
-        const unitName = parts[parts.length - 1] ? parts[parts.length - 1].trim() : 'Unit';
-        const propertyInfo = parts.slice(0, parts.length - 1).join('•').trim() || 'Property Location';
-        const inspectionId = `INS-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+        const parts = unitRaw.split('|');
+        const locationPart = parts[0].split('•');
+        const unitName = locationPart[locationPart.length - 1] ? locationPart[locationPart.length - 1].trim() : 'Unit';
+        const propertyInfo = locationPart.slice(0, locationPart.length - 1).join('•').trim() || 'Property Location';
+        const unitId = parts[3] && parts[3].length === 36 ? parts[3] : null;
+
+        const inspectionCode = `INS-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
         const payload = {
-            inspection_id: inspectionId,
+            organization_id: orgId,
+            unit_id: unitId,
+            inspection_id: inspectionCode,
             unit_name: unitName,
             property_info: propertyInfo,
             tenant: tenant,
-            tenant_name: tenant,
             type: type,
             date: date,
-            inspection_date: date,
             inspector: inspector,
-            condition: condition,
-            condition_rating: condition,
             status: status,
-            photos: photo,
-            notes: notes
+            notes: notes ? `${notes} [Condition: ${condition}]` : `Condition Rating: ${condition}`
         };
 
         try {
-            await fetch(INSPECTIONS_API_URL, {
+            const res = await fetch(INSPECTIONS_API_URL, {
                 method: 'POST',
                 headers: getAuthHeaders(),
                 body: JSON.stringify(payload)
             });
+
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                alert(`Error saving inspection: ${errData.detail || 'Could not save to Neon database.'}`);
+                return;
+            }
         } catch (e) {
-            console.warn("Backend save bypassed, keeping locally.", e);
+            console.error("Network error saving inspection audit:", e);
+            alert("Network connection error. Check server connection.");
+            return;
         }
 
-        let inspections = await getInspections();
-        inspections.unshift({ ...payload, id: inspectionId });
-        saveInspections(inspections);
+        // Push System Notification
+        try {
+            await fetch(NOTIFICATIONS_API_URL, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({
+                    organization_id: orgId,
+                    pov: 'client',
+                    category: 'asset',
+                    status: 'Active',
+                    is_read: false,
+                    title: `${type} Inspection Logged`,
+                    description: `Audit inspection recorded for ${unitName} on ${date}. Condition rating: ${condition}.`,
+                    property: `${propertyInfo} • ${unitName}`,
+                    urgent: condition.toLowerCase().includes('damage') || condition.toLowerCase().includes('repair')
+                })
+            });
+        } catch (err) {}
 
-        // System notification
-        let notifications = getNotifications();
-        notifications.unshift({
-            id: `NOTIF-${Date.now()}`,
-            pov: 'client',
-            category: 'asset',
-            status: 'unread',
-            is_read: false,
-            title: `${type} Inspection Logged`,
-            time: 'Just now',
-            description: `Audit inspection recorded for <strong>${unitName}</strong> on <strong>${date}</strong>. Condition rating: <strong>${condition}</strong>.`,
-            property: `${propertyInfo} • ${unitName}`,
-            actionUrl: 'inspections.html',
-            actionText: 'View Report'
-        });
-        saveNotifications(notifications);
-
-        await renderInspectionTable();
+        alert(`Inspection audit (${inspectionCode}) saved successfully in Neon database!`);
         closeModal();
 
         if (unitSelect) unitSelect.value = '';
         if (inspectorInput) inspectorInput.value = '';
         if (tenantInput) tenantInput.value = '';
-        if (photoInput) photoInput.value = '';
         if (notesInput) notesInput.value = '';
 
-        alert(`Inspection record (${inspectionId}) saved successfully!`);
+        await renderInspectionTable();
     }
 
-    async function deleteInspection(id) {
-        if (!confirm("Are you sure you want to delete this inspection audit record?")) return;
+    // LIVE DELETE INSPECTION (DELETE /api/inspections/{id})
+    async function deleteInspection(dbId, displayCode) {
+        const name = displayCode || dbId;
+        if (!confirm(`Are you sure you want to permanently delete inspection audit "${name}" from the database?`)) return;
         
         try {
-            await fetch(`${INSPECTIONS_API_URL}${encodeURIComponent(id)}`, {
+            const res = await fetch(`${INSPECTIONS_API_URL}/${encodeURIComponent(dbId)}`, {
                 method: 'DELETE',
                 headers: getAuthHeaders()
             });
-        } catch (e) {}
 
-        let inspections = await getInspections();
-        inspections = inspections.filter(i => String(i.id) !== String(id) && String(i.inspection_id) !== String(id));
-        saveInspections(inspections);
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                alert(`Cannot delete inspection audit: ${errData.detail || 'Database error.'}`);
+                return;
+            }
+        } catch (e) {
+            console.error("Delete request failed:", e);
+            alert("Network error occurred while deleting inspection audit.");
+            return;
+        }
 
+        alert(`Inspection audit "${name}" deleted successfully!`);
         await renderInspectionTable();
     }
 
@@ -1364,7 +1392,7 @@
         const ins = inspections.find(i => String(i.id) === String(id) || String(i.inspection_id) === String(id));
         if (!ins) return;
 
-        alert(`ARGO Property Inspection Report\n\nInspection ID: ${ins.inspection_id || ins.id}\nUnit: ${ins.unit_name || ins.unitName} (${ins.property_info || ins.propertyInfo})\nTenant: ${ins.tenant || ins.tenant_name}\nType: ${ins.type}\nAudit Date: ${ins.date || ins.inspection_date}\nInspector: ${ins.inspector}\nCondition: ${ins.condition || ins.condition_rating || 'Good'}\nStatus: ${ins.status}\nAttached Photos: ${ins.photos || 'None'}\nRemarks: ${ins.notes || 'No remarks provided.'}`);
+        alert(`ARGO Property Inspection Report\n\nInspection ID: ${ins.inspection_id || ins.id}\nUnit: ${ins.unit_name} (${ins.property_info})\nTenant: ${ins.tenant}\nType: ${ins.type}\nAudit Date: ${ins.date ? ins.date.split('T')[0] : '—'}\nInspector: ${ins.inspector}\nStatus: ${ins.status}\nNotes & Checklist: ${ins.notes || 'No remarks provided.'}`);
     }
 
     async function updateKPIs() {
@@ -1380,13 +1408,13 @@
         const loggedInName = (user.name || '').toLowerCase();
 
         if (['client', 'tenant', 'client_pov'].includes(rawRole) && loggedInName) {
-            inspections = inspections.filter(i => (i.tenant || i.tenant_name || '').toLowerCase().includes(loggedInName));
+            inspections = inspections.filter(i => (i.tenant || '').toLowerCase().includes(loggedInName));
         }
 
-        let total = inspections.length;
-        let scheduled = inspections.filter(i => (i.status || '').toLowerCase() === 'scheduled').length;
-        let completed = inspections.filter(i => (i.status || '').toLowerCase() === 'completed').length;
-        let pending = inspections.filter(i => (i.status || '').toLowerCase() === 'pending').length;
+        const total = inspections.length;
+        const scheduled = inspections.filter(i => (i.status || '').toUpperCase() === 'SCHEDULED').length;
+        const completed = inspections.filter(i => (i.status || '').toUpperCase() === 'COMPLETED' || (i.status || '').toUpperCase() === 'PASSED').length;
+        const pending = inspections.filter(i => (i.status || '').toUpperCase() === 'PENDING').length;
 
         const totalEl = document.getElementById('kpiTotal');
         const schedEl = document.getElementById('kpiScheduled');
@@ -1400,9 +1428,11 @@
     }
 
     function updateHeaderBadge() {
-        const notifs = getNotifications().filter(n => (n.pov === 'admin' || !n.pov) && (n.status === 'unread' || n.is_read === false));
-        const badge = document.getElementById('headerNotifBadge');
-        if (badge) badge.textContent = notifs.length;
+        getNotifications().then(notifs => {
+            const unread = notifs.filter(n => (n.pov === 'admin' || !n.pov) && (!n.is_read || n.status === 'unread'));
+            const badge = document.getElementById('headerNotifBadge');
+            if (badge) badge.textContent = unread.length;
+        });
     }
 
     async function openModal() { 
@@ -1457,17 +1487,6 @@
         document.getElementById("statusFilter").value = "";
         filterTable();
     }
-
-    // Real-Time Cross-Tab Listener
-    window.addEventListener('storage', async (e) => {
-        if (['argo_inspections', 'argo_units', 'argo_leases', 'argo_notifications', 'argo_user', 'argo_pov'].includes(e.key)) {
-            applyRoleContext();
-            loadUserData();
-            await populateUnitDropdown();
-            await renderInspectionTable();
-            updateHeaderBadge();
-        }
-    });
 
     // Page Load Initialization
     document.addEventListener('DOMContentLoaded', async () => {

@@ -21,7 +21,7 @@ def ensure_sandbox_organization(db: Session, org_id: uuid.UUID):
     """Ensures a stub Organization exists in local DB to satisfy FK constraints."""
     org = db.scalar(select(models.Organization).where(models.Organization.id == org_id))
     if not org:
-        sandbox_org = models.Organization(id=org_id, name="Sunrise Property Group")
+        sandbox_org = models.Organization(id=org_id, name="ARGO Property Management Corp.")
         db.add(sandbox_org)
         db.commit()
 
@@ -99,6 +99,9 @@ def read_maintenance_tickets(
 ):
     ensure_sandbox_organization(db, organization_id)
 
+    if not MaintenanceModel:
+        raise HTTPException(status_code=500, detail="Maintenance model not found in database models.")
+
     stmt = select(MaintenanceModel).where(
         MaintenanceModel.organization_id == organization_id
     )
@@ -168,8 +171,11 @@ def create_maintenance_ticket(
     ticket_in: schemas.MaintenanceCreate,
     db: Session = Depends(get_db)
 ):
-    org_id = getattr(ticket_in, "organization_id", DEFAULT_ORG_ID)
+    org_id = getattr(ticket_in, "organization_id", DEFAULT_ORG_ID) or DEFAULT_ORG_ID
     ensure_sandbox_organization(db, org_id)
+
+    if not MaintenanceModel:
+        raise HTTPException(status_code=500, detail="Maintenance model not found.")
 
     # Verify unit exists under this organization if unit_id is provided
     if ticket_in.unit_id:
@@ -184,10 +190,10 @@ def create_maintenance_ticket(
                 detail=f"Unit with ID '{ticket_in.unit_id}' not found in this organization."
             )
 
-    ticket_data = ticket_in.dict(exclude_unset=True)
+    ticket_data = ticket_in.model_dump(exclude_unset=True) if hasattr(ticket_in, "model_dump") else ticket_in.dict(exclude_unset=True)
     if "id" not in ticket_data or not ticket_data["id"]:
         ticket_data["id"] = uuid.uuid4()
-    if "organization_id" not in ticket_data:
+    if "organization_id" not in ticket_data or not ticket_data["organization_id"]:
         ticket_data["organization_id"] = org_id
     if "ticket_id" not in ticket_data and hasattr(MaintenanceModel, "ticket_id"):
         ticket_data["ticket_id"] = f"TCK-{datetime.now().year}-{str(uuid.uuid4())[:6].upper()}"
@@ -226,6 +232,9 @@ def get_maintenance_ticket(
     organization_id: uuid.UUID = Query(default=DEFAULT_ORG_ID),
     db: Session = Depends(get_db)
 ):
+    if not MaintenanceModel:
+        raise HTTPException(status_code=500, detail="Maintenance model not found.")
+
     try:
         parsed_uuid = uuid.UUID(ticket_id)
         stmt = select(MaintenanceModel).where(
@@ -245,7 +254,6 @@ def get_maintenance_ticket(
             )
 
     ticket = db.scalar(stmt)
-
     if not ticket:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -255,7 +263,7 @@ def get_maintenance_ticket(
     return ticket
 
 
-# 4. PATCH & PUT /api/maintenance/{ticket_id} - Update status, technician dispatch, repair cost, and trigger activity feed events
+# 4. PATCH & PUT /api/maintenance/{ticket_id} - Update status, technician dispatch, repair cost
 @router.patch("/{ticket_id}", response_model=schemas.MaintenanceSchema)
 @router.put("/{ticket_id}", response_model=schemas.MaintenanceSchema)
 def update_maintenance_ticket(
@@ -264,6 +272,9 @@ def update_maintenance_ticket(
     organization_id: uuid.UUID = Query(default=DEFAULT_ORG_ID),
     db: Session = Depends(get_db)
 ):
+    if not MaintenanceModel:
+        raise HTTPException(status_code=500, detail="Maintenance model not found.")
+
     try:
         parsed_uuid = uuid.UUID(ticket_id)
         stmt = select(MaintenanceModel).where(
@@ -283,7 +294,6 @@ def update_maintenance_ticket(
             )
 
     db_ticket = db.scalar(stmt)
-
     if not db_ticket:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -293,7 +303,7 @@ def update_maintenance_ticket(
     old_status = getattr(db_ticket, "status", "")
     old_tech = getattr(db_ticket, "technician", "")
 
-    update_dict = update_data.dict(exclude_unset=True)
+    update_dict = update_data.model_dump(exclude_unset=True) if hasattr(update_data, "model_dump") else update_data.dict(exclude_unset=True)
     for field, value in update_dict.items():
         if hasattr(db_ticket, field):
             setattr(db_ticket, field, value)
@@ -301,7 +311,7 @@ def update_maintenance_ticket(
     new_status = getattr(db_ticket, "status", old_status)
     new_tech = getattr(db_ticket, "technician", old_tech)
 
-    # Immediately trigger activity feed event / notification upon status update or technician dispatch
+    # Trigger notification upon status update or technician dispatch
     if hasattr(models, "Notification") and (old_status != new_status or old_tech != new_tech):
         t_id = getattr(db_ticket, "ticket_id", "TCK")
         notif = models.Notification(
@@ -331,6 +341,9 @@ def delete_maintenance_ticket(
     organization_id: uuid.UUID = Query(default=DEFAULT_ORG_ID),
     db: Session = Depends(get_db)
 ):
+    if not MaintenanceModel:
+        raise HTTPException(status_code=500, detail="Maintenance model not found.")
+
     try:
         parsed_uuid = uuid.UUID(ticket_id)
         stmt = select(MaintenanceModel).where(

@@ -16,7 +16,7 @@ DEFAULT_ORG_ID = uuid.UUID("a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11")
 def ensure_sandbox_organization(db: Session, org_id: uuid.UUID):
     org = db.scalar(select(models.Organization).where(models.Organization.id == org_id))
     if not org:
-        sandbox_org = models.Organization(id=org_id, name="Sunrise Property Group")
+        sandbox_org = models.Organization(id=org_id, name="ARGO Property Management Corp.")
         db.add(sandbox_org)
         db.commit()
 
@@ -37,7 +37,6 @@ def read_transactions(
         stmt = stmt.where(models.Transaction.direction.ilike(f"%{direction}%"))
     
     if status_filter:
-        # Precisely separate verified/paid/disbursed records from pending/audit/overdue ones
         s_upper = status_filter.upper()
         if s_upper in ("PAID", "VERIFIED", "COMPLETED", "DISBURSED"):
             stmt = stmt.where(or_(
@@ -78,7 +77,7 @@ def read_transactions(
             organization_id=organization_id,
             txn_id="TXN-2026-08-001",
             ref_code="#BDO-TRF8812",
-            payer="Sunrise Property Management",
+            payer="ARGO Property Operations Desk",
             property_location="Sunrise Residences",
             category="Owner Yield Disbursement",
             direction="OUTFLOW",
@@ -98,12 +97,12 @@ def create_transaction(
     txn_in: schemas.TransactionCreate,
     db: Session = Depends(get_db)
 ):
-    org_id = getattr(txn_in, "organization_id", DEFAULT_ORG_ID)
+    org_id = getattr(txn_in, "organization_id", DEFAULT_ORG_ID) or DEFAULT_ORG_ID
     ensure_sandbox_organization(db, org_id)
 
     txn_id = txn_in.txn_id or f"TXN-{datetime.now().year}-{datetime.now().strftime('%m')}-{str(uuid.uuid4())[:4].upper()}"
 
-    txn_data = txn_in.dict(exclude_unset=True)
+    txn_data = txn_in.model_dump(exclude_unset=True) if hasattr(txn_in, "model_dump") else txn_in.dict(exclude_unset=True)
     if "id" not in txn_data or not txn_data["id"]:
         txn_data["id"] = uuid.uuid4()
     txn_data["organization_id"] = org_id
@@ -164,7 +163,7 @@ def update_transaction(
     if not db_txn:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transaction record not found.")
 
-    update_data = txn_update.dict(exclude_unset=True)
+    update_data = txn_update.model_dump(exclude_unset=True) if hasattr(txn_update, "model_dump") else txn_update.dict(exclude_unset=True)
     for field, value in update_data.items():
         if hasattr(db_txn, field):
             setattr(db_txn, field, value)

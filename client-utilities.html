@@ -1020,6 +1020,7 @@
     </div>
 
 <script>
+    const DEFAULT_ORG_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
     const API_BASE_URL = (
         window.location.origin.includes('localhost') || 
         window.location.origin.includes('127.0.0.1')
@@ -1029,12 +1030,14 @@
             ? 'https://argo-management-2026.onrender.com/api'
             : '/api';
 
-    const METER_READINGS_API_URL = `${API_BASE_URL}/meter-readings/`;
-    const UTILITY_CHARGES_API_URL = `${API_BASE_URL}/utility-charges/`;
-    const INVOICES_API_URL = `${API_BASE_URL}/invoices/`;
-    const LEASES_API_URL = `${API_BASE_URL}/leases/`;
-    const TRANSACTIONS_API_URL = `${API_BASE_URL}/transactions/`;
-    const NOTIFICATIONS_API_URL = `${API_BASE_URL}/notifications/`;
+    const METER_READINGS_API_URL = `${API_BASE_URL}/meter-readings`;
+    const UTILITY_CHARGES_API_URL = `${API_BASE_URL}/utility-charges`;
+    const INVOICES_API_URL = `${API_BASE_URL}/invoices`;
+    const LEASES_API_URL = `${API_BASE_URL}/leases`;
+    const TENANTS_API_URL = `${API_BASE_URL}/tenants`;
+    const UNITS_API_URL = `${API_BASE_URL}/units`;
+    const TRANSACTIONS_API_URL = `${API_BASE_URL}/transactions`;
+    const NOTIFICATIONS_API_URL = `${API_BASE_URL}/notifications`;
 
     function getMasterRates() {
         try {
@@ -1046,6 +1049,10 @@
             MAYNILAD_CUM: 48.00,
             HOA_DUES: 1200.00
         };
+    }
+
+    function saveMasterRatesLocal(rates) {
+        localStorage.setItem('argo_utility_rates', JSON.stringify(rates));
     }
 
     function parseCurrency(val) {
@@ -1075,6 +1082,7 @@
 
     function logoutUser() {
         localStorage.clear();
+        sessionStorage.clear();
         window.location.replace('index.html');
     }
 
@@ -1117,126 +1125,173 @@
         nav.innerHTML = html;
     }
 
-    // Database Fetchers
+    // Direct Database Fetchers (No Stale LocalStorage Cache Poisoning)
     async function getReadings() {
         try {
-            const res = await fetch(METER_READINGS_API_URL, { headers: getAuthHeaders() });
+            const res = await fetch(METER_READINGS_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (res.ok) {
                 const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.readings || data.data || []);
-                localStorage.setItem('argo_meter_readings', JSON.stringify(list));
-                return list;
+                return Array.isArray(data) ? data : (data.items || data.readings || data.data || []);
             }
-        } catch (e) {}
-
-        const raw = localStorage.getItem('argo_meter_readings');
-        return raw ? JSON.parse(raw) : [];
+        } catch (e) {
+            console.error("Live Meter Readings fetch failed:", e);
+        }
+        return [];
     }
 
     async function getUtilityCharges() {
         try {
-            const res = await fetch(UTILITY_CHARGES_API_URL, { headers: getAuthHeaders() });
+            const res = await fetch(UTILITY_CHARGES_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (res.ok) {
                 const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.charges || data.data || []);
-                localStorage.setItem('argo_utility_charges', JSON.stringify(list));
-                return list;
+                return Array.isArray(data) ? data : (data.items || data.charges || data.data || []);
             }
-        } catch (e) {}
-
-        const raw = localStorage.getItem('argo_utility_charges');
-        return raw ? JSON.parse(raw) : [];
-    }
-
-    function saveUtilityCharges(charges) {
-        localStorage.setItem('argo_utility_charges', JSON.stringify(charges));
+        } catch (e) {
+            console.error("Live Utility Charges fetch failed:", e);
+        }
+        return [];
     }
 
     async function getInvoices() {
         try {
-            const res = await fetch(INVOICES_API_URL, { headers: getAuthHeaders() });
+            const res = await fetch(INVOICES_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (res.ok) {
                 const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.invoices || data.data || []);
-                localStorage.setItem('argo_invoices', JSON.stringify(list));
-                return list;
+                return Array.isArray(data) ? data : (data.items || data.invoices || data.data || []);
             }
         } catch (e) {}
-
-        const raw = localStorage.getItem('argo_invoices');
-        return raw ? JSON.parse(raw) : [];
-    }
-
-    function saveInvoices(invoices) { 
-        localStorage.setItem('argo_invoices', JSON.stringify(invoices)); 
-    }
-
-    function getTransactions() { 
-        return JSON.parse(localStorage.getItem('argo_transactions') || '[]'); 
-    }
-
-    function saveTransactions(transactions) { 
-        localStorage.setItem('argo_transactions', JSON.stringify(transactions)); 
-    }
-
-    function getNotifications() { 
-        return JSON.parse(localStorage.getItem('argo_notifications') || '[]'); 
-    }
-
-    function saveNotifications(notifications) { 
-        localStorage.setItem('argo_notifications', JSON.stringify(notifications)); 
+        return [];
     }
 
     async function getLeases() { 
         try {
-            const res = await fetch(LEASES_API_URL, { headers: getAuthHeaders() });
+            const res = await fetch(LEASES_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (res.ok) {
                 const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.leases || data.data || []);
-                localStorage.setItem('argo_leases', JSON.stringify(list));
-                return list;
+                return Array.isArray(data) ? data : (data.items || data.leases || data.data || []);
             }
         } catch (e) {}
-
-        const raw = localStorage.getItem('argo_leases');
-        return raw ? JSON.parse(raw) : [];
+        return [];
     }
 
-    // Dynamic Tenant Resolution (Strictly Scoped by Logged-In User)
+    async function getTenants() {
+        try {
+            const res = await fetch(TENANTS_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
+            if (res.ok) {
+                const data = await res.json();
+                return Array.isArray(data) ? data : (data.items || data.tenants || data.data || []);
+            }
+        } catch (e) {}
+        return [];
+    }
+
+    async function getUnits() {
+        try {
+            const res = await fetch(UNITS_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
+            if (res.ok) {
+                const data = await res.json();
+                return Array.isArray(data) ? data : (data.items || data.units || data.data || []);
+            }
+        } catch (e) {}
+        return [];
+    }
+
+    async function getNotifications() { 
+        try {
+            const res = await fetch(NOTIFICATIONS_API_URL, { 
+                headers: getAuthHeaders(),
+                cache: 'no-store'
+            });
+            if (res.ok) {
+                const data = await res.json();
+                return Array.isArray(data) ? data : (data.items || data.notifications || data.data || []);
+            }
+        } catch (e) {}
+        return [];
+    }
+
+    // Dynamic Tenant Resolution (Strictly Scoped by Logged-In User in Neon DB)
     async function getActiveTenantContext() {
         const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
         const userEmail = (user.email || localStorage.getItem('user_email') || '').toLowerCase().trim();
         const userName = user.name || user.full_name || 'Resident Tenant';
         const userId = user.id || null;
 
+        const tenants = await getTenants();
         const leases = await getLeases();
+        const units = await getUnits();
 
+        // Match tenant profile in Neon DB
+        const matchedTenant = tenants.find(t => {
+            const tUserId = String(t.user_id || t.userId || '');
+            const tEmail = (t.email || '').toLowerCase().trim();
+            const tName = (t.name || '').toLowerCase().trim();
+            
+            return (userId && tUserId === String(userId)) ||
+                   (userEmail && tEmail === userEmail) ||
+                   (userName && tName === userName.toLowerCase());
+        }) || null;
+
+        const tenantId = matchedTenant ? matchedTenant.id : userId;
+
+        // Match leases belonging to this tenant
         const userLeases = leases.filter(l => {
             const lTenantId = String(l.tenant_id || l.tenantId || '');
             const lEmail = (l.tenant_email || l.email || '').toLowerCase().trim();
             const lName = (l.tenant_name || l.tenantName || '').toLowerCase().trim();
             
-            return (userId && lTenantId === String(userId)) ||
+            return (tenantId && lTenantId === String(tenantId)) ||
+                   (userId && lTenantId === String(userId)) ||
                    (userEmail && lEmail === userEmail) ||
                    (userName && lName === userName.toLowerCase());
         });
 
         const activeLease = userLeases.find(l => (l.status || '').toUpperCase() === 'ACTIVE') || userLeases[0] || null;
 
-        let fullTag = 'No Active Unit Assigned';
-        if (activeLease) {
-            const u = activeLease.unit_number || activeLease.unit || 'Unit';
-            const p = activeLease.property_name || activeLease.property || 'Property';
-            fullTag = `${p} • ${u}`;
+        let resolvedUnitId = activeLease ? activeLease.unit_id : null;
+        let resolvedUnitName = activeLease ? (activeLease.unit_number || activeLease.unit || 'Unit') : 'No Unit';
+        let resolvedPropName = activeLease ? (activeLease.property_name || activeLease.property || 'Property') : 'Property';
+
+        if (resolvedUnitId) {
+            const matchedUnit = units.find(u => String(u.id) === String(resolvedUnitId));
+            if (matchedUnit) {
+                resolvedUnitName = matchedUnit.unit_no || matchedUnit.unit_number || resolvedUnitName;
+                resolvedPropName = matchedUnit.property_name || resolvedPropName;
+            }
         }
+
+        const fullTag = activeLease ? `${resolvedPropName} • ${resolvedUnitName}` : 'No Active Unit Assigned';
 
         return {
             user,
             userId,
-            name: userName,
+            tenant: matchedTenant,
+            tenantId,
+            name: matchedTenant?.name || userName,
             email: userEmail,
             leases: userLeases,
             activeLease: activeLease,
+            unitId: resolvedUnitId,
+            unitName: resolvedUnitName,
+            propertyName: resolvedPropName,
             fullTag: fullTag
         };
     }
@@ -1244,7 +1299,6 @@
     function loadUserData() {
         const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
         const nameEl = document.getElementById('userName');
-        const roleEl = document.getElementById('userRoleBadge');
         const avatarEl = document.getElementById('userAvatar');
 
         const userName = user.name || user.full_name || 'Resident Tenant';
@@ -1257,6 +1311,7 @@
         }
     }
 
+    // Live Render Sub-Meter Cards & KPIs from Neon DB
     async function renderSubMeterCards() {
         const ctx = await getActiveTenantContext();
         const readings = await getReadings();
@@ -1266,16 +1321,19 @@
         const roleEl = document.getElementById('userRoleBadge');
         if (roleEl) roleEl.textContent = ctx.fullTag;
 
+        const activeUnitIds = new Set(ctx.leases.map(l => String(l.unit_id || '')).filter(Boolean));
         const activeUnitNames = new Set(ctx.leases.map(l => (l.unit_number || l.unit || '').toLowerCase()).filter(Boolean));
 
-        // Filter readings matching tenant
+        // Filter readings strictly matching tenant
         const userReadings = readings.filter(r => {
             const rEmail = (r.tenant_email || '').toLowerCase().trim();
             const rName = (r.tenant_name || r.tenantName || '').toLowerCase().trim();
             const rLoc = (r.unit_location || r.unitLocation || '').toLowerCase();
+            const rUnitId = String(r.unit_id || '');
 
             return (ctx.email && rEmail === ctx.email) ||
                    (ctx.name && rName === ctx.name.toLowerCase()) ||
+                   (rUnitId && activeUnitIds.has(rUnitId)) ||
                    ([...activeUnitNames].some(u => u && rLoc.includes(u)));
         });
 
@@ -1298,15 +1356,15 @@
                    ([...activeUnitNames].some(u => u && cLoc.includes(u)));
         });
 
-        const elecCharge = userCharges.find(c => (c.type || '').toLowerCase().includes('elec') || String(c.id).includes('ELE'));
-        const waterCharge = userCharges.find(c => (c.type || '').toLowerCase().includes('water') || String(c.id).includes('WTR'));
+        const elecCharge = userCharges.find(c => (c.type || '').toLowerCase().includes('elec') || String(c.charge_id || c.id).includes('ELE'));
+        const waterCharge = userCharges.find(c => (c.type || '').toLowerCase().includes('water') || String(c.charge_id || c.id).includes('WTR'));
 
         // 1. Electricity Calculations
-        const elecPrev = parseFloat(elecReading ? (elecReading.prev_dial || elecReading.prevDial || 0) : 0);
-        const elecCurr = parseFloat(elecReading ? (elecReading.curr_dial || elecReading.currDial || 0) : 0);
+        const elecPrev = parseFloat(elecReading ? (elecReading.prev_dial || 0) : 0);
+        const elecCurr = parseFloat(elecReading ? (elecReading.curr_dial || 0) : 0);
         const elecNetVal = parseFloat(elecReading ? (elecReading.consumption || Math.max(0, elecCurr - elecPrev)) : 0);
-        const elecRate = parseFloat(elecReading ? (elecReading.rate_per_unit || elecReading.rate || rates.MERALCO_KWH) : rates.MERALCO_KWH);
-        const elecCost = elecCharge ? parseCurrency(elecCharge.amount) : parseFloat(elecReading ? (elecReading.total_billed_amount || (elecNetVal * elecRate)) : 0);
+        const elecRate = rates.MERALCO_KWH;
+        const elecCost = elecCharge ? parseCurrency(elecCharge.amount) : (elecNetVal * elecRate);
 
         if (document.getElementById('elecPrevDial')) document.getElementById('elecPrevDial').textContent = `${elecPrev.toFixed(2)} kWh`;
         if (document.getElementById('elecCurrDial')) document.getElementById('elecCurrDial').textContent = `${elecCurr.toFixed(2)} kWh`;
@@ -1321,11 +1379,11 @@
         if (document.getElementById('elecCalcFormula')) document.getElementById('elecCalcFormula').textContent = `Power Usage Charge (${elecNetVal.toFixed(2)} kWh × ₱${elecRate.toFixed(2)})`;
 
         // 2. Water Calculations
-        const waterPrev = parseFloat(waterReading ? (waterReading.prev_dial || waterReading.prevDial || 0) : 0);
-        const waterCurr = parseFloat(waterReading ? (waterReading.curr_dial || waterReading.currDial || 0) : 0);
+        const waterPrev = parseFloat(waterReading ? (waterReading.prev_dial || 0) : 0);
+        const waterCurr = parseFloat(waterReading ? (waterReading.curr_dial || 0) : 0);
         const waterNetVal = parseFloat(waterReading ? (waterReading.consumption || Math.max(0, waterCurr - waterPrev)) : 0);
-        const waterRate = parseFloat(waterReading ? (waterReading.rate_per_unit || waterReading.rate || rates.MAYNILAD_CUM) : rates.MAYNILAD_CUM);
-        const waterCost = waterCharge ? parseCurrency(waterCharge.amount) : parseFloat(waterReading ? (waterReading.total_billed_amount || (waterNetVal * waterRate)) : 0);
+        const waterRate = rates.MAYNILAD_CUM;
+        const waterCost = waterCharge ? parseCurrency(waterCharge.amount) : (waterNetVal * waterRate);
 
         if (document.getElementById('waterPrevDial')) document.getElementById('waterPrevDial').textContent = `${waterPrev.toFixed(2)} cu.m`;
         if (document.getElementById('waterCurrDial')) document.getElementById('waterCurrDial').textContent = `${waterCurr.toFixed(2)} cu.m`;
@@ -1341,18 +1399,19 @@
 
         // 3. Unpaid Utility Dues Sum
         const invoices = await getInvoices();
-        const activeLeaseIds = new Set(ctx.leases.map(l => String(l.lease_id || l.id)).filter(Boolean));
+        const activeLeaseIds = new Set(ctx.leases.map(l => String(l.id || l.lease_id)).filter(Boolean));
         let unpaidUtilityDues = 0;
 
         invoices.forEach(inv => {
-            const isUtil = (inv.id && (inv.id.includes('UTL') || inv.id.includes('ELE') || inv.id.includes('WTR'))) || 
-                           (inv.type && (inv.type.includes('Electricity') || inv.type.includes('Water') || inv.type.includes('Utility')));
-            const s = (inv.status || '').toLowerCase();
-            const isUnpaid = (s === 'unpaid' || s === 'overdue' || s === 'pending');
+            const isUtil = (inv.invoice_id && (inv.invoice_id.includes('UTL') || inv.invoice_id.includes('ELE') || inv.invoice_id.includes('WTR'))) || 
+                           (inv.type && (inv.type.includes('Electricity') || inv.type.includes('Water') || inv.type.includes('Utility'))) ||
+                           (inv.category_type && (inv.category_type.includes('Electricity') || inv.category_type.includes('Water')));
+            const s = (inv.status || 'UNPAID').toUpperCase();
+            const isUnpaid = (s !== 'PAID');
             
             const invEmail = (inv.tenant_email || '').toLowerCase().trim();
             const invName = (inv.tenant_name || inv.tenantName || '').toLowerCase().trim();
-            const invLeaseId = String(inv.lease_id || inv.leaseId || '');
+            const invLeaseId = String(inv.lease_id || '');
 
             const isTenantMatch = (ctx.email && invEmail === ctx.email) ||
                                   (ctx.name && invName === ctx.name.toLowerCase()) ||
@@ -1388,12 +1447,12 @@
         const ctx = await getActiveTenantContext();
         const allInvoices = await getInvoices();
         const charges = await getUtilityCharges();
-        const activeLeaseIds = new Set(ctx.leases.map(l => String(l.lease_id || l.id)).filter(Boolean));
+        const activeLeaseIds = new Set(ctx.leases.map(l => String(l.id || l.lease_id)).filter(Boolean));
         const activeUnitNames = new Set(ctx.leases.map(l => (l.unit_number || l.unit || '').toLowerCase()).filter(Boolean));
 
         const statementMap = new Map();
 
-        // 1. Match from charges
+        // 1. Match from utility charges
         charges.forEach(c => {
             const cEmail = (c.tenant_email || '').toLowerCase().trim();
             const cName = (c.tenant_name || c.tenantName || '').toLowerCase().trim();
@@ -1407,9 +1466,10 @@
                 const cId = c.charge_id || c.id;
                 statementMap.set(cId, {
                     id: cId,
+                    dbId: c.id,
                     type: `${c.type} Sub-Meter Statement`,
                     sub: c.breakdown || ctx.fullTag,
-                    dueDate: c.due_date || c.dueDate || '—',
+                    dueDate: c.due_date || '—',
                     amount: parseCurrency(c.amount),
                     status: (c.status || 'Unpaid')
                 });
@@ -1418,13 +1478,13 @@
 
         // 2. Merge with live invoices
         allInvoices.forEach(i => {
-            const isUtil = (i.id && (i.id.includes('UTL') || i.id.includes('ELE') || i.id.includes('WTR'))) || 
+            const isUtil = (i.invoice_id && (i.invoice_id.includes('UTL') || i.invoice_id.includes('ELE') || i.invoice_id.includes('WTR'))) || 
                            (i.category_type && (i.category_type.includes('Elec') || i.category_type.includes('Water'))) ||
                            (i.type && (i.type.includes('Electricity') || i.type.includes('Water') || i.type.includes('Utility')));
             
             const invEmail = (i.tenant_email || '').toLowerCase().trim();
             const invName = (i.tenant_name || i.tenantName || '').toLowerCase().trim();
-            const invLeaseId = String(i.lease_id || i.leaseId || '');
+            const invLeaseId = String(i.lease_id || '');
 
             const isTenantMatch = (ctx.email && invEmail === ctx.email) ||
                                   (ctx.name && invName === ctx.name.toLowerCase()) ||
@@ -1435,11 +1495,12 @@
                 const existing = statementMap.get(invId) || {};
                 statementMap.set(invId, {
                     id: invId,
+                    dbId: i.id,
                     type: i.type || existing.type || 'Utility Bill',
-                    sub: i.property_location || i.sub || existing.sub || ctx.fullTag,
-                    dueDate: i.due_date || i.dueDate || existing.dueDate || '—',
+                    sub: i.sub || existing.sub || ctx.fullTag,
+                    dueDate: i.due_date || existing.dueDate || '—',
                     amount: parseCurrency(i.amount) || existing.amount || 0,
-                    status: i.status || existing.status || 'Unpaid'
+                    status: i.status || existing.status || 'UNPAID'
                 });
             }
         });
@@ -1456,20 +1517,20 @@
 
         utilityInvoices.forEach(inv => {
             const tr = document.createElement('tr');
-            const s = (inv.status || '').toLowerCase();
+            const s = (inv.status || 'UNPAID').toUpperCase();
 
             let badgeHtml = '';
-            if (s === 'paid') {
+            if (s === 'PAID') {
                 badgeHtml = `<span class="status-badge status-paid" style="background:#ECFDF5; color:#059669; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-check-circle me-1"></i> Paid</span>`;
-            } else if (s.includes('pending')) {
+            } else if (s.includes('PENDING')) {
                 badgeHtml = `<span class="status-badge status-pending" style="background:#FEF3C7; color:#B45309; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-clock-history me-1"></i> Pending Verification</span>`;
             } else {
-                badgeHtml = `<span class="status-badge status-unpaid" style="background:#FFF1F2; color:#E11D48; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-exclamation-circle me-1"></i> ${inv.status || 'Unpaid'}</span>`;
+                badgeHtml = `<span class="status-badge status-unpaid" style="background:#FFF1F2; color:#E11D48; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-exclamation-circle me-1"></i> UNPAID</span>`;
             }
 
-            const actionButton = (s === 'paid') 
+            const actionButton = (s === 'PAID') 
                 ? `<button class="action-button" title="View Statement Breakdown" onclick="alert('Utility Statement: ${inv.id}\\nType: ${escapeQuotes(inv.type)}\\nAmount: ${formatPeso(inv.amount)}\\nStatus: Verified Paid')"><i class="bi bi-eye"></i></button>`
-                : `<button class="primary-btn" style="padding:4px 10px; font-size:11px;" onclick="openPaymentModal('${inv.id}')"><i class="bi bi-qr-code-scan"></i> Pay Bill</button>`;
+                : `<button class="primary-btn" style="padding:4px 10px; font-size:11px;" onclick="openPaymentModal('${inv.dbId || inv.id}')"><i class="bi bi-qr-code-scan"></i> Pay Bill</button>`;
 
             tr.innerHTML = `
                 <td><div style="font-weight:600; color:#2563EB;">${inv.id}</div></td>
@@ -1486,8 +1547,8 @@
         });
     }
 
-    function updateHeaderBadge() {
-        const notifs = getNotifications().filter(n => (n.pov === 'client' || n.pov === 'tenant' || n.pov === 'all') && (n.status === 'unread' || n.is_read === false));
+    async function updateHeaderBadge() {
+        const notifs = (await getNotifications()).filter(n => (n.pov === 'client' || n.pov === 'tenant' || n.pov === 'all') && (!n.is_read || n.status === 'unread'));
         const badge = document.getElementById('clientHeaderNotifBadge');
         if (badge) badge.textContent = notifs.length;
     }
@@ -1543,17 +1604,18 @@
 
         select.innerHTML = '';
         const unpaidMap = new Map();
-        const activeLeaseIds = new Set(ctx.leases.map(l => String(l.lease_id || l.id)).filter(Boolean));
+        const activeLeaseIds = new Set(ctx.leases.map(l => String(l.id || l.lease_id)).filter(Boolean));
 
         charges.forEach(c => {
             const cEmail = (c.tenant_email || '').toLowerCase().trim();
             const cName = (c.tenant_name || c.tenantName || '').toLowerCase().trim();
             const isTenantMatch = (ctx.email && cEmail === ctx.email) || (ctx.name && cName === ctx.name.toLowerCase());
-            const s = (c.status || '').toLowerCase();
-            if (isTenantMatch && s !== 'paid') {
-                const cId = c.charge_id || c.id;
+            const s = (c.status || '').toUpperCase();
+            if (isTenantMatch && s !== 'PAID') {
+                const cId = c.id;
                 unpaidMap.set(cId, {
                     id: cId,
+                    displayId: c.charge_id || c.id,
                     type: `${c.type} Sub-Meter (${c.period || 'Bill'})`,
                     amount: parseCurrency(c.amount)
                 });
@@ -1561,23 +1623,24 @@
         });
 
         invoices.forEach(inv => {
-            const isUtil = (inv.id && (inv.id.includes('UTL') || inv.id.includes('ELE') || inv.id.includes('WTR'))) || 
+            const isUtil = (inv.invoice_id && (inv.invoice_id.includes('UTL') || inv.invoice_id.includes('ELE') || inv.invoice_id.includes('WTR'))) || 
                            (inv.type && (inv.type.includes('Electricity') || inv.type.includes('Water') || inv.type.includes('Utility')));
-            const s = (inv.status || '').toLowerCase();
-            const isUnpaid = (s === 'unpaid' || s === 'overdue' || s === 'pending');
+            const s = (inv.status || 'UNPAID').toUpperCase();
+            const isUnpaid = (s !== 'PAID');
             
             const invEmail = (inv.tenant_email || '').toLowerCase().trim();
             const invName = (inv.tenant_name || inv.tenantName || '').toLowerCase().trim();
-            const invLeaseId = String(inv.lease_id || inv.leaseId || '');
+            const invLeaseId = String(inv.lease_id || '');
 
             const isTenantMatch = (ctx.email && invEmail === ctx.email) ||
                                   (ctx.name && invName === ctx.name.toLowerCase()) ||
                                   (activeLeaseIds.has(invLeaseId));
 
             if (isUtil && isUnpaid && isTenantMatch) {
-                const invId = inv.invoice_id || inv.id;
+                const invId = inv.id;
                 unpaidMap.set(invId, {
                     id: invId,
+                    displayId: inv.invoice_id || inv.id,
                     type: inv.type,
                     amount: parseCurrency(inv.amount)
                 });
@@ -1596,13 +1659,15 @@
         payableInvoices.forEach(inv => {
             const opt = document.createElement('option');
             opt.value = inv.id;
-            opt.textContent = `${inv.id} — ${inv.type} (${formatPeso(inv.amount)})`;
-            if (targetInvoiceId && inv.id === targetInvoiceId) {
+            opt.dataset.amount = inv.amount;
+            opt.textContent = `${inv.displayId} — ${inv.type} (${formatPeso(inv.amount)})`;
+            if (targetInvoiceId && (inv.id === targetInvoiceId || inv.displayId === targetInvoiceId)) {
                 opt.selected = true;
             }
             select.appendChild(opt);
         });
 
+        select.onchange = autoFillInvoiceAmount;
         await autoFillInvoiceAmount();
     }
 
@@ -1610,26 +1675,21 @@
         const select = document.getElementById('modalInvoiceSelect');
         if (!select) return;
 
-        const invId = select.value;
-        if (!invId) return;
-
-        const invoices = await getInvoices();
-        const charges = await getUtilityCharges();
-        const selected = invoices.find(i => (i.id || i.invoice_id) === invId) || charges.find(c => (c.id || c.charge_id) === invId);
+        const selectedOpt = select.options[select.selectedIndex];
         const amountInput = document.getElementById('modalAmountInput');
 
-        if (selected && amountInput) {
-            amountInput.value = parseCurrency(selected.amount).toFixed(2);
+        if (selectedOpt && selectedOpt.dataset.amount && amountInput) {
+            amountInput.value = parseCurrency(selectedOpt.dataset.amount).toFixed(2);
         }
     }
 
+    // LIVE SUBMIT UTILITY PAYMENT PROOF (PATCH /api/invoices/{id} + POST /api/transactions + POST /api/notifications)
     async function submitPaymentProof() {
         const ctx = await getActiveTenantContext();
         const invoiceSelect = document.getElementById('modalInvoiceSelect');
         const channelSelect = document.getElementById('modalChannelSelect');
         const amountInput = document.getElementById('modalAmountInput');
         const refInput = document.getElementById('modalRefInput');
-        const fileInput = document.getElementById('modalFileInput');
         const notesInput = document.getElementById('modalNotesInput');
 
         const invoiceId = invoiceSelect ? invoiceSelect.value : '';
@@ -1637,7 +1697,7 @@
         const amount = parseFloat(amountInput ? amountInput.value : 0) || 0;
         let refNo = refInput ? refInput.value.trim() : '';
         const remarks = notesInput ? notesInput.value.trim() : '';
-        const receiptFile = fileInput && fileInput.files ? fileInput.files[0] : null;
+        const orgId = localStorage.getItem('organization_id') || DEFAULT_ORG_ID;
 
         if (!invoiceId) {
             alert("No active unpaid utility invoice selected.");
@@ -1657,109 +1717,61 @@
         if (!refNo.startsWith('#')) refNo = '#' + refNo;
         const locationStr = ctx.fullTag;
 
-        // 1. Update Invoice in Database / Local Storage
-        let invoices = await getInvoices();
-        let matched = false;
-        invoices = invoices.map(inv => {
-            if (String(inv.id) === String(invoiceId) || String(inv.invoice_id) === String(invoiceId)) {
-                matched = true;
-                return { 
-                    ...inv, 
-                    status: 'Pending Verification', 
-                    channel: channel, 
-                    ref_no: refNo, 
-                    refNo: refNo,
-                    receipt_attachment: receiptFile ? receiptFile.name : null,
-                    notes: remarks || inv.notes 
-                };
-            }
-            return inv;
-        });
-
-        if (!matched) {
-            invoices.unshift({
-                id: invoiceId,
-                invoice_id: invoiceId,
-                tenant_name: ctx.name,
-                tenantName: ctx.name,
-                tenant_email: ctx.email,
-                type: `Utility Charge (${invoiceId})`,
-                property_location: locationStr,
-                sub: locationStr,
-                category_type: invoiceId.includes('ELE') ? 'Electricity' : 'Water',
-                due_date: new Date().toISOString().split('T')[0],
-                amount: amount,
-                status: 'Pending Verification',
-                channel: channel,
-                ref_no: refNo,
-                refNo: refNo,
-                notes: remarks,
-                created_at: new Date().toISOString()
-            });
-        }
-        saveInvoices(invoices);
-
+        // 1. Submit Payment to Neon Database
         try {
-            await fetch(`${INVOICES_API_URL}${encodeURIComponent(invoiceId)}`, {
+            await fetch(`${INVOICES_API_URL}/${encodeURIComponent(invoiceId)}`, {
                 method: 'PATCH',
                 headers: getAuthHeaders(),
                 body: JSON.stringify({
-                    status: 'Pending Verification',
+                    status: 'PENDING',
                     channel: channel,
                     ref_no: refNo,
-                    notes: remarks
+                    sub: remarks || `Utility payment via Tenant Self-Service (${channel})`
                 })
             });
-        } catch (e) {}
+        } catch (e) {
+            console.error("Payment submit error:", e);
+        }
 
-        // 2. Update status in utility charges
-        let charges = await getUtilityCharges();
-        charges = charges.map(c => {
-            if (String(c.id) === String(invoiceId) || String(c.charge_id) === String(invoiceId)) {
-                return { ...c, status: 'Pending' };
-            }
-            return c;
-        });
-        saveUtilityCharges(charges);
+        // 2. Dispatch Live Ledger Transaction
+        const txnId = `TXN-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+        try {
+            await fetch(TRANSACTIONS_API_URL, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({
+                    organization_id: orgId,
+                    txn_id: txnId,
+                    ref_code: refNo,
+                    payer: ctx.name,
+                    property_location: locationStr,
+                    category: 'Utility Charges',
+                    direction: 'INFLOW',
+                    gross_amount: amount,
+                    channel: channel,
+                    status: 'Pending'
+                })
+            });
+        } catch (err) {}
 
-        // 3. Log Inflow Transaction to Ledger
-        const transactions = getTransactions();
-        transactions.unshift({
-            id: `TXN-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
-            txn_id: `TXN-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
-            ref_code: refNo,
-            refCode: refNo,
-            payer: ctx.name,
-            property_location: locationStr,
-            fullLocation: locationStr,
-            category: invoiceId.includes('ELE') ? 'Electricity Charges' : 'Water Charges',
-            direction: 'INFLOW',
-            gross_amount: formatPeso(amount),
-            amount: amount,
-            channel: channel,
-            status: 'Pending',
-            receipt_attachment: receiptFile ? receiptFile.name : null,
-            timestamp: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
-        });
-        saveTransactions(transactions);
-
-        // 4. Dispatch Notification Alert to Admin POV
-        const notifications = getNotifications();
-        notifications.unshift({
-            id: `NOTIF-${Date.now()}`,
-            pov: 'admin',
-            category: 'payment',
-            status: 'unread',
-            is_read: false,
-            title: `${channel} Utility Payment Submitted`,
-            time: 'Just now',
-            description: `Utility payment proof uploaded by <strong>${ctx.name}</strong> (${locationStr}) for Invoice <strong>${invoiceId}</strong>. Ref Code: <code>${refNo}</code>.`,
-            property: locationStr,
-            amount: formatPeso(amount),
-            actionUrl: 'rent-collection.html',
-            actionText: 'Verify Utility Payment'
-        });
-        saveNotifications(notifications);
+        // 3. Dispatch Notification Alert to Admin POV (rent-collection.html)
+        try {
+            await fetch(NOTIFICATIONS_API_URL, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({
+                    organization_id: orgId,
+                    pov: 'admin',
+                    category: 'payment',
+                    status: 'Active',
+                    is_read: false,
+                    title: `${channel} Utility Payment Submitted`,
+                    description: `Utility payment proof uploaded by ${ctx.name} (${locationStr}) for Invoice ${invoiceId}. Ref Code: ${refNo}.`,
+                    property: locationStr,
+                    urgent: false
+                })
+            });
+        } catch (err) {}
 
         await renderSubMeterCards();
         await renderUtilityHistoryTable();
@@ -1767,9 +1779,8 @@
 
         if (refInput) refInput.value = '';
         if (notesInput) notesInput.value = '';
-        if (fileInput) fileInput.value = '';
 
-        alert(`Utility payment proof (${refNo}) uploaded successfully!\n\nProperty Manager has been notified for verification.`);
+        alert(`Utility payment proof (${refNo}) uploaded successfully!\n\nProperty Manager has been notified for audit verification.`);
     }
 
     window.onclick = function(event) {
@@ -1811,16 +1822,6 @@
         await renderSubMeterCards();
         await renderUtilityHistoryTable();
         updateHeaderBadge();
-    });
-
-    // Cross-Tab Real-Time Storage Listener
-    window.addEventListener('storage', async (e) => {
-        if (['argo_utility_charges', 'argo_meter_readings', 'argo_invoices', 'argo_notifications', 'argo_leases', 'argo_user', 'argo_pov'].includes(e.key)) {
-            loadUserData();
-            await renderSubMeterCards();
-            await renderUtilityHistoryTable();
-            updateHeaderBadge();
-        }
     });
 </script>
 </body>

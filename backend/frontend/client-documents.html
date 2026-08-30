@@ -903,6 +903,7 @@
     </div>
 
 <script>
+    const DEFAULT_ORG_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
     const API_BASE_URL = (
         window.location.origin.includes('localhost') || 
         window.location.origin.includes('127.0.0.1')
@@ -912,11 +913,13 @@
             ? 'https://argo-management-2026.onrender.com/api'
             : '/api';
 
-    const DOCUMENTS_API_URL = `${API_BASE_URL}/documents/`;
-    const LEASES_API_URL = `${API_BASE_URL}/leases/`;
-    const INVOICES_API_URL = `${API_BASE_URL}/invoices/`;
-    const INSPECTIONS_API_URL = `${API_BASE_URL}/inspections/`;
-    const NOTIFICATIONS_API_URL = `${API_BASE_URL}/notifications/`;
+    const DOCUMENTS_API_URL = `${API_BASE_URL}/documents`;
+    const LEASES_API_URL = `${API_BASE_URL}/leases`;
+    const TENANTS_API_URL = `${API_BASE_URL}/tenants`;
+    const UNITS_API_URL = `${API_BASE_URL}/units`;
+    const INVOICES_API_URL = `${API_BASE_URL}/invoices`;
+    const INSPECTIONS_API_URL = `${API_BASE_URL}/inspections`;
+    const NOTIFICATIONS_API_URL = `${API_BASE_URL}/notifications`;
 
     function getAuthHeaders() {
         const token = localStorage.getItem('token') || localStorage.getItem('argo_token');
@@ -928,6 +931,7 @@
 
     function logoutUser() {
         localStorage.clear();
+        sessionStorage.clear();
         window.location.replace('index.html');
     }
 
@@ -970,79 +974,145 @@
         nav.innerHTML = html;
     }
 
-    // Database Fetchers
-    async function getLeases() { 
+    // Direct Database Fetchers (No LocalStorage Cache Poisoning)
+    async function getDocuments() {
         try {
-            const res = await fetch(LEASES_API_URL, { headers: getAuthHeaders() });
+            const res = await fetch(DOCUMENTS_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (res.ok) {
                 const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.leases || data.data || []);
-                localStorage.setItem('argo_leases', JSON.stringify(list));
-                return list;
+                return Array.isArray(data) ? data : (data.items || data.documents || data.data || []);
             }
-        } catch (e) {}
+        } catch (e) {
+            console.error("Live Documents fetch failed:", e);
+        }
+        return [];
+    }
 
-        const raw = localStorage.getItem('argo_leases');
-        return raw ? JSON.parse(raw) : [];
+    async function getLeases() { 
+        try {
+            const res = await fetch(LEASES_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
+            if (res.ok) {
+                const data = await res.json();
+                return Array.isArray(data) ? data : (data.items || data.leases || data.data || []);
+            }
+        } catch (e) {
+            console.warn("Live Leases fetch error:", e);
+        }
+        return [];
+    }
+
+    async function getTenants() {
+        try {
+            const res = await fetch(TENANTS_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
+            if (res.ok) {
+                const data = await res.json();
+                return Array.isArray(data) ? data : (data.items || data.tenants || data.data || []);
+            }
+        } catch (e) {
+            console.warn("Live Tenants fetch error:", e);
+        }
+        return [];
+    }
+
+    async function getUnits() {
+        try {
+            const res = await fetch(UNITS_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
+            if (res.ok) {
+                const data = await res.json();
+                return Array.isArray(data) ? data : (data.items || data.units || data.data || []);
+            }
+        } catch (e) {
+            console.warn("Live Units fetch error:", e);
+        }
+        return [];
     }
 
     async function getInvoices() {
         try {
-            const res = await fetch(INVOICES_API_URL, { headers: getAuthHeaders() });
+            const res = await fetch(INVOICES_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (res.ok) {
                 const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.invoices || data.data || []);
-                localStorage.setItem('argo_invoices', JSON.stringify(list));
-                return list;
+                return Array.isArray(data) ? data : (data.items || data.invoices || data.data || []);
             }
         } catch (e) {}
-
-        const raw = localStorage.getItem('argo_invoices');
-        return raw ? JSON.parse(raw) : [];
+        return [];
     }
 
     async function getInspections() {
         try {
-            const res = await fetch(INSPECTIONS_API_URL, { headers: getAuthHeaders() });
+            const res = await fetch(INSPECTIONS_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (res.ok) {
                 const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.inspections || data.data || []);
-                localStorage.setItem('argo_inspections', JSON.stringify(list));
-                return list;
+                return Array.isArray(data) ? data : (data.items || data.inspections || data.data || []);
             }
         } catch (e) {}
-
-        const raw = localStorage.getItem('argo_inspections');
-        return raw ? JSON.parse(raw) : [];
+        return [];
     }
 
-    function getNotifications() { 
-        return JSON.parse(localStorage.getItem('argo_notifications') || '[]'); 
+    async function getNotifications() { 
+        try {
+            const res = await fetch(NOTIFICATIONS_API_URL, { 
+                headers: getAuthHeaders(),
+                cache: 'no-store'
+            });
+            if (res.ok) {
+                const data = await res.json();
+                return Array.isArray(data) ? data : (data.items || data.notifications || data.data || []);
+            }
+        } catch (e) {}
+        return [];
     }
 
-    function saveNotifications(notifications) { 
-        localStorage.setItem('argo_notifications', JSON.stringify(notifications)); 
-    }
-
-    function saveClientDocs(docs) { 
-        localStorage.setItem('argo_client_documents', JSON.stringify(docs)); 
-    }
-
-    // Dynamic Tenant Resolution (Strictly Scoped by Logged-In User)
+    // Dynamic Tenant Resolution (Strictly Scoped by Logged-In User in Neon DB)
     async function getActiveTenantContext() {
         const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
         const userEmail = (user.email || localStorage.getItem('user_email') || '').toLowerCase().trim();
         const userName = user.name || user.full_name || 'Resident Tenant';
         const userId = user.id || null;
 
+        const tenants = await getTenants();
         const leases = await getLeases();
+        const units = await getUnits();
 
+        // Match tenant profile in Neon DB
+        const matchedTenant = tenants.find(t => {
+            const tUserId = String(t.user_id || t.userId || '');
+            const tEmail = (t.email || '').toLowerCase().trim();
+            const tName = (t.name || '').toLowerCase().trim();
+            
+            return (userId && tUserId === String(userId)) ||
+                   (userEmail && tEmail === userEmail) ||
+                   (userName && tName === userName.toLowerCase());
+        }) || null;
+
+        const tenantId = matchedTenant ? matchedTenant.id : userId;
+
+        // Match leases belonging to this tenant
         const userLeases = leases.filter(l => {
             const lTenantId = String(l.tenant_id || l.tenantId || '');
             const lEmail = (l.tenant_email || l.email || '').toLowerCase().trim();
             const lName = (l.tenant_name || l.tenantName || '').toLowerCase().trim();
             
-            return (userId && lTenantId === String(userId)) ||
+            return (tenantId && lTenantId === String(tenantId)) ||
+                   (userId && lTenantId === String(userId)) ||
                    (userEmail && lEmail === userEmail) ||
                    (userName && lName === userName.toLowerCase());
         });
@@ -1051,15 +1121,25 @@
 
         let fullTag = 'No Active Unit Assigned';
         if (activeLease) {
-            const u = activeLease.unit_number || activeLease.unit || 'Unit';
-            const p = activeLease.property_name || activeLease.property || 'Property';
-            fullTag = `${p} • ${u}`;
+            let uNum = activeLease.unit_number || activeLease.unit || 'Unit';
+            let pName = activeLease.property_name || activeLease.property || 'Property';
+
+            if (activeLease.unit_id) {
+                const matchedUnit = units.find(u => String(u.id) === String(activeLease.unit_id));
+                if (matchedUnit) {
+                    uNum = matchedUnit.unit_no || matchedUnit.unit_number || uNum;
+                    pName = matchedUnit.property_name || pName;
+                }
+            }
+            fullTag = `${pName} • ${uNum}`;
         }
 
         return {
             user,
             userId,
-            name: userName,
+            tenant: matchedTenant,
+            tenantId,
+            name: matchedTenant?.name || userName,
             email: userEmail,
             leases: userLeases,
             activeLease: activeLease,
@@ -1082,94 +1162,93 @@
         }
     }
 
-    // Comprehensive Tenant Vault Synchronizer
+    // Comprehensive Tenant Vault Synchronizer (Direct Database Scope)
     async function getClientDocs() {
         const ctx = await getActiveTenantContext();
-        let liveDocs = [];
-
-        try {
-            const res = await fetch(DOCUMENTS_API_URL, { headers: getAuthHeaders() });
-            if (res.ok) {
-                const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.documents || data.data || []);
-                liveDocs = list;
-                localStorage.setItem('argo_documents', JSON.stringify(list));
-            }
-        } catch (e) {
-            console.warn("Documents API offline, checking cache:", e);
-        }
-
-        if (liveDocs.length === 0) {
-            const raw = localStorage.getItem('argo_client_documents') || localStorage.getItem('argo_documents');
-            liveDocs = raw ? JSON.parse(raw) : [];
-        }
-
-        // ================= DYNAMIC CROSS-MODULE SYNC =================
+        const rawDocs = await getDocuments();
         const invoices = await getInvoices();
         const inspections = await getInspections();
-        const activeLeaseIds = new Set(ctx.leases.map(l => String(l.lease_id || l.id)).filter(Boolean));
+
+        const activeLeaseIds = new Set(ctx.leases.map(l => String(l.id || l.lease_id)).filter(Boolean));
         const activeUnitNames = new Set(ctx.leases.map(l => (l.unit_number || l.unit || '').toLowerCase()).filter(Boolean));
 
-        // 1. Index Lease Agreements
+        const combinedDocs = [];
+
+        // 1. Raw uploaded documents filtered strictly for this tenant
+        rawDocs.forEach(d => {
+            const dName = (d.entity_name || d.entityName || '').toLowerCase().trim();
+            const dSub = (d.entity_sub || d.entitySub || '').toLowerCase();
+            const dUploader = (d.uploader || d.uploadedBy || '').toLowerCase();
+
+            const isTenantMatch = (ctx.name && dName === ctx.name.toLowerCase()) ||
+                                  (ctx.name && dUploader.includes(ctx.name.toLowerCase())) ||
+                                  ([...activeUnitNames].some(u => u && dSub.includes(u)));
+
+            if (isTenantMatch) {
+                combinedDocs.push(d);
+            }
+        });
+
+        // 2. Dynamically index Lease Agreements from database
         ctx.leases.forEach(l => {
-            const leaseId = l.lease_id || l.id;
-            const docKey = `DOC-LSE-${leaseId}`;
-            const exists = liveDocs.some(d => d.id === docKey || d.doc_id === docKey);
-            if (!exists && leaseId) {
-                const uLoc = l.property_name && l.unit_number ? `${l.property_name} • ${l.unit_number}` : (l.unit || 'Assigned Unit');
-                liveDocs.push({
+            const leaseDisplayCode = l.lease_id || l.id;
+            const docKey = `DOC-LSE-${l.id}`;
+            const exists = combinedDocs.some(d => String(d.id) === String(docKey) || String(d.doc_id) === String(docKey) || (d.title && d.title.includes(leaseDisplayCode)));
+
+            if (!exists && l.id) {
+                combinedDocs.push({
                     id: docKey,
                     doc_id: docKey,
-                    title: `Signed Tenancy Agreement (${leaseId})`,
-                    fileType: 'PDF • Signed Contract',
+                    title: `Signed Tenancy Agreement (${leaseDisplayCode})`,
+                    file_type: 'PDF • Signed Contract',
                     category: 'Lease Contract',
-                    entityName: ctx.name,
-                    entitySub: uLoc,
-                    uploadedBy: 'Leasing Desk',
-                    uploadDate: l.start_date || '2026-01-01',
+                    entity_name: ctx.name,
+                    entity_sub: ctx.fullTag,
+                    uploader: 'Leasing Desk',
+                    date: l.start_date ? l.start_date.split('T')[0] : '2026-01-01',
                     status: (l.status || 'ACTIVE').toUpperCase() === 'ACTIVE' ? 'Active' : 'Expired',
-                    notes: `Legally executed lease agreement for ${uLoc}. Rent: ₱${parseFloat(l.rent || 0).toLocaleString()}.`
+                    notes: `Legally executed lease agreement for ${ctx.fullTag}. Monthly Rent: ₱${parseFloat(l.rent || 0).toLocaleString()}.`
                 });
             }
         });
 
-        // 2. Index Verified Official Payment Receipts for this Tenant
+        // 3. Dynamically index Verified Official Payment Receipts for this Tenant
         invoices.forEach(inv => {
-            const isPaid = (inv.status || '').toLowerCase() === 'paid';
-            const ref = inv.ref_no || inv.refNo || `#INV-${inv.id}`;
+            const isPaid = (inv.status || '').toUpperCase() === 'PAID';
+            const ref = inv.ref_no || `#INV-${inv.invoice_id || inv.id}`;
             const docKey = `DOC-REC-${inv.id}`;
 
             const invEmail = (inv.tenant_email || '').toLowerCase().trim();
             const invName = (inv.tenant_name || inv.tenantName || '').toLowerCase().trim();
-            const invLeaseId = String(inv.lease_id || inv.leaseId || '');
+            const invLeaseId = String(inv.lease_id || '');
 
             const isTenantMatch = (ctx.email && invEmail === ctx.email) ||
                                   (ctx.name && invName === ctx.name.toLowerCase()) ||
                                   (activeLeaseIds.has(invLeaseId));
 
-            const exists = liveDocs.some(d => d.id === docKey || d.doc_id === docKey);
+            const exists = combinedDocs.some(d => String(d.id) === String(docKey) || String(d.doc_id) === String(docKey) || (d.title && d.title.includes(ref)));
             if (!exists && isPaid && isTenantMatch) {
-                liveDocs.push({
+                combinedDocs.push({
                     id: docKey,
                     doc_id: docKey,
                     title: `Official Payment Receipt (${ref})`,
-                    fileType: 'PDF • Electronic Receipt',
+                    file_type: 'PDF • Official Receipt',
                     category: 'Official Receipt',
-                    entityName: ctx.name,
-                    entitySub: inv.property_location || inv.sub || ctx.fullTag,
-                    uploadedBy: 'Payment Gateway',
-                    uploadDate: inv.due_date || inv.dueDate || '2026-08-31',
+                    entity_name: ctx.name,
+                    entity_sub: inv.property_location || inv.sub || ctx.fullTag,
+                    uploader: 'Payment Gateway',
+                    date: inv.due_date ? inv.due_date.split('T')[0] : '2026-08-31',
                     status: 'Verified',
-                    notes: `Cleared payment receipt for ${inv.type || 'Monthly Dues'} (₱${parseFloat(inv.amount || 0).toLocaleString()}).`
+                    notes: `Cleared settlement receipt for ${inv.type || 'Monthly Rent'} (₱${parseFloat(inv.amount || 0).toLocaleString()}).`
                 });
             }
         });
 
-        // 3. Index Completed Move-In / Quality Inspections for this Tenant
+        // 4. Dynamically index Completed Inspection Reports for this Tenant
         inspections.forEach(ins => {
-            const insId = ins.inspection_id || ins.id;
-            const docKey = `DOC-INS-${insId}`;
-            const isCompleted = (ins.status || '').toLowerCase() === 'completed';
+            const insDisplayCode = ins.inspection_id || `INS-${String(ins.id).slice(-4)}`;
+            const docKey = `DOC-INS-${ins.id}`;
+            const isCompleted = (ins.status || '').toUpperCase() === 'COMPLETED' || (ins.status || '').toUpperCase() === 'PASSED';
 
             const insEmail = (ins.tenant_email || '').toLowerCase().trim();
             const insName = (ins.tenant || ins.tenant_name || '').toLowerCase().trim();
@@ -1179,39 +1258,28 @@
                                   (ctx.name && insName === ctx.name.toLowerCase()) ||
                                   ([...activeUnitNames].some(u => u && insLoc.includes(u)));
 
-            const exists = liveDocs.some(d => d.id === docKey || d.doc_id === docKey);
-            if (!exists && isCompleted && isTenantMatch && insId) {
-                liveDocs.push({
+            const exists = combinedDocs.some(d => String(d.id) === String(docKey) || String(d.doc_id) === String(docKey));
+            if (!exists && isCompleted && isTenantMatch && ins.id) {
+                combinedDocs.push({
                     id: docKey,
                     doc_id: docKey,
-                    title: `Inspection Clearance Certificate (${insId})`,
-                    fileType: 'PDF • Inspection Report',
+                    title: `Inspection Clearance Certificate (${insDisplayCode})`,
+                    file_type: 'PDF • Inspection Report',
                     category: 'Inspection Report',
-                    entityName: ctx.name,
-                    entitySub: ins.property_info && ins.unit_name ? `${ins.property_info} • ${ins.unit_name}` : ctx.fullTag,
-                    uploadedBy: ins.inspector || 'Property Manager',
-                    uploadDate: ins.date || ins.inspection_date || '2026-01-01',
+                    entity_name: ctx.name,
+                    entity_sub: ins.property_info && ins.unit_name ? `${ins.property_info} • ${ins.unit_name}` : ctx.fullTag,
+                    uploader: ins.inspector || 'Property Manager',
+                    date: ins.date ? ins.date.split('T')[0] : '2026-01-01',
                     status: 'Verified',
-                    notes: `Handover audit completed with rating: ${ins.condition_rating || ins.condition || 'Good'}.`
+                    notes: `Condition verified: ${ins.notes || 'Good'}`
                 });
             }
         });
 
-        // Strict Filter for Logged-In Tenant
-        const scopedDocs = liveDocs.filter(d => {
-            const dName = (d.entityName || d.entity_name || '').toLowerCase().trim();
-            const dSub = (d.entitySub || d.entity_sub || '').toLowerCase();
-            const dUploader = (d.uploadedBy || d.uploader || '').toLowerCase();
-
-            return (ctx.name && dName === ctx.name.toLowerCase()) ||
-                   (ctx.name && dUploader.includes(ctx.name.toLowerCase())) ||
-                   ([...activeUnitNames].some(u => u && dSub.includes(u)));
-        });
-
-        saveClientDocs(scopedDocs);
-        return scopedDocs;
+        return combinedDocs;
     }
 
+    // Live Render Tenant Vault Table
     async function renderDocTable() {
         const ctx = await getActiveTenantContext();
         const docs = await getClientDocs();
@@ -1256,16 +1324,18 @@
             }
 
             let badgeHtml = '';
-            const s = status.toLowerCase();
-            if (s === 'active' || s === 'signed') {
+            const s = status.toUpperCase();
+            if (s === 'ACTIVE' || s === 'SIGNED') {
                 badgeHtml = `<span class="status-badge status-active" style="background:#ECFDF5; color:#059669; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-check-circle me-1"></i> Active / Signed</span>`;
-            } else if (s === 'verified') {
+            } else if (s === 'VERIFIED') {
                 badgeHtml = `<span class="status-badge status-verified" style="background:#ECFDF5; color:#059669; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-check-circle me-1"></i> Verified</span>`;
             } else {
                 badgeHtml = `<span class="status-badge status-pending" style="background:#FEF3C7; color:#D97706; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-clock-history me-1"></i> Pending Review</span>`;
             }
 
-            const displayId = d.doc_id || d.id || 'DOC';
+            const displayId = d.doc_id || `DOC-${String(d.id).slice(-4)}`;
+            const docDbId = d.id;
+            const dateStr = d.date ? d.date.split('T')[0] : (d.uploadDate || '—');
 
             tr.innerHTML = `
                 <td>
@@ -1273,19 +1343,19 @@
                         <div class="doc-icon" style="${iconStyle} width:36px; height:36px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:16px;"><i class="bi ${iconClass}"></i></div>
                         <div>
                             <div class="doc-title" style="font-weight:600;">${d.title} <span style="font-size:11px; color:#2563EB; font-weight:500; margin-left:4px;">(${displayId})</span></div>
-                            <div class="doc-type" style="font-size:11px; color:var(--muted, #64748B);">${d.fileType || d.file_type || 'PDF • 1.5 MB'}</div>
+                            <div class="doc-type" style="font-size:11px; color:var(--muted, #64748B);">${d.file_type || d.fileType || 'PDF • 1.5 MB'}</div>
                         </div>
                     </div>
                 </td>
                 <td><strong>${category}</strong></td>
-                <td>${d.uploadedBy || d.uploader || 'Property Management'}</td>
-                <td>${d.uploadDate || d.date || '—'}</td>
+                <td>${d.uploader || d.uploadedBy || 'Property Management'}</td>
+                <td>${dateStr}</td>
                 <td>${badgeHtml}</td>
                 <td>
                     <div style="display:flex; gap:6px;">
-                        <button class="action-button" title="View Document" onclick="viewDoc('${displayId}')"><i class="bi bi-eye"></i></button>
-                        <button class="action-button" title="Download File" onclick="downloadDoc('${displayId}')"><i class="bi bi-download"></i></button>
-                        <button class="action-button delete" title="Delete File" style="color:var(--danger, #E11D48);" onclick="deleteDoc('${displayId}')"><i class="bi bi-trash"></i></button>
+                        <button class="action-button" title="View Document" onclick="viewDoc('${docDbId}')"><i class="bi bi-eye"></i></button>
+                        <button class="action-button" title="Download File" onclick="downloadDoc('${docDbId}')"><i class="bi bi-download"></i></button>
+                        <button class="action-button delete" title="Delete File" style="color:var(--danger, #E11D48);" onclick="deleteDoc('${docDbId}', '${displayId}')"><i class="bi bi-trash"></i></button>
                     </div>
                 </td>
             `;
@@ -1300,9 +1370,9 @@
         const ctx = await getActiveTenantContext();
         const docs = await getClientDocs();
         const total = docs.length;
-        const leases = docs.filter(d => (d.category === 'Lease Contract' || d.type === 'Lease Contract') && (d.status === 'Active' || d.status === 'Verified')).length;
+        const leases = docs.filter(d => (d.category === 'Lease Contract' || d.type === 'Lease Contract') && (d.status === 'Active' || d.status === 'Verified' || d.status === 'Signed')).length;
         const receipts = docs.filter(d => (d.category === 'Official Receipt' || d.type === 'Receipt')).length;
-        const pending = docs.filter(d => (d.status || '').toLowerCase() === 'pending').length;
+        const pending = docs.filter(d => (d.status || '').toUpperCase() === 'PENDING').length;
 
         const totalEl = document.getElementById('kpiTotalFiles');
         const leasesEl = document.getElementById('kpiActiveLeases');
@@ -1347,12 +1417,12 @@
                     </div>
                     <div class="row"><span class="label">Document Ref</span><span class="val">${doc.doc_id || doc.id}</span></div>
                     <div class="row"><span class="label">Tenant Name</span><span class="val">${ctx.name}</span></div>
-                    <div class="row"><span class="label">Assigned Location</span><span class="val">${doc.entitySub || ctx.fullTag}</span></div>
+                    <div class="row"><span class="label">Assigned Location</span><span class="val">${doc.entity_sub || doc.entitySub || ctx.fullTag}</span></div>
                     <div class="row"><span class="label">Document Category</span><span class="val">${doc.category || doc.type}</span></div>
-                    <div class="row"><span class="label">Record Date</span><span class="val">${doc.uploadDate || doc.date || '—'}</span></div>
-                    <div class="row"><span class="label">Authorized Issuer / Uploader</span><span class="val">${doc.uploadedBy || doc.uploader || 'System'}</span></div>
+                    <div class="row"><span class="label">Record Date</span><span class="val">${doc.date ? doc.date.split('T')[0] : (doc.uploadDate || '—')}</span></div>
+                    <div class="row"><span class="label">Authorized Issuer / Uploader</span><span class="val">${doc.uploader || doc.uploadedBy || 'System'}</span></div>
                     <div style="margin-top:20px; font-size:13px; color:#475569; line-height:1.6;">
-                        <strong>Audit Notes:</strong> ${doc.notes || 'Official electronic file verified and archived in ARGO Multi-Tenant Vault.'}
+                        <strong>Audit Notes:</strong> ${doc.notes || 'Official electronic file verified and archived in Neon PostgreSQL Tenancy Vault.'}
                     </div>
                     <div class="stamp">
                         ✓ OFFICIALLY RECORDED IN ARGO TENANCY VAULT
@@ -1371,8 +1441,8 @@
 
         const win = window.open('', '_blank');
         if (win) {
-            if (doc.fileUrl || doc.file_url) {
-                win.document.write(`<iframe src="${doc.fileUrl || doc.file_url}" frameborder="0" style="border:0; width:100%; height:100%;" allowfullscreen></iframe>`);
+            if (doc.file_url || doc.fileUrl) {
+                win.document.write(`<iframe src="${doc.file_url || doc.fileUrl}" frameborder="0" style="border:0; width:100%; height:100%;" allowfullscreen></iframe>`);
             } else {
                 win.document.write(generateDocumentHTML(doc, ctx));
                 win.document.close();
@@ -1386,33 +1456,42 @@
         const doc = docs.find(d => String(d.id) === String(id) || String(d.doc_id) === String(id));
         if (!doc) return;
 
-        const blob = (doc.fileUrl || doc.file_url) 
-            ? null 
-            : new Blob([generateDocumentHTML(doc, ctx)], { type: 'text/html' });
-            
-        const dlUrl = doc.fileUrl || doc.file_url || URL.createObjectURL(blob);
+        const fileUrl = doc.file_url || doc.fileUrl;
+        const blob = fileUrl ? null : new Blob([generateDocumentHTML(doc, ctx)], { type: 'text/html' });
+        const dlUrl = fileUrl || URL.createObjectURL(blob);
+        
         const a = document.createElement('a');
         a.href = dlUrl;
         a.download = `${doc.doc_id || doc.id}_${doc.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.html`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-        if (!doc.fileUrl && !doc.file_url) setTimeout(() => URL.revokeObjectURL(dlUrl), 2000);
+        if (!fileUrl) setTimeout(() => URL.revokeObjectURL(dlUrl), 2000);
     }
 
-    async function deleteDoc(id) {
-        if (!confirm("Are you sure you want to remove this document from your vault?")) return;
+    // LIVE DELETE TENANT DOCUMENT (DELETE /api/documents/{id})
+    async function deleteDoc(dbId, displayCode) {
+        const name = displayCode || dbId;
+        if (!confirm(`Are you sure you want to remove document "${name}" from your personal vault?`)) return;
         
         try {
-            await fetch(`${DOCUMENTS_API_URL}${encodeURIComponent(id)}`, {
+            const res = await fetch(`${DOCUMENTS_API_URL}/${encodeURIComponent(dbId)}`, {
                 method: 'DELETE',
                 headers: getAuthHeaders()
             });
-        } catch (e) {}
 
-        let docs = await getClientDocs();
-        docs = docs.filter(d => String(d.id) !== String(id) && String(d.doc_id) !== String(id));
-        saveClientDocs(docs);
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                alert(`Cannot delete document: ${err.detail || 'Database error.'}`);
+                return;
+            }
+        } catch (e) {
+            console.error("Delete document error:", e);
+            alert("Network error deleting document.");
+            return;
+        }
+
+        alert(`Document "${name}" removed successfully!`);
         await renderDocTable();
         await updateKPIs();
     }
@@ -1433,12 +1512,14 @@
         document.getElementById('modalDocFile').value = '';
     }
 
+    // LIVE TENANT UPLOAD (POST /api/documents + POST /api/notifications)
     async function saveTenantDoc() {
         const title = document.getElementById('modalDocTitle').value.trim();
         const category = document.getElementById('modalDocCategory').value;
         const notes = document.getElementById('modalDocNotes').value.trim();
         const fileInput = document.getElementById('modalDocFile');
         const file = fileInput.files ? fileInput.files[0] : null;
+        const orgId = localStorage.getItem('organization_id') || DEFAULT_ORG_ID;
 
         if (!title) {
             alert("Please enter a document title.");
@@ -1446,12 +1527,13 @@
         }
 
         const ctx = await getActiveTenantContext();
-        const newId = `DOC-CLI-${Date.now().toString().slice(-4)}`;
-        const today = new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+        const newDocCode = `DOC-CLI-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+        const today = new Date().toISOString().split('T')[0];
 
         const proceedSave = async (fileDataUrl = '') => {
             const payload = {
-                doc_id: newId,
+                organization_id: orgId,
+                doc_id: newDocCode,
                 title: title,
                 file_type: file ? `${(file.name.split('.').pop() || 'PDF').toUpperCase()} • Uploaded File` : 'PDF • 1.5 MB',
                 entity_name: ctx.name,
@@ -1465,57 +1547,46 @@
             };
 
             try {
-                await fetch(DOCUMENTS_API_URL, {
+                const res = await fetch(DOCUMENTS_API_URL, {
                     method: 'POST',
                     headers: getAuthHeaders(),
                     body: JSON.stringify(payload)
                 });
+
+                if (!res.ok) {
+                    const errData = await res.json().catch(() => ({}));
+                    alert(`Error saving document: ${errData.detail || 'Could not save to Neon database.'}`);
+                    return;
+                }
             } catch (e) {
-                console.warn("Backend document save bypassed, keeping locally.", e);
+                console.error("Network error while uploading tenant doc:", e);
+                alert("Network connection error. Check server connection.");
+                return;
             }
 
-            const newDoc = {
-                id: newId,
-                doc_id: newId,
-                title: title,
-                fileType: payload.file_type,
-                category: category,
-                entityName: ctx.name,
-                entitySub: ctx.fullTag,
-                uploadedBy: `${ctx.name} (You)`,
-                uploadDate: today,
-                status: 'Pending',
-                notes: notes || 'Uploaded via Tenant Portal.',
-                fileUrl: fileDataUrl
-            };
-
-            let docs = await getClientDocs();
-            docs.unshift(newDoc);
-            saveClientDocs(docs);
-
-            let notifications = getNotifications();
-            notifications.unshift({
-                id: `NOTIF-${Date.now()}`,
-                pov: 'admin',
-                category: 'asset',
-                status: 'unread',
-                is_read: false,
-                title: `Tenant Uploaded Document / ID`,
-                time: 'Just now',
-                description: `Tenant <strong>${ctx.name}</strong> (${ctx.fullTag}) uploaded a new file: "<strong>${title}</strong>" (${category}).`,
-                property: ctx.fullTag,
-                tenantName: ctx.name,
-                tag: 'Tenant Vault Upload',
-                tagColor: 'var(--primary, #2563EB)',
-                actionUrl: 'documents.html',
-                actionText: 'Review Tenant File'
-            });
-            saveNotifications(notifications);
+            // Push Notification Alert to Admin
+            try {
+                await fetch(NOTIFICATIONS_API_URL, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({
+                        organization_id: orgId,
+                        pov: 'admin',
+                        category: 'asset',
+                        status: 'Active',
+                        is_read: false,
+                        title: `Tenant Uploaded Document / ID`,
+                        description: `Tenant ${ctx.name} (${ctx.fullTag}) uploaded a new file: "${title}" (${category}).`,
+                        property: ctx.fullTag,
+                        urgent: false
+                    })
+                });
+            } catch (err) {}
 
             await renderDocTable();
             await updateKPIs();
             closeTenantDocModal();
-            alert(`Document "${title}" uploaded successfully to your personal vault!\n\nProperty Manager has been notified for verification.`);
+            alert(`Document "${title}" uploaded successfully to your personal vault in Neon database!`);
         };
 
         if (file) {
@@ -1547,7 +1618,7 @@
 
             const matchesSearch = text.includes(searchValue);
             const matchesCategory = categoryValue === "" || rowCategory === categoryValue;
-            const matchesStatus = statusValue === "" || rowStatus.includes(statusValue);
+            const matchesStatus = statusValue === "" || rowStatus.toLowerCase().includes(statusValue.toLowerCase());
 
             row.style.display = (matchesSearch && matchesCategory && matchesStatus) ? "" : "none";
         });
@@ -1599,20 +1670,10 @@
         }
 
         renderSidebar();
-        await loadUserData();
+        loadUserData();
         await renderDocTable();
         await updateKPIs();
         updateHeaderBadge();
-    });
-
-    // Real-Time Storage Listener
-    window.addEventListener('storage', async (e) => {
-        if (['argo_client_documents', 'argo_documents', 'argo_notifications', 'argo_leases', 'argo_user', 'argo_pov'].includes(e.key)) {
-            await loadUserData();
-            await renderDocTable();
-            await updateKPIs();
-            updateHeaderBadge();
-        }
     });
 </script>
 </body>

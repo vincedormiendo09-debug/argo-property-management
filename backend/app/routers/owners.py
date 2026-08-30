@@ -16,9 +16,51 @@ DEFAULT_ORG_ID = uuid.UUID("a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11")
 def ensure_sandbox_organization(db: Session, org_id: uuid.UUID):
     org = db.scalar(select(models.Organization).where(models.Organization.id == org_id))
     if not org:
-        sandbox_org = models.Organization(id=org_id, name="Sunrise Property Group")
+        sandbox_org = models.Organization(id=org_id, name="ARGO Property Management Corp.")
         db.add(sandbox_org)
         db.commit()
+
+
+# ---------------------------------------------------------------------
+# FRACTIONAL EQUITY OWNERSHIP ENDPOINTS (Placed BEFORE /{owner_id} to prevent routing conflicts)
+# ---------------------------------------------------------------------
+@router.get("/shares/all", response_model=List[schemas.PropertyOwnershipSchema])
+def read_property_ownerships(
+    organization_id: uuid.UUID = Query(default=DEFAULT_ORG_ID),
+    property_id: Optional[uuid.UUID] = Query(default=None),
+    owner_id: Optional[uuid.UUID] = Query(default=None),
+    db: Session = Depends(get_db)
+):
+    ensure_sandbox_organization(db, organization_id)
+    stmt = select(models.PropertyOwnership).where(
+        models.PropertyOwnership.organization_id == organization_id
+    )
+    if property_id:
+        stmt = stmt.where(models.PropertyOwnership.property_id == property_id)
+    if owner_id:
+        stmt = stmt.where(models.PropertyOwnership.owner_id == owner_id)
+
+    return list(db.scalars(stmt).all())
+
+
+@router.post("/shares/assign", response_model=schemas.PropertyOwnershipSchema, status_code=status.HTTP_201_CREATED)
+def assign_property_ownership(
+    share_in: schemas.PropertyOwnershipCreate,
+    db: Session = Depends(get_db)
+):
+    org_id = getattr(share_in, "organization_id", DEFAULT_ORG_ID) or DEFAULT_ORG_ID
+    ensure_sandbox_organization(db, org_id)
+
+    share_data = share_in.model_dump(exclude_unset=True) if hasattr(share_in, "model_dump") else share_in.dict(exclude_unset=True)
+    if "id" not in share_data or not share_data["id"]:
+        share_data["id"] = uuid.uuid4()
+    share_data["organization_id"] = org_id
+
+    db_share = models.PropertyOwnership(**share_data)
+    db.add(db_share)
+    db.commit()
+    db.refresh(db_share)
+    return db_share
 
 
 # ---------------------------------------------------------------------
@@ -68,7 +110,7 @@ def read_owners(
 
 @router.post("/", response_model=schemas.OwnerSchema, status_code=status.HTTP_201_CREATED)
 def create_owner(owner_in: schemas.OwnerCreate, db: Session = Depends(get_db)):
-    org_id = getattr(owner_in, "organization_id", DEFAULT_ORG_ID)
+    org_id = getattr(owner_in, "organization_id", DEFAULT_ORG_ID) or DEFAULT_ORG_ID
     ensure_sandbox_organization(db, org_id)
 
     own_id = owner_in.own_id or f"OWN-{datetime.now().year}-{str(uuid.uuid4())[:4].upper()}"
@@ -85,7 +127,7 @@ def create_owner(owner_in: schemas.OwnerCreate, db: Session = Depends(get_db)):
             detail=f"Owner with ID '{own_id}' or email '{owner_in.email}' already exists."
         )
 
-    owner_data = owner_in.dict(exclude_unset=True)
+    owner_data = owner_in.model_dump(exclude_unset=True) if hasattr(owner_in, "model_dump") else owner_in.dict(exclude_unset=True)
     if "id" not in owner_data or not owner_data["id"]:
         owner_data["id"] = uuid.uuid4()
     owner_data["organization_id"] = org_id
@@ -146,7 +188,7 @@ def update_owner(
     if not db_owner:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Owner not found.")
 
-    update_data = owner_update.dict(exclude_unset=True)
+    update_data = owner_update.model_dump(exclude_unset=True) if hasattr(owner_update, "model_dump") else owner_update.dict(exclude_unset=True)
     for field, value in update_data.items():
         if hasattr(db_owner, field):
             setattr(db_owner, field, value)
@@ -181,45 +223,3 @@ def delete_owner(
     db.delete(db_owner)
     db.commit()
     return None
-
-
-# ---------------------------------------------------------------------
-# FRACTIONAL EQUITY OWNERSHIP ENDPOINTS
-# ---------------------------------------------------------------------
-@router.get("/shares/all", response_model=List[schemas.PropertyOwnershipSchema])
-def read_property_ownerships(
-    organization_id: uuid.UUID = Query(default=DEFAULT_ORG_ID),
-    property_id: Optional[uuid.UUID] = Query(default=None),
-    owner_id: Optional[uuid.UUID] = Query(default=None),
-    db: Session = Depends(get_db)
-):
-    ensure_sandbox_organization(db, organization_id)
-    stmt = select(models.PropertyOwnership).where(
-        models.PropertyOwnership.organization_id == organization_id
-    )
-    if property_id:
-        stmt = stmt.where(models.PropertyOwnership.property_id == property_id)
-    if owner_id:
-        stmt = stmt.where(models.PropertyOwnership.owner_id == owner_id)
-
-    return list(db.scalars(stmt).all())
-
-
-@router.post("/shares/assign", response_model=schemas.PropertyOwnershipSchema, status_code=status.HTTP_201_CREATED)
-def assign_property_ownership(
-    share_in: schemas.PropertyOwnershipCreate,
-    db: Session = Depends(get_db)
-):
-    org_id = getattr(share_in, "organization_id", DEFAULT_ORG_ID)
-    ensure_sandbox_organization(db, org_id)
-
-    share_data = share_in.dict(exclude_unset=True)
-    if "id" not in share_data or not share_data["id"]:
-        share_data["id"] = uuid.uuid4()
-    share_data["organization_id"] = org_id
-
-    db_share = models.PropertyOwnership(**share_data)
-    db.add(db_share)
-    db.commit()
-    db.refresh(db_share)
-    return db_share

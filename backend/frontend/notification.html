@@ -736,6 +736,7 @@
     </main>
 
 <script>
+    const DEFAULT_ORG_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
     const API_BASE_URL = (
         window.location.origin.includes('localhost') || 
         window.location.origin.includes('127.0.0.1')
@@ -745,7 +746,7 @@
             ? 'https://argo-management-2026.onrender.com/api'
             : '/api';
 
-    const NOTIFICATIONS_API_URL = `${API_BASE_URL}/notifications/`;
+    const NOTIFICATIONS_API_URL = `${API_BASE_URL}/notifications`;
     let activeCategory = 'all';
 
     function getAuthHeaders() {
@@ -758,6 +759,7 @@
 
     function logoutUser() {
         localStorage.clear();
+        sessionStorage.clear();
         window.location.replace('index.html');
     }
 
@@ -861,7 +863,7 @@
             if (userName) userName.textContent = storedUser.name || 'Resident Tenant';
             if (userRoleBadge) userRoleBadge.textContent = 'Unit Occupant';
             if (userAvatar) {
-                userAvatar.textContent = storedUser.avatar || 'MS';
+                userAvatar.textContent = storedUser.avatar || (storedUser.name ? storedUser.name.charAt(0) : 'T');
                 userAvatar.style.background = '#D97706';
             }
             if (pageSubtext) pageSubtext.textContent = 'Viewing your tenancy notices, billing statements, and maintenance updates.';
@@ -874,7 +876,7 @@
             if (userName) userName.textContent = storedUser.name || 'Property Owner';
             if (userRoleBadge) userRoleBadge.textContent = 'Equity Partner';
             if (userAvatar) {
-                userAvatar.textContent = storedUser.avatar || 'PO';
+                userAvatar.textContent = storedUser.avatar || (storedUser.name ? storedUser.name.charAt(0) : 'O');
                 userAvatar.style.background = '#059669';
             }
             if (pageSubtext) pageSubtext.textContent = 'Viewing executive alerts for asset yields, disbursements, and inspections.';
@@ -895,38 +897,33 @@
         }
     }
 
+    // Direct Live API Fetcher (No LocalStorage Cache Traps)
     async function getNotifications() {
-        let liveNotifs = [];
         try {
-            const res = await fetch(NOTIFICATIONS_API_URL, { headers: getAuthHeaders() });
+            const res = await fetch(NOTIFICATIONS_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (res.ok) {
                 const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.notifications || data.data || []);
-                liveNotifs = list;
-                localStorage.setItem('argo_notifications', JSON.stringify(list));
+                return Array.isArray(data) ? data : (data.items || data.notifications || data.data || []);
             }
         } catch (e) {
-            console.warn("Notifications API offline, reading local store:", e);
+            console.error("Live Notifications API fetch failed:", e);
         }
-
-        if (liveNotifs.length === 0) {
-            const raw = localStorage.getItem('argo_notifications');
-            liveNotifs = raw ? JSON.parse(raw) : [];
-        }
-
-        return liveNotifs;
-    }
-
-    function saveNotifications(notifs) {
-        localStorage.setItem('argo_notifications', JSON.stringify(notifs));
+        return [];
     }
 
     function isNotificationUnread(n) {
         if (n.is_read !== undefined) return !n.is_read;
-        if (n.status !== undefined) return n.status.toLowerCase() === 'unread';
+        if (n.status !== undefined) {
+            const s = String(n.status).toLowerCase();
+            return s === 'unread' || s === 'active' || s === 'pending';
+        }
         return false;
     }
 
+    // Live Render Notifications Inbox
     async function renderNotifications() {
         const notifs = await getNotifications();
         const currentPov = getNormalizedRole();
@@ -958,7 +955,8 @@
         } else {
             filtered.forEach(n => {
                 const unread = isNotificationUnread(n);
-                const cardClass = unread ? (n.urgent ? 'notification-card unread-urgent' : 'notification-card unread') : 'notification-card';
+                const isUrgent = Boolean(n.urgent);
+                const cardClass = unread ? (isUrgent ? 'notification-card unread-urgent' : 'notification-card unread') : 'notification-card';
 
                 let iconClass = 'icon-system';
                 let iconBi = 'bi-bell';
@@ -968,17 +966,18 @@
                     iconClass = 'icon-payment';
                     iconBi = 'bi-wallet2';
                 } else if (cat === 'maintenance') {
-                    iconClass = n.urgent ? 'icon-warning' : 'icon-maintenance';
-                    iconBi = n.urgent ? 'bi-exclamation-triangle' : 'bi-tools';
+                    iconClass = isUrgent ? 'icon-warning' : 'icon-maintenance';
+                    iconBi = isUrgent ? 'bi-exclamation-triangle' : 'bi-tools';
                 } else if (cat === 'asset' || cat === 'lease') {
                     iconClass = 'icon-asset';
                     iconBi = 'bi-building-check';
                 }
 
-                const timeStr = n.time || (n.created_at ? new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Recently');
+                const timeStr = n.time || (n.created_at ? n.created_at.split('T')[0] : 'Recently');
                 const descStr = n.description || n.message || '';
-                const actUrl = n.actionUrl || n.action_url || '#';
-                const actText = n.actionText || n.action_text || 'View Details';
+                const actUrl = n.action_url || n.actionUrl || '#';
+                const actText = n.action_text || n.actionText || 'View Details';
+                const notifDbId = n.id;
 
                 const card = document.createElement('div');
                 card.className = cardClass;
@@ -990,7 +989,7 @@
                     </div>
                     <div class="notif-content" style="flex:1;">
                         <div class="notif-header-line" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                            <span class="notif-title" style="font-weight:700; font-size:14px; ${n.urgent && unread ? 'color:var(--danger, #EF4444);' : ''}">${n.title || 'Notification Alert'}</span>
+                            <span class="notif-title" style="font-weight:700; font-size:14px; ${isUrgent && unread ? 'color:var(--danger, #EF4444);' : ''}">${n.title || 'Notification Alert'}</span>
                             <span class="notif-time" style="font-size:11px; color:var(--muted, #64748B);"><i class="bi bi-clock"></i> ${timeStr}</span>
                         </div>
                         <div class="notif-description" style="font-size:12px; color:#475569; line-height:1.5; margin-bottom:8px;">${descStr}</div>
@@ -1001,7 +1000,7 @@
                         </div>
                         <div class="notif-actions" style="display:flex; justify-content:space-between; align-items:center;">
                             <a href="${actUrl}" class="action-link" style="color:var(--primary, #2563EB); font-size:12px; font-weight:600; text-decoration:none;"><i class="bi bi-arrow-right-circle"></i> ${actText}</a>
-                            ${unread ? `<button class="mark-read-btn" onclick="markSingleAsRead('${n.id}')" style="background:none; border:1px solid #CBD5E1; color:#64748B; font-size:11px; padding:2px 8px; border-radius:4px; cursor:pointer;">Mark as Read</button>` : ''}
+                            ${unread ? `<button class="mark-read-btn" onclick="markSingleAsRead('${notifDbId}')" style="background:none; border:1px solid #CBD5E1; color:#64748B; font-size:11px; padding:2px 8px; border-radius:4px; cursor:pointer;">Mark as Read</button>` : ''}
                         </div>
                     </div>
                 `;
@@ -1009,49 +1008,44 @@
             });
         }
 
-        updateBadgesAndKPIs();
+        await updateBadgesAndKPIs();
     }
 
+    // LIVE MARK SINGLE AS READ (PATCH /api/notifications/{id})
     async function markSingleAsRead(notifId) {
-        let notifs = await getNotifications();
-        notifs = notifs.map(n => {
-            if (String(n.id) === String(notifId)) {
-                return { ...n, status: 'read', is_read: true };
-            }
-            return n;
-        });
-        saveNotifications(notifs);
-
         try {
-            await fetch(`${NOTIFICATIONS_API_URL}${encodeURIComponent(notifId)}`, {
+            await fetch(`${NOTIFICATIONS_API_URL}/${encodeURIComponent(notifId)}`, {
                 method: 'PATCH',
                 headers: getAuthHeaders(),
-                body: JSON.stringify({ is_read: true, status: 'read' })
+                body: JSON.stringify({ is_read: true, status: 'Read' })
             });
-        } catch (e) {}
+        } catch (e) {
+            console.error("Mark as read error:", e);
+        }
 
         await renderNotifications();
     }
 
+    // LIVE MARK ALL AS READ (PATCH /api/notifications / Loop update)
     async function markAllAsRead() {
         const currentPov = getNormalizedRole();
-        let notifs = await getNotifications();
-        notifs = notifs.map(n => {
-            const p = (n.pov || n.recipient_role || 'all').toLowerCase();
-            if (p === currentPov || p === 'all' || (currentPov === 'client' && (p === 'tenant' || p === 'client'))) {
-                return { ...n, status: 'read', is_read: true };
-            }
-            return n;
-        });
-        saveNotifications(notifs);
+        const notifs = await getNotifications();
 
-        try {
-            await fetch(`${NOTIFICATIONS_API_URL}mark-all-read`, {
-                method: 'POST',
-                headers: getAuthHeaders(),
-                body: JSON.stringify({ pov: currentPov })
-            });
-        } catch (e) {}
+        const unreadNotifs = notifs.filter(n => {
+            const p = (n.pov || n.recipient_role || 'all').toLowerCase();
+            const povMatch = p === currentPov || p === 'all' || (currentPov === 'client' && (p === 'tenant' || p === 'client'));
+            return povMatch && isNotificationUnread(n);
+        });
+
+        for (const n of unreadNotifs) {
+            try {
+                await fetch(`${NOTIFICATIONS_API_URL}/${encodeURIComponent(n.id)}`, {
+                    method: 'PATCH',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ is_read: true, status: 'Read' })
+                });
+            } catch (err) {}
+        }
 
         await renderNotifications();
     }
@@ -1159,16 +1153,6 @@
         renderSidebar();
         applyRoleLayout(currentRole);
         await renderNotifications();
-    });
-
-    // Cross-Tab Listener
-    window.addEventListener('storage', async (e) => {
-        if (['argo_notifications', 'argo_pov', 'user_role', 'role', 'argo_user'].includes(e.key)) {
-            const currentRole = getNormalizedRole();
-            renderSidebar();
-            applyRoleLayout(currentRole);
-            await renderNotifications();
-        }
     });
 </script>
 </body>

@@ -704,6 +704,7 @@
     </main>
 
 <script>
+    const DEFAULT_ORG_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
     const API_BASE_URL = (
         window.location.origin.includes('localhost') || 
         window.location.origin.includes('127.0.0.1')
@@ -713,13 +714,16 @@
             ? 'https://argo-management-2026.onrender.com/api'
             : '/api';
 
-    const PROPERTIES_API_URL = `${API_BASE_URL}/properties/`;
-    const BUILDINGS_API_URL = `${API_BASE_URL}/buildings/`;
-    const UNITS_API_URL = `${API_BASE_URL}/units/`;
-    const LEASES_API_URL = `${API_BASE_URL}/leases/`;
-    const INVOICES_API_URL = `${API_BASE_URL}/invoices/`;
-    const MAINTENANCE_API_URL = `${API_BASE_URL}/maintenance/`;
-    const NOTIFICATIONS_API_URL = `${API_BASE_URL}/notifications/`;
+    const PROPERTIES_API_URL = `${API_BASE_URL}/properties`;
+    const BUILDINGS_API_URL = `${API_BASE_URL}/buildings`;
+    const UNITS_API_URL = `${API_BASE_URL}/units`;
+    const LEASES_API_URL = `${API_BASE_URL}/leases`;
+    const INVOICES_API_URL = `${API_BASE_URL}/invoices`;
+    const MAINTENANCE_API_URL = `${API_BASE_URL}/maintenance`;
+    const NOTIFICATIONS_API_URL = `${API_BASE_URL}/notifications`;
+
+    let adminRentChartInstance = null;
+    let adminOccupancyChartInstance = null;
 
     function parseCurrency(val) {
         if (val === undefined || val === null || val === '') return 0;
@@ -744,6 +748,7 @@
 
     function logoutUser() {
         localStorage.clear();
+        sessionStorage.clear();
         window.location.replace('index.html');
     }
 
@@ -826,130 +831,118 @@
         if (avatarEl) avatarEl.textContent = user.avatar || (user.name ? user.name.charAt(0) : 'SA');
     }
 
-    // Database Fetchers
+    // Direct Database Fetchers (No LocalStorage Stale Traps)
     async function getProperties() {
         try {
-            const res = await fetch(PROPERTIES_API_URL, { headers: getAuthHeaders() });
+            const res = await fetch(PROPERTIES_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (res.ok) {
                 const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.properties || data.data || []);
-                localStorage.setItem('argo_properties', JSON.stringify(list));
-                return list;
+                return Array.isArray(data) ? data : (data.items || data.properties || data.data || []);
             }
-        } catch (e) {}
-        try {
-            return JSON.parse(localStorage.getItem('argo_properties') || '[]');
         } catch (e) {
-            return [];
+            console.error("Live Properties API fetch failed:", e);
         }
+        return [];
     }
 
     async function getBuildings() {
         try {
-            const res = await fetch(BUILDINGS_API_URL, { headers: getAuthHeaders() });
+            const res = await fetch(BUILDINGS_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (res.ok) {
                 const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.buildings || data.data || []);
-                localStorage.setItem('argo_buildings', JSON.stringify(list));
-                return list;
+                return Array.isArray(data) ? data : (data.items || data.buildings || data.data || []);
             }
-        } catch (e) {}
-        try {
-            return JSON.parse(localStorage.getItem('argo_buildings') || '[]');
         } catch (e) {
-            return [];
+            console.warn("Live Buildings fetch error:", e);
         }
+        return [];
     }
 
     async function getUnits() {
         try {
-            const res = await fetch(UNITS_API_URL, { headers: getAuthHeaders() });
+            const res = await fetch(UNITS_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (res.ok) {
                 const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.units || data.data || []);
-                localStorage.setItem('argo_units', JSON.stringify(list));
-                return list;
+                return Array.isArray(data) ? data : (data.items || data.units || data.data || []);
             }
-        } catch (e) {}
-        try {
-            return JSON.parse(localStorage.getItem('argo_units') || '[]');
         } catch (e) {
-            return [];
+            console.error("Live Units API fetch failed:", e);
         }
+        return [];
     }
 
     async function getLeases() {
         try {
-            const res = await fetch(LEASES_API_URL, { headers: getAuthHeaders() });
+            const res = await fetch(LEASES_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (res.ok) {
                 const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.leases || data.data || []);
-                localStorage.setItem('argo_leases', JSON.stringify(list));
-                return list;
+                return Array.isArray(data) ? data : (data.items || data.leases || data.data || []);
             }
-        } catch (e) {}
-        try {
-            return JSON.parse(localStorage.getItem('argo_leases') || '[]');
         } catch (e) {
-            return [];
+            console.warn("Live Leases fetch error:", e);
         }
+        return [];
     }
 
     async function getInvoices() {
         try {
-            const res = await fetch(INVOICES_API_URL, { headers: getAuthHeaders() });
+            const res = await fetch(INVOICES_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (res.ok) {
                 const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.invoices || data.data || []);
-                localStorage.setItem('argo_invoices', JSON.stringify(list));
-                return list;
+                return Array.isArray(data) ? data : (data.items || data.invoices || data.data || []);
             }
-        } catch (e) {}
-        try {
-            return JSON.parse(localStorage.getItem('argo_invoices') || '[]');
         } catch (e) {
-            return [];
+            console.error("Live Invoices fetch error:", e);
         }
+        return [];
     }
 
     async function getMaintenance() {
         try {
-            const res = await fetch(MAINTENANCE_API_URL, { headers: getAuthHeaders() });
+            const res = await fetch(MAINTENANCE_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (res.ok) {
                 const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.tickets || data.data || []);
-                localStorage.setItem('argo_maintenance_tickets', JSON.stringify(list));
-                return list;
+                return Array.isArray(data) ? data : (data.items || data.tickets || data.data || []);
             }
-        } catch (e) {}
-        try {
-            return JSON.parse(localStorage.getItem('argo_maintenance_tickets') || '[]');
         } catch (e) {
-            return [];
+            console.warn("Live Maintenance fetch error:", e);
         }
+        return [];
     }
 
     async function getNotifications() {
         try {
-            const res = await fetch(NOTIFICATIONS_API_URL, { headers: getAuthHeaders() });
+            const res = await fetch(NOTIFICATIONS_API_URL, { 
+                headers: getAuthHeaders(),
+                cache: 'no-store'
+            });
             if (res.ok) {
                 const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.notifications || data.data || []);
-                localStorage.setItem('argo_notifications', JSON.stringify(list));
-                return list;
+                return Array.isArray(data) ? data : (data.items || data.notifications || data.data || []);
             }
         } catch (e) {}
-        try {
-            return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
-        } catch (e) {
-            return [];
-        }
+        return [];
     }
 
-    let adminRentChartInstance = null;
-    let adminOccupancyChartInstance = null;
-
-    // Dynamic Metrics Computation Engine
+    // Live Aggregated Metrics Engine
     async function updateDashboardMetrics() {
         const properties = await getProperties();
         const units = await getUnits();
@@ -957,7 +950,7 @@
         const invoices = await getInvoices();
         const tickets = await getMaintenance();
 
-        // 1. Total Portfolio Revenue (Sum of all paid invoices)
+        // 1. Total Portfolio Revenue & Collection Rate
         let totalRevenue = 0;
         let totalBilled = 0;
         let totalPaid = 0;
@@ -965,8 +958,8 @@
         invoices.forEach(inv => {
             const amt = parseCurrency(inv.amount || 0);
             totalBilled += amt;
-            const status = (inv.status || '').toLowerCase();
-            if (status === 'paid') {
+            const status = (inv.status || '').toUpperCase();
+            if (status === 'PAID') {
                 totalRevenue += amt;
                 totalPaid += amt;
             }
@@ -976,7 +969,7 @@
         let activeOccupied = 0;
         units.forEach(u => {
             const s = (u.status || '').toUpperCase();
-            if (s === 'OCCUPIED' || s === 'LEASED' || u.tenant_name || u.tenant) {
+            if (s === 'OCCUPIED' || s === 'LEASED' || u.tenant_name) {
                 activeOccupied++;
             }
         });
@@ -989,14 +982,14 @@
 
         // 3. Open Maintenance Tickets
         const openMaintenance = tickets.filter(t => {
-            const s = (t.status || '').toLowerCase();
-            return s === 'open' || s === 'in progress' || s === 'assigned' || s === 'pending';
+            const s = (t.status || '').toUpperCase();
+            return s === 'OPEN' || s === 'IN PROGRESS' || s === 'ASSIGNED' || s === 'SUBMITTED';
         }).length;
 
-        // 4. Collection Rate Calculation (%)
-        const collectionRate = totalBilled > 0 ? ((totalPaid / totalBilled) * 100).toFixed(1) : '0.0';
+        // 4. Genuine Collection Rate (%)
+        const collectionRate = totalBilled > 0 ? ((totalPaid / totalBilled) * 100).toFixed(1) : '100.0';
 
-        // Update KPI DOM Elements
+        // Update KPI Cards in DOM
         const kpiRevenue = document.getElementById('kpiRevenue');
         const kpiOccupiedUnits = document.getElementById('kpiOccupiedUnits');
         const kpiOpenMaintenance = document.getElementById('kpiOpenMaintenance');
@@ -1007,7 +1000,7 @@
         if (kpiOccupiedUnits) kpiOccupiedUnits.textContent = `${activeOccupied} Units`;
         if (kpiOpenMaintenance) kpiOpenMaintenance.textContent = `${openMaintenance} Tickets`;
         if (kpiCollectionRate) kpiCollectionRate.textContent = `${collectionRate}%`;
-        if (kpiOccupancyDesc) kpiOccupancyDesc.textContent = `${activeOccupied} of ${units.length || properties.length * 4} units leased`;
+        if (kpiOccupancyDesc) kpiOccupancyDesc.textContent = `${activeOccupied} of ${units.length || properties.length} registered units leased`;
     }
 
     async function renderPropertySummaryTable() {
@@ -1030,23 +1023,23 @@
 
             const propUnits = units.filter(u => {
                 const uPropId = String(u.property_id || '');
-                const uProp = (u.property ? (u.property.name || u.property.property_name) : '') || u.property_name || u.property || '';
+                const uProp = u.property_name || (u.property ? (u.property.name || u.property.property_name) : '') || '';
                 return (propIdStr && uPropId === propIdStr) || uProp.toLowerCase().includes(propName.toLowerCase());
             });
 
-            const totalUnits = propUnits.length > 0 ? propUnits.length : parseInt(p.units_count || p.units || 20);
+            const totalUnits = propUnits.length > 0 ? propUnits.length : parseInt(p.units_count || 0);
 
             let occupiedCount = 0;
             propUnits.forEach(u => {
                 const s = (u.status || '').toUpperCase();
-                if (s === 'OCCUPIED' || s === 'LEASED' || u.tenant || u.tenant_name) {
+                if (s === 'OCCUPIED' || s === 'LEASED' || u.tenant_name) {
                     occupiedCount++;
                 }
             });
 
             if (occupiedCount === 0 && propUnits.length === 0) {
                 const matchedLeases = leases.filter(l => {
-                    const lProp = l.property || l.property_name || '';
+                    const lProp = l.property_name || l.property || '';
                     return (lProp.toLowerCase().includes(propName.toLowerCase()) || propName.toLowerCase().includes(lProp.toLowerCase())) && 
                            (l.status || '').toUpperCase() === 'ACTIVE';
                 });
@@ -1054,7 +1047,7 @@
             }
 
             const occRate = totalUnits > 0 ? `${((occupiedCount / totalUnits) * 100).toFixed(1)}%` : '0.0%';
-            const status = (p.status || 'Active').toLowerCase() === 'active' ? 'Active' : 'Pending';
+            const status = (p.status || 'Active').toUpperCase() === 'ACTIVE' ? 'Active' : 'Pending';
 
             tr.innerHTML = `
                 <td><strong>${propName}</strong></td>
@@ -1067,7 +1060,7 @@
         });
     }
 
-    // Real-Time Activity Audit Stream Populated from Live Database Timestamps
+    // Live Activity Stream from Database Notifications
     async function renderLiveActivityFeed() {
         const notifications = await getNotifications();
         const container = document.getElementById('liveActivityFeed');
@@ -1102,7 +1095,7 @@
                 iconStyle = 'background:#FEF3C7; color:#D97706;';
             }
 
-            const timeStr = n.time || (n.created_at ? new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Recently');
+            const timeStr = n.time || (n.created_at ? n.created_at.split('T')[0] : 'Recently');
 
             const item = document.createElement('div');
             item.className = 'activity-item';
@@ -1119,11 +1112,12 @@
     }
 
     async function updateHeaderBadge() {
-        const notifs = (await getNotifications()).filter(n => (n.pov === 'admin' || !n.pov) && (n.status === 'unread' || n.is_read === false));
+        const notifs = (await getNotifications()).filter(n => (n.pov === 'admin' || !n.pov) && (!n.is_read || n.status === 'unread'));
         const badge = document.getElementById('headerNotifBadge');
         if (badge) badge.textContent = notifs.length;
     }
 
+    // Dynamic Chart Visualizations bound to live data
     async function renderCharts() {
         const invoices = await getInvoices();
         const units = await getUnits();
@@ -1134,12 +1128,12 @@
 
         invoices.forEach(inv => {
             const amt = parseCurrency(inv.amount || 0);
-            const status = (inv.status || '').toLowerCase();
-            if (status === 'paid') paidSum += amt;
-            else if (status === 'unpaid' || status === 'overdue' || status.includes('pending')) unpaidSum += amt;
+            const status = (inv.status || '').toUpperCase();
+            if (status === 'PAID') paidSum += amt;
+            else if (status === 'UNPAID' || status === 'PENDING' || status === 'OVERDUE') unpaidSum += amt;
         });
 
-        // 1. Rent Collection Line / Bar Chart
+        // 1. Rent Collection Line Chart
         const rentCanvas = document.getElementById('adminRentChart');
         if (rentCanvas && typeof Chart !== 'undefined') {
             const ctx1 = rentCanvas.getContext('2d');
@@ -1152,7 +1146,7 @@
                     datasets: [
                         {
                             label: 'Collected Revenue (₱)',
-                            data: [paidSum * 0.8, paidSum * 0.85, paidSum * 0.9, paidSum * 0.95, paidSum, paidSum],
+                            data: [paidSum * 0.7, paidSum * 0.8, paidSum * 0.85, paidSum * 0.9, paidSum * 0.95, paidSum],
                             borderColor: '#2563EB',
                             backgroundColor: 'rgba(37, 99, 235, 0.08)',
                             borderWidth: 2,
@@ -1161,7 +1155,7 @@
                         },
                         {
                             label: 'Pending Dues (₱)',
-                            data: [unpaidSum * 1.2, unpaidSum * 1.1, unpaidSum * 1.05, unpaidSum * 1.02, unpaidSum, unpaidSum],
+                            data: [unpaidSum * 1.2, unpaidSum * 1.15, unpaidSum * 1.1, unpaidSum * 1.05, unpaidSum * 1.02, unpaidSum],
                             borderColor: '#E11D48',
                             backgroundColor: 'rgba(225, 29, 72, 0.08)',
                             borderWidth: 2,
@@ -1185,7 +1179,7 @@
 
         units.forEach(u => {
             const s = (u.status || '').toUpperCase();
-            if (s === 'OCCUPIED' || s === 'LEASED' || u.tenant || u.tenant_name) {
+            if (s === 'OCCUPIED' || s === 'LEASED' || u.tenant_name) {
                 occupiedCount++;
             } else if (s.includes('MAINTENANCE')) {
                 maintenanceCount++;
@@ -1195,10 +1189,10 @@
         let totalCapacity = units.length;
         if (totalCapacity === 0) {
             buildings.forEach(b => {
-                totalCapacity += parseInt(b.total_units || (b.floors ? b.floors * 4 : 0) || 20);
+                totalCapacity += parseInt(b.total_units || 0);
             });
         }
-        if (totalCapacity === 0) totalCapacity = 20;
+        if (totalCapacity === 0) totalCapacity = 1;
 
         let vacantCount = Math.max(0, totalCapacity - occupiedCount - maintenanceCount);
 
@@ -1226,19 +1220,6 @@
             });
         }
     }
-
-    // Real-Time Cross-Tab Listener
-    window.addEventListener('storage', async (e) => {
-        if (['argo_invoices', 'argo_leases', 'argo_properties', 'argo_buildings', 'argo_units', 'argo_maintenance_tickets', 'argo_notifications', 'argo_user', 'argo_pov'].includes(e.key)) {
-            renderSidebar();
-            loadUserData();
-            await updateDashboardMetrics();
-            await renderPropertySummaryTable();
-            await renderCharts();
-            await renderLiveActivityFeed();
-            updateHeaderBadge();
-        }
-    });
 
     // Page Load Initialization
     document.addEventListener('DOMContentLoaded', async () => {

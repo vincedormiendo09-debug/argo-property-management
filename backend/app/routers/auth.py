@@ -14,6 +14,9 @@ router = APIRouter()
 # Default Organization UUID matching seed.py and schema.sql
 DEFAULT_ORG_ID = uuid.UUID("a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11")
 
+# Default password hash for fallback users (password123)
+DEFAULT_PASSWORD_HASH = "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQmG6W5650nxcebGW2y26"
+
 
 # =====================================================================
 # REQUEST & RESPONSE SCHEMAS
@@ -21,6 +24,17 @@ DEFAULT_ORG_ID = uuid.UUID("a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11")
 class LoginRequest(BaseModel):
     email: EmailStr
     password: Optional[str] = None
+    username: Optional[str] = None  # OAuth2 form support
+
+
+class RegisterRequest(BaseModel):
+    email: EmailStr
+    password: str
+    name: str
+    full_name: Optional[str] = None
+    phone: Optional[str] = None
+    role: str = "client"
+    organization_id: Optional[uuid.UUID] = DEFAULT_ORG_ID
 
 
 class UserProfile(BaseModel):
@@ -46,27 +60,35 @@ class LoginResponse(BaseModel):
 def login(credentials: LoginRequest, db: Session = Depends(get_db)):
     """
     Verifies user against the PostgreSQL users table and returns session payload
-    matching the expectations of auth.js and frontend workspaces.
+    matching frontend workspace expectations.
     """
+    search_email = (credentials.email or credentials.username or "").lower().strip()
+    if not search_email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email or username is required."
+        )
+
     # 1. Search for user by email
-    stmt = select(models.User).where(models.User.email == credentials.email.lower().strip())
+    stmt = select(models.User).where(models.User.email == search_email)
     user = db.scalar(stmt)
 
     # 2. Fallback auto-provisioning for default seed roles during testing
     if not user:
-        email_str = credentials.email.lower().strip()
-        if email_str in ["admin@argo.ph", "maria.santos@tenant.ph", "ramon.santos@owner.ph"]:
+        if search_email in ["admin@argo.ph", "maria.santos@tenant.ph", "ramon.santos@owner.ph"]:
             role_map = {
                 "admin@argo.ph": ("Juan Dela Cruz", "admin", "JD"),
                 "maria.santos@tenant.ph": ("Maria Santos", "client", "MS"),
                 "ramon.santos@owner.ph": ("Don Ramon Santos", "owner", "RS"),
             }
-            name, role, avatar = role_map[email_str]
+            name, role, avatar = role_map[search_email]
             user = models.User(
                 id=uuid.uuid4(),
                 organization_id=DEFAULT_ORG_ID,
                 name=name,
-                email=email_str,
+                full_name=name,
+                email=search_email,
+                password_hash=DEFAULT_PASSWORD_HASH,
                 role=role,
                 avatar=avatar,
                 is_active=True
@@ -100,6 +122,68 @@ def login(credentials: LoginRequest, db: Session = Depends(get_db)):
             email=user.email,
             role=user.role,
             avatar=user.avatar or "JD",
+            organization_id=org_id
+        ),
+        organization_id=org_id
+    )
+
+
+@router.post("/register", response_model=LoginResponse, status_code=status.HTTP_201_CREATED)
+def register(payload: RegisterRequest, db: Session = Depends(get_db)):
+    """
+    Handles new user self-registration from index.html and provisions them in PostgreSQL.
+    """
+    clean_email = payload.email.lower().strip()
+
+    # 1. Check if user already exists
+    existing_user = db.scalar(select(models.User).where(models.User.email == clean_email))
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="An account with this email address already exists."
+        )
+
+    # 2. Normalize role
+    normalized_role = payload.role.lower().strip()
+    if normalized_role in ["tenant", "client_pov"]:
+        normalized_role = "client"
+    elif normalized_role in ["property_owner", "investor"]:
+        normalized_role = "owner"
+    elif normalized_role not in ["admin", "owner", "client"]:
+        normalized_role = "client"
+
+    initials = "".join([n[0] for n in payload.name.split() if n]).substring(0, 2).upper() if payload.name else "US"
+
+    # 3. Create new user record
+    new_user = models.User(
+        id=uuid.uuid4(),
+        organization_id=payload.organization_id or DEFAULT_ORG_ID,
+        name=payload.name,
+        full_name=payload.full_name or payload.name,
+        email=clean_email,
+        phone=payload.phone,
+        password_hash=DEFAULT_PASSWORD_HASH,  # Can link real password hashing here
+        role=normalized_role,
+        avatar=initials or "U",
+        is_active=True
+    )
+
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+
+    session_token = f"argo_live_{new_user.role}_{uuid.uuid4()}"
+    org_id = new_user.organization_id or DEFAULT_ORG_ID
+
+    return LoginResponse(
+        access_token=session_token,
+        token_type="bearer",
+        user=UserProfile(
+            id=new_user.id,
+            name=new_user.name,
+            email=new_user.email,
+            role=new_user.role,
+            avatar=new_user.avatar,
             organization_id=org_id
         ),
         organization_id=org_id

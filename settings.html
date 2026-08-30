@@ -791,475 +791,537 @@
 
     </main>
 
-    <!-- ================= JAVASCRIPT ================= -->
     <script>
-        // Secure Logout Handler
-        function logoutUser() {
-            localStorage.removeItem('argo_pov');
-            localStorage.removeItem('user_role');
-            localStorage.removeItem('role');
-            localStorage.removeItem('token');
-            localStorage.removeItem('argo_user');
-            window.location.replace('index.html');
+    const DEFAULT_ORG_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
+    const API_BASE_URL = (
+        window.location.origin.includes('localhost') || 
+        window.location.origin.includes('127.0.0.1')
+    ) 
+        ? 'http://127.0.0.1:8000/api'
+        : (window.location.origin.includes('github.io'))
+            ? 'https://argo-management-2026.onrender.com/api'
+            : '/api';
+
+    const ORGANIZATIONS_API_URL = `${API_BASE_URL}/organizations`;
+    const USERS_API_URL = `${API_BASE_URL}/users`;
+    const NOTIFICATIONS_API_URL = `${API_BASE_URL}/notifications`;
+
+    function getAuthHeaders() {
+        const token = localStorage.getItem('token') || localStorage.getItem('argo_token');
+        return {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        };
+    }
+
+    // Secure Logout Handler
+    function logoutUser() {
+        localStorage.clear();
+        sessionStorage.clear();
+        window.location.replace('index.html');
+    }
+
+    // Dynamic Role-Based Sidebar Navigation Renderer
+    function renderSidebar() {
+        const nav = document.getElementById('sidebarNav');
+        if (!nav) return;
+
+        const rawRole = (
+            localStorage.getItem('argo_pov') || 
+            localStorage.getItem('user_role') || 
+            localStorage.getItem('role') || 
+            'admin'
+        ).toLowerCase().trim();
+
+        if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
+            nav.innerHTML = `
+                <div class="nav-section-title">SELF-SERVICE HOME</div>
+                <a href="client-dashboard.html" class="nav-item">
+                    <i class="bi bi-house-door"></i>
+                    <span>My Tenancy Home</span>
+                </a>
+                <a href="client-billing.html" class="nav-item">
+                    <i class="bi bi-receipt"></i>
+                    <span>Pay Rent & Dues</span>
+                </a>
+                <a href="transaction.html" class="nav-item">
+                    <i class="bi bi-receipt-cutoff"></i>
+                    <span>Transactions & Ledger</span>
+                </a>
+                <a href="client-utilities.html" class="nav-item">
+                    <i class="bi bi-lightning-charge"></i>
+                    <span>My Utilities & Meters</span>
+                </a>
+                <a href="client-maintenance.html" class="nav-item">
+                    <i class="bi bi-tools"></i>
+                    <span>Submit Maintenance</span>
+                </a>
+                <a href="inspections.html" class="nav-item">
+                    <i class="bi bi-clipboard-check"></i>
+                    <span>Move-In & Inspections</span>
+                </a>
+                <a href="client-documents.html" class="nav-item">
+                    <i class="bi bi-folder2-open"></i>
+                    <span>My Lease & Receipts</span>
+                </a>
+
+                <div class="nav-section-title">SYSTEM</div>
+                <a href="account.html" class="nav-item">
+                    <i class="bi bi-gear"></i>
+                    <span>Account Settings</span>
+                </a>
+                <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                    <i class="bi bi-box-arrow-right"></i>
+                    <span>Log Out</span>
+                </a>
+            `;
+        } else if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
+            nav.innerHTML = `
+                <div class="nav-section-title">PORTFOLIO OVERVIEW</div>
+                <a href="owner-dashboard.html" class="nav-item">
+                    <i class="bi bi-speedometer2"></i>
+                    <span>Executive Summary</span>
+                </a>
+                <a href="owner-properties.html" class="nav-item">
+                    <i class="bi bi-buildings"></i>
+                    <span>My Properties</span>
+                </a>
+                <a href="owner-statements.html" class="nav-item">
+                    <i class="bi bi-file-earmark-text"></i>
+                    <span>Financial Statements</span>
+                </a>
+                <a href="property-ownership.html" class="nav-item">
+                    <i class="bi bi-pie-chart"></i>
+                    <span>Fractional Equity</span>
+                </a>
+                <a href="owner-documents.html" class="nav-item">
+                    <i class="bi bi-folder2-open"></i>
+                    <span>Legal Vault</span>
+                </a>
+                <a href="transaction.html" class="nav-item">
+                    <i class="bi bi-receipt-cutoff"></i>
+                    <span>Yield Audit Ledger</span>
+                </a>
+
+                <div class="nav-section-title">COMMUNICATION & SYSTEM</div>
+                <a href="notification.html" class="nav-item">
+                    <i class="bi bi-bell"></i>
+                    <span>Notification Center</span>
+                </a>
+                <a href="account.html" class="nav-item">
+                    <i class="bi bi-gear"></i>
+                    <span>Account Settings</span>
+                </a>
+                <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                    <i class="bi bi-box-arrow-right"></i>
+                    <span>Log Out</span>
+                </a>
+            `;
+        } else {
+            // Admin POV
+            nav.innerHTML = `
+                <div class="nav-section-title">OVERVIEW</div>
+                <a href="dashboard.html" class="nav-item">
+                    <i class="bi bi-grid-1x2"></i>
+                    <span>Dashboard</span>
+                </a>
+
+                <div class="nav-section-title">PROPERTY OPERATIONS</div>
+                <a href="properties.html" class="nav-item">
+                    <i class="bi bi-buildings"></i>
+                    <span>Properties</span>
+                </a>
+                <a href="buildings.html" class="nav-item">
+                    <i class="bi bi-building"></i>
+                    <span>Buildings</span>
+                </a>
+                <a href="units.html" class="nav-item">
+                    <i class="bi bi-door-open"></i>
+                    <span>Units</span>
+                </a>
+                <a href="tenants.html" class="nav-item">
+                    <i class="bi bi-people"></i>
+                    <span>Tenants</span>
+                </a>
+                <a href="owners.html" class="nav-item">
+                    <i class="bi bi-person-badge"></i>
+                    <span>Owners</span>
+                </a>
+                <a href="property-ownership.html" class="nav-item">
+                    <i class="bi bi-pie-chart"></i>
+                    <span>Fractional Ownership</span>
+                </a>
+                <a href="leases.html" class="nav-item">
+                    <i class="bi bi-file-earmark-text"></i>
+                    <span>Leases</span>
+                </a>
+
+                <div class="nav-section-title">FINANCE & SERVICES</div>
+                <a href="rent-collection.html" class="nav-item">
+                    <i class="bi bi-cash-stack"></i>
+                    <span>Rent Collection</span>
+                </a>
+                <a href="transaction.html" class="nav-item">
+                    <i class="bi bi-receipt-cutoff"></i>
+                    <span>Transactions & Ledger</span>
+                </a>
+                <a href="utilities.html" class="nav-item">
+                    <i class="bi bi-lightning-charge"></i>
+                    <span>Utilities</span>
+                </a>
+                <a href="meter-readings.html" class="nav-item">
+                    <i class="bi bi-speedometer2"></i>
+                    <span>Meter Readings</span>
+                </a>
+                <a href="maintenance.html" class="nav-item">
+                    <i class="bi bi-tools"></i>
+                    <span>Maintenance</span>
+                </a>
+
+                <div class="nav-section-title">RECORDS & REPORTS</div>
+                <a href="inspections.html" class="nav-item">
+                    <i class="bi bi-clipboard-check"></i>
+                    <span>Inspections</span>
+                </a>
+                <a href="move-in-checklist.html" class="nav-item">
+                    <i class="bi bi-check2-square"></i>
+                    <span>Move-In Checklist</span>
+                </a>
+                <a href="move-out-settlement.html" class="nav-item">
+                    <i class="bi bi-box-arrow-right"></i>
+                    <span>Move-Out Settlement</span>
+                </a>
+                <a href="documents.html" class="nav-item">
+                    <i class="bi bi-folder2-open"></i>
+                    <span>Documents</span>
+                </a>
+                <a href="reports.html" class="nav-item">
+                    <i class="bi bi-bar-chart"></i>
+                    <span>Reports</span>
+                </a>
+
+                <div class="nav-section-title">SYSTEM</div>
+                <a href="settings.html" class="nav-item active">
+                    <i class="bi bi-gear"></i>
+                    <span>Settings</span>
+                </a>
+                <a href="account.html" class="nav-item">
+                    <i class="bi bi-person-gear"></i>
+                    <span>Account Settings</span>
+                </a>
+                <a href="#" class="nav-item" onclick="logoutUser(); return false;">
+                    <i class="bi bi-box-arrow-right"></i>
+                    <span>Log Out</span>
+                </a>
+            `;
         }
+    }
 
-        // Dynamic Role-Based Sidebar Navigation Renderer
-        function renderSidebar() {
-            const nav = document.getElementById('sidebarNav');
-            if (!nav) return;
+    async function loadUserData() {
+        const rawRole = (
+            localStorage.getItem('argo_pov') || 
+            localStorage.getItem('user_role') || 
+            localStorage.getItem('role') || 
+            'admin'
+        ).toLowerCase().trim();
 
-            const rawRole = (
-                localStorage.getItem('argo_pov') || 
-                localStorage.getItem('user_role') || 
-                localStorage.getItem('role') || 
-                'admin'
-            ).toLowerCase().trim();
+        const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+        const nameEl = document.getElementById('userName');
+        const roleEl = document.getElementById('userRoleBadge');
+        const avatarEl = document.getElementById('userAvatar');
+        const headerRoleContainer = document.getElementById('headerRoleBadgeContainer');
+        const headerRoleIcon = document.getElementById('headerRoleIcon');
+        const headerRoleText = document.getElementById('headerRoleBadgeText');
+        const adminActions = document.querySelectorAll('.admin-action');
 
-            if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
-                nav.innerHTML = `
-                    <div class="nav-section-title">SELF-SERVICE HOME</div>
-                    <a href="client-dashboard.html" class="nav-item">
-                        <i class="bi bi-house-door"></i>
-                        <span>My Tenancy Home</span>
-                    </a>
-                    <a href="client-billing.html" class="nav-item">
-                        <i class="bi bi-receipt"></i>
-                        <span>Pay Rent & Dues</span>
-                    </a>
-                    <a href="transaction.html" class="nav-item">
-                        <i class="bi bi-receipt-cutoff"></i>
-                        <span>Transactions & Ledger</span>
-                    </a>
-                    <a href="client-utilities.html" class="nav-item">
-                        <i class="bi bi-lightning-charge"></i>
-                        <span>My Utilities & Meters</span>
-                    </a>
-                    <a href="client-maintenance.html" class="nav-item">
-                        <i class="bi bi-tools"></i>
-                        <span>Submit Maintenance</span>
-                    </a>
-                    <a href="inspections.html" class="nav-item">
-                        <i class="bi bi-clipboard-check"></i>
-                        <span>Move-In & Inspections</span>
-                    </a>
-                    <a href="client-documents.html" class="nav-item">
-                        <i class="bi bi-folder2-open"></i>
-                        <span>My Lease & Receipts</span>
-                    </a>
-
-                    <div class="nav-section-title">SYSTEM</div>
-                    <a href="account.html" class="nav-item">
-                        <i class="bi bi-gear"></i>
-                        <span>Account Settings</span>
-                    </a>
-                    <a href="#" class="nav-item" onclick="logoutUser(); return false;">
-                        <i class="bi bi-box-arrow-right"></i>
-                        <span>Log Out</span>
-                    </a>
-                `;
-            } else if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
-                nav.innerHTML = `
-                    <div class="nav-section-title">PORTFOLIO OVERVIEW</div>
-                    <a href="owner-dashboard.html" class="nav-item">
-                        <i class="bi bi-speedometer2"></i>
-                        <span>Executive Summary</span>
-                    </a>
-                    <a href="owner-properties.html" class="nav-item">
-                        <i class="bi bi-buildings"></i>
-                        <span>My Properties</span>
-                    </a>
-                    <a href="owner-statements.html" class="nav-item">
-                        <i class="bi bi-file-earmark-text"></i>
-                        <span>Financial Statements</span>
-                    </a>
-                    <a href="property-ownership.html" class="nav-item">
-                        <i class="bi bi-pie-chart"></i>
-                        <span>Fractional Equity</span>
-                    </a>
-                    <a href="owner-documents.html" class="nav-item">
-                        <i class="bi bi-folder2-open"></i>
-                        <span>Legal Vault</span>
-                    </a>
-                    <a href="transaction.html" class="nav-item">
-                        <i class="bi bi-receipt-cutoff"></i>
-                        <span>Yield Audit Ledger</span>
-                    </a>
-
-                    <div class="nav-section-title">COMMUNICATION & SYSTEM</div>
-                    <a href="notification.html" class="nav-item">
-                        <i class="bi bi-bell"></i>
-                        <span>Notification Center</span>
-                    </a>
-                    <a href="account.html" class="nav-item">
-                        <i class="bi bi-gear"></i>
-                        <span>Account Settings</span>
-                    </a>
-                    <a href="#" class="nav-item" onclick="logoutUser(); return false;">
-                        <i class="bi bi-box-arrow-right"></i>
-                        <span>Log Out</span>
-                    </a>
-                `;
-            } else {
-                // Admin POV
-                nav.innerHTML = `
-                    <div class="nav-section-title">OVERVIEW</div>
-                    <a href="dashboard.html" class="nav-item">
-                        <i class="bi bi-grid-1x2"></i>
-                        <span>Dashboard</span>
-                    </a>
-
-                    <div class="nav-section-title">PROPERTY OPERATIONS</div>
-                    <a href="properties.html" class="nav-item">
-                        <i class="bi bi-buildings"></i>
-                        <span>Properties</span>
-                    </a>
-                    <a href="buildings.html" class="nav-item">
-                        <i class="bi bi-building"></i>
-                        <span>Buildings</span>
-                    </a>
-                    <a href="units.html" class="nav-item">
-                        <i class="bi bi-door-open"></i>
-                        <span>Units</span>
-                    </a>
-                    <a href="tenants.html" class="nav-item">
-                        <i class="bi bi-people"></i>
-                        <span>Tenants</span>
-                    </a>
-                    <a href="owners.html" class="nav-item">
-                        <i class="bi bi-person-badge"></i>
-                        <span>Owners</span>
-                    </a>
-                    <a href="property-ownership.html" class="nav-item">
-                        <i class="bi bi-pie-chart"></i>
-                        <span>Fractional Ownership</span>
-                    </a>
-                    <a href="leases.html" class="nav-item">
-                        <i class="bi bi-file-earmark-text"></i>
-                        <span>Leases</span>
-                    </a>
-
-                    <div class="nav-section-title">FINANCE & SERVICES</div>
-                    <a href="rent-collection.html" class="nav-item">
-                        <i class="bi bi-cash-stack"></i>
-                        <span>Rent Collection</span>
-                    </a>
-                    <a href="transaction.html" class="nav-item">
-                        <i class="bi bi-receipt-cutoff"></i>
-                        <span>Transactions & Ledger</span>
-                    </a>
-                    <a href="utilities.html" class="nav-item">
-                        <i class="bi bi-lightning-charge"></i>
-                        <span>Utilities</span>
-                    </a>
-                    <a href="meter-readings.html" class="nav-item">
-                        <i class="bi bi-speedometer2"></i>
-                        <span>Meter Readings</span>
-                    </a>
-                    <a href="maintenance.html" class="nav-item">
-                        <i class="bi bi-tools"></i>
-                        <span>Maintenance</span>
-                    </a>
-
-                    <div class="nav-section-title">RECORDS & REPORTS</div>
-                    <a href="inspections.html" class="nav-item">
-                        <i class="bi bi-clipboard-check"></i>
-                        <span>Inspections</span>
-                    </a>
-                    <a href="move-in-checklist.html" class="nav-item">
-                        <i class="bi bi-check2-square"></i>
-                        <span>Move-In Checklist</span>
-                    </a>
-                    <a href="move-out-settlement.html" class="nav-item">
-                        <i class="bi bi-box-arrow-right"></i>
-                        <span>Move-Out Settlement</span>
-                    </a>
-                    <a href="documents.html" class="nav-item">
-                        <i class="bi bi-folder2-open"></i>
-                        <span>Documents</span>
-                    </a>
-                    <a href="reports.html" class="nav-item">
-                        <i class="bi bi-bar-chart"></i>
-                        <span>Reports</span>
-                    </a>
-
-                    <div class="nav-section-title">SYSTEM</div>
-                    <a href="settings.html" class="nav-item active">
-                        <i class="bi bi-gear"></i>
-                        <span>Settings</span>
-                    </a>
-                    <a href="account.html" class="nav-item">
-                        <i class="bi bi-person-gear"></i>
-                        <span>Account Settings</span>
-                    </a>
-                    <a href="#" class="nav-item" onclick="logoutUser(); return false;">
-                        <i class="bi bi-box-arrow-right"></i>
-                        <span>Log Out</span>
-                    </a>
-                `;
+        if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
+            if (nameEl) nameEl.textContent = user.name || 'Don Ramon Santos';
+            if (roleEl) roleEl.textContent = 'Property Owner';
+            if (avatarEl) {
+                avatarEl.textContent = user.avatar || 'RS';
+                avatarEl.style.background = '#059669';
             }
-        }
-
-        // Initialize Page & Role UI
-        document.addEventListener('DOMContentLoaded', () => {
-            const rawRole = (
-                localStorage.getItem('argo_pov') || 
-                localStorage.getItem('user_role') || 
-                localStorage.getItem('role') || 
-                ''
-            ).toLowerCase().trim();
-
-            if (!rawRole) {
-                window.location.replace('index.html');
-                return;
+            if (headerRoleContainer) {
+                headerRoleContainer.className = 'owner-badge';
+                if (headerRoleIcon) {
+                    headerRoleIcon.className = 'bi bi-person-badge-fill';
+                    headerRoleIcon.style.color = '#34D399';
+                }
+                if (headerRoleText) headerRoleText.textContent = 'Property Owner Executive Portal';
             }
-
-            renderSidebar();
-            loadUserData();
-            loadSettings();
-            updateHeaderBadge();
-        });
-
-        // Real-Time Cross-Tab Listener
-        window.addEventListener('storage', (e) => {
-            if (['argo_notifications', 'argo_org_settings', 'argo_user', 'argo_pov', 'user_role', 'role'].includes(e.key)) {
-                renderSidebar();
-                loadUserData();
-                loadSettings();
-                updateHeaderBadge();
+            adminActions.forEach(el => el.style.display = 'none');
+        } else if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
+            if (nameEl) nameEl.textContent = user.name || 'Maria Santos';
+            if (roleEl) roleEl.textContent = 'Sunrise Property • Unit 101';
+            if (avatarEl) {
+                avatarEl.textContent = user.avatar || 'MS';
+                avatarEl.style.background = '#D97706';
             }
-        });
-
-        function loadUserData() {
-            const rawRole = (
-                localStorage.getItem('argo_pov') || 
-                localStorage.getItem('user_role') || 
-                localStorage.getItem('role') || 
-                'admin'
-            ).toLowerCase().trim();
-
-            const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
-            const nameEl = document.getElementById('userName');
-            const roleEl = document.getElementById('userRoleBadge');
-            const avatarEl = document.getElementById('userAvatar');
-            const headerRoleContainer = document.getElementById('headerRoleBadgeContainer');
-            const headerRoleIcon = document.getElementById('headerRoleIcon');
-            const headerRoleText = document.getElementById('headerRoleBadgeText');
-            const adminActions = document.querySelectorAll('.admin-action');
-
-            if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
-                if (nameEl) nameEl.textContent = 'Don Ramon Santos';
-                if (roleEl) roleEl.textContent = 'Property Owner';
-                if (avatarEl) {
-                    avatarEl.textContent = 'RS';
-                    avatarEl.style.background = '#059669';
+            if (headerRoleContainer) {
+                headerRoleContainer.className = 'tenant-badge';
+                if (headerRoleIcon) {
+                    headerRoleIcon.className = 'bi bi-house-door-fill';
+                    headerRoleIcon.style.color = '#60A5FA';
                 }
-                if (headerRoleContainer) {
-                    headerRoleContainer.className = 'owner-badge';
-                    if (headerRoleIcon) {
-                        headerRoleIcon.className = 'bi bi-person-badge-fill';
-                        headerRoleIcon.style.color = '#34D399';
-                    }
-                    if (headerRoleText) headerRoleText.textContent = 'Property Owner Executive Portal';
-                }
-                adminActions.forEach(el => el.style.display = 'none');
-            } else if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
-                if (nameEl) nameEl.textContent = 'Maria Santos';
-                if (roleEl) roleEl.textContent = 'Sunrise Property • Unit 101';
-                if (avatarEl) {
-                    avatarEl.textContent = 'MS';
-                    avatarEl.style.background = '#D97706';
-                }
-                if (headerRoleContainer) {
-                    headerRoleContainer.className = 'tenant-badge';
-                    if (headerRoleIcon) {
-                        headerRoleIcon.className = 'bi bi-house-door-fill';
-                        headerRoleIcon.style.color = '#60A5FA';
-                    }
-                    if (headerRoleText) headerRoleText.textContent = 'Tenant Self-Service Portal';
-                }
-                adminActions.forEach(el => el.style.display = 'none');
-            } else {
-                const name = user.name || 'Juan Dela Cruz';
-                const role = user.role || 'Property Manager';
-                if (nameEl) nameEl.textContent = name;
-                if (roleEl) roleEl.textContent = role;
-                if (avatarEl) {
-                    avatarEl.textContent = user.avatar || (name.charAt(0) || 'JD');
-                    avatarEl.style.background = user.avatarBg || '#2563EB';
-                }
-                if (headerRoleContainer) {
-                    headerRoleContainer.className = 'admin-badge';
-                    if (headerRoleIcon) {
-                        headerRoleIcon.className = 'bi bi-shield-lock-fill';
-                        headerRoleIcon.style.color = '#60A5FA';
-                    }
-                    if (headerRoleText) headerRoleText.textContent = 'Admin Command Center';
-                }
-                adminActions.forEach(el => el.style.display = '');
+                if (headerRoleText) headerRoleText.textContent = 'Tenant Self-Service Portal';
             }
-        }
-
-        function loadSettings() {
-            try {
-                const settings = JSON.parse(localStorage.getItem('argo_org_settings') || '{}');
-                if (settings.orgName) document.getElementById('settingOrgName').value = settings.orgName;
-                if (settings.currency) document.getElementById('settingCurrency').value = settings.currency;
-                if (settings.pmFee) document.getElementById('settingPmFee').value = settings.pmFee;
-                if (settings.email) document.getElementById('settingEmail').value = settings.email;
-                if (settings.address) document.getElementById('settingAddress').value = settings.address;
-                if (settings.dueDay) document.getElementById('settingDueDay').value = settings.dueDay;
-                if (settings.areaUnit) document.getElementById('settingAreaUnit').value = settings.areaUnit;
-                if (settings.unitTypes) document.getElementById('settingUnitTypes').value = settings.unitTypes;
-
-                if (settings.ownerReadOnly !== undefined) document.getElementById('rbacOwnerReadOnly').checked = settings.ownerReadOnly;
-                if (settings.tenantTickets !== undefined) document.getElementById('rbacTenantTickets').checked = settings.tenantTickets;
-                if (settings.notifMaint !== undefined) document.getElementById('notifMaintAlert').checked = settings.notifMaint;
-                if (settings.notifPayment !== undefined) document.getElementById('notifPaymentAlert').checked = settings.notifPayment;
-            } catch (e) {
-                console.error("Error loading settings", e);
+            adminActions.forEach(el => el.style.display = 'none');
+        } else {
+            const name = user.name || 'Juan Dela Cruz';
+            const role = user.role || 'Property Manager';
+            if (nameEl) nameEl.textContent = name;
+            if (roleEl) roleEl.textContent = role;
+            if (avatarEl) {
+                avatarEl.textContent = user.avatar || (name.charAt(0) || 'JD');
+                avatarEl.style.background = user.avatarBg || '#2563EB';
             }
+            if (headerRoleContainer) {
+                headerRoleContainer.className = 'admin-badge';
+                if (headerRoleIcon) {
+                    headerRoleIcon.className = 'bi bi-shield-lock-fill';
+                    headerRoleIcon.style.color = '#60A5FA';
+                }
+                if (headerRoleText) headerRoleText.textContent = 'Admin Command Center';
+            }
+            adminActions.forEach(el => el.style.display = '');
         }
+    }
 
-        function saveOrgSettings() {
-            const currentSettings = JSON.parse(localStorage.getItem('argo_org_settings') || '{}');
-            const orgName = document.getElementById('settingOrgName').value.trim();
-            const currency = document.getElementById('settingCurrency').value;
-            const pmFee = parseFloat(document.getElementById('settingPmFee').value) || 10;
-            const email = document.getElementById('settingEmail').value.trim();
-            const address = document.getElementById('settingAddress').value.trim();
+    // LIVE LOAD SETTINGS (GET /api/organizations & Local Storage fallback)
+    async function loadSettings() {
+        let dbOrg = null;
+        const orgId = localStorage.getItem('organization_id') || DEFAULT_ORG_ID;
 
-            const updated = {
-                ...currentSettings,
-                orgName,
-                currency,
-                pmFee,
-                email,
-                address
-            };
-            localStorage.setItem('argo_org_settings', JSON.stringify(updated));
+        try {
+            const res = await fetch(`${ORGANIZATIONS_API_URL}/${encodeURIComponent(orgId)}`, {
+                headers: getAuthHeaders(),
+                cache: 'no-store'
+            });
+            if (res.ok) {
+                dbOrg = await res.json();
+            }
+        } catch (e) {}
 
-            alert("Organization preferences and management fee rules saved successfully!");
-        }
+        const localSettings = JSON.parse(localStorage.getItem('argo_org_settings') || '{}');
 
-        function savePropertyRules() {
-            const currentSettings = JSON.parse(localStorage.getItem('argo_org_settings') || '{}');
-            const dueDay = document.getElementById('settingDueDay').value;
-            const areaUnit = document.getElementById('settingAreaUnit').value;
-            const unitTypes = document.getElementById('settingUnitTypes').value.trim();
+        const orgName = (dbOrg && dbOrg.name) || localSettings.orgName || 'ARGO Property Management Corp.';
+        const currency = (dbOrg && dbOrg.currency) || localSettings.currency || 'PHP (₱)';
+        const pmFee = (dbOrg && (dbOrg.pm_fee_percentage || dbOrg.pmFee)) || localSettings.pmFee || 10;
+        const email = (dbOrg && dbOrg.email) || localSettings.email || 'operations@argo.ph';
+        const address = (dbOrg && dbOrg.address) || localSettings.address || 'Makati Central Business District, Philippines';
 
-            const updated = {
-                ...currentSettings,
-                dueDay,
-                areaUnit,
-                unitTypes
-            };
-            localStorage.setItem('argo_org_settings', JSON.stringify(updated));
+        if (document.getElementById('settingOrgName')) document.getElementById('settingOrgName').value = orgName;
+        if (document.getElementById('settingCurrency')) document.getElementById('settingCurrency').value = currency;
+        if (document.getElementById('settingPmFee')) document.getElementById('settingPmFee').value = pmFee;
+        if (document.getElementById('settingEmail')) document.getElementById('settingEmail').value = email;
+        if (document.getElementById('settingAddress')) document.getElementById('settingAddress').value = address;
+        
+        if (document.getElementById('settingDueDay')) document.getElementById('settingDueDay').value = localSettings.dueDay || '1st of the Month';
+        if (document.getElementById('settingAreaUnit')) document.getElementById('settingAreaUnit').value = localSettings.areaUnit || 'Square Meters (sq.m)';
+        if (document.getElementById('settingUnitTypes')) document.getElementById('settingUnitTypes').value = localSettings.unitTypes || 'Studio, 1BR, 2BR, 3BR, Penthouse, Commercial';
 
-            alert("Property rules and unit classifications updated successfully!");
-        }
+        if (document.getElementById('rbacOwnerReadOnly')) document.getElementById('rbacOwnerReadOnly').checked = localSettings.ownerReadOnly !== undefined ? localSettings.ownerReadOnly : true;
+        if (document.getElementById('rbacTenantTickets')) document.getElementById('rbacTenantTickets').checked = localSettings.tenantTickets !== undefined ? localSettings.tenantTickets : true;
+        if (document.getElementById('notifMaintAlert')) document.getElementById('notifMaintAlert').checked = localSettings.notifMaint !== undefined ? localSettings.notifMaint : true;
+        if (document.getElementById('notifPaymentAlert')) document.getElementById('notifPaymentAlert').checked = localSettings.notifPayment !== undefined ? localSettings.notifPayment : true;
+    }
 
-        function saveRbacSettings() {
-            const currentSettings = JSON.parse(localStorage.getItem('argo_org_settings') || '{}');
-            const ownerReadOnly = document.getElementById('rbacOwnerReadOnly').checked;
-            const tenantTickets = document.getElementById('rbacTenantTickets').checked;
+    // LIVE SAVE ORGANIZATION SETTINGS (PUT/PATCH /api/organizations)
+    async function saveOrgSettings() {
+        const currentSettings = JSON.parse(localStorage.getItem('argo_org_settings') || '{}');
+        const orgName = document.getElementById('settingOrgName').value.trim();
+        const currency = document.getElementById('settingCurrency').value;
+        const pmFee = parseFloat(document.getElementById('settingPmFee').value) || 10;
+        const email = document.getElementById('settingEmail').value.trim();
+        const address = document.getElementById('settingAddress').value.trim();
+        const orgId = localStorage.getItem('organization_id') || DEFAULT_ORG_ID;
 
-            const updated = {
-                ...currentSettings,
-                ownerReadOnly,
-                tenantTickets
-            };
-            localStorage.setItem('argo_org_settings', JSON.stringify(updated));
+        const updated = {
+            ...currentSettings,
+            orgName,
+            currency,
+            pmFee,
+            email,
+            address
+        };
 
-            alert("Role-Based Access Control (RBAC) policies saved successfully!");
-        }
+        const apiPayload = {
+            name: orgName,
+            currency: currency,
+            pm_fee_percentage: pmFee,
+            email: email,
+            address: address
+        };
 
-        function saveNotificationPreferences() {
-            const currentSettings = JSON.parse(localStorage.getItem('argo_org_settings') || '{}');
-            const notifMaint = document.getElementById('notifMaintAlert').checked;
-            const notifPayment = document.getElementById('notifPaymentAlert').checked;
-
-            const updated = {
-                ...currentSettings,
-                notifMaint,
-                notifPayment
-            };
-            localStorage.setItem('argo_org_settings', JSON.stringify(updated));
-
-            alert("Notification preferences saved successfully!");
-        }
-
-        function resetDemoData() {
-            if (!confirm("Are you sure you want to reset system cache to the default baseline state?")) return;
-
-            localStorage.removeItem('argo_invoices');
-            localStorage.removeItem('argo_leases');
-            localStorage.removeItem('argo_maintenance_tickets');
-            localStorage.removeItem('argo_units');
-            localStorage.removeItem('argo_tenants');
-            localStorage.removeItem('argo_documents');
-            localStorage.removeItem('argo_transactions');
-            localStorage.removeItem('argo_notifications');
-            localStorage.removeItem('argo_meter_readings');
-            localStorage.removeItem('argo_org_settings');
-            localStorage.removeItem('argo_properties');
-            localStorage.removeItem('argo_owners');
-            localStorage.removeItem('argo_ownership');
-            localStorage.removeItem('argo_shares');
-            localStorage.removeItem('argo_handovers');
-            localStorage.removeItem('argo_settlements');
-            localStorage.removeItem('argo_recent_reports');
-
-            alert("System cache successfully reset to default baseline!");
-            window.location.reload();
-        }
-
-        function clearAllStorage() {
-            if (!confirm("WARNING: Wiping local storage will clear all cached session data. Proceed?")) return;
-            localStorage.clear();
-            alert("Storage cache wiped clean!");
-            window.location.replace('index.html');
-        }
-
-        function updateHeaderBadge() {
-            const rawRole = (
-                localStorage.getItem('argo_pov') || 
-                localStorage.getItem('user_role') || 
-                localStorage.getItem('role') || 
-                'admin'
-            ).toLowerCase().trim();
-
-            let role = 'admin';
-            if (['client', 'tenant', 'client_pov'].includes(rawRole)) role = 'client';
-            else if (['owner', 'property_owner', 'investor'].includes(rawRole)) role = 'owner';
-
-            const notifs = JSON.parse(localStorage.getItem('argo_notifications') || '[]').filter(n => (n.pov === role || n.pov === 'all') && (n.status === 'unread' || n.is_read === false));
-            const badge = document.getElementById('headerNotifBadge');
-            if (badge) badge.textContent = notifs.length;
-        }
-
-        // Profile Dropdown Toggle
-        const userProfileBtn = document.getElementById('userProfileBtn');
-        const userDropdown = document.getElementById('userDropdown');
-
-        if (userProfileBtn && userDropdown) {
-            userProfileBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                userDropdown.classList.toggle('show');
+        try {
+            const res = await fetch(`${ORGANIZATIONS_API_URL}/${encodeURIComponent(orgId)}`, {
+                method: 'PATCH',
+                headers: getAuthHeaders(),
+                body: JSON.stringify(apiPayload)
             });
 
-            document.addEventListener('click', () => { 
-                userDropdown.classList.remove('show'); 
+            if (!res.ok) {
+                await fetch(`${ORGANIZATIONS_API_URL}/${encodeURIComponent(orgId)}`, {
+                    method: 'PUT',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify(apiPayload)
+                });
+            }
+        } catch (err) {
+            console.warn("Backend organization update error:", err);
+        }
+
+        localStorage.setItem('argo_org_settings', JSON.stringify(updated));
+        alert("Organization preferences and management fee rules saved and synchronized with Neon PostgreSQL!");
+    }
+
+    function savePropertyRules() {
+        const currentSettings = JSON.parse(localStorage.getItem('argo_org_settings') || '{}');
+        const dueDay = document.getElementById('settingDueDay').value;
+        const areaUnit = document.getElementById('settingAreaUnit').value;
+        const unitTypes = document.getElementById('settingUnitTypes').value.trim();
+
+        const updated = {
+            ...currentSettings,
+            dueDay,
+            areaUnit,
+            unitTypes
+        };
+        localStorage.setItem('argo_org_settings', JSON.stringify(updated));
+        alert("Property rules and unit classifications updated successfully!");
+    }
+
+    function saveRbacSettings() {
+        const currentSettings = JSON.parse(localStorage.getItem('argo_org_settings') || '{}');
+        const ownerReadOnly = document.getElementById('rbacOwnerReadOnly').checked;
+        const tenantTickets = document.getElementById('rbacTenantTickets').checked;
+
+        const updated = {
+            ...currentSettings,
+            ownerReadOnly,
+            tenantTickets
+        };
+        localStorage.setItem('argo_org_settings', JSON.stringify(updated));
+        alert("Role-Based Access Control (RBAC) policies saved successfully!");
+    }
+
+    function saveNotificationPreferences() {
+        const currentSettings = JSON.parse(localStorage.getItem('argo_org_settings') || '{}');
+        const notifMaint = document.getElementById('notifMaintAlert').checked;
+        const notifPayment = document.getElementById('notifPaymentAlert').checked;
+
+        const updated = {
+            ...currentSettings,
+            notifMaint,
+            notifPayment
+        };
+        localStorage.setItem('argo_org_settings', JSON.stringify(updated));
+        alert("Notification preferences saved successfully!");
+    }
+
+    function resetDemoData() {
+        if (!confirm("Are you sure you want to reset local session cache to baseline?")) return;
+
+        localStorage.removeItem('argo_invoices');
+        localStorage.removeItem('argo_leases');
+        localStorage.removeItem('argo_maintenance_tickets');
+        localStorage.removeItem('argo_units');
+        localStorage.removeItem('argo_tenants');
+        localStorage.removeItem('argo_documents');
+        localStorage.removeItem('argo_transactions');
+        localStorage.removeItem('argo_notifications');
+        localStorage.removeItem('argo_meter_readings');
+        localStorage.removeItem('argo_utility_charges');
+        localStorage.removeItem('argo_org_settings');
+        localStorage.removeItem('argo_properties');
+        localStorage.removeItem('argo_owners');
+        localStorage.removeItem('argo_ownership');
+        localStorage.removeItem('argo_handovers');
+        localStorage.removeItem('argo_settlements');
+        localStorage.removeItem('argo_recent_reports');
+
+        alert("Session cache reset to database defaults!");
+        window.location.reload();
+    }
+
+    function clearAllStorage() {
+        if (!confirm("WARNING: Wiping local storage will sign you out and clear all local cache. Proceed?")) return;
+        localStorage.clear();
+        sessionStorage.clear();
+        alert("Storage cache wiped clean!");
+        window.location.replace('index.html');
+    }
+
+    async function updateHeaderBadge() {
+        const rawRole = (
+            localStorage.getItem('argo_pov') || 
+            localStorage.getItem('user_role') || 
+            localStorage.getItem('role') || 
+            'admin'
+        ).toLowerCase().trim();
+
+        let role = 'admin';
+        if (['client', 'tenant', 'client_pov'].includes(rawRole)) role = 'client';
+        else if (['owner', 'property_owner', 'investor'].includes(rawRole)) role = 'owner';
+
+        try {
+            const res = await fetch(NOTIFICATIONS_API_URL, { 
+                headers: getAuthHeaders(),
+                cache: 'no-store'
             });
+            if (res.ok) {
+                const notifs = await res.json();
+                const list = Array.isArray(notifs) ? notifs : (notifs.items || notifs.notifications || notifs.data || []);
+                const unread = list.filter(n => (n.pov === role || n.pov === 'all' || !n.pov) && (!n.is_read || n.status === 'unread'));
+                const badge = document.getElementById('headerNotifBadge');
+                if (badge) badge.textContent = unread.length;
+            }
+        } catch (e) {}
+    }
+
+    // Profile Dropdown Toggle
+    const userProfileBtn = document.getElementById('userProfileBtn');
+    const userDropdown = document.getElementById('userDropdown');
+
+    if (userProfileBtn && userDropdown) {
+        userProfileBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            userDropdown.classList.toggle('show');
+        });
+
+        document.addEventListener('click', () => { 
+            userDropdown.classList.remove('show'); 
+        });
+    }
+
+    // Tab Switching logic
+    function showSettings(sectionId, clickedButton) {
+        document.querySelectorAll('.settings-section').forEach(sec => sec.classList.remove('active'));
+        document.querySelectorAll('.settings-tab').forEach(tab => tab.classList.remove('active'));
+
+        const targetSec = document.getElementById(sectionId);
+        if (targetSec) targetSec.classList.add('active');
+        if (clickedButton) clickedButton.classList.add('active');
+    }
+
+    // Initialization
+    document.addEventListener('DOMContentLoaded', async () => {
+        const rawRole = (
+            localStorage.getItem('argo_pov') || 
+            localStorage.getItem('user_role') || 
+            localStorage.getItem('role') || 
+            ''
+        ).toLowerCase().trim();
+
+        if (!rawRole) {
+            window.location.replace('index.html');
+            return;
         }
 
-        // Tab Switching logic
-        function showSettings(sectionId, clickedButton) {
-            document.querySelectorAll('.settings-section').forEach(sec => sec.classList.remove('active'));
-            document.querySelectorAll('.settings-tab').forEach(tab => tab.classList.remove('active'));
-
-            const targetSec = document.getElementById(sectionId);
-            if (targetSec) targetSec.classList.add('active');
-            if (clickedButton) clickedButton.classList.add('active');
-        }
-    </script>
+        renderSidebar();
+        await loadUserData();
+        await loadSettings();
+        await updateHeaderBadge();
+    });
+</script>
 </body>

@@ -16,7 +16,7 @@ DEFAULT_ORG_ID = uuid.UUID("a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11")
 def ensure_sandbox_organization(db: Session, org_id: uuid.UUID):
     org = db.scalar(select(models.Organization).where(models.Organization.id == org_id))
     if not org:
-        sandbox_org = models.Organization(id=org_id, name="Sunrise Property Group")
+        sandbox_org = models.Organization(id=org_id, name="ARGO Property Management Corp.")
         db.add(sandbox_org)
         db.commit()
 
@@ -74,10 +74,11 @@ def create_inspection(
     inspection_in: schemas.InspectionCreate,
     db: Session = Depends(get_db)
 ):
-    org_id = getattr(inspection_in, "organization_id", DEFAULT_ORG_ID)
+    org_id = getattr(inspection_in, "organization_id", DEFAULT_ORG_ID) or DEFAULT_ORG_ID
     ensure_sandbox_organization(db, org_id)
 
-    insp_data = inspection_in.dict(exclude_unset=True)
+    insp_data = inspection_in.model_dump(exclude_unset=True) if hasattr(inspection_in, "model_dump") else inspection_in.dict(exclude_unset=True)
+    
     if "id" not in insp_data or not insp_data["id"]:
         insp_data["id"] = uuid.uuid4()
     insp_data["organization_id"] = org_id
@@ -139,7 +140,7 @@ def update_inspection(
     if not db_insp:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Inspection record not found.")
 
-    update_data = insp_update.dict(exclude_unset=True)
+    update_data = insp_update.model_dump(exclude_unset=True) if hasattr(insp_update, "model_dump") else insp_update.dict(exclude_unset=True)
     for field, value in update_data.items():
         if hasattr(db_insp, field):
             setattr(db_insp, field, value)

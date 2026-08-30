@@ -956,6 +956,7 @@
     </div>
 
 <script>
+    const DEFAULT_ORG_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
     const API_BASE_URL = (
         window.location.origin.includes('localhost') || 
         window.location.origin.includes('127.0.0.1')
@@ -965,11 +966,15 @@
             ? 'https://argo-management-2026.onrender.com/api'
             : '/api';
 
-    const LEASES_API_URL = `${API_BASE_URL}/leases/`;
-    const TENANTS_API_URL = `${API_BASE_URL}/tenants/`;
-    const UNITS_API_URL = `${API_BASE_URL}/units/`;
-    const INVOICES_API_URL = `${API_BASE_URL}/invoices/`;
-    const NOTIFICATIONS_API_URL = `${API_BASE_URL}/notifications/`;
+    const LEASES_API_URL = `${API_BASE_URL}/leases`;
+    const TENANTS_API_URL = `${API_BASE_URL}/tenants`;
+    const UNITS_API_URL = `${API_BASE_URL}/units`;
+    const INVOICES_API_URL = `${API_BASE_URL}/invoices`;
+    const NOTIFICATIONS_API_URL = `${API_BASE_URL}/notifications`;
+
+    let activeTabStatus = "ALL";
+    let targetLeaseIdForMoveOut = null;
+    let targetUnitIdForMoveOut = null;
 
     function getAuthHeaders() {
         const token = localStorage.getItem('token') || localStorage.getItem('argo_token');
@@ -981,6 +986,7 @@
 
     function logoutUser() {
         localStorage.clear();
+        sessionStorage.clear();
         window.location.replace('index.html');
     }
 
@@ -1069,10 +1075,10 @@
         const avatarEl = document.getElementById('userAvatar');
 
         if (['owner', 'property_owner', 'investor'].includes(rawRole)) {
-            if (nameEl) nameEl.textContent = 'Don Ramon Santos';
+            if (nameEl) nameEl.textContent = user.name || 'Property Owner';
             if (roleEl) roleEl.textContent = 'Property Owner';
             if (avatarEl) {
-                avatarEl.textContent = 'RS';
+                avatarEl.textContent = user.avatar || 'PO';
                 avatarEl.style.background = '#059669';
             }
         } else if (['client', 'tenant', 'client_pov'].includes(rawRole)) {
@@ -1094,102 +1100,73 @@
         }
     }
 
-    // Database Fetchers
+    // Direct Live API Fetchers (No Stale LocalStorage Traps)
     async function getLeases() {
         try {
-            const response = await fetch(LEASES_API_URL, { headers: getAuthHeaders() });
+            const response = await fetch(LEASES_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (response.ok) {
                 const data = await response.json();
-                const list = Array.isArray(data) ? data : (data.items || data.leases || data.data || []);
-                localStorage.setItem('argo_leases', JSON.stringify(list));
-                return list;
+                return Array.isArray(data) ? data : (data.items || data.leases || data.data || []);
             }
         } catch (e) {
-            console.warn("Leases API offline, loading from local cache:", e);
-        }
-
-        const raw = localStorage.getItem('argo_leases');
-        if (raw) {
-            try {
-                const parsed = JSON.parse(raw);
-                if (Array.isArray(parsed)) return parsed;
-            } catch (e) {}
+            console.error("Live Leases API fetch failed:", e);
         }
         return [];
     }
 
     async function getTenantsList() {
         try {
-            const res = await fetch(TENANTS_API_URL, { headers: getAuthHeaders() });
+            const res = await fetch(TENANTS_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (res.ok) {
                 const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.tenants || data.data || []);
-                localStorage.setItem('argo_tenants', JSON.stringify(list));
-                return list;
+                return Array.isArray(data) ? data : (data.items || data.tenants || data.data || []);
             }
         } catch (e) {
-            console.warn("Tenants API offline, checking cache:", e);
+            console.warn("Live Tenants API fetch failed:", e);
         }
-
-        const raw = localStorage.getItem('argo_tenants');
-        return raw ? JSON.parse(raw) : [];
+        return [];
     }
 
     async function getUnitsList() {
         try {
-            const res = await fetch(UNITS_API_URL, { headers: getAuthHeaders() });
+            const res = await fetch(UNITS_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (res.ok) {
                 const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.units || data.data || []);
-                localStorage.setItem('argo_units', JSON.stringify(list));
-                return list;
+                return Array.isArray(data) ? data : (data.items || data.units || data.data || []);
             }
         } catch (e) {
-            console.warn("Units API offline, checking cache:", e);
+            console.warn("Live Units API fetch failed:", e);
         }
-
-        const raw = localStorage.getItem('argo_units');
-        return raw ? JSON.parse(raw) : [];
-    }
-
-    async function getInvoices() {
-        try {
-            const res = await fetch(INVOICES_API_URL, { headers: getAuthHeaders() });
-            if (res.ok) {
-                const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.invoices || data.data || []);
-                localStorage.setItem('argo_invoices', JSON.stringify(list));
-                return list;
-            }
-        } catch (e) {}
-        const raw = localStorage.getItem('argo_invoices');
-        return raw ? JSON.parse(raw) : [];
-    }
-
-    async function getNotifications() {
-        try {
-            const res = await fetch(NOTIFICATIONS_API_URL, { headers: getAuthHeaders() });
-            if (res.ok) {
-                const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.notifications || data.data || []);
-                localStorage.setItem('argo_notifications', JSON.stringify(list));
-                return list;
-            }
-        } catch (e) {}
-        const raw = localStorage.getItem('argo_notifications');
-        return raw ? JSON.parse(raw) : [];
+        return [];
     }
 
     async function updateHeaderBadge() {
-        const notifs = (await getNotifications()).filter(n => (n.pov === 'admin' || !n.pov) && (n.status === 'unread' || n.is_read === false));
-        const badge = document.getElementById('headerNotifBadge');
-        if (badge) badge.textContent = notifs.length;
+        try {
+            const res = await fetch(NOTIFICATIONS_API_URL, { 
+                headers: getAuthHeaders(),
+                cache: 'no-store'
+            });
+            if (res.ok) {
+                const notifs = await res.json();
+                const unread = (Array.isArray(notifs) ? notifs : []).filter(n => 
+                    (n.pov === 'admin' || !n.pov) && (!n.is_read || n.status === 'unread')
+                );
+                const badge = document.getElementById('headerNotifBadge');
+                if (badge) badge.textContent = unread.length;
+            }
+        } catch (e) {}
     }
 
-    let activeTabStatus = "ALL";
-    let targetLeaseIdForMoveOut = null;
-    let targetUnitIdForMoveOut = null;
-
+    // Populate Dynamic Modal Dropdowns
     async function populateModalDropdowns() {
         const tenants = await getTenantsList();
         const units = await getUnitsList();
@@ -1211,21 +1188,31 @@
         }
 
         if (unitSelect) {
-            unitSelect.innerHTML = '<option value="">Select Unit Location...</option>';
+            unitSelect.innerHTML = '<option value="">Select Target Unit...</option>';
             if (units.length > 0) {
-                units.forEach(u => {
-                    const uId = u.id || '';
+                // Sort units: Available first
+                const sortedUnits = [...units].sort((a, b) => {
+                    const isAvailA = (a.status || 'Available').toUpperCase() === 'AVAILABLE';
+                    const isAvailB = (b.status || 'Available').toUpperCase() === 'AVAILABLE';
+                    return isAvailB - isAvailA;
+                });
+
+                sortedUnits.forEach(u => {
+                    const uId = u.id;
                     const uName = u.unit_no || u.unit_number || `Unit #${u.id}`;
-                    const pName = (u.property ? (u.property.name || u.property.property_name) : '') || u.property_name || 'Property';
+                    const pName = u.property_name || (u.property ? (u.property.name || u.property.property_name) : '') || 'Property';
                     const uRent = parseFloat(u.rent || u.rent_amount || u.monthly_rent || 0);
                     const status = (u.status || 'Available').toUpperCase();
-                    unitSelect.innerHTML += `<option value="${uId}" data-location="${pName} • ${uName}" data-property="${pName}" data-unit="${uName}" data-rent="${uRent}">${pName} • ${uName} [${status}]</option>`;
+                    const isAvailable = status === 'AVAILABLE' || status === 'VACANT';
+                    const statusTag = isAvailable ? 'AVAILABLE' : status;
+
+                    unitSelect.innerHTML += `<option value="${uId}" data-location="${pName} • ${uName}" data-property="${pName}" data-unit="${uName}" data-rent="${uRent}" ${!isAvailable ? 'style="color:#94A3B8;"' : ''}>${pName} • ${uName} [${statusTag}]</option>`;
                 });
             } else {
-                unitSelect.innerHTML += '<option value="" disabled>No units registered in inventory. Please add units first.</option>';
+                unitSelect.innerHTML += '<option value="" disabled>No units found in inventory. Please add units first.</option>';
             }
 
-            unitSelect.addEventListener('change', () => {
+            unitSelect.onchange = function() {
                 const selectedOpt = unitSelect.options[unitSelect.selectedIndex];
                 if (selectedOpt && selectedOpt.dataset.rent) {
                     const rentInput = document.getElementById('modalRentAmount');
@@ -1234,10 +1221,11 @@
                     if (rentInput && rentVal > 0) rentInput.value = rentVal;
                     if (depositInput && rentVal > 0) depositInput.value = rentVal * 2;
                 }
-            });
+            };
         }
     }
 
+    // Live Render Leases Table
     async function renderLeasesTable() {
         const leases = await getLeases();
         const tbody = document.getElementById('leaseTable');
@@ -1254,16 +1242,16 @@
 
         leases.forEach(l => {
             const tr = document.createElement('tr');
-            const status = (l.status || 'ACTIVE').toUpperCase();
+            const status = (l.status || 'Active').toUpperCase();
             tr.dataset.status = status;
 
             let badgeHtml = '';
             if (status === 'ACTIVE') {
-                badgeHtml = `<span class="status active" style="background:#ECFDF5; color:#059669; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-check-circle me-1"></i> ACTIVE (Occupied)</span>`;
+                badgeHtml = `<span class="status active" style="background:#ECFDF5; color:#059669; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-check-circle me-1"></i> Active (Occupied)</span>`;
             } else if (status === 'DRAFT') {
-                badgeHtml = `<span class="status draft" style="background:#FEF3C7; color:#D97706; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-clock-history me-1"></i> DRAFT (Pending)</span>`;
+                badgeHtml = `<span class="status draft" style="background:#FEF3C7; color:#D97706; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-clock-history me-1"></i> Draft (Pending)</span>`;
             } else {
-                badgeHtml = `<span class="status ended" style="background:#F1F5F9; color:#64748B; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-box-arrow-right me-1"></i> ENDED (Vacated)</span>`;
+                badgeHtml = `<span class="status ended" style="background:#F1F5F9; color:#64748B; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-box-arrow-right me-1"></i> Ended (Vacated)</span>`;
             }
 
             const leaseId = l.lease_id || l.id || 'LSE';
@@ -1272,12 +1260,12 @@
             const unitNumber = l.unit_number || l.unit || 'Unit';
 
             let actionsHtml = `
-                <button class="action-button" title="View Agreement" onclick="viewLeaseDetails('${leaseId}')"><i class="bi bi-eye"></i></button>
+                <button class="action-button" title="View Agreement" onclick="viewLeaseDetails('${l.id || leaseId}')"><i class="bi bi-eye"></i></button>
             `;
 
             if (status === 'DRAFT') {
                 actionsHtml += `
-                    <button class="primary-button primary-btn" style="padding:4px 8px; font-size:11px;" onclick="activateLease('${l.id || leaseId}')">
+                    <button class="primary-button primary-btn" style="padding:4px 8px; font-size:11px;" onclick="activateLease('${l.id || leaseId}', '${l.unit_id || ''}', '${escapeQuotes(tenantName)}')">
                         <i class="bi bi-box-arrow-in-right"></i> Move-In
                     </button>
                 `;
@@ -1289,9 +1277,13 @@
                 `;
             }
 
+            actionsHtml += `
+                <button class="action-button delete" title="Delete Lease Record" onclick="deleteLease('${l.id || leaseId}', '${leaseId}', '${l.unit_id || ''}')"><i class="bi bi-trash"></i></button>
+            `;
+
             const displayRent = parseFloat(l.rent || l.rent_amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             const displayDeposit = typeof l.deposit === 'number'
-                ? `₱${parseFloat(l.deposit).toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+                ? `₱${parseFloat(l.deposit).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                 : (l.deposit || '₱0.00');
 
             let termDisplay = 'Ongoing / Open-Ended';
@@ -1338,9 +1330,10 @@
         const l = leases.find(item => String(item.id) === String(leaseId) || String(item.lease_id) === String(leaseId));
         if (!l) return;
         const termText = (l.start_date && l.end_date) ? `${l.start_date} to ${l.end_date}` : (l.start_date ? `Since ${l.start_date} (Indefinite)` : 'Open-Ended');
-        alert(`Lease Agreement: ${l.lease_id || l.id}\nTenant: ${l.tenant_name || l.tenantName}\nProperty & Location: ${l.property_name || l.property} • ${l.unit_number || l.unit}\nTerm: ${termText}\nMonthly Rent: ₱${parseFloat(l.rent || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}\nSecurity Deposit: ${l.deposit || '₱0.00'}\nOccupancy Status: ${l.status}`);
+        alert(`Lease Agreement: ${l.lease_id || l.id}\nTenant: ${l.tenant_name || l.tenantName}\nProperty & Location: ${l.property_name || l.property} • ${l.unit_number || l.unit}\nTerm: ${termText}\nMonthly Rent: ₱${parseFloat(l.rent || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}\nSecurity Deposit: ₱${parseFloat(l.deposit || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}\nStatus: ${l.status}`);
     }
 
+    // LIVE CREATE LEASE & AUTO-TRANSITION UNIT (POST /api/leases)
     async function saveLease() {
         const tenantSelect = document.getElementById('modalTenantName');
         const unitSelect = document.getElementById('modalUnitLocation');
@@ -1358,9 +1351,10 @@
 
         const rent = parseFloat(document.getElementById('modalRentAmount').value) || 0;
         const deposit = parseFloat(document.getElementById('modalDepositAmount').value) || 0;
-        const status = document.getElementById('modalStatusSelect').value || 'ACTIVE';
+        const status = document.getElementById('modalStatusSelect').value || 'Active';
         const startDate = document.getElementById('modalStartDate').value || new Date().toISOString().split('T')[0];
         const endDate = document.getElementById('modalEndDate').value || null;
+        const orgId = localStorage.getItem('organization_id') || DEFAULT_ORG_ID;
 
         if (!tenantId || !unitId) {
             alert('Please select both a tenant profile and a target unit.');
@@ -1375,6 +1369,7 @@
         const newLeaseCode = `LSE-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
         const payload = {
+            organization_id: orgId,
             lease_id: newLeaseCode,
             tenant_id: tenantId,
             unit_id: unitId,
@@ -1386,7 +1381,7 @@
             end_date: endDate,
             rent: rent,
             deposit: deposit,
-            status: status
+            status: status === 'ACTIVE' ? 'Active' : status
         };
 
         try {
@@ -1407,25 +1402,26 @@
             return;
         }
 
-        // If status is ACTIVE, also transition unit status in Neon DB
-        if (status === 'ACTIVE' && unitId) {
+        // Auto-mark target Unit as Occupied in Neon PostgreSQL
+        if ((status.toUpperCase() === 'ACTIVE' || status.toUpperCase() === 'OCCUPIED') && unitId) {
             try {
-                await fetch(`${UNITS_API_URL}${encodeURIComponent(unitId)}`, {
+                await fetch(`${UNITS_API_URL}/${encodeURIComponent(unitId)}`, {
                     method: 'PATCH',
                     headers: getAuthHeaders(),
                     body: JSON.stringify({
-                        status: 'OCCUPIED',
+                        status: 'Occupied',
                         tenant_name: tenantName
                     })
                 });
             } catch (err) {
-                console.warn("Unit status sync bypassed:", err);
+                console.warn("Unit status transition warning:", err);
             }
         }
 
-        alert(`Lease agreement (${newLeaseCode}) registered successfully!`);
+        alert(`Lease agreement (${newLeaseCode}) registered successfully in database!`);
         closeModal('leaseModal');
 
+        // Reset form
         document.getElementById('modalTenantName').value = '';
         document.getElementById('modalUnitLocation').value = '';
         document.getElementById('modalRentAmount').value = '';
@@ -1436,25 +1432,29 @@
         await renderLeasesTable();
     }
 
-    async function activateLease(leaseId) {
-        if (!confirm(`Execute move-in for lease ${leaseId}? This will mark the lease and assigned unit as ACTIVE (Occupied).`)) return;
+    // LIVE ACTIVATE LEASE (PATCH /api/leases/{id})
+    async function activateLease(leaseId, unitId, tenantName) {
+        if (!confirm(`Execute move-in for this lease? This will transition the lease and assigned unit to Active (Occupied).`)) return;
 
         try {
-            const res = await fetch(`${LEASES_API_URL}${encodeURIComponent(leaseId)}`, {
+            await fetch(`${LEASES_API_URL}/${encodeURIComponent(leaseId)}`, {
                 method: 'PATCH',
                 headers: getAuthHeaders(),
-                body: JSON.stringify({ status: 'ACTIVE' })
+                body: JSON.stringify({ status: 'Active' })
             });
 
-            if (!res.ok) {
-                await fetch(`${LEASES_API_URL}${encodeURIComponent(leaseId)}`, {
-                    method: 'PUT',
+            if (unitId) {
+                await fetch(`${UNITS_API_URL}/${encodeURIComponent(unitId)}`, {
+                    method: 'PATCH',
                     headers: getAuthHeaders(),
-                    body: JSON.stringify({ status: 'ACTIVE' })
+                    body: JSON.stringify({
+                        status: 'Occupied',
+                        tenant_name: tenantName
+                    })
                 });
             }
         } catch (e) {
-            console.warn("Backend update error:", e);
+            console.error("Backend activation error:", e);
         }
 
         await renderLeasesTable();
@@ -1472,6 +1472,7 @@
         document.getElementById("moveOutModal").classList.add("show");
     }
 
+    // LIVE MOVE-OUT & VACATE UNIT (PATCH /api/leases/{id} & PATCH /api/units/{id})
     async function executeMoveOut() {
         if (!targetLeaseIdForMoveOut) return;
 
@@ -1481,24 +1482,22 @@
 
         // 1. End the lease agreement
         try {
-            await fetch(`${LEASES_API_URL}${encodeURIComponent(targetLeaseIdForMoveOut)}`, {
+            await fetch(`${LEASES_API_URL}/${encodeURIComponent(targetLeaseIdForMoveOut)}`, {
                 method: 'PATCH',
                 headers: getAuthHeaders(),
                 body: JSON.stringify({ 
-                    status: 'ENDED',
-                    move_out_date: moveOutDate,
-                    notes: moveOutNotes,
-                    deposit_status: depositStatus
+                    status: 'Ended',
+                    end_date: moveOutDate
                 })
             });
         } catch (e) {
-            console.warn("Backend move-out dispatch error:", e);
+            console.error("Lease termination error:", e);
         }
 
-        // 2. Revert the unit status back to VACANT / Available
+        // 2. Revert the unit status back to Available
         if (targetUnitIdForMoveOut) {
             try {
-                await fetch(`${UNITS_API_URL}${encodeURIComponent(targetUnitIdForMoveOut)}`, {
+                await fetch(`${UNITS_API_URL}/${encodeURIComponent(targetUnitIdForMoveOut)}`, {
                     method: 'PATCH',
                     headers: getAuthHeaders(),
                     body: JSON.stringify({ 
@@ -1507,16 +1506,53 @@
                     })
                 });
             } catch (e) {
-                console.warn("Unit status reversion error:", e);
+                console.error("Unit status reversion error:", e);
             }
         }
 
-        alert(`Move-out recorded successfully. Unit returned to Available status.`);
+        alert(`Move-out recorded successfully! Unit returned to Available status.`);
         closeModal('moveOutModal');
         targetLeaseIdForMoveOut = null;
         targetUnitIdForMoveOut = null;
         document.getElementById('moveOutNotes').value = '';
 
+        await renderLeasesTable();
+    }
+
+    // LIVE DELETE LEASE (DELETE /api/leases/{id})
+    async function deleteLease(id, leaseCode, unitId) {
+        if (!confirm(`Are you sure you want to permanently delete lease agreement "${leaseCode}" from the database?`)) return;
+
+        try {
+            const res = await fetch(`${LEASES_API_URL}/${encodeURIComponent(id)}`, {
+                method: 'DELETE',
+                headers: getAuthHeaders()
+            });
+
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                alert(`Cannot delete lease: ${errData.detail || 'Foreign key conflict in database.'}`);
+                return;
+            }
+
+            // Free up unit if deleted lease was active
+            if (unitId) {
+                await fetch(`${UNITS_API_URL}/${encodeURIComponent(unitId)}`, {
+                    method: 'PATCH',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ 
+                        status: 'Available',
+                        tenant_name: null
+                    })
+                }).catch(() => ({}));
+            }
+        } catch (error) {
+            console.error("Delete request failed:", error);
+            alert("Network error occurred while deleting lease.");
+            return;
+        }
+
+        alert(`Lease agreement "${leaseCode}" deleted permanently!`);
         await renderLeasesTable();
     }
 
@@ -1590,9 +1626,9 @@
             const text = row.innerText.toLowerCase();
             const rowStatus = row.dataset.status || "";
 
-            const matchesTab = (activeTabStatus === "ALL" || rowStatus === activeTabStatus);
+            const matchesTab = (activeTabStatus === "ALL" || rowStatus.toUpperCase() === activeTabStatus.toUpperCase());
             const matchesSearch = searchQuery === "" || text.includes(searchQuery);
-            const matchesStatus = (statusVal === "" || rowStatus === statusVal);
+            const matchesStatus = (statusVal === "" || rowStatus.toUpperCase() === statusVal.toUpperCase());
 
             if (matchesTab && matchesSearch && matchesStatus) {
                 row.style.display = "";
@@ -1614,17 +1650,6 @@
         const firstTab = document.querySelectorAll('.tab')[0];
         if (firstTab) setTabFilter('ALL', firstTab);
     }
-
-    // Real-Time Cross-Tab Listener
-    window.addEventListener('storage', async (e) => {
-        if (['argo_leases', 'argo_tenants', 'argo_units', 'argo_invoices', 'argo_notifications', 'argo_user', 'argo_pov'].includes(e.key)) {
-            renderSidebar();
-            loadUserData();
-            await populateModalDropdowns();
-            await renderLeasesTable();
-            updateHeaderBadge();
-        }
-    });
 
     // Page Load Initialization
     document.addEventListener('DOMContentLoaded', async () => {

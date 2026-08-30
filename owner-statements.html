@@ -880,6 +880,7 @@
     </div>
 
 <script>
+    const DEFAULT_ORG_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
     const API_BASE_URL = (
         window.location.origin.includes('localhost') || 
         window.location.origin.includes('127.0.0.1')
@@ -889,13 +890,13 @@
             ? 'https://argo-management-2026.onrender.com/api'
             : '/api';
 
-    const INVOICES_API_URL = `${API_BASE_URL}/invoices/`;
-    const TRANSACTIONS_API_URL = `${API_BASE_URL}/transactions/`;
-    const PROPERTIES_API_URL = `${API_BASE_URL}/properties/`;
-    const MAINTENANCE_API_URL = `${API_BASE_URL}/maintenance/`;
-    const OWNERSHIP_API_URL = `${API_BASE_URL}/property-ownership/`;
-    const OWNERS_API_URL = `${API_BASE_URL}/owners/`;
-    const NOTIFICATIONS_API_URL = `${API_BASE_URL}/notifications/`;
+    const INVOICES_API_URL = `${API_BASE_URL}/invoices`;
+    const TRANSACTIONS_API_URL = `${API_BASE_URL}/transactions`;
+    const PROPERTIES_API_URL = `${API_BASE_URL}/properties`;
+    const MAINTENANCE_API_URL = `${API_BASE_URL}/maintenance`;
+    const OWNERSHIP_API_URL = `${API_BASE_URL}/property-ownership`;
+    const OWNERS_API_URL = `${API_BASE_URL}/owners`;
+    const NOTIFICATIONS_API_URL = `${API_BASE_URL}/notifications`;
 
     let currentModalStatementData = null;
 
@@ -922,6 +923,7 @@
 
     function logoutUser() {
         localStorage.clear();
+        sessionStorage.clear();
         window.location.replace('index.html');
     }
 
@@ -970,99 +972,115 @@
         nav.innerHTML = html;
     }
 
-    // Database Fetchers
+    // Direct Live API Fetchers (No Stale LocalStorage Traps)
     async function getInvoices() {
         try {
-            const res = await fetch(INVOICES_API_URL, { headers: getAuthHeaders() });
+            const res = await fetch(INVOICES_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (res.ok) {
                 const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.invoices || data.data || []);
-                localStorage.setItem('argo_invoices', JSON.stringify(list));
-                return list;
+                return Array.isArray(data) ? data : (data.items || data.invoices || data.data || []);
             }
-        } catch (e) {}
-
-        const raw = localStorage.getItem('argo_invoices');
-        return raw ? JSON.parse(raw) : [];
+        } catch (e) {
+            console.error("Live Invoices fetch failed:", e);
+        }
+        return [];
     }
 
     async function getTickets() {
         try {
-            const res = await fetch(MAINTENANCE_API_URL, { headers: getAuthHeaders() });
+            const res = await fetch(MAINTENANCE_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (res.ok) {
                 const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.tickets || data.data || []);
-                localStorage.setItem('argo_maintenance_tickets', JSON.stringify(list));
-                return list;
+                return Array.isArray(data) ? data : (data.items || data.tickets || data.data || []);
             }
-        } catch (e) {}
-
-        const raw = localStorage.getItem('argo_maintenance_tickets');
-        return raw ? JSON.parse(raw) : [];
+        } catch (e) {
+            console.warn("Live Maintenance fetch failed:", e);
+        }
+        return [];
     }
 
     async function getTransactions() {
         try {
-            const res = await fetch(TRANSACTIONS_API_URL, { headers: getAuthHeaders() });
+            const res = await fetch(TRANSACTIONS_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (res.ok) {
                 const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.transactions || data.data || []);
-                localStorage.setItem('argo_transactions', JSON.stringify(list));
-                return list;
+                return Array.isArray(data) ? data : (data.items || data.transactions || data.data || []);
             }
-        } catch (e) {}
-
-        const raw = localStorage.getItem('argo_transactions');
-        return raw ? JSON.parse(raw) : [];
+        } catch (e) {
+            console.warn("Live Transactions fetch failed:", e);
+        }
+        return [];
     }
 
     async function getProperties() {
         try {
-            const res = await fetch(PROPERTIES_API_URL, { headers: getAuthHeaders() });
+            const res = await fetch(PROPERTIES_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (res.ok) {
                 const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.properties || data.data || []);
-                localStorage.setItem('argo_properties', JSON.stringify(list));
-                return list;
+                return Array.isArray(data) ? data : (data.items || data.properties || data.data || []);
             }
-        } catch (e) {}
-
-        const raw = localStorage.getItem('argo_properties');
-        return raw ? JSON.parse(raw) : [];
+        } catch (e) {
+            console.error("Live Properties fetch failed:", e);
+        }
+        return [];
     }
 
     async function getOwnership() {
         try {
-            const res = await fetch(OWNERSHIP_API_URL, { headers: getAuthHeaders() });
+            const res = await fetch(OWNERSHIP_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (res.ok) {
                 const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.ownership || data.data || []);
-                localStorage.setItem('argo_ownership', JSON.stringify(list));
-                return list;
+                return Array.isArray(data) ? data : (data.items || data.ownership || data.data || []);
             }
-        } catch (e) {}
-
-        const raw = localStorage.getItem('argo_ownership');
-        return raw ? JSON.parse(raw) : [];
+        } catch (e) {
+            console.warn("Live Ownership fetch failed:", e);
+        }
+        return [];
     }
 
     async function getOwners() {
         try {
-            const res = await fetch(OWNERS_API_URL, { headers: getAuthHeaders() });
+            const res = await fetch(OWNERS_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (res.ok) {
                 const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.owners || data.data || []);
-                localStorage.setItem('argo_owners', JSON.stringify(list));
-                return list;
+                return Array.isArray(data) ? data : (data.items || data.owners || data.data || []);
             }
-        } catch (e) {}
-
-        const raw = localStorage.getItem('argo_owners');
-        return raw ? JSON.parse(raw) : [];
+        } catch (e) {
+            console.warn("Live Owners fetch failed:", e);
+        }
+        return [];
     }
 
-    function getNotifications() {
-        return JSON.parse(localStorage.getItem('argo_notifications') || '[]');
+    async function getNotifications() {
+        try {
+            const res = await fetch(NOTIFICATIONS_API_URL, { 
+                headers: getAuthHeaders(),
+                cache: 'no-store'
+            });
+            if (res.ok) {
+                const data = await res.json();
+                return Array.isArray(data) ? data : (data.items || data.notifications || data.data || []);
+            }
+        } catch (e) {}
+        return [];
     }
 
     function getOrgSettings() {
@@ -1084,6 +1102,7 @@
         const ownershipList = await getOwnership();
         const properties = await getProperties();
 
+        // Match owner profile in Neon DB
         const matchedOwner = owners.find(o => {
             const oUserId = String(o.user_id || o.userId || '');
             const oEmail = (o.email || '').toLowerCase().trim();
@@ -1096,17 +1115,26 @@
 
         const ownerId = matchedOwner ? (matchedOwner.id || matchedOwner.own_id) : userId;
 
+        // Match ownership share records strictly belonging to this owner
         const matchedShares = ownershipList.filter(shr => {
             const shrOwnerId = String(shr.owner_id || shr.ownerId || '');
             const shrOwnerName = (shr.owner_name || shr.ownerName || '').toLowerCase().trim();
             
             return (ownerId && shrOwnerId === String(ownerId)) ||
                    (userId && shrOwnerId === String(userId)) ||
+                   (matchedOwner && shrOwnerId === String(matchedOwner.id)) ||
                    (userName && shrOwnerName === userName.toLowerCase());
         });
 
-        const ownedPropertyNames = new Set(matchedShares.map(s => (s.property || s.property_name || s.propertyName || '').toLowerCase()).filter(Boolean));
-        const ownedProperties = properties.filter(p => ownedPropertyNames.has((p.name || p.property_name || '').toLowerCase()));
+        // Resolve owned property IDs and Names
+        const ownedPropertyIds = new Set(matchedShares.map(s => String(s.property_id || s.propertyId || '')).filter(Boolean));
+        const ownedPropertyNames = new Set(matchedShares.map(s => (s.property_name || s.property || s.propertyName || '').toLowerCase().trim()).filter(Boolean));
+
+        const ownedProperties = properties.filter(p => {
+            const pId = String(p.id || '');
+            const pName = (p.name || p.property_name || '').toLowerCase().trim();
+            return ownedPropertyIds.has(pId) || ownedPropertyNames.has(pName);
+        });
 
         return {
             user,
@@ -1128,8 +1156,8 @@
 
         if (nameEl) nameEl.textContent = ctx.name;
         if (roleEl) {
-            const primaryShare = ctx.shares.find(s => s.role === 'Primary' || (s.role || '').includes('Primary'));
-            roleEl.textContent = primaryShare ? `${primaryShare.property || primaryShare.property_name || 'Asset'} (Managing)` : 'Equity Partner';
+            const primaryShare = ctx.shares.find(s => (s.role || '').toLowerCase().includes('primary'));
+            roleEl.textContent = primaryShare ? `${primaryShare.property_name || primaryShare.property || 'Asset'} (Managing)` : 'Equity Partner';
         }
 
         if (avatarEl) {
@@ -1159,7 +1187,7 @@
         if (existingVal) filter.value = existingVal;
     }
 
-    // Dynamic Statements Calculation Engine (Proportional to Owner Shares)
+    // Dynamic Statements Calculation Engine (Strictly Proportional to Owner Shares)
     async function getOwnerStatementsList() {
         const ctx = await getActiveOwnerContext();
         const invoices = await getInvoices();
@@ -1173,34 +1201,35 @@
         const currentMonthTag = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
         ctx.shares.forEach(shr => {
-            const propName = shr.property || shr.property_name || shr.propertyName || 'Property';
+            const propIdStr = String(shr.property_id || shr.propertyId || '');
+            const propName = shr.property_name || shr.property || shr.propertyName || 'Property';
             const sharePercent = parseFloat(shr.share_percent || shr.sharePercent || shr.share || 100);
             const shareMultiplier = sharePercent / 100.0;
             const role = shr.role || 'Equity Partner';
 
-            // Calculate verified gross rent for this property
+            // Calculate verified gross rent for this specific property
             let grossRent = 0;
             const verifiedInvoices = [];
             invoices.forEach(inv => {
-                const invLoc = inv.property_location || inv.sub || '';
-                const isPaid = (inv.status || '').toLowerCase() === 'paid';
+                const invLoc = (inv.property_location || inv.sub || '').toLowerCase().trim();
+                const isPaid = (inv.status || '').toUpperCase() === 'PAID';
                 const isRent = (inv.type || '').toLowerCase().includes('rent') || (inv.category_type || '').toLowerCase() === 'rent';
 
-                if (isPaid && isRent && invLoc.toLowerCase().includes(propName.toLowerCase())) {
+                if (isPaid && isRent && (invLoc.includes(propName.toLowerCase().trim()) || (inv.property_id && String(inv.property_id) === propIdStr))) {
                     const amt = parseCurrency(inv.amount);
                     grossRent += amt * shareMultiplier;
                     verifiedInvoices.push({ ...inv, proportionalAmount: amt * shareMultiplier });
                 }
             });
 
-            // Calculate resolved maintenance repairs for this property
+            // Calculate resolved maintenance repairs for this specific property
             let repairCosts = 0;
             const resolvedRepairs = [];
             tickets.forEach(t => {
-                const tLoc = t.property_location || t.fullLocation || '';
-                const isResolved = (t.status || '').toLowerCase() === 'resolved' || (t.status || '').toLowerCase() === 'completed';
+                const tLoc = (t.property_location || t.fullLocation || '').toLowerCase().trim();
+                const isResolved = (t.status || '').toUpperCase() === 'RESOLVED' || (t.status || '').toUpperCase() === 'COMPLETED';
 
-                if (isResolved && tLoc.toLowerCase().includes(propName.toLowerCase())) {
+                if (isResolved && (tLoc.includes(propName.toLowerCase().trim()) || (t.property_id && String(t.property_id) === propIdStr))) {
                     const costVal = parseCurrency(t.cost || 0);
                     repairCosts += costVal * shareMultiplier;
                     resolvedRepairs.push({ ...t, proportionalCost: costVal * shareMultiplier });
@@ -1310,8 +1339,8 @@
         if (subEl) subEl.textContent = `Repairs & ${pmFeePct}% PM fee split`;
     }
 
-    function updateHeaderBadge() {
-        const notifs = getNotifications().filter(n => (n.pov === 'owner' || n.pov === 'all') && (n.status === 'unread' || n.is_read === false));
+    async function updateHeaderBadge() {
+        const notifs = (await getNotifications()).filter(n => (n.pov === 'owner' || n.pov === 'all') && (!n.is_read || n.status === 'unread'));
         const badge = document.getElementById('ownerNotifBadge');
         if (badge) badge.textContent = notifs.length;
     }
@@ -1335,7 +1364,7 @@
                 const row = document.createElement('div');
                 row.className = 'ledger-row';
                 row.style.cssText = 'display:flex; justify-content:space-between; padding:4px 0; font-size:12px;';
-                row.innerHTML = `<span>${inv.type || 'Verified Rent'} (${inv.tenant_name || inv.tenantName || 'Tenant'})</span><span style="color:var(--success, #059669); font-weight:600;">+${formatPeso(inv.proportionalAmount)}</span>`;
+                row.innerHTML = `<span>${inv.type || 'Verified Rent'} (${inv.tenant_name || 'Tenant'})</span><span style="color:var(--success, #059669); font-weight:600;">+${formatPeso(inv.proportionalAmount)}</span>`;
                 incomeContainer.appendChild(row);
             });
         } else {
@@ -1350,7 +1379,7 @@
                 const row = document.createElement('div');
                 row.className = 'ledger-row';
                 row.style.cssText = 'display:flex; justify-content:space-between; padding:4px 0; font-size:12px;';
-                row.innerHTML = `<span style="color:var(--danger, #E11D48);"><i class="bi bi-tools me-1"></i> Repair: ${r.title} (${r.property_location || r.fullLocation || 'Unit'})</span><span style="color:var(--danger, #E11D48);">-${formatPeso(r.proportionalCost)}</span>`;
+                row.innerHTML = `<span style="color:var(--danger, #E11D48);"><i class="bi bi-tools me-1"></i> Repair: ${r.title}</span><span style="color:var(--danger, #E11D48);">-${formatPeso(r.proportionalCost)}</span>`;
                 expenseContainer.appendChild(row);
             });
         }
@@ -1404,7 +1433,7 @@ Total Proportional Operating Deductions                : -${formatPeso(stmt.dedu
 NET OPERATING YIELD (NOI) DISBURSED                    : ${formatPeso(stmt.netPayout)}
 ======================================================================
 
-✓ System-audited and permanently recorded in ARGO Master Database.
+✓ System-audited and permanently recorded in Neon PostgreSQL Database.
 ======================================================================`;
 
         const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
@@ -1420,8 +1449,7 @@ NET OPERATING YIELD (NOI) DISBURSED                    : ${formatPeso(stmt.netPa
 
     function downloadCurrentModalStatement() {
         if (!currentModalStatementData) return;
-        const index = 0;
-        downloadStatementIndex(index);
+        downloadStatementIndex(0);
     }
 
     async function downloadAnnualStatement() {
@@ -1460,7 +1488,7 @@ Total YTD Operating Deductions   : -${formatPeso(totalDeduct)}
 ======================================================================================
 NET ANNUAL PORTFOLIO OPERATING YIELD: ${formatPeso(totalNet)}
 ======================================================================================
-Certified True & Correct Copy from ARGO Master Multi-Tenant Database.`;
+Certified True & Correct Copy from Neon PostgreSQL Database.`;
 
         const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
         const url = URL.createObjectURL(blob);
@@ -1539,17 +1567,7 @@ Certified True & Correct Copy from ARGO Master Multi-Tenant Database.`;
         await loadUserData();
         await populatePropertyFilter();
         await renderStatementsTable();
-        updateHeaderBadge();
-    });
-
-    // Real-Time Storage Listener
-    window.addEventListener('storage', async (e) => {
-        if (['argo_invoices', 'argo_maintenance_tickets', 'argo_properties', 'argo_ownership', 'argo_user', 'argo_pov'].includes(e.key)) {
-            await loadUserData();
-            await populatePropertyFilter();
-            await renderStatementsTable();
-            updateHeaderBadge();
-        }
+        await updateHeaderBadge();
     });
 </script>
 </body>

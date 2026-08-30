@@ -1040,6 +1040,7 @@
     </div>
 
 <script>
+    const DEFAULT_ORG_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
     const API_BASE_URL = (
         window.location.origin.includes('localhost') || 
         window.location.origin.includes('127.0.0.1')
@@ -1049,9 +1050,11 @@
             ? 'https://argo-management-2026.onrender.com/api'
             : '/api';
 
-    const MAINTENANCE_API_URL = `${API_BASE_URL}/maintenance/`;
-    const LEASES_API_URL = `${API_BASE_URL}/leases/`;
-    const NOTIFICATIONS_API_URL = `${API_BASE_URL}/notifications/`;
+    const MAINTENANCE_API_URL = `${API_BASE_URL}/maintenance`;
+    const LEASES_API_URL = `${API_BASE_URL}/leases`;
+    const TENANTS_API_URL = `${API_BASE_URL}/tenants`;
+    const UNITS_API_URL = `${API_BASE_URL}/units`;
+    const NOTIFICATIONS_API_URL = `${API_BASE_URL}/notifications`;
 
     function getAuthHeaders() {
         const token = localStorage.getItem('token') || localStorage.getItem('argo_token');
@@ -1063,6 +1066,7 @@
 
     function logoutUser() {
         localStorage.clear();
+        sessionStorage.clear();
         window.location.replace('index.html');
     }
 
@@ -1106,86 +1110,149 @@
         nav.innerHTML = html;
     }
 
-    // Database Fetchers
+    // Direct Database Fetchers (No LocalStorage Stale Traps)
     async function getTickets() {
         try {
-            const response = await fetch(MAINTENANCE_API_URL, { headers: getAuthHeaders() });
+            const response = await fetch(MAINTENANCE_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (response.ok) {
                 const data = await response.json();
-                const list = Array.isArray(data) ? data : (data.items || data.tickets || data.data || []);
-                localStorage.setItem('argo_maintenance_tickets', JSON.stringify(list));
-                return list;
+                return Array.isArray(data) ? data : (data.items || data.tickets || data.data || []);
             }
         } catch (e) {
-            console.warn("Maintenance API offline, reading local cache:", e);
+            console.error("Live Maintenance API fetch failed:", e);
         }
-
-        const raw = localStorage.getItem('argo_maintenance_tickets');
-        return raw ? JSON.parse(raw) : [];
-    }
-
-    function saveTickets(tickets) { 
-        localStorage.setItem('argo_maintenance_tickets', JSON.stringify(tickets)); 
-    }
-
-    function getNotifications() { 
-        return JSON.parse(localStorage.getItem('argo_notifications') || '[]'); 
-    }
-
-    function saveNotifications(notifications) { 
-        localStorage.setItem('argo_notifications', JSON.stringify(notifications)); 
+        return [];
     }
 
     async function getLeases() { 
         try {
-            const res = await fetch(LEASES_API_URL, { headers: getAuthHeaders() });
+            const res = await fetch(LEASES_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (res.ok) {
                 const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.items || data.leases || data.data || []);
-                localStorage.setItem('argo_leases', JSON.stringify(list));
-                return list;
+                return Array.isArray(data) ? data : (data.items || data.leases || data.data || []);
             }
-        } catch (e) {}
-
-        const raw = localStorage.getItem('argo_leases');
-        return raw ? JSON.parse(raw) : [];
+        } catch (e) {
+            console.warn("Live Leases fetch error:", e);
+        }
+        return [];
     }
 
-    // Dynamic Tenant Resolution (Strictly Scoped by Logged-In User)
+    async function getTenants() {
+        try {
+            const res = await fetch(TENANTS_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
+            if (res.ok) {
+                const data = await res.json();
+                return Array.isArray(data) ? data : (data.items || data.tenants || data.data || []);
+            }
+        } catch (e) {
+            console.warn("Live Tenants fetch error:", e);
+        }
+        return [];
+    }
+
+    async function getUnits() {
+        try {
+            const res = await fetch(UNITS_API_URL, { 
+                headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
+            if (res.ok) {
+                const data = await res.json();
+                return Array.isArray(data) ? data : (data.items || data.units || data.data || []);
+            }
+        } catch (e) {
+            console.warn("Live Units fetch error:", e);
+        }
+        return [];
+    }
+
+    async function getNotifications() { 
+        try {
+            const res = await fetch(NOTIFICATIONS_API_URL, { 
+                headers: getAuthHeaders(),
+                cache: 'no-store'
+            });
+            if (res.ok) {
+                const data = await res.json();
+                return Array.isArray(data) ? data : (data.items || data.notifications || data.data || []);
+            }
+        } catch (e) {}
+        return [];
+    }
+
+    // Dynamic Tenant Resolution (Strictly Scoped by Logged-In User in Neon DB)
     async function getActiveTenantContext() {
         const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
         const userEmail = (user.email || localStorage.getItem('user_email') || '').toLowerCase().trim();
         const userName = user.name || user.full_name || 'Resident Tenant';
         const userId = user.id || null;
 
+        const tenants = await getTenants();
         const leases = await getLeases();
+        const units = await getUnits();
 
+        // Match tenant profile in Neon DB
+        const matchedTenant = tenants.find(t => {
+            const tUserId = String(t.user_id || t.userId || '');
+            const tEmail = (t.email || '').toLowerCase().trim();
+            const tName = (t.name || '').toLowerCase().trim();
+            
+            return (userId && tUserId === String(userId)) ||
+                   (userEmail && tEmail === userEmail) ||
+                   (userName && tName === userName.toLowerCase());
+        }) || null;
+
+        const tenantId = matchedTenant ? matchedTenant.id : userId;
+
+        // Match active lease records belonging to this tenant
         const userLeases = leases.filter(l => {
             const lTenantId = String(l.tenant_id || l.tenantId || '');
             const lEmail = (l.tenant_email || l.email || '').toLowerCase().trim();
             const lName = (l.tenant_name || l.tenantName || '').toLowerCase().trim();
             
-            return (userId && lTenantId === String(userId)) ||
+            return (tenantId && lTenantId === String(tenantId)) ||
+                   (userId && lTenantId === String(userId)) ||
                    (userEmail && lEmail === userEmail) ||
                    (userName && lName === userName.toLowerCase());
         });
 
         const activeLease = userLeases.find(l => (l.status || '').toUpperCase() === 'ACTIVE') || userLeases[0] || null;
 
-        let fullTag = 'No Active Unit Assigned';
-        if (activeLease) {
-            const u = activeLease.unit_number || activeLease.unit || 'Unit';
-            const p = activeLease.property_name || activeLease.property || 'Property';
-            fullTag = `${p} • ${u}`;
+        let resolvedUnitId = activeLease ? activeLease.unit_id : null;
+        let resolvedUnitName = activeLease ? (activeLease.unit_number || activeLease.unit || 'Unit') : 'No Unit';
+        let resolvedPropName = activeLease ? (activeLease.property_name || activeLease.property || 'Property') : 'Property';
+
+        if (resolvedUnitId) {
+            const matchedUnit = units.find(u => String(u.id) === String(resolvedUnitId));
+            if (matchedUnit) {
+                resolvedUnitName = matchedUnit.unit_no || matchedUnit.unit_number || resolvedUnitName;
+                resolvedPropName = matchedUnit.property_name || resolvedPropName;
+            }
         }
+
+        const fullTag = activeLease ? `${resolvedPropName} • ${resolvedUnitName}` : 'No Active Unit Assigned';
 
         return {
             user,
             userId,
-            name: userName,
+            tenant: matchedTenant,
+            tenantId,
+            name: matchedTenant?.name || userName,
             email: userEmail,
             leases: userLeases,
             activeLease: activeLease,
+            unitId: resolvedUnitId,
+            unitName: resolvedUnitName,
+            propertyName: resolvedPropName,
             fullTag: fullTag
         };
     }
@@ -1193,15 +1260,18 @@
     async function getTenantTickets() {
         const ctx = await getActiveTenantContext();
         const allTickets = await getTickets();
+        const activeUnitIds = new Set(ctx.leases.map(l => String(l.unit_id || '')).filter(Boolean));
         const activeUnitNames = new Set(ctx.leases.map(l => (l.unit_number || l.unit || '').toLowerCase()).filter(Boolean));
 
         return allTickets.filter(t => {
             const tEmail = (t.tenant_email || '').toLowerCase().trim();
             const tName = (t.tenant_name || t.tenantName || '').toLowerCase().trim();
             const tLoc = (t.property_location || t.fullLocation || '').toLowerCase();
+            const tUnitId = String(t.unit_id || '');
 
             return (ctx.email && tEmail === ctx.email) ||
                    (ctx.name && tName === ctx.name.toLowerCase()) ||
+                   (tUnitId && activeUnitIds.has(tUnitId)) ||
                    ([...activeUnitNames].some(u => u && tLoc.includes(u)));
         });
     }
@@ -1224,18 +1294,20 @@
 
     async function checkLiveDispatchBanner() {
         const tickets = await getTenantTickets();
-        const activeDispatched = tickets.find(t => 
-            (t.status === 'In Progress' || t.status === 'Assigned') && 
-            t.technician && 
-            t.technician !== 'Awaiting Dispatch' &&
-            t.technician !== 'Unassigned'
-        );
+        const activeDispatched = tickets.find(t => {
+            const s = (t.status || '').toUpperCase();
+            return (s === 'IN PROGRESS' || s === 'ASSIGNED') && 
+                   t.technician && 
+                   t.technician !== 'Awaiting Dispatch' && 
+                   t.technician !== 'Unassigned';
+        });
 
         const banner = document.getElementById('liveDispatchBanner');
         const details = document.getElementById('bannerDetails');
 
         if (activeDispatched && banner && details) {
-            details.innerHTML = `Operations assigned <strong>${activeDispatched.technician}</strong> for <i>"${activeDispatched.title}"</i>. Scheduled Arrival: <strong>${activeDispatched.scheduledTime || activeDispatched.scheduled_time || 'Today at 02:00 PM'}</strong>.`;
+            const schedTime = activeDispatched.scheduled_time || activeDispatched.scheduledTime || 'Scheduled Arrival Pending';
+            details.innerHTML = `Operations assigned <strong>${activeDispatched.technician}</strong> for <i>"${activeDispatched.title}"</i>. Scheduled Visit: <strong>${schedTime}</strong>.`;
             banner.style.display = 'flex';
         } else if (banner) {
             banner.style.display = 'none';
@@ -1244,16 +1316,20 @@
 
     async function openActiveDispatchModal() {
         const tickets = await getTenantTickets();
-        const activeDispatched = tickets.find(t => 
-            (t.status === 'In Progress' || t.status === 'Assigned') && 
-            t.technician && 
-            t.technician !== 'Awaiting Dispatch'
-        );
+        const activeDispatched = tickets.find(t => {
+            const s = (t.status || '').toUpperCase();
+            return (s === 'IN PROGRESS' || s === 'ASSIGNED') && 
+                   t.technician && 
+                   t.technician !== 'Awaiting Dispatch' && 
+                   t.technician !== 'Unassigned';
+        });
+
         if (activeDispatched) {
-            viewTicketDetails(activeDispatched.ticket_id || activeDispatched.id);
+            viewTicketDetails(activeDispatched.id || activeDispatched.ticket_id);
         }
     }
 
+    // Live Render Maintenance Service Requests Table
     async function renderTicketsTable() {
         const ctx = await getActiveTenantContext();
         const tickets = await getTenantTickets();
@@ -1267,32 +1343,38 @@
 
         if (!tickets || tickets.length === 0) {
             tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--muted, #64748B); padding:30px;">No service requests filed yet. Click "Report New Issue" to file a ticket.</td></tr>`;
-            document.getElementById('showingCountText').textContent = `Showing 0 service requests`;
+            const countEl = document.getElementById('showingCountText');
+            if (countEl) countEl.textContent = `Showing 0 service requests`;
             return;
         }
 
         tickets.forEach(t => {
             const tr = document.createElement('tr');
-            const status = t.status || 'Open';
+            const status = (t.status || 'Open').trim();
+            const s = status.toUpperCase();
+
             tr.dataset.status = status;
             tr.dataset.category = t.category || 'General';
 
             let statusHtml = '';
-            const s = status.toLowerCase();
-            if (s === 'resolved' || s === 'completed') {
+            if (s === 'RESOLVED' || s === 'COMPLETED') {
                 statusHtml = `<span class="status-badge status-resolved" style="background:#ECFDF5; color:#059669; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-check-circle me-1"></i> Resolved & Completed</span>`;
-            } else if (s === 'in progress' || s === 'assigned') {
-                statusHtml = `<span class="status-badge status-progress" style="background:#FEF3C7; color:#B45309; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-clock-history me-1"></i> Dispatched: <strong>${t.technician || 'Technician Assigned'}</strong> (${t.scheduledTime || t.scheduled_time || 'Scheduled'})</span>`;
+            } else if (s === 'IN PROGRESS' || s === 'ASSIGNED') {
+                const schedTime = t.scheduled_time || t.scheduledTime || 'Scheduled';
+                statusHtml = `<span class="status-badge status-progress" style="background:#FEF3C7; color:#B45309; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-clock-history me-1"></i> Dispatched: <strong>${t.technician || 'Technician Assigned'}</strong> (${schedTime})</span>`;
             } else {
                 statusHtml = `<span class="status-badge status-submitted" style="background:#EFF6FF; color:#2563EB; padding:4px 8px; border-radius:4px; font-weight:600; font-size:11px;"><i class="bi bi-send me-1"></i> Submitted / Open</span>`;
             }
 
-            const isHigh = t.priority === 'High' || t.priority === 'Urgent';
+            const priority = (t.priority || 'Medium').trim();
+            const isHigh = priority.toUpperCase() === 'HIGH' || priority.toUpperCase() === 'URGENT';
             const priorityHtml = isHigh
                 ? `<span class="priority-badge priority-high" style="background:#FFF1F2; color:#E11D48; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;">High Priority</span>`
                 : `<span class="priority-badge priority-normal" style="background:#F1F5F9; color:#475569; padding:3px 8px; border-radius:4px; font-weight:600; font-size:11px;">Normal Priority</span>`;
 
-            const displayId = t.ticket_id || t.id || 'TCK';
+            const displayId = t.ticket_id || t.id;
+            const ticketDbId = t.id;
+            const dateStr = t.created_at ? t.created_at.split('T')[0] : (t.date_filed || 'Recently');
 
             tr.innerHTML = `
                 <td><div class="ticket-id" style="font-weight:600; color:#2563EB;">${displayId}</div></td>
@@ -1300,11 +1382,11 @@
                     <div class="ticket-title" style="font-weight:600;">${t.title}</div>
                     <div class="ticket-sub" style="font-size:11px; color:var(--muted, #64748B); margin-top:2px;">${t.category} • ${t.description || 'No remarks'}</div>
                 </td>
-                <td>${t.dateFiled || t.date_filed || '—'}</td>
+                <td>${dateStr}</td>
                 <td>${priorityHtml}</td>
                 <td>${statusHtml}</td>
                 <td>
-                    <button class="action-button" title="View Inspection Details" onclick="viewTicketDetails('${displayId}')"><i class="bi bi-eye"></i></button>
+                    <button class="action-button" title="View Inspection Details" onclick="viewTicketDetails('${ticketDbId}')"><i class="bi bi-eye"></i></button>
                 </td>
             `;
 
@@ -1320,12 +1402,13 @@
 
         const total = tickets.length;
         const active = tickets.filter(t => {
-            const s = (t.status || '').toLowerCase();
-            return s === 'in progress' || s === 'open' || s === 'submitted' || s === 'assigned';
+            const s = (t.status || '').toUpperCase();
+            return s === 'IN PROGRESS' || s === 'OPEN' || s === 'SUBMITTED' || s === 'ASSIGNED';
         }).length;
+
         const resolved = tickets.filter(t => {
-            const s = (t.status || '').toLowerCase();
-            return s === 'resolved' || s === 'completed';
+            const s = (t.status || '').toUpperCase();
+            return s === 'RESOLVED' || s === 'COMPLETED';
         }).length;
 
         const totalEl = document.getElementById('kpiTotalTickets');
@@ -1336,13 +1419,15 @@
         if (totalEl) totalEl.textContent = `${total} ${total === 1 ? 'Ticket' : 'Tickets'}`;
         if (activeEl) activeEl.textContent = `${active} Active`;
         if (resolvedEl) resolvedEl.textContent = `${resolved} Completed`;
-        if (activeDescEl) activeDescEl.textContent = active > 0 ? 'Active contractor dispatches in progress' : 'No open issues';
+        if (activeDescEl) activeDescEl.textContent = active > 0 ? 'Active contractor dispatches in progress' : 'No open maintenance issues';
     }
 
     function updateHeaderBadge() {
-        const notifs = getNotifications().filter(n => (n.pov === 'client' || n.pov === 'tenant' || n.pov === 'all') && (n.status === 'unread' || n.is_read === false));
-        const badge = document.getElementById('clientHeaderNotifBadge');
-        if (badge) badge.textContent = notifs.length;
+        getNotifications().then(notifs => {
+            const unread = notifs.filter(n => (n.pov === 'client' || n.pov === 'tenant' || n.pov === 'all') && (!n.is_read || n.status === 'unread'));
+            const badge = document.getElementById('clientHeaderNotifBadge');
+            if (badge) badge.textContent = unread.length;
+        });
     }
 
     async function openMaintenanceModal() {
@@ -1384,7 +1469,7 @@
 
         if (vTicketId) vTicketId.textContent = selected.ticket_id || selected.id;
         if (vTitle) vTitle.textContent = selected.title;
-        if (vLocation) vLocation.innerHTML = `<i class="bi bi-geo-alt"></i> ${selected.property_location || selected.fullLocation || ctx.fullTag}`;
+        if (vLocation) vLocation.innerHTML = `<i class="bi bi-geo-alt"></i> ${ctx.fullTag}`;
         if (vDesc) vDesc.textContent = selected.description;
         if (vStatus) vStatus.textContent = selected.status || 'Open';
         if (vPriority) {
@@ -1392,7 +1477,7 @@
             vPriority.style.color = (selected.priority === 'High' || selected.priority === 'Urgent') ? 'var(--danger, #E11D48)' : 'var(--primary, #2563EB)';
         }
         if (vTech) vTech.textContent = selected.technician || 'Pending Dispatch';
-        if (vTime) vTime.textContent = selected.scheduledTime || selected.scheduled_time || 'Pending Schedule';
+        if (vTime) vTime.textContent = selected.scheduled_time || selected.scheduledTime || 'Pending Schedule';
 
         if (vAttachmentRow) {
             if (selected.attachment) {
@@ -1406,19 +1491,18 @@
         if (modal) modal.classList.add('show');
     }
 
+    // LIVE SUBMIT MAINTENANCE REQUEST (POST /api/maintenance + POST /api/notifications)
     async function submitTicket() {
         const categoryEl = document.getElementById('modalCategory');
         const priorityEl = document.getElementById('modalPriority');
         const titleEl = document.getElementById('modalTitle');
         const descriptionEl = document.getElementById('modalDescription');
-        const permissionEl = document.getElementById('modalPermission');
         const fileInput = document.getElementById('modalFile');
 
-        const category = categoryEl ? categoryEl.value : 'General';
-        const priority = priorityEl ? priorityEl.value : 'Normal';
+        const category = categoryEl ? categoryEl.value : 'General Maintenance';
+        const priority = priorityEl ? priorityEl.value : 'Medium';
         const title = titleEl ? titleEl.value.trim() : '';
         const description = descriptionEl ? descriptionEl.value.trim() : '';
-        const permission = permissionEl ? permissionEl.checked : true;
         const file = fileInput && fileInput.files ? fileInput.files[0] : null;
 
         if (!title || !description) {
@@ -1427,64 +1511,59 @@
         }
 
         const ctx = await getActiveTenantContext();
-        const ticketId = `TCK-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
-        const today = new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+        const ticketCode = `TCK-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+        const orgId = localStorage.getItem('organization_id') || DEFAULT_ORG_ID;
 
         const payload = {
-            ticket_id: ticketId,
+            organization_id: orgId,
+            unit_id: ctx.unitId || null,
+            ticket_id: ticketCode,
             title: title,
             category: category,
             description: description,
             tenant_name: ctx.name,
-            tenant_email: ctx.email,
-            property_location: ctx.fullTag,
-            fullLocation: ctx.fullTag,
             priority: priority,
-            technician: 'Unassigned',
             status: 'Open',
-            scheduled_time: 'Pending Dispatch',
-            date_filed: today,
-            attachment: file ? file.name : null,
-            permission_to_enter: permission,
-            created_at: new Date().toISOString()
+            technician: 'Unassigned',
+            cost: 0.00
         };
 
-        // Live Backend Dispatch
         try {
-            await fetch(MAINTENANCE_API_URL, {
+            const res = await fetch(MAINTENANCE_API_URL, {
                 method: 'POST',
                 headers: getAuthHeaders(),
                 body: JSON.stringify(payload)
             });
+
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                alert(`Error submitting request: ${errData.detail || 'Could not save to Neon database.'}`);
+                return;
+            }
         } catch (e) {
-            console.warn("Backend maintenance log bypassed, saving locally.", e);
+            console.error("Network error while filing ticket:", e);
+            alert("Network connection error. Check server connection.");
+            return;
         }
 
-        let tickets = await getTickets();
-        tickets.unshift({ ...payload, id: ticketId });
-        saveTickets(tickets);
-
-        // Push Notification Alert to Admin POV (maintenance.html)
-        let notifications = getNotifications();
-        const newNotif = {
-            id: `NOTIF-${Date.now()}`,
-            pov: 'admin',
-            category: 'maintenance',
-            status: 'unread',
-            is_read: false,
-            title: `New Maintenance Ticket: ${title}`,
-            time: 'Just now',
-            description: `Tenant <strong>${ctx.name}</strong> (${ctx.fullTag}) filed a <strong>${priority}</strong> priority ticket: "${description}".`,
-            property: ctx.fullTag,
-            tenantName: ctx.name,
-            tag: `Ticket ${ticketId}`,
-            tagColor: priority === 'High' ? 'var(--danger, #E11D48)' : 'var(--primary, #2563EB)',
-            urgent: priority === 'High',
-            actionUrl: 'maintenance.html',
-            actionText: 'Dispatch Technician'
-        };
-        notifications.unshift(newNotif);
-        saveNotifications(notifications);
+        // Dispatch Notification Alert directly to Admin POV (maintenance.html)
+        try {
+            await fetch(NOTIFICATIONS_API_URL, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({
+                    organization_id: orgId,
+                    pov: 'admin',
+                    category: 'maintenance',
+                    status: 'Active',
+                    is_read: false,
+                    title: `New Maintenance Ticket: ${title}`,
+                    description: `Tenant ${ctx.name} (${ctx.fullTag}) filed a ${priority} priority ticket: "${description}".`,
+                    property: ctx.fullTag,
+                    urgent: priority === 'High' || priority === 'Urgent'
+                })
+            });
+        } catch (err) {}
 
         await renderTicketsTable();
         await checkLiveDispatchBanner();
@@ -1495,7 +1574,7 @@
         if (descriptionEl) descriptionEl.value = '';
         if (fileInput) fileInput.value = '';
 
-        alert(`Service Ticket (${ticketId}) submitted successfully!\n\nProperty Manager has been notified for technician dispatch.`);
+        alert(`Service Ticket (${ticketCode}) submitted successfully!\n\nProperty Operations has received your work order for technician assignment.`);
     }
 
     window.onclick = function(event) {
@@ -1578,7 +1657,7 @@
         updateHeaderBadge();
     });
 
-    // Real-Time Cross-Tab Storage Listener
+    // Real-Time Cross-Tab Sync
     window.addEventListener('storage', async (e) => {
         if (['argo_maintenance_tickets', 'argo_notifications', 'argo_leases', 'argo_user', 'argo_pov'].includes(e.key)) {
             await loadUserData();
