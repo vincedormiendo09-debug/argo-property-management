@@ -903,6 +903,10 @@
     const INSPECTIONS_API_URL = `${API_BASE_URL}/inspections`;
     const NOTIFICATIONS_API_URL = `${API_BASE_URL}/notifications`;
 
+    function getOrgId() {
+        return localStorage.getItem('organization_id') || localStorage.getItem('argo_org_id') || DEFAULT_ORG_ID;
+    }
+
     function getAuthHeaders() {
         const token = localStorage.getItem('token') || localStorage.getItem('argo_token');
         return {
@@ -962,14 +966,11 @@
         nav.innerHTML = html;
     }
 
-    // Direct Live API Fetchers
-    async function getProperties(ownerId = null) {
+    // Direct Live API Fetchers Scoped by Organization ID
+    async function getProperties() {
         try {
-            const url = ownerId 
-                ? `${PROPERTIES_API_URL}?owner_id=${encodeURIComponent(ownerId)}` 
-                : PROPERTIES_API_URL;
-
-            const res = await fetch(url, { 
+            const orgId = getOrgId();
+            const res = await fetch(`${PROPERTIES_API_URL}?organization_id=${orgId}`, { 
                 headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
                 cache: 'no-store'
             });
@@ -985,7 +986,8 @@
 
     async function getUnits() {
         try {
-            const res = await fetch(UNITS_API_URL, { 
+            const orgId = getOrgId();
+            const res = await fetch(`${UNITS_API_URL}?organization_id=${orgId}`, { 
                 headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
                 cache: 'no-store'
             });
@@ -1001,7 +1003,8 @@
 
     async function getLeases() {
         try {
-            const res = await fetch(LEASES_API_URL, { 
+            const orgId = getOrgId();
+            const res = await fetch(`${LEASES_API_URL}?organization_id=${orgId}`, { 
                 headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
                 cache: 'no-store'
             });
@@ -1017,7 +1020,8 @@
 
     async function getTickets() {
         try {
-            const res = await fetch(MAINTENANCE_API_URL, { 
+            const orgId = getOrgId();
+            const res = await fetch(`${MAINTENANCE_API_URL}?organization_id=${orgId}`, { 
                 headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
                 cache: 'no-store'
             });
@@ -1033,7 +1037,8 @@
 
     async function getOwnership() {
         try {
-            const res = await fetch(OWNERSHIP_API_URL, { 
+            const orgId = getOrgId();
+            const res = await fetch(`${OWNERSHIP_API_URL}?organization_id=${orgId}`, { 
                 headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
                 cache: 'no-store'
             });
@@ -1049,7 +1054,8 @@
 
     async function getOwners() {
         try {
-            const res = await fetch(OWNERS_API_URL, { 
+            const orgId = getOrgId();
+            const res = await fetch(`${OWNERS_API_URL}?organization_id=${orgId}`, { 
                 headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
                 cache: 'no-store'
             });
@@ -1065,7 +1071,8 @@
 
     async function getNotifications() {
         try {
-            const res = await fetch(NOTIFICATIONS_API_URL, { 
+            const orgId = getOrgId();
+            const res = await fetch(`${NOTIFICATIONS_API_URL}?organization_id=${orgId}`, { 
                 headers: getAuthHeaders(),
                 cache: 'no-store'
             });
@@ -1077,64 +1084,103 @@
         return [];
     }
 
-    // Dynamic Owner Context Resolver (Scoped by Logged-In User & Linked Equity Assets)
+    // Dynamic Owner Context Resolver (Bridges user.id -> owner.id & direct/fractional property links)
     async function getActiveOwnerContext() {
-        const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
-        const userEmail = (user.email || localStorage.getItem('user_email') || '').toLowerCase().trim();
-        const userName = user.name || user.full_name || 'Property Owner';
-        const userId = user.id || null;
+        let user = {};
+        try {
+            user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+        } catch (e) {
+            user = {};
+        }
 
-        const owners = await getOwners();
-        const ownershipList = await getOwnership();
+        const userEmail = (user.email || localStorage.getItem('user_email') || '').toLowerCase().trim();
+        const userName = (user.name || user.full_name || localStorage.getItem('user_name') || 'Property Owner').trim();
+        const userId = user.id ? String(user.id) : null;
+
+        const [owners, ownershipList, properties] = await Promise.all([
+            getOwners(),
+            getOwnership(),
+            getProperties()
+        ]);
 
         // 1. Locate matching owner profile from Neon DB
         const matchedOwner = owners.find(o => {
-            const oUserId = String(o.user_id || o.userId || '');
+            const oUserId = o.user_id ? String(o.user_id) : '';
+            const oId = o.id ? String(o.id) : '';
             const oEmail = (o.email || '').toLowerCase().trim();
-            const oName = (o.name || '').toLowerCase().trim();
+            const oName = (o.name || `${o.first_name || ''} ${o.last_name || ''}`).toLowerCase().trim();
             
-            return (userId && oUserId === String(userId)) ||
+            return (userId && (oUserId === userId || oId === userId)) ||
                    (userEmail && oEmail === userEmail) ||
                    (userName && oName === userName.toLowerCase());
         }) || null;
 
-        const ownerId = matchedOwner ? (matchedOwner.id || matchedOwner.own_id) : userId;
+        // Collect all possible identity keys representing this owner
+        const validOwnerIds = new Set();
+        if (matchedOwner?.id) validOwnerIds.add(String(matchedOwner.id));
+        if (matchedOwner?.user_id) validOwnerIds.add(String(matchedOwner.user_id));
+        if (matchedOwner?.own_id) validOwnerIds.add(String(matchedOwner.own_id));
+        if (userId) validOwnerIds.add(userId);
 
-        // 2. Fetch properties with owner scoping query or fallback filter
-        let properties = await getProperties(ownerId);
-        if (!properties || properties.length === 0) {
-            properties = await getProperties();
-        }
+        const validEmails = new Set();
+        if (userEmail) validEmails.add(userEmail);
+        if (matchedOwner?.email) validEmails.add(matchedOwner.email.toLowerCase().trim());
 
-        // 3. Filter ownership shares strictly belonging to this owner
+        const validNames = new Set();
+        if (userName) validNames.add(userName.toLowerCase());
+        if (matchedOwner?.name) validNames.add(matchedOwner.name.toLowerCase().trim());
+
+        // 2. Filter ownership shares strictly belonging to this owner
         const matchedShares = ownershipList.filter(shr => {
             const shrOwnerId = String(shr.owner_id || shr.ownerId || '');
             const shrOwnerName = (shr.owner_name || shr.ownerName || '').toLowerCase().trim();
-            
-            return (ownerId && shrOwnerId === String(ownerId)) ||
-                   (userId && shrOwnerId === String(userId)) ||
-                   (matchedOwner && shrOwnerId === String(matchedOwner.id)) ||
-                   (userName && shrOwnerName === userName.toLowerCase());
+            const shrEmail = (shr.owner_email || shr.email || '').toLowerCase().trim();
+
+            return validOwnerIds.has(shrOwnerId) ||
+                   validNames.has(shrOwnerName) ||
+                   validEmails.has(shrEmail);
         });
 
-        // 4. Filter properties strictly to those assigned in property_ownership
+        // 3. Resolve owned property IDs and Names from shares and direct property links
         const ownedPropertyIds = new Set(matchedShares.map(s => String(s.property_id || s.propertyId || '')).filter(Boolean));
         const ownedPropertyNames = new Set(matchedShares.map(s => (s.property_name || s.property || s.propertyName || '').toLowerCase().trim()).filter(Boolean));
-        
-        let ownedProperties = properties.filter(p => {
+
+        const ownedProperties = properties.filter(p => {
             const pId = String(p.id || '');
+            const pOwnerId = String(p.owner_id || '');
             const pName = (p.name || p.property_name || '').toLowerCase().trim();
-            return ownedPropertyIds.has(pId) || ownedPropertyNames.has(pName);
+            const pOwnerName = (p.owner_name || '').toLowerCase().trim();
+
+            return validOwnerIds.has(pOwnerId) ||
+                   validNames.has(pOwnerName) ||
+                   ownedPropertyIds.has(pId) ||
+                   ownedPropertyNames.has(pName);
         });
 
-        if (ownedProperties.length === 0 && properties.length > 0 && matchedShares.length === 0) {
-            ownedProperties = properties;
-        }
+        // 4. Auto-synthesize share entry if property is assigned directly via owner_id
+        ownedProperties.forEach(p => {
+            const pId = String(p.id || '');
+            const alreadyHasShare = matchedShares.some(s => String(s.property_id || s.propertyId || '') === pId);
+            if (!alreadyHasShare) {
+                matchedShares.push({
+                    id: `synthesized_${pId}`,
+                    property_id: p.id,
+                    property_name: p.name || p.property_name || 'Property Asset',
+                    owner_id: matchedOwner ? matchedOwner.id : userId,
+                    owner_name: matchedOwner ? matchedOwner.name : userName,
+                    share_percent: 100.00,
+                    role: 'Primary Managing Owner'
+                });
+            }
+        });
 
         return {
             user,
             owner: matchedOwner,
-            ownerId,
+            ownerId: matchedOwner ? matchedOwner.id : userId,
+            validOwnerIds: Array.from(validOwnerIds),
+            validEmails: Array.from(validEmails),
+            validNames: Array.from(validNames),
             name: matchedOwner?.name || userName,
             email: userEmail,
             shares: matchedShares,
@@ -1150,8 +1196,8 @@
 
         if (nameEl) nameEl.textContent = ctx.name;
         if (roleEl) {
-            const primaryShare = ctx.shares.find(s => (s.role || '').toLowerCase().includes('primary'));
-            roleEl.textContent = primaryShare ? `${primaryShare.property_name || primaryShare.property || 'Asset'} (Managing)` : 'Equity Partner';
+            const primaryShare = ctx.shares.find(s => (s.role || '').toLowerCase().includes('primary')) || ctx.shares[0];
+            roleEl.textContent = primaryShare ? `${primaryShare.property_name || primaryShare.property || 'Asset'} (Owner)` : 'Equity Partner';
         }
 
         if (avatarEl) {
@@ -1389,6 +1435,7 @@
         const propName = selectedOpt ? (selectedOpt.dataset.name || selectedOpt.text) : 'Property';
         const notesEl = document.getElementById('modalAuditNotes');
         const notes = notesEl ? notesEl.value.trim() : '';
+        const orgId = getOrgId();
 
         if (!propId) {
             alert("Please select a target property asset.");
@@ -1399,7 +1446,7 @@
         const newInspCode = `INS-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
         const inspectionPayload = {
-            organization_id: DEFAULT_ORG_ID,
+            organization_id: orgId,
             inspection_id: newInspCode,
             unit_name: propName.split('(')[0].trim(),
             property_info: propName,
@@ -1412,7 +1459,7 @@
         };
 
         try {
-            const res = await fetch(INSPECTIONS_API_URL, {
+            const res = await fetch(`${INSPECTIONS_API_URL}?organization_id=${orgId}`, {
                 method: 'POST',
                 headers: getAuthHeaders(),
                 body: JSON.stringify(inspectionPayload)
@@ -1428,11 +1475,11 @@
 
         // Push Live System Notification to Admin
         try {
-            await fetch(NOTIFICATIONS_API_URL, {
+            await fetch(`${NOTIFICATIONS_API_URL}?organization_id=${orgId}`, {
                 method: 'POST',
                 headers: getAuthHeaders(),
                 body: JSON.stringify({
-                    organization_id: DEFAULT_ORG_ID,
+                    organization_id: orgId,
                     pov: 'admin',
                     category: 'asset',
                     status: 'Active',

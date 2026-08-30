@@ -728,6 +728,10 @@
     let yieldChartInstance = null;
     let equityChartInstance = null;
 
+    function getOrgId() {
+        return localStorage.getItem('organization_id') || localStorage.getItem('argo_org_id') || DEFAULT_ORG_ID;
+    }
+
     function parseCurrency(val) {
         if (val === undefined || val === null || val === '') return 0;
         if (typeof val === 'number') return isNaN(val) ? 0 : val;
@@ -800,10 +804,11 @@
         nav.innerHTML = html;
     }
 
-    // Direct Live API Fetchers (No Stale LocalStorage Cache Poisoning)
+    // Direct Database Fetchers Scoped by Organization ID
     async function getProperties() {
         try {
-            const res = await fetch(PROPERTIES_API_URL, { 
+            const orgId = getOrgId();
+            const res = await fetch(`${PROPERTIES_API_URL}?organization_id=${orgId}`, { 
                 headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
                 cache: 'no-store'
             });
@@ -819,7 +824,8 @@
 
     async function getUnits() {
         try {
-            const res = await fetch(UNITS_API_URL, { 
+            const orgId = getOrgId();
+            const res = await fetch(`${UNITS_API_URL}?organization_id=${orgId}`, { 
                 headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
                 cache: 'no-store'
             });
@@ -835,7 +841,8 @@
 
     async function getLeases() {
         try {
-            const res = await fetch(LEASES_API_URL, { 
+            const orgId = getOrgId();
+            const res = await fetch(`${LEASES_API_URL}?organization_id=${orgId}`, { 
                 headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
                 cache: 'no-store'
             });
@@ -851,7 +858,8 @@
 
     async function getInvoices() {
         try {
-            const res = await fetch(INVOICES_API_URL, { 
+            const orgId = getOrgId();
+            const res = await fetch(`${INVOICES_API_URL}?organization_id=${orgId}`, { 
                 headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
                 cache: 'no-store'
             });
@@ -867,7 +875,8 @@
 
     async function getTransactions() {
         try {
-            const res = await fetch(TRANSACTIONS_API_URL, { 
+            const orgId = getOrgId();
+            const res = await fetch(`${TRANSACTIONS_API_URL}?organization_id=${orgId}`, { 
                 headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
                 cache: 'no-store'
             });
@@ -883,7 +892,8 @@
 
     async function getOwnership() {
         try {
-            const res = await fetch(OWNERSHIP_API_URL, { 
+            const orgId = getOrgId();
+            const res = await fetch(`${OWNERSHIP_API_URL}?organization_id=${orgId}`, { 
                 headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
                 cache: 'no-store'
             });
@@ -899,7 +909,8 @@
 
     async function getOwners() {
         try {
-            const res = await fetch(OWNERS_API_URL, { 
+            const orgId = getOrgId();
+            const res = await fetch(`${OWNERS_API_URL}?organization_id=${orgId}`, { 
                 headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
                 cache: 'no-store'
             });
@@ -915,7 +926,8 @@
 
     async function getNotifications() {
         try {
-            const res = await fetch(NOTIFICATIONS_API_URL, { 
+            const orgId = getOrgId();
+            const res = await fetch(`${NOTIFICATIONS_API_URL}?organization_id=${orgId}`, { 
                 headers: getAuthHeaders(),
                 cache: 'no-store'
             });
@@ -927,59 +939,107 @@
         return [];
     }
 
-    // Dynamic Owner Context Resolver (Strictly Scoped by Logged-In User & Assigned Equity)
+    // Dynamic Multi-Marker Owner Context Resolution
     async function getActiveOwnerContext() {
-        const user = JSON.parse(localStorage.getItem('argo_user') || '{}');
-        const userEmail = (user.email || localStorage.getItem('user_email') || '').toLowerCase().trim();
-        const userName = user.name || user.full_name || 'Property Owner';
-        const userId = user.id || null;
+        let user = {};
+        try {
+            user = JSON.parse(localStorage.getItem('argo_user') || '{}');
+        } catch (e) {
+            user = {};
+        }
 
-        const owners = await getOwners();
-        const ownershipList = await getOwnership();
-        const properties = await getProperties();
+        const userEmail = (user.email || localStorage.getItem('user_email') || localStorage.getItem('email') || '').toLowerCase().trim();
+        const userName = (user.name || user.full_name || localStorage.getItem('user_name') || 'Property Owner').trim();
+        const userId = user.id ? String(user.id) : null;
+
+        const [owners, ownershipList, properties] = await Promise.all([
+            getOwners(),
+            getOwnership(),
+            getProperties()
+        ]);
 
         // 1. Locate matching owner profile from Neon DB
         const matchedOwner = owners.find(o => {
-            const oUserId = String(o.user_id || o.userId || '');
+            const oUserId = o.user_id ? String(o.user_id) : '';
+            const oId = o.id ? String(o.id) : '';
             const oEmail = (o.email || '').toLowerCase().trim();
-            const oName = (o.name || '').toLowerCase().trim();
+            const oName = (o.name || `${o.first_name || ''} ${o.last_name || ''}`).toLowerCase().trim();
             
-            return (userId && oUserId === String(userId)) ||
+            return (userId && (oUserId === userId || oId === userId)) ||
                    (userEmail && oEmail === userEmail) ||
                    (userName && oName === userName.toLowerCase());
         }) || null;
 
-        const ownerId = matchedOwner ? (matchedOwner.id || matchedOwner.own_id) : userId;
+        // Collect all possible identity keys representing this owner
+        const validOwnerIds = new Set();
+        if (matchedOwner?.id) validOwnerIds.add(String(matchedOwner.id));
+        if (matchedOwner?.user_id) validOwnerIds.add(String(matchedOwner.user_id));
+        if (matchedOwner?.own_id) validOwnerIds.add(String(matchedOwner.own_id));
+        if (userId) validOwnerIds.add(userId);
 
-        // 2. Filter ownership share records strictly belonging to this owner
+        const validEmails = new Set();
+        if (userEmail) validEmails.add(userEmail);
+        if (matchedOwner?.email) validEmails.add(matchedOwner.email.toLowerCase().trim());
+
+        const validNames = new Set();
+        if (userName) validNames.add(userName.toLowerCase());
+        if (matchedOwner?.name) validNames.add(matchedOwner.name.toLowerCase().trim());
+
+        // 2. Filter ownership shares matching any identity marker
         const matchedShares = ownershipList.filter(shr => {
             const shrOwnerId = String(shr.owner_id || shr.ownerId || '');
             const shrOwnerName = (shr.owner_name || shr.ownerName || '').toLowerCase().trim();
-            
-            return (ownerId && shrOwnerId === String(ownerId)) ||
-                   (userId && shrOwnerId === String(userId)) ||
-                   (matchedOwner && shrOwnerId === String(matchedOwner.id)) ||
-                   (userName && shrOwnerName === userName.toLowerCase());
+            const shrEmail = (shr.owner_email || shr.email || '').toLowerCase().trim();
+
+            return validOwnerIds.has(shrOwnerId) ||
+                   validNames.has(shrOwnerName) ||
+                   validEmails.has(shrEmail);
         });
 
-        // 3. Resolve owned property IDs and Names
+        // 3. Find properties assigned directly via property.owner_id or matched shares
         const ownedPropertyIds = new Set(matchedShares.map(s => String(s.property_id || s.propertyId || '')).filter(Boolean));
         const ownedPropertyNames = new Set(matchedShares.map(s => (s.property_name || s.property || s.propertyName || '').toLowerCase().trim()).filter(Boolean));
 
-        const ownedProperties = properties.filter(p => {
+        const directOwnedProperties = properties.filter(p => {
             const pId = String(p.id || '');
+            const pOwnerId = String(p.owner_id || '');
             const pName = (p.name || p.property_name || '').toLowerCase().trim();
-            return ownedPropertyIds.has(pId) || ownedPropertyNames.has(pName);
+            const pOwnerName = (p.owner_name || '').toLowerCase().trim();
+
+            return validOwnerIds.has(pOwnerId) ||
+                   validNames.has(pOwnerName) ||
+                   ownedPropertyIds.has(pId) ||
+                   ownedPropertyNames.has(pName);
+        });
+
+        // 4. If a property is assigned directly but missing a fractional share record, synthesize a 100% share entry
+        directOwnedProperties.forEach(p => {
+            const pId = String(p.id || '');
+            const alreadyHasShare = matchedShares.some(s => String(s.property_id || s.propertyId || '') === pId);
+            if (!alreadyHasShare) {
+                matchedShares.push({
+                    id: `synthesized_${pId}`,
+                    property_id: p.id,
+                    property_name: p.name || p.property_name || 'Property Asset',
+                    owner_id: matchedOwner ? matchedOwner.id : userId,
+                    owner_name: matchedOwner ? matchedOwner.name : userName,
+                    share_percent: 100.00,
+                    role: 'Primary Managing Owner'
+                });
+            }
         });
 
         return {
             user,
             owner: matchedOwner,
-            ownerId,
+            ownerId: matchedOwner ? matchedOwner.id : userId,
+            validOwnerIds: Array.from(validOwnerIds),
+            validEmails: Array.from(validEmails),
+            validNames: Array.from(validNames),
             name: matchedOwner?.name || userName,
             email: userEmail,
             shares: matchedShares,
-            properties: ownedProperties
+            properties: directOwnedProperties
         };
     }
 
@@ -991,8 +1051,8 @@
 
         if (nameEl) nameEl.textContent = ctx.name;
         if (roleEl) {
-            const primaryShare = ctx.shares.find(s => (s.role || '').toLowerCase().includes('primary'));
-            roleEl.textContent = primaryShare ? `${primaryShare.property_name || primaryShare.property || 'Asset'} (Managing)` : 'Equity Partner';
+            const primaryShare = ctx.shares.find(s => (s.role || '').toLowerCase().includes('primary')) || ctx.shares[0];
+            roleEl.textContent = primaryShare ? `${primaryShare.property_name || primaryShare.property || 'Asset'} (Owner)` : 'Equity Partner';
         }
 
         if (avatarEl) {
@@ -1005,10 +1065,12 @@
     // Dynamic Metrics Computation Engine (Strictly Proportional to Owner Equity)
     async function updateOwnerMetrics() {
         const ctx = await getActiveOwnerContext();
-        const units = await getUnits();
-        const leases = await getLeases();
-        const invoices = await getInvoices();
-        const transactions = await getTransactions();
+        const [units, leases, invoices, transactions] = await Promise.all([
+            getUnits(),
+            getLeases(),
+            getInvoices(),
+            getTransactions()
+        ]);
 
         if (ctx.shares.length === 0 && ctx.properties.length === 0) {
             if (document.getElementById('kpiAssetValue')) document.getElementById('kpiAssetValue').textContent = '₱0.00';
@@ -1025,14 +1087,12 @@
         let totalOwnedUnits = 0;
         let totalOccupiedUnits = 0;
 
-        // Iterate over owner's shares to compute strictly proportional values
         ctx.shares.forEach(shr => {
             const propIdStr = String(shr.property_id || shr.propertyId || '');
             const propName = (shr.property_name || shr.property || shr.propertyName || '').toLowerCase().trim();
             const sharePercent = parseFloat(shr.share_percent || shr.sharePercent || shr.share || 100);
             const shareMultiplier = sharePercent / 100.0;
 
-            // Resolve units mapped to this property
             const propUnits = units.filter(u => {
                 const uPropId = String(u.property_id || '');
                 const uPropName = (u.property_name || (u.property ? (u.property.name || u.property.property_name) : '') || '').toLowerCase().trim();
@@ -1060,10 +1120,8 @@
             totalOwnedUnits += propTotalUnits;
             totalOccupiedUnits += propOccupiedUnits;
 
-            // Valuation baseline: ₱25M valuation per property * equity share
             totalProportionalValuation += 25000000 * shareMultiplier;
 
-            // Calculate paid rent for this property scaled by share
             invoices.forEach(inv => {
                 const invLoc = (inv.property_location || inv.sub || '').toLowerCase().trim();
                 const invLeaseId = String(inv.lease_id || '');
@@ -1079,7 +1137,6 @@
                 }
             });
 
-            // Calculate maintenance repair expenses scaled by share
             transactions.forEach(t => {
                 const tLoc = (t.property_location || t.fullLocation || '').toLowerCase().trim();
                 const isOutflow = (t.direction || '').toUpperCase() === 'OUTFLOW';
@@ -1091,7 +1148,6 @@
             });
         });
 
-        // 10% Management Fee deduction
         const proportionalPmFee = totalProportionalGrossRent * 0.10;
         const netOperatingIncome = Math.max(0, totalProportionalGrossRent - proportionalPmFee - totalProportionalRepairs);
 

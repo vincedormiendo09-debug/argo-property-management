@@ -978,6 +978,10 @@
 
     let activeTabStatus = "ALL";
 
+    function getOrgId() {
+        return localStorage.getItem('organization_id') || localStorage.getItem('argo_org_id') || DEFAULT_ORG_ID;
+    }
+
     function getAuthHeaders() {
         const token = localStorage.getItem('token') || localStorage.getItem('argo_token');
         return {
@@ -1087,7 +1091,8 @@
 
     async function updateHeaderBadge() {
         try {
-            const res = await fetch(NOTIFICATIONS_API_URL, { 
+            const orgId = getOrgId();
+            const res = await fetch(`${NOTIFICATIONS_API_URL}?organization_id=${orgId}`, { 
                 headers: getAuthHeaders(),
                 cache: 'no-store'
             });
@@ -1102,10 +1107,11 @@
         } catch (e) {}
     }
 
-    // Direct Database Fetchers (No LocalStorage Cache Poisoning)
+    // Direct Database Fetchers
     async function getProperties() {
         try {
-            const res = await fetch(PROPERTIES_API_URL, { 
+            const orgId = getOrgId();
+            const res = await fetch(`${PROPERTIES_API_URL}?organization_id=${orgId}`, { 
                 headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
                 cache: 'no-store'
             });
@@ -1121,7 +1127,8 @@
 
     async function getBuildings() {
         try {
-            const res = await fetch(BUILDINGS_API_URL, { 
+            const orgId = getOrgId();
+            const res = await fetch(`${BUILDINGS_API_URL}?organization_id=${orgId}`, { 
                 headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
                 cache: 'no-store'
             });
@@ -1137,7 +1144,8 @@
 
     async function getUnits() {
         try {
-            const response = await fetch(UNITS_API_URL, { 
+            const orgId = getOrgId();
+            const response = await fetch(`${UNITS_API_URL}?organization_id=${orgId}`, { 
                 headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
                 cache: 'no-store'
             });
@@ -1153,7 +1161,8 @@
 
     async function getLeases() {
         try {
-            const res = await fetch(LEASES_API_URL, { 
+            const orgId = getOrgId();
+            const res = await fetch(`${LEASES_API_URL}?organization_id=${orgId}`, { 
                 headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
                 cache: 'no-store'
             });
@@ -1221,6 +1230,8 @@
             buildingSelect.innerHTML += `<option value="" data-floors="5">Main Structure (No separate building records)</option>`;
         }
 
+        cascadeFloorsForBuilding(buildingSelect.value);
+
         buildingSelect.onchange = function() {
             cascadeFloorsForBuilding(this.value);
         };
@@ -1233,7 +1244,7 @@
         floorSelect.innerHTML = '<option value="">Select floor...</option>';
 
         const buildingSelect = document.getElementById('modalBuildingSelect');
-        const selectedOpt = buildingSelect ? buildingSelect.options[buildingSelect.selectedIndex] : null;
+        const selectedOpt = buildingSelect && buildingSelect.selectedIndex >= 0 ? buildingSelect.options[buildingSelect.selectedIndex] : null;
         const floorsCount = selectedOpt ? parseInt(selectedOpt.dataset.floors) || 5 : 5;
 
         const floorLabels = ['1st Floor', '2nd Floor', '3rd Floor', '4th Floor', '5th Floor', '6th Floor', '7th Floor', '8th Floor', '9th Floor', '10th Floor'];
@@ -1361,7 +1372,7 @@
         const rentInput = document.getElementById('modalRent');
         const statusSelect = document.getElementById('modalStatus');
         const subtitleInput = document.getElementById('modalSubtitle');
-        const orgId = localStorage.getItem('organization_id') || DEFAULT_ORG_ID;
+        const orgId = getOrgId();
 
         const propertyId = propertySelect ? propertySelect.value : '';
         const buildingId = buildingSelect && buildingSelect.value ? buildingSelect.value : null;
@@ -1431,7 +1442,8 @@
         if (!confirm(`Are you sure you want to permanently delete "${displayName}" from the database?`)) return;
 
         try {
-            const response = await fetch(`${UNITS_API_URL}/${encodeURIComponent(id)}`, {
+            const orgId = getOrgId();
+            const response = await fetch(`${UNITS_API_URL}/${encodeURIComponent(id)}?organization_id=${orgId}`, {
                 method: 'DELETE',
                 headers: getAuthHeaders()
             });
@@ -1484,6 +1496,12 @@
         const modal = document.getElementById("unitModal");
         if (modal) modal.classList.remove("show"); 
     }
+
+    window.onclick = function(event) {
+        if (event.target.classList && event.target.classList.contains('modal-overlay')) {
+            event.target.classList.remove('show');
+        }
+    };
 
     function setTabFilter(status, buttonEl) {
         activeTabStatus = status;
@@ -1568,5 +1586,3 @@
         });
     }
 </script>
-</body>
-</html>

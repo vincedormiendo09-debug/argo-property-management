@@ -976,6 +976,10 @@
     let targetLeaseIdForMoveOut = null;
     let targetUnitIdForMoveOut = null;
 
+    function getOrgId() {
+        return localStorage.getItem('organization_id') || localStorage.getItem('argo_org_id') || DEFAULT_ORG_ID;
+    }
+
     function getAuthHeaders() {
         const token = localStorage.getItem('token') || localStorage.getItem('argo_token');
         return {
@@ -1100,10 +1104,11 @@
         }
     }
 
-    // Direct Live API Fetchers (No Stale LocalStorage Traps)
+    // Direct Live API Fetchers
     async function getLeases() {
         try {
-            const response = await fetch(LEASES_API_URL, { 
+            const orgId = getOrgId();
+            const response = await fetch(`${LEASES_API_URL}?organization_id=${orgId}`, { 
                 headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
                 cache: 'no-store'
             });
@@ -1119,7 +1124,8 @@
 
     async function getTenantsList() {
         try {
-            const res = await fetch(TENANTS_API_URL, { 
+            const orgId = getOrgId();
+            const res = await fetch(`${TENANTS_API_URL}?organization_id=${orgId}`, { 
                 headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
                 cache: 'no-store'
             });
@@ -1135,7 +1141,8 @@
 
     async function getUnitsList() {
         try {
-            const res = await fetch(UNITS_API_URL, { 
+            const orgId = getOrgId();
+            const res = await fetch(`${UNITS_API_URL}?organization_id=${orgId}`, { 
                 headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
                 cache: 'no-store'
             });
@@ -1151,7 +1158,8 @@
 
     async function updateHeaderBadge() {
         try {
-            const res = await fetch(NOTIFICATIONS_API_URL, { 
+            const orgId = getOrgId();
+            const res = await fetch(`${NOTIFICATIONS_API_URL}?organization_id=${orgId}`, { 
                 headers: getAuthHeaders(),
                 cache: 'no-store'
             });
@@ -1190,11 +1198,10 @@
         if (unitSelect) {
             unitSelect.innerHTML = '<option value="">Select Target Unit...</option>';
             if (units.length > 0) {
-                // Sort units: Available first
                 const sortedUnits = [...units].sort((a, b) => {
-                    const isAvailA = (a.status || 'Available').toUpperCase() === 'AVAILABLE';
-                    const isAvailB = (b.status || 'Available').toUpperCase() === 'AVAILABLE';
-                    return isAvailB - isAvailA;
+                    const isAvailA = (a.status || 'Available').toUpperCase() === 'AVAILABLE' || (a.status || '').toUpperCase() === 'VACANT';
+                    const isAvailB = (b.status || 'Available').toUpperCase() === 'AVAILABLE' || (b.status || '').toUpperCase() === 'VACANT';
+                    return (isAvailB ? 1 : 0) - (isAvailA ? 1 : 0);
                 });
 
                 sortedUnits.forEach(u => {
@@ -1333,7 +1340,7 @@
         alert(`Lease Agreement: ${l.lease_id || l.id}\nTenant: ${l.tenant_name || l.tenantName}\nProperty & Location: ${l.property_name || l.property} • ${l.unit_number || l.unit}\nTerm: ${termText}\nMonthly Rent: ₱${parseFloat(l.rent || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}\nSecurity Deposit: ₱${parseFloat(l.deposit || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}\nStatus: ${l.status}`);
     }
 
-    // LIVE CREATE LEASE & AUTO-TRANSITION UNIT (POST /api/leases)
+    // LIVE CREATE LEASE (POST /api/leases)
     async function saveLease() {
         const tenantSelect = document.getElementById('modalTenantName');
         const unitSelect = document.getElementById('modalUnitLocation');
@@ -1351,10 +1358,10 @@
 
         const rent = parseFloat(document.getElementById('modalRentAmount').value) || 0;
         const deposit = parseFloat(document.getElementById('modalDepositAmount').value) || 0;
-        const status = document.getElementById('modalStatusSelect').value || 'Active';
+        const status = document.getElementById('modalStatusSelect').value || 'ACTIVE';
         const startDate = document.getElementById('modalStartDate').value || new Date().toISOString().split('T')[0];
         const endDate = document.getElementById('modalEndDate').value || null;
-        const orgId = localStorage.getItem('organization_id') || DEFAULT_ORG_ID;
+        const orgId = getOrgId();
 
         if (!tenantId || !unitId) {
             alert('Please select both a tenant profile and a target unit.');
@@ -1381,7 +1388,7 @@
             end_date: endDate,
             rent: rent,
             deposit: deposit,
-            status: status === 'ACTIVE' ? 'Active' : status
+            status: status.toUpperCase() === 'ACTIVE' ? 'ACTIVE' : status
         };
 
         try {
@@ -1400,22 +1407,6 @@
             console.error("Network error while creating lease:", e);
             alert("Network connection error. Check server connection.");
             return;
-        }
-
-        // Auto-mark target Unit as Occupied in Neon PostgreSQL
-        if ((status.toUpperCase() === 'ACTIVE' || status.toUpperCase() === 'OCCUPIED') && unitId) {
-            try {
-                await fetch(`${UNITS_API_URL}/${encodeURIComponent(unitId)}`, {
-                    method: 'PATCH',
-                    headers: getAuthHeaders(),
-                    body: JSON.stringify({
-                        status: 'Occupied',
-                        tenant_name: tenantName
-                    })
-                });
-            } catch (err) {
-                console.warn("Unit status transition warning:", err);
-            }
         }
 
         alert(`Lease agreement (${newLeaseCode}) registered successfully in database!`);
@@ -1440,7 +1431,7 @@
             await fetch(`${LEASES_API_URL}/${encodeURIComponent(leaseId)}`, {
                 method: 'PATCH',
                 headers: getAuthHeaders(),
-                body: JSON.stringify({ status: 'Active' })
+                body: JSON.stringify({ status: 'ACTIVE' })
             });
 
             if (unitId) {
@@ -1448,10 +1439,10 @@
                     method: 'PATCH',
                     headers: getAuthHeaders(),
                     body: JSON.stringify({
-                        status: 'Occupied',
+                        status: 'OCCUPIED',
                         tenant_name: tenantName
                     })
-                });
+                }).catch(() => ({}));
             }
         } catch (e) {
             console.error("Backend activation error:", e);
@@ -1477,16 +1468,13 @@
         if (!targetLeaseIdForMoveOut) return;
 
         const moveOutDate = document.getElementById('moveOutDate').value || new Date().toISOString().split('T')[0];
-        const depositStatus = document.getElementById('moveOutDepositStatus').value;
-        const moveOutNotes = document.getElementById('moveOutNotes').value.trim();
 
-        // 1. End the lease agreement
         try {
             await fetch(`${LEASES_API_URL}/${encodeURIComponent(targetLeaseIdForMoveOut)}`, {
                 method: 'PATCH',
                 headers: getAuthHeaders(),
                 body: JSON.stringify({ 
-                    status: 'Ended',
+                    status: 'ENDED',
                     end_date: moveOutDate
                 })
             });
@@ -1494,14 +1482,13 @@
             console.error("Lease termination error:", e);
         }
 
-        // 2. Revert the unit status back to Available
         if (targetUnitIdForMoveOut) {
             try {
                 await fetch(`${UNITS_API_URL}/${encodeURIComponent(targetUnitIdForMoveOut)}`, {
                     method: 'PATCH',
                     headers: getAuthHeaders(),
                     body: JSON.stringify({ 
-                        status: 'Available',
+                        status: 'VACANT',
                         tenant_name: null
                     })
                 });
@@ -1514,7 +1501,8 @@
         closeModal('moveOutModal');
         targetLeaseIdForMoveOut = null;
         targetUnitIdForMoveOut = null;
-        document.getElementById('moveOutNotes').value = '';
+        const notesEl = document.getElementById('moveOutNotes');
+        if (notesEl) notesEl.value = '';
 
         await renderLeasesTable();
     }
@@ -1535,13 +1523,12 @@
                 return;
             }
 
-            // Free up unit if deleted lease was active
             if (unitId) {
                 await fetch(`${UNITS_API_URL}/${encodeURIComponent(unitId)}`, {
                     method: 'PATCH',
                     headers: getAuthHeaders(),
                     body: JSON.stringify({ 
-                        status: 'Available',
+                        status: 'VACANT',
                         tenant_name: null
                     })
                 }).catch(() => ({}));
@@ -1624,11 +1611,11 @@
             if (row.cells.length === 1) return;
             totalRows++;
             const text = row.innerText.toLowerCase();
-            const rowStatus = row.dataset.status || "";
+            const rowStatus = (row.dataset.status || "").toUpperCase();
 
-            const matchesTab = (activeTabStatus === "ALL" || rowStatus.toUpperCase() === activeTabStatus.toUpperCase());
+            const matchesTab = (activeTabStatus === "ALL" || rowStatus === activeTabStatus.toUpperCase());
             const matchesSearch = searchQuery === "" || text.includes(searchQuery);
-            const matchesStatus = (statusVal === "" || rowStatus.toUpperCase() === statusVal.toUpperCase());
+            const matchesStatus = (statusVal === "" || rowStatus === statusVal.toUpperCase());
 
             if (matchesTab && matchesSearch && matchesStatus) {
                 row.style.display = "";
@@ -1645,8 +1632,10 @@
     }
 
     function resetFilters() {
-        document.getElementById("searchInput").value = "";
-        document.getElementById("statusFilter").value = "";
+        const searchInput = document.getElementById("searchInput");
+        const statusFilter = document.getElementById("statusFilter");
+        if (searchInput) searchInput.value = "";
+        if (statusFilter) statusFilter.value = "";
         const firstTab = document.querySelectorAll('.tab')[0];
         if (firstTab) setTabFilter('ALL', firstTab);
     }
@@ -1675,4 +1664,3 @@
         });
     }
 </script>
-</body>

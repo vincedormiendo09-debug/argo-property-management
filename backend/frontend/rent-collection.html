@@ -993,6 +993,10 @@
 
     let currentInspectedInvoiceId = null;
 
+    function getOrgId() {
+        return localStorage.getItem('organization_id') || localStorage.getItem('argo_org_id') || DEFAULT_ORG_ID;
+    }
+
     function parseCurrency(val) {
         if (val === undefined || val === null || val === '') return 0;
         if (typeof val === 'number') return isNaN(val) ? 0 : val;
@@ -1099,13 +1103,14 @@
 
         if (nameEl) nameEl.textContent = user.name || 'System Admin';
         if (roleEl) roleEl.textContent = user.role || 'Property Manager';
-        if (avatarEl) avatarEl.textContent = user.avatar || 'SA';
+        if (avatarEl) avatarEl.textContent = user.avatar || (user.name ? user.name.charAt(0) : 'SA');
     }
 
-    // Direct Live API Fetchers (No LocalStorage Cache Poisoning)
+    // Direct Database Fetchers Scoped by Organization ID
     async function getLeasesList() {
         try {
-            const res = await fetch(LEASES_API_URL, { 
+            const orgId = getOrgId();
+            const res = await fetch(`${LEASES_API_URL}?organization_id=${orgId}`, { 
                 headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
                 cache: 'no-store'
             });
@@ -1121,7 +1126,8 @@
 
     async function getInvoices() {
         try {
-            const response = await fetch(INVOICES_API_URL, { 
+            const orgId = getOrgId();
+            const response = await fetch(`${INVOICES_API_URL}?organization_id=${orgId}`, { 
                 headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
                 cache: 'no-store'
             });
@@ -1137,7 +1143,8 @@
 
     async function getNotifications() {
         try {
-            const res = await fetch(NOTIFICATIONS_API_URL, { 
+            const orgId = getOrgId();
+            const res = await fetch(`${NOTIFICATIONS_API_URL}?organization_id=${orgId}`, { 
                 headers: getAuthHeaders(),
                 cache: 'no-store'
             });
@@ -1155,7 +1162,7 @@
         if (badgeEl) badgeEl.textContent = notifs.length;
     }
 
-    // Populate Dynamic Active Lease Dropdowns
+    // Populate Dynamic Active Lease Dropdowns (Extracts tenant_id, lease_id, location, and rent)
     async function populateModalDropdowns() {
         const leases = await getLeasesList();
         const activeLeases = leases.filter(l => (l.status || '').toUpperCase() === 'ACTIVE');
@@ -1167,9 +1174,12 @@
             activeLeases.forEach(l => {
                 const tName = l.tenant_name || l.tenantName || 'Tenant';
                 const uLoc = l.property_name && l.unit_number ? `${l.property_name} • ${l.unit_number}` : (l.unit || 'Assigned Unit');
-                const rentVal = parseCurrency(l.rent || l.rent_amount || 0);
+                const rentVal = parseCurrency(l.rent || l.rent_amount || l.monthly_rent || 0);
                 const lId = l.id || l.lease_id;
-                select.innerHTML += `<option value="${tName}|${uLoc}|${lId}|${rentVal}|${l.tenant_email || ''}">${tName} — ${uLoc} (Rent: ${formatPeso(rentVal)})</option>`;
+                const tId = l.tenant_id || '';
+                const tEmail = l.tenant_email || l.email || '';
+                
+                select.innerHTML += `<option value="${tName}|${uLoc}|${lId}|${rentVal}|${tEmail}|${tId}">${tName} — ${uLoc} (Rent: ${formatPeso(rentVal)})</option>`;
             });
         } else {
             select.innerHTML += '<option value="" disabled>No active leases found in database. Create an active lease first.</option>';
@@ -1259,7 +1269,7 @@
             let actionsHtml = '';
             if (statusCategory === 'Pending' || statusCategory === 'Unpaid') {
                 actionsHtml = `
-                    <button class="action-button verify-btn" title="Approve & Mark as Paid" style="color:#059669;" onclick="verifyTenantPayment('${invId}', '${displayRef}', ${parseCurrency(inv.amount)}, '${escapeQuotes(tenantName)}', '${escapeQuotes(locationTag)}')"><i class="bi bi-check-circle-fill" style="font-size:16px;"></i></button>
+                    <button class="action-button verify-btn" title="Approve & Mark as Paid" style="color:#059669;" onclick="verifyTenantPayment('${invId}', '${escapeQuotes(displayRef)}', ${parseCurrency(inv.amount)}, '${escapeQuotes(tenantName)}', '${escapeQuotes(locationTag)}')"><i class="bi bi-check-circle-fill" style="font-size:16px;"></i></button>
                     <button class="action-button" title="Inspect Details" onclick="inspectPaymentProof('${invId}')"><i class="bi bi-eye"></i></button>
                 `;
             } else {
@@ -1269,7 +1279,7 @@
             }
 
             actionsHtml += `
-                <button class="action-button delete" title="Delete Invoice" onclick="deleteInvoice('${invId}', '${displayRef}')"><i class="bi bi-trash"></i></button>
+                <button class="action-button delete" title="Delete Invoice" onclick="deleteInvoice('${invId}', '${escapeQuotes(displayRef)}')"><i class="bi bi-trash"></i></button>
             `;
 
             tr.innerHTML = `
@@ -1347,16 +1357,16 @@
         }
     }
 
-    // LIVE VERIFY / SETTLE PAYMENT (PUT/PATCH /api/invoices/{id} + POST /api/transactions)
+    // LIVE VERIFY / SETTLE PAYMENT (PATCH /api/invoices/{id} + POST /api/transactions + POST /api/notifications)
     async function verifyTenantPayment(invoiceId, refNo, amount, tenantName = 'Tenant', locationTag = 'Property Location') {
         if (!confirm(`Are you sure you want to verify and mark payment ${refNo} for ${formatPeso(amount)} as PAID in Neon database?`)) return;
 
-        const orgId = localStorage.getItem('organization_id') || DEFAULT_ORG_ID;
+        const orgId = getOrgId();
         const verifiedChannel = refNo.toUpperCase().includes('GCASH') ? 'GCash' : (refNo.toUpperCase().includes('BANK') ? 'Bank Transfer' : 'GCASH / Online Bank');
 
         // 1. Update Invoice in Neon PostgreSQL
         try {
-            const res = await fetch(`${INVOICES_API_URL}/${encodeURIComponent(invoiceId)}`, {
+            const res = await fetch(`${INVOICES_API_URL}/${encodeURIComponent(invoiceId)}?organization_id=${orgId}`, {
                 method: 'PATCH',
                 headers: getAuthHeaders(),
                 body: JSON.stringify({ 
@@ -1367,8 +1377,7 @@
             });
 
             if (!res.ok) {
-                // Fallback PUT attempt
-                await fetch(`${INVOICES_API_URL}/${encodeURIComponent(invoiceId)}`, {
+                await fetch(`${INVOICES_API_URL}/${encodeURIComponent(invoiceId)}?organization_id=${orgId}`, {
                     method: 'PUT',
                     headers: getAuthHeaders(),
                     body: JSON.stringify({ 
@@ -1398,7 +1407,7 @@
         };
 
         try {
-            await fetch(TRANSACTIONS_API_URL, {
+            await fetch(`${TRANSACTIONS_API_URL}?organization_id=${orgId}`, {
                 method: 'POST',
                 headers: getAuthHeaders(),
                 body: JSON.stringify(txnPayload)
@@ -1407,9 +1416,9 @@
             console.warn("Transactions ledger sync error:", e);
         }
 
-        // 3. Push Live System Notification
+        // 3. Push Live System Notification to Tenant POV
         try {
-            await fetch(NOTIFICATIONS_API_URL, {
+            await fetch(`${NOTIFICATIONS_API_URL}?organization_id=${orgId}`, {
                 method: 'POST',
                 headers: getAuthHeaders(),
                 body: JSON.stringify({
@@ -1445,12 +1454,15 @@
         const tenantName = tenantVal[0];
         const locationTag = tenantVal[1];
         const leaseId = tenantVal[2];
+        const tenantEmail = tenantVal[4] || '';
+        const tenantId = tenantVal[5] || null;
+
         const amount = parseFloat(document.getElementById('modalAmountInput').value) || 0;
         const method = document.getElementById('modalMethodSelect').value || 'GCASH';
         let refNo = document.getElementById('modalRefInput').value.trim() || `#MANUAL-${Math.floor(1000 + Math.random() * 9000)}`;
         const status = (document.getElementById('modalStatusSelect').value || 'UNPAID').toUpperCase();
         const notes = document.getElementById('modalNotesInput').value.trim();
-        const orgId = localStorage.getItem('organization_id') || DEFAULT_ORG_ID;
+        const orgId = getOrgId();
 
         if (amount <= 0) {
             alert("Please enter a valid payment amount.");
@@ -1464,9 +1476,13 @@
         const payload = {
             organization_id: orgId,
             lease_id: leaseId,
+            tenant_id: tenantId,
+            tenant_name: tenantName,
+            tenant_email: tenantEmail,
             invoice_id: newInvoiceCode,
             type: 'Monthly Base Rent',
             sub: notes || locationTag,
+            property_location: locationTag,
             category_type: 'Rent',
             due_date: today,
             amount: amount,
@@ -1476,7 +1492,7 @@
         };
 
         try {
-            const res = await fetch(INVOICES_API_URL, {
+            const res = await fetch(`${INVOICES_API_URL}?organization_id=${orgId}`, {
                 method: 'POST',
                 headers: getAuthHeaders(),
                 body: JSON.stringify(payload)
@@ -1497,7 +1513,7 @@
         if (status === 'PAID') {
             const txnId = `TXN-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
             try {
-                await fetch(TRANSACTIONS_API_URL, {
+                await fetch(`${TRANSACTIONS_API_URL}?organization_id=${orgId}`, {
                     method: 'POST',
                     headers: getAuthHeaders(),
                     body: JSON.stringify({
@@ -1532,7 +1548,8 @@
         if (!confirm(`Are you sure you want to permanently delete invoice "${refNo}" from the database?`)) return;
 
         try {
-            const res = await fetch(`${INVOICES_API_URL}/${encodeURIComponent(id)}`, {
+            const orgId = getOrgId();
+            const res = await fetch(`${INVOICES_API_URL}/${encodeURIComponent(id)}?organization_id=${orgId}`, {
                 method: 'DELETE',
                 headers: getAuthHeaders()
             });
