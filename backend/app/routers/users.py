@@ -1,5 +1,6 @@
 import uuid
-from typing import List, Optional
+import logging
+from typing import List, Optional, Any, Dict
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select, or_
 from sqlalchemy.orm import Session
@@ -9,7 +10,22 @@ from ..database import get_db
 from .. import models
 
 router = APIRouter()
+logger = logging.getLogger("uvicorn.error")
+
 DEFAULT_ORG_ID = uuid.UUID("a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11")
+
+
+def parse_org_id(org_id_raw: Optional[str]) -> uuid.UUID:
+    """Safely converts string, null, or undefined organization IDs to valid UUIDs."""
+    if not org_id_raw:
+        return DEFAULT_ORG_ID
+    clean = str(org_id_raw).strip().lower()
+    if clean in ("undefined", "null", ""):
+        return DEFAULT_ORG_ID
+    try:
+        return uuid.UUID(clean)
+    except Exception:
+        return DEFAULT_ORG_ID
 
 
 def ensure_sandbox_organization(db: Session, org_id: uuid.UUID):
@@ -56,13 +72,17 @@ class UserResponse(BaseModel):
 
 
 def parse_user_identifier(db: Session, user_id_str: str, organization_id: uuid.UUID):
-    """Robustly resolves a user by UUID or email address."""
+    """Robustly resolves a user by UUID or email address with flexible org matching."""
+    clean_id = user_id_str.strip()
     try:
-        parsed_uuid = uuid.UUID(user_id_str)
+        parsed_uuid = uuid.UUID(clean_id)
         user = db.scalar(
             select(models.User).where(
                 models.User.id == parsed_uuid,
-                models.User.organization_id == organization_id
+                or_(
+                    models.User.organization_id == organization_id,
+                    models.User.organization_id.is_(None)
+                )
             )
         )
         if user:
@@ -72,21 +92,43 @@ def parse_user_identifier(db: Session, user_id_str: str, organization_id: uuid.U
 
     user = db.scalar(
         select(models.User).where(
-            models.User.email.ilike(user_id_str),
-            models.User.organization_id == organization_id
+            models.User.email.ilike(clean_id),
+            or_(
+                models.User.organization_id == organization_id,
+                models.User.organization_id.is_(None)
+            )
         )
     )
-    return user
+    if user:
+        return user
+
+    # Global fallback if not found within strict org bounds
+    try:
+        parsed_uuid = uuid.UUID(clean_id)
+        return db.scalar(select(models.User).where(models.User.id == parsed_uuid))
+    except ValueError:
+        pass
+
+    return db.scalar(select(models.User).where(models.User.email.ilike(clean_id)))
 
 
+@router.get("")
 @router.get("/", response_model=List[UserResponse])
 def get_all_users(
-    organization_id: uuid.UUID = Query(default=DEFAULT_ORG_ID),
+    organization_id: Optional[str] = Query(default=None),
     role: Optional[str] = Query(default=None),
     db: Session = Depends(get_db)
 ):
     """Retrieve all registered users with flexible matching for tenant/client and owner roles."""
-    stmt = select(models.User).where(models.User.organization_id == organization_id)
+    org_id = parse_org_id(organization_id)
+    ensure_sandbox_organization(db, org_id)
+
+    stmt = select(models.User).where(
+        or_(
+            models.User.organization_id == org_id,
+            models.User.organization_id.is_(None)
+        )
+    )
     
     if role:
         clean_role = role.lower().strip()
@@ -94,7 +136,8 @@ def get_all_users(
             stmt = stmt.where(
                 or_(
                     models.User.role.ilike("%client%"),
-                    models.User.role.ilike("%tenant%")
+                    models.User.role.ilike("%tenant%"),
+                    models.User.role.ilike("%resident%")
                 )
             )
         elif clean_role in ["owner", "property_owner", "investor"]:
@@ -111,21 +154,23 @@ def get_all_users(
     return users
 
 
+@router.post("", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 @router.post("/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 def create_or_register_user(
     user_in: UserCreate,
-    organization_id: uuid.UUID = Query(default=DEFAULT_ORG_ID),
+    organization_id: Optional[str] = Query(default=None),
     db: Session = Depends(get_db)
 ):
     """Handles new user registration and account creation."""
-    org_id = organization_id or DEFAULT_ORG_ID
+    org_id = parse_org_id(organization_id)
     ensure_sandbox_organization(db, org_id)
 
     # Check for duplicate email across organization
     if user_in.email:
+        clean_email = user_in.email.lower().strip()
         existing = db.scalar(
-            select(models.User).where(models.User.email.ilike(user_in.email.strip()))
+            select(models.User).where(models.User.email.ilike(clean_email))
         )
         if existing:
             raise HTTPException(
@@ -153,48 +198,65 @@ def create_or_register_user(
 @router.get("/me", response_model=UserResponse)
 def get_current_user_profile(
     email: Optional[str] = Query(default=None),
-    organization_id: uuid.UUID = Query(default=DEFAULT_ORG_ID),
+    organization_id: Optional[str] = Query(default=None),
     db: Session = Depends(get_db)
 ):
     """Retrieve profile data for the active authenticated user session."""
+    org_id = parse_org_id(organization_id)
     if email:
         user = db.scalar(
             select(models.User).where(
                 models.User.email.ilike(email.strip()),
-                models.User.organization_id == organization_id
+                or_(
+                    models.User.organization_id == org_id,
+                    models.User.organization_id.is_(None)
+                )
             )
         )
         if user:
             return user
             
-    user = db.scalar(select(models.User).where(models.User.organization_id == organization_id))
+    user = db.scalar(
+        select(models.User).where(
+            or_(
+                models.User.organization_id == org_id,
+                models.User.organization_id.is_(None)
+            )
+        )
+    )
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User session not found.")
     return user
 
 
 @router.get("/{user_id}", response_model=UserResponse)
+@router.get("/{user_id}/", response_model=UserResponse)
 def get_user_by_id(
     user_id: str,
-    organization_id: uuid.UUID = Query(default=DEFAULT_ORG_ID),
+    organization_id: Optional[str] = Query(default=None),
     db: Session = Depends(get_db)
 ):
     """Retrieve a specific user profile by UUID or email."""
-    user = parse_user_identifier(db, user_id, organization_id)
+    org_id = parse_org_id(organization_id)
+    user = parse_user_identifier(db, user_id, org_id)
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     return user
 
 
+@router.put("/{user_id}", response_model=UserResponse)
+@router.put("/{user_id}/", response_model=UserResponse)
 @router.patch("/{user_id}", response_model=UserResponse)
+@router.patch("/{user_id}/", response_model=UserResponse)
 def update_user_profile(
     user_id: str,
     user_update: UserUpdate,
-    organization_id: uuid.UUID = Query(default=DEFAULT_ORG_ID),
+    organization_id: Optional[str] = Query(default=None),
     db: Session = Depends(get_db)
 ):
     """Update personal credentials, name, email, and phone directly in PostgreSQL."""
-    user = parse_user_identifier(db, user_id, organization_id)
+    org_id = parse_org_id(organization_id)
+    user = parse_user_identifier(db, user_id, org_id)
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
