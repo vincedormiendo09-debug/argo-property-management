@@ -187,9 +187,6 @@ def health_check(db: Session = Depends(get_db)):
         )
 
 
-# ==========================================
-# 3. STATIC FILE DIRECTORY RESOLUTION
-# ==========================================
 current_dir = os.path.dirname(os.path.abspath(__file__))
 candidate_paths = [
     os.path.abspath(os.path.join(current_dir, "../../frontend")),  # Root /frontend

@@ -152,7 +152,8 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
     elif normalized_role not in ["admin", "owner", "client"]:
         normalized_role = "client"
 
-    initials = "".join([n[0] for n in payload.name.split() if n]).substring(0, 2).upper() if payload.name else "US"
+    # Fixed Python string slicing instead of JS substring
+    initials = "".join([n[0] for n in payload.name.split() if n])[:2].upper() if payload.name else "US"
 
     # 3. Create new user record
     new_user = models.User(
@@ -162,7 +163,7 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
         full_name=payload.full_name or payload.name,
         email=clean_email,
         phone=payload.phone,
-        password_hash=DEFAULT_PASSWORD_HASH,  # Can link real password hashing here
+        password_hash=DEFAULT_PASSWORD_HASH,
         role=normalized_role,
         avatar=initials or "U",
         is_active=True
