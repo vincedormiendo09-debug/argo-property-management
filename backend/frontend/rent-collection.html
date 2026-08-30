@@ -986,10 +986,10 @@
             ? 'https://argo-management-2026.onrender.com/api'
             : '/api';
 
-    const INVOICES_API_URL = `${API_BASE_URL}/invoices`;
-    const LEASES_API_URL = `${API_BASE_URL}/leases`;
-    const TRANSACTIONS_API_URL = `${API_BASE_URL}/transactions`;
-    const NOTIFICATIONS_API_URL = `${API_BASE_URL}/notifications`;
+    const INVOICES_API_URL = `${API_BASE_URL}/invoices/`;
+    const LEASES_API_URL = `${API_BASE_URL}/leases/`;
+    const TRANSACTIONS_API_URL = `${API_BASE_URL}/transactions/`;
+    const NOTIFICATIONS_API_URL = `${API_BASE_URL}/notifications/`;
 
     let currentInspectedInvoiceId = null;
 
@@ -1162,7 +1162,7 @@
         if (badgeEl) badgeEl.textContent = notifs.length;
     }
 
-    // Populate Dynamic Active Lease Dropdowns (Extracts tenant_id, lease_id, location, and rent)
+    // Populate Dynamic Active Lease Dropdowns
     async function populateModalDropdowns() {
         const leases = await getLeasesList();
         const activeLeases = leases.filter(l => (l.status || '').toUpperCase() === 'ACTIVE');
@@ -1173,17 +1173,21 @@
         if (activeLeases.length > 0) {
             activeLeases.forEach(l => {
                 const tName = l.tenant_name || l.tenantName || 'Tenant';
-                const uLoc = l.property_name && l.unit_number ? `${l.property_name} • ${l.unit_number}` : (l.unit || 'Assigned Unit');
-                const rentVal = parseCurrency(l.rent || l.rent_amount || l.monthly_rent || 0);
+                const pName = l.property_name || 'Property';
+                const uNum = l.unit_number || l.unit_no || l.unit || 'Unit';
+                const uLoc = `${pName} • ${uNum}`;
+                const rentVal = parseCurrency(l.rent || l.monthly_rent || l.rent_amount || 0);
                 const lId = l.id || l.lease_id;
                 const tId = l.tenant_id || '';
                 const tEmail = l.tenant_email || l.email || '';
                 
-                select.innerHTML += `<option value="${tName}|${uLoc}|${lId}|${rentVal}|${tEmail}|${tId}">${tName} — ${uLoc} (Rent: ${formatPeso(rentVal)})</option>`;
+                select.innerHTML += `<option value="${tName}|${uLoc}|${lId}|${rentVal}|${tEmail}|${tId}|${pName}|${uNum}">${tName} — ${uLoc} (Rent: ${formatPeso(rentVal)})</option>`;
             });
         } else {
             select.innerHTML += '<option value="" disabled>No active leases found in database. Create an active lease first.</option>';
         }
+
+        select.onchange = autoFillLeaseRent;
     }
 
     function autoFillLeaseRent() {
@@ -1207,7 +1211,7 @@
         tbody.innerHTML = '';
 
         if (!invoices || invoices.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--muted, #64748B); padding:30px;">No rental collection records found in database. Click "Record Manual Payment" to add one.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--muted, #64748B); padding:30px;">No rental collection records found in database. Click "Record Rent Payment" to add one.</td></tr>`;
             const countEl = document.getElementById('showingCountText');
             if (countEl) countEl.textContent = `Showing 0 payment records`;
             await updateAdminKPIs();
@@ -1218,9 +1222,8 @@
             const tr = document.createElement('tr');
             const rawStatus = (inv.status || 'UNPAID').toUpperCase();
 
-            // Status Normalization
             let statusCategory = 'Unpaid';
-            if (rawStatus === 'PAID') {
+            if (rawStatus === 'PAID' || rawStatus === 'VERIFIED') {
                 statusCategory = 'Paid';
             } else if (rawStatus.includes('PENDING')) {
                 statusCategory = 'Pending';
@@ -1228,22 +1231,25 @@
                 statusCategory = 'Unpaid';
             }
 
+            const paymentMethod = inv.payment_method || inv.method || inv.channel || 'GCash';
             tr.dataset.status = statusCategory;
-            tr.dataset.method = inv.channel || 'Cash';
+            tr.dataset.method = paymentMethod;
 
             // Resolve Tenant & Property Location
             let tenantName = inv.tenant_name || inv.tenantName || 'Tenant';
-            let locationTag = inv.property_location || inv.sub || 'Property Location';
+            let propName = inv.property_name || '';
+            let unitNum = inv.unit_number || inv.unit_no || '';
+            let locationTag = (propName && unitNum) ? `${propName} • ${unitNum}` : (inv.property_location || inv.sub || 'Property Location');
 
             if (inv.lease_id && (tenantName === 'Tenant' || locationTag === 'Property Location')) {
                 const matchedLease = leases.find(l => String(l.id) === String(inv.lease_id) || String(l.lease_id) === String(inv.lease_id));
                 if (matchedLease) {
                     tenantName = matchedLease.tenant_name || tenantName;
-                    locationTag = `${matchedLease.property_name || 'Property'} • ${matchedLease.unit_number || 'Unit'}`;
+                    locationTag = `${matchedLease.property_name || 'Property'} • ${matchedLease.unit_number || matchedLease.unit_no || 'Unit'}`;
                 }
             }
 
-            const displayRef = inv.ref_no || inv.refNo || `#REF-${inv.invoice_id || inv.id}`;
+            const displayRef = inv.reference_number || inv.ref_no || inv.refNo || `#REF-${inv.invoice_id || inv.inv_id || inv.id}`;
             const invId = inv.id;
 
             let badgeHtml = '';
@@ -1285,7 +1291,7 @@
             tr.innerHTML = `
                 <td>
                     <div class="payment-id" style="font-weight:600;">${displayRef}</div>
-                    <div style="font-size:10px; color:var(--muted, #64748B);">${inv.invoice_id || inv.id}</div>
+                    <div style="font-size:10px; color:var(--muted, #64748B);">${inv.invoice_id || inv.inv_id || inv.id}</div>
                 </td>
                 <td><div class="tenant-name" style="font-weight:600;">${tenantName}</div></td>
                 <td>
@@ -1294,7 +1300,7 @@
                 </td>
                 <td>${inv.due_date || inv.dueDate || '—'}</td>
                 <td><div class="amount" style="font-weight:700;">${formatPeso(inv.amount)}</div></td>
-                <td>${inv.channel || 'Cash'}</td>
+                <td>${paymentMethod}</td>
                 <td>${badgeHtml}</td>
                 <td>
                     <div style="display:flex; gap:6px; align-items:center;">${actionsHtml}</div>
@@ -1315,18 +1321,19 @@
 
     async function inspectPaymentProof(invoiceId) {
         const invoices = await getInvoices();
-        const inv = invoices.find(i => String(i.id) === String(invoiceId) || String(i.invoice_id) === String(invoiceId));
+        const inv = invoices.find(i => String(i.id) === String(invoiceId) || String(i.invoice_id) === String(invoiceId) || String(i.inv_id) === String(invoiceId));
         if (!inv) return;
 
         currentInspectedInvoiceId = invoiceId;
 
-        document.getElementById('vInvoiceTitle').textContent = `Payment Inspection — ${inv.invoice_id || inv.id}`;
+        document.getElementById('vInvoiceTitle').textContent = `Payment Inspection — ${inv.invoice_id || inv.inv_id || inv.id}`;
         document.getElementById('vTenantName').textContent = inv.tenant_name || inv.tenantName || 'Tenant';
-        document.getElementById('vLocationTag').innerHTML = `<i class="bi bi-geo-alt"></i> ${inv.property_location || inv.sub || 'Property Location'}`;
+        const loc = (inv.property_name && inv.unit_number) ? `${inv.property_name} • ${inv.unit_number}` : (inv.property_location || inv.sub || 'Property Location');
+        document.getElementById('vLocationTag').innerHTML = `<i class="bi bi-geo-alt"></i> ${loc}`;
         document.getElementById('vAmount').textContent = formatPeso(inv.amount);
-        document.getElementById('vInvoiceId').textContent = inv.invoice_id || inv.id;
-        document.getElementById('vRefCode').textContent = inv.ref_no || inv.refNo || `#REF-${inv.invoice_id || inv.id}`;
-        document.getElementById('vChannel').textContent = inv.channel || 'Cash';
+        document.getElementById('vInvoiceId').textContent = inv.invoice_id || inv.inv_id || inv.id;
+        document.getElementById('vRefCode').textContent = inv.reference_number || inv.ref_no || inv.refNo || `#REF-${inv.invoice_id || inv.id}`;
+        document.getElementById('vChannel').textContent = inv.payment_method || inv.method || inv.channel || 'GCash';
         document.getElementById('vStatus').textContent = (inv.status || 'UNPAID').toUpperCase();
         
         const attachmentEl = document.getElementById('vAttachment');
@@ -1336,12 +1343,12 @@
             attachmentEl.textContent = 'None Attached';
         }
 
-        document.getElementById('vNotes').textContent = inv.sub || inv.notes || 'No additional remarks provided.';
+        document.getElementById('vNotes').textContent = inv.notes || inv.remarks || inv.sub || 'No additional remarks provided.';
 
         const approveBtn = document.getElementById('vApproveBtn');
         const rawStatus = (inv.status || '').toUpperCase();
         if (approveBtn) {
-            approveBtn.style.display = (rawStatus !== 'PAID') ? 'inline-flex' : 'none';
+            approveBtn.style.display = (rawStatus !== 'PAID' && rawStatus !== 'VERIFIED') ? 'inline-flex' : 'none';
         }
 
         openModal('viewPaymentModal');
@@ -1350,10 +1357,11 @@
     async function approveFromModal() {
         if (!currentInspectedInvoiceId) return;
         const invoices = await getInvoices();
-        const inv = invoices.find(i => String(i.id) === String(currentInspectedInvoiceId) || String(i.invoice_id) === String(currentInspectedInvoiceId));
+        const inv = invoices.find(i => String(i.id) === String(currentInspectedInvoiceId) || String(i.invoice_id) === String(currentInspectedInvoiceId) || String(i.inv_id) === String(currentInspectedInvoiceId));
         if (inv) {
             closeModal('viewPaymentModal');
-            await verifyTenantPayment(inv.id, inv.ref_no || inv.refNo || `#REF-${inv.invoice_id || inv.id}`, parseCurrency(inv.amount), inv.tenant_name || inv.tenantName, inv.property_location || inv.sub);
+            const loc = (inv.property_name && inv.unit_number) ? `${inv.property_name} • ${inv.unit_number}` : (inv.property_location || inv.sub || 'Property Location');
+            await verifyTenantPayment(inv.id, inv.reference_number || inv.ref_no || `#REF-${inv.invoice_id || inv.id}`, parseCurrency(inv.amount), inv.tenant_name || inv.tenantName, loc);
         }
     }
 
@@ -1362,27 +1370,31 @@
         if (!confirm(`Are you sure you want to verify and mark payment ${refNo} for ${formatPeso(amount)} as PAID in Neon database?`)) return;
 
         const orgId = getOrgId();
-        const verifiedChannel = refNo.toUpperCase().includes('GCASH') ? 'GCash' : (refNo.toUpperCase().includes('BANK') ? 'Bank Transfer' : 'GCASH / Online Bank');
+        const verifiedChannel = refNo.toUpperCase().includes('GCASH') ? 'GCash' : (refNo.toUpperCase().includes('MARIBANK') ? 'MariBank' : (refNo.toUpperCase().includes('BANK') ? 'Bank Transfer' : 'GCash'));
 
         // 1. Update Invoice in Neon PostgreSQL
         try {
-            const res = await fetch(`${INVOICES_API_URL}/${encodeURIComponent(invoiceId)}?organization_id=${orgId}`, {
+            const res = await fetch(`${INVOICES_API_URL}${encodeURIComponent(invoiceId)}?organization_id=${orgId}`, {
                 method: 'PATCH',
                 headers: getAuthHeaders(),
                 body: JSON.stringify({ 
                     status: 'PAID',
-                    channel: verifiedChannel,
+                    payment_method: verifiedChannel,
+                    method: verifiedChannel,
+                    reference_number: refNo,
                     ref_no: refNo
                 })
             });
 
             if (!res.ok) {
-                await fetch(`${INVOICES_API_URL}/${encodeURIComponent(invoiceId)}?organization_id=${orgId}`, {
+                await fetch(`${INVOICES_API_URL}${encodeURIComponent(invoiceId)}?organization_id=${orgId}`, {
                     method: 'PUT',
                     headers: getAuthHeaders(),
                     body: JSON.stringify({ 
                         status: 'PAID',
-                        channel: verifiedChannel,
+                        payment_method: verifiedChannel,
+                        method: verifiedChannel,
+                        reference_number: refNo,
                         ref_no: refNo
                     })
                 });
@@ -1442,9 +1454,10 @@
         alert(`Payment ${refNo} marked as PAID in Neon database! Inflow recorded in Transactions.`);
     }
 
-    // LIVE CREATE MANUAL BILLING / PAYMENT (POST /api/invoices)
+    // LIVE CREATE MANUAL BILLING / PAYMENT (POST /api/invoices/)
     async function saveManualPayment() {
-        const selectVal = document.getElementById('modalTenantSelect').value;
+        const selectEl = document.getElementById('modalTenantSelect');
+        const selectVal = selectEl ? selectEl.value : '';
         if (!selectVal) {
             alert("Please select an active tenant lease.");
             return;
@@ -1456,12 +1469,20 @@
         const leaseId = tenantVal[2];
         const tenantEmail = tenantVal[4] || '';
         const tenantId = tenantVal[5] || null;
+        const propName = tenantVal[6] || 'Property';
+        const unitNum = tenantVal[7] || 'Unit';
 
-        const amount = parseFloat(document.getElementById('modalAmountInput').value) || 0;
-        const method = document.getElementById('modalMethodSelect').value || 'GCASH';
-        let refNo = document.getElementById('modalRefInput').value.trim() || `#MANUAL-${Math.floor(1000 + Math.random() * 9000)}`;
-        const status = (document.getElementById('modalStatusSelect').value || 'UNPAID').toUpperCase();
-        const notes = document.getElementById('modalNotesInput').value.trim();
+        const amountInput = document.getElementById('modalAmountInput');
+        const methodSelect = document.getElementById('modalMethodSelect');
+        const refInput = document.getElementById('modalRefInput');
+        const statusSelect = document.getElementById('modalStatusSelect');
+        const notesInput = document.getElementById('modalNotesInput');
+
+        const amount = parseFloat(amountInput ? amountInput.value : 0) || 0;
+        const method = methodSelect ? methodSelect.value : 'GCash';
+        let refNo = refInput && refInput.value.trim() ? refInput.value.trim() : `#MANUAL-${Math.floor(1000 + Math.random() * 9000)}`;
+        const rawStatus = (statusSelect ? statusSelect.value : 'PAID').toUpperCase();
+        const notes = notesInput ? notesInput.value.trim() : '';
         const orgId = getOrgId();
 
         if (amount <= 0) {
@@ -1479,15 +1500,21 @@
             tenant_id: tenantId,
             tenant_name: tenantName,
             tenant_email: tenantEmail,
+            property_name: propName,
+            unit_number: unitNum,
+            unit_no: unitNum,
             invoice_id: newInvoiceCode,
+            inv_id: newInvoiceCode,
             type: 'Monthly Base Rent',
-            sub: notes || locationTag,
-            property_location: locationTag,
-            category_type: 'Rent',
+            notes: notes || locationTag,
+            remarks: notes || locationTag,
             due_date: today,
             amount: amount,
-            status: status === 'PAID' ? 'PAID' : (status.includes('PENDING') ? 'PENDING' : 'UNPAID'),
-            channel: method,
+            total_amount: amount,
+            status: rawStatus.includes('PAID') ? 'Paid' : (rawStatus.includes('PEND') ? 'Pending' : 'Unpaid'),
+            payment_method: method,
+            method: method,
+            reference_number: refNo,
             ref_no: refNo
         };
 
@@ -1509,8 +1536,8 @@
             return;
         }
 
-        // If recorded directly as PAID, also create ledger entry in transactions table
-        if (status === 'PAID') {
+        // If recorded directly as PAID, record entry in transactions ledger
+        if (payload.status === 'Paid') {
             const txnId = `TXN-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
             try {
                 await fetch(`${TRANSACTIONS_API_URL}?organization_id=${orgId}`, {
@@ -1532,12 +1559,12 @@
             } catch (err) {}
         }
 
-        alert(`Invoice (${newInvoiceCode}) recorded successfully in Neon database!`);
+        alert(`Payment / Invoice (${newInvoiceCode}) recorded successfully in Neon database!`);
         closeModal('paymentModal');
 
-        document.getElementById('modalAmountInput').value = '';
-        document.getElementById('modalRefInput').value = '';
-        document.getElementById('modalNotesInput').value = '';
+        if (amountInput) amountInput.value = '';
+        if (refInput) refInput.value = '';
+        if (notesInput) notesInput.value = '';
 
         await renderPaymentTable();
         await updateAdminKPIs();
@@ -1549,7 +1576,7 @@
 
         try {
             const orgId = getOrgId();
-            const res = await fetch(`${INVOICES_API_URL}/${encodeURIComponent(id)}?organization_id=${orgId}`, {
+            const res = await fetch(`${INVOICES_API_URL}${encodeURIComponent(id)}?organization_id=${orgId}`, {
                 method: 'DELETE',
                 headers: getAuthHeaders()
             });
@@ -1583,7 +1610,7 @@
             totalExpected += amt;
 
             const s = (inv.status || '').toUpperCase();
-            if (s === 'PAID') {
+            if (s === 'PAID' || s === 'VERIFIED') {
                 totalCollected += amt;
             } else if (s.includes('PENDING')) {
                 totalPending += amt;
@@ -1628,9 +1655,13 @@
     };
 
     function filterTable() {
-        const searchValue = document.getElementById("searchInput").value.toLowerCase();
-        const statusValue = document.getElementById("statusFilter").value;
-        const methodValue = document.getElementById("methodFilter").value;
+        const searchInput = document.getElementById("searchInput");
+        const statusFilter = document.getElementById("statusFilter");
+        const methodFilter = document.getElementById("methodFilter");
+
+        const searchValue = searchInput ? searchInput.value.toLowerCase().trim() : "";
+        const statusValue = statusFilter ? statusFilter.value : "";
+        const methodValue = methodFilter ? methodFilter.value : "";
 
         const rows = document.querySelectorAll("#paymentTable tr");
         let visibleCount = 0;
@@ -1644,7 +1675,7 @@
             const rowStatus = row.dataset.status || "";
             const rowMethod = row.dataset.method || "";
 
-            const matchesSearch = text.includes(searchValue);
+            const matchesSearch = searchValue === "" || text.includes(searchValue);
             const matchesStatus = statusValue === "" || rowStatus.toLowerCase() === statusValue.toLowerCase();
             const matchesMethod = methodValue === "" || rowMethod.toLowerCase().includes(methodValue.toLowerCase());
 
@@ -1663,9 +1694,13 @@
     }
 
     function resetFilters() {
-        document.getElementById("searchInput").value = "";
-        document.getElementById("statusFilter").value = "";
-        document.getElementById("methodFilter").value = "";
+        const searchInput = document.getElementById("searchInput");
+        const statusFilter = document.getElementById("statusFilter");
+        const methodFilter = document.getElementById("methodFilter");
+
+        if (searchInput) searchInput.value = "";
+        if (statusFilter) statusFilter.value = "";
+        if (methodFilter) methodFilter.value = "";
         filterTable();
     }
 
@@ -1693,4 +1728,3 @@
         });
     }
 </script>
-</body>
