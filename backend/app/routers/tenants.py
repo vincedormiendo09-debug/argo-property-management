@@ -148,7 +148,7 @@ def find_tenant_by_identifier(db: Session, tenant_id: str, organization_id: uuid
         if hasattr(virtual_tenant, "tnt_id"):
             virtual_tenant.tnt_id = f"TNT-{t_id[:6].upper()}"
         if hasattr(virtual_tenant, "unit"):
-            virtual_tenant.unit = "Unassigned"
+            virtual_tenant.unit = "No Current Unit"
         if hasattr(virtual_tenant, "type"):
             virtual_tenant.type = "Individual"
         return virtual_tenant
@@ -157,7 +157,7 @@ def find_tenant_by_identifier(db: Session, tenant_id: str, organization_id: uuid
 
 
 # ---------------------------------------------------------------------
-# 1. GET TENANTS (Direct Neon DB Query: Tenants + Registered Users)
+# 1. GET TENANTS (Dual Route: Merges Tenants Table + Registered Users)
 # ---------------------------------------------------------------------
 @router.get("")
 @router.get("/")
@@ -169,7 +169,8 @@ def read_tenants(
     db: Session = Depends(get_db)
 ):
     """
-    Returns database tenant profiles merged with registered client/tenant user accounts.
+    Returns live database tenant profiles merged with registered client users.
+    Returns clean dictionary objects to prevent 500 Pydantic serialization errors.
     """
     org_id = parse_org_id(organization_id)
     ensure_sandbox_organization(db, org_id)
@@ -177,7 +178,7 @@ def read_tenants(
     results: List[Dict[str, Any]] = []
     seen_identifiers = set()
 
-    # 1. Query explicit 'tenants' table records from Neon DB
+    # 1. Fetch from 'tenants' table
     try:
         db_tenants = list(db.scalars(
             select(models.Tenant).where(
@@ -212,7 +213,7 @@ def read_tenants(
                 "email": getattr(t, "email", "") or "",
                 "phone": getattr(t, "phone", "") or "",
                 "type": getattr(t, "type", "Individual") or "Individual",
-                "unit": getattr(t, "unit", "") or "Unassigned",
+                "unit": getattr(t, "unit", "") or "No Current Unit",
                 "lease_id": getattr(t, "lease_id", None),
                 "emergency_contact": getattr(t, "emergency_contact", ""),
                 "status": getattr(t, "status", "Active") or "Active"
@@ -220,9 +221,9 @@ def read_tenants(
     except Exception as e:
         logger.warning(f"Notice querying tenants table: {e}")
 
-    # 2. Query registered users with active client/tenant/resident roles (Maria Santos & Carlos Mendoza)
+    # 2. Fetch directly from 'users' table (Maria Santos & Carlos Mendoza)
     try:
-        tenant_users = list(db.scalars(
+        db_users = list(db.scalars(
             select(models.User).where(
                 or_(
                     models.User.role.ilike("%client%"),
@@ -232,7 +233,7 @@ def read_tenants(
             )
         ).all())
 
-        for u in tenant_users:
+        for u in db_users:
             u_id = str(getattr(u, "id", "") or "")
             u_email = (getattr(u, "email", "") or "").lower().strip()
             u_name = getattr(u, "name", "") or getattr(u, "full_name", "") or "Resident Tenant"
@@ -254,7 +255,7 @@ def read_tenants(
                     "email": getattr(u, "email", "") or "",
                     "phone": getattr(u, "phone", "") or "",
                     "type": "Individual",
-                    "unit": "Unassigned",
+                    "unit": "No Current Unit",
                     "lease_id": None,
                     "emergency_contact": "",
                     "status": "Active"
@@ -334,6 +335,13 @@ def create_tenant(
         except ValueError:
             pass
 
+    user_id_val = None
+    if tenant_in.get("user_id"):
+        try:
+            user_id_val = uuid.UUID(str(tenant_in["user_id"]))
+        except ValueError:
+            pass
+
     tenant_data = {
         "id": new_id,
         "organization_id": org_id,
@@ -345,6 +353,8 @@ def create_tenant(
         "emergency_contact": tenant_in.get("emergency_contact") or ""
     }
 
+    if user_id_val and hasattr(models.Tenant, "user_id"):
+        tenant_data["user_id"] = user_id_val
     if hasattr(models.Tenant, "tenant_id"):
         tenant_data["tenant_id"] = code
     if hasattr(models.Tenant, "tnt_id"):
@@ -400,7 +410,7 @@ def get_tenant(
         "email": getattr(tenant, "email", "") or "",
         "phone": getattr(tenant, "phone", "") or "",
         "type": getattr(tenant, "type", "Individual") or "Individual",
-        "unit": getattr(tenant, "unit", "") or "Unassigned",
+        "unit": getattr(tenant, "unit", "") or "No Current Unit",
         "status": getattr(tenant, "status", "Active") or "Active"
     }
 
@@ -446,7 +456,7 @@ def update_tenant(
 
 
 # ---------------------------------------------------------------------
-# 5. DELETE TENANT (Completely removes tenant profile & client role)
+# 5. DELETE TENANT (Permanent removal from Database & Revoke Role)
 # ---------------------------------------------------------------------
 @router.delete("/{tenant_id}", status_code=status.HTTP_204_NO_CONTENT)
 @router.delete("/{tenant_id}/", status_code=status.HTTP_204_NO_CONTENT)
@@ -481,7 +491,7 @@ def delete_tenant(
         if not db_tenant:
             db_tenant = db.scalar(select(models.Tenant).where(models.Tenant.email.ilike(clean_id)))
 
-    # 2. Locate corresponding User record to revoke client role
+    # 2. Locate corresponding User record to revoke client role so it won't respawn
     target_email = getattr(db_tenant, "email", clean_id) if db_tenant else clean_id
     target_user = None
 
@@ -505,7 +515,7 @@ def delete_tenant(
         if db_tenant:
             db.delete(db_tenant)
 
-        # Revoke the client role from the User row so they do not regenerate in the tenant feed
+        # Revoke the client role from the User row
         if target_user and any(k in (target_user.role or "").lower() for k in ["client", "tenant", "resident"]):
             target_user.role = "inactive"
 
