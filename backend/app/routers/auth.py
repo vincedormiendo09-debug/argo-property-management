@@ -1,5 +1,4 @@
 import uuid
-from datetime import datetime, timedelta
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
@@ -21,7 +20,7 @@ DEFAULT_ORG_ID = uuid.UUID("a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11")
 class LoginRequest(BaseModel):
     email: str
     password: Optional[str] = None
-    username: Optional[str] = None  # OAuth2 form support
+    username: Optional[str] = None
 
 
 class RegisterRequest(BaseModel):
@@ -51,14 +50,54 @@ class LoginResponse(BaseModel):
 
 
 # =====================================================================
+# PRE-CONFIGURED SEED ACCOUNTS (1 ADMIN, 2 TENANTS, 2 OWNERS)
+# =====================================================================
+SEED_ACCOUNTS = {
+    # 1 Admin Account
+    "admin@argo.ph": {
+        "name": "Juan Dela Cruz",
+        "role": "admin",
+        "avatar": "JD",
+        "phone": "+63 917 100 0001"
+    },
+    # 2 Tenant / Client Accounts
+    "maria.santos@tenant.ph": {
+        "name": "Maria Santos",
+        "role": "client",
+        "avatar": "MS",
+        "phone": "+63 917 200 0001"
+    },
+    "carlos.mendoza@tenant.ph": {
+        "name": "Carlos Mendoza",
+        "role": "client",
+        "avatar": "CM",
+        "phone": "+63 917 200 0002"
+    },
+    # 2 Property Owner Accounts
+    "ramon.santos@owner.ph": {
+        "name": "Don Ramon Santos",
+        "role": "owner",
+        "avatar": "RS",
+        "phone": "+63 917 300 0001"
+    },
+    "elena.villanueva@owner.ph": {
+        "name": "Elena Villanueva",
+        "role": "owner",
+        "avatar": "EV",
+        "phone": "+63 917 300 0002"
+    }
+}
+
+
+# =====================================================================
 # AUTHENTICATION ENDPOINTS
 # =====================================================================
 @router.post("/login", response_model=LoginResponse)
 @router.post("/login/", response_model=LoginResponse)
 def login(credentials: LoginRequest, db: Session = Depends(get_db)):
     """
-    Verifies user against the PostgreSQL users table and returns session payload
-    matching frontend workspace expectations.
+    Authenticates users against PostgreSQL. If a configured seed account is used for
+    the first time, it auto-provisions both the user account and operational records.
     """
     search_email = (credentials.email or credentials.username or "").lower().strip()
     if not search_email:
@@ -67,30 +106,55 @@ def login(credentials: LoginRequest, db: Session = Depends(get_db)):
             detail="Email or username is required."
         )
 
-    # 1. Search for user by email
+    # 1. Look up existing user
     stmt = select(models.User).where(models.User.email == search_email)
     user = db.scalar(stmt)
 
-    # 2. Fallback auto-provisioning for default seed roles during testing
+    # 2. Auto-provision seed test accounts if they don't exist yet
     if not user:
-        if search_email in ["admin@argo.ph", "maria.santos@tenant.ph", "ramon.santos@owner.ph"]:
-            role_map = {
-                "admin@argo.ph": ("Juan Dela Cruz", "admin", "JD"),
-                "maria.santos@tenant.ph": ("Maria Santos", "client", "MS"),
-                "ramon.santos@owner.ph": ("Don Ramon Santos", "owner", "RS"),
-            }
-            name, role, avatar = role_map[search_email]
+        if search_email in SEED_ACCOUNTS:
+            acc_data = SEED_ACCOUNTS[search_email]
             user = models.User(
                 id=uuid.uuid4(),
                 organization_id=DEFAULT_ORG_ID,
-                name=name,
-                full_name=name,
+                name=acc_data["name"],
+                full_name=acc_data["name"],
                 email=search_email,
-                role=role,
-                avatar=avatar,
+                phone=acc_data["phone"],
+                role=acc_data["role"],
+                avatar=acc_data["avatar"],
                 is_active=True
             )
             db.add(user)
+
+            # Link operational tenant profile
+            if acc_data["role"] == "client":
+                tenant_exists = db.scalar(select(models.Tenant).where(models.Tenant.email == search_email))
+                if not tenant_exists:
+                    db.add(models.Tenant(
+                        id=uuid.uuid4(),
+                        organization_id=DEFAULT_ORG_ID,
+                        user_id=user.id,
+                        name=acc_data["name"],
+                        email=search_email,
+                        phone=acc_data["phone"],
+                        status="active"
+                    ))
+
+            # Link operational owner profile
+            elif acc_data["role"] == "owner":
+                owner_exists = db.scalar(select(models.Owner).where(models.Owner.email == search_email))
+                if not owner_exists:
+                    db.add(models.Owner(
+                        id=uuid.uuid4(),
+                        organization_id=DEFAULT_ORG_ID,
+                        user_id=user.id,
+                        name=acc_data["name"],
+                        email=search_email,
+                        phone=acc_data["phone"],
+                        status="active"
+                    ))
+
             db.commit()
             db.refresh(user)
         else:
@@ -106,8 +170,6 @@ def login(credentials: LoginRequest, db: Session = Depends(get_db)):
         )
 
     org_id = user.organization_id or DEFAULT_ORG_ID
-
-    # 3. Generate structured session token
     session_token = f"argo_live_{user.role}_{uuid.uuid4()}"
 
     return LoginResponse(
@@ -129,11 +191,11 @@ def login(credentials: LoginRequest, db: Session = Depends(get_db)):
 @router.post("/register/", response_model=LoginResponse, status_code=status.HTTP_201_CREATED)
 def register(payload: RegisterRequest, db: Session = Depends(get_db)):
     """
-    Handles new user self-registration from index.html and provisions them in PostgreSQL.
+    Registers a new user and automatically creates their matching tenant or owner profile.
     """
     clean_email = payload.email.lower().strip()
 
-    # 1. Check if user already exists
+    # 1. Duplicate check
     existing_user = db.scalar(select(models.User).where(models.User.email == clean_email))
     if existing_user:
         raise HTTPException(
@@ -151,11 +213,12 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
         normalized_role = "client"
 
     initials = "".join([n[0] for n in payload.name.split() if n])[:2].upper() if payload.name else "US"
+    org_id = payload.organization_id or DEFAULT_ORG_ID
 
-    # 3. Create new user record
+    # 3. Create user record
     new_user = models.User(
         id=uuid.uuid4(),
-        organization_id=payload.organization_id or DEFAULT_ORG_ID,
+        organization_id=org_id,
         name=payload.name,
         full_name=payload.full_name or payload.name,
         email=clean_email,
@@ -164,13 +227,38 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
         avatar=initials or "U",
         is_active=True
     )
-
     db.add(new_user)
+
+    # 4. Auto-bridge operational tenant or owner profile
+    if normalized_role == "client":
+        existing_tenant = db.scalar(select(models.Tenant).where(models.Tenant.email == clean_email))
+        if not existing_tenant:
+            db.add(models.Tenant(
+                id=uuid.uuid4(),
+                organization_id=org_id,
+                user_id=new_user.id,
+                name=payload.name,
+                email=clean_email,
+                phone=payload.phone,
+                status="active"
+            ))
+    elif normalized_role == "owner":
+        existing_owner = db.scalar(select(models.Owner).where(models.Owner.email == clean_email))
+        if not existing_owner:
+            db.add(models.Owner(
+                id=uuid.uuid4(),
+                organization_id=org_id,
+                user_id=new_user.id,
+                name=payload.name,
+                email=clean_email,
+                phone=payload.phone,
+                status="active"
+            ))
+
     db.commit()
     db.refresh(new_user)
 
     session_token = f"argo_live_{new_user.role}_{uuid.uuid4()}"
-    org_id = new_user.organization_id or DEFAULT_ORG_ID
 
     return LoginResponse(
         access_token=session_token,
