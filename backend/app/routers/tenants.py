@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
 from ..database import get_db
-from .. import models, schemas
+from .. import models
 
 router = APIRouter()
 logger = logging.getLogger("uvicorn.error")
@@ -136,9 +136,9 @@ def find_tenant_by_identifier(db: Session, tenant_id: str, organization_id: uuid
         virtual_tenant = models.Tenant(
             id=user.id,
             organization_id=organization_id,
-            name=user.name or user.full_name or "Resident Tenant",
+            name=user.name or getattr(user, "full_name", None) or "Resident Tenant",
             email=user.email,
-            phone=user.phone or "",
+            phone=getattr(user, "phone", "") or "",
             status="Active"
         )
         if hasattr(virtual_tenant, "user_id"):
@@ -223,15 +223,22 @@ def read_tenants(
 
     # 2. Fetch directly from 'users' table (Maria Santos & Carlos Mendoza)
     try:
-        db_users = list(db.scalars(
-            select(models.User).where(
+        user_stmt = select(models.User).where(
+            or_(
+                models.User.role.ilike("%client%"),
+                models.User.role.ilike("%tenant%"),
+                models.User.role.ilike("%resident%")
+            )
+        )
+        if hasattr(models.User, "organization_id"):
+            user_stmt = user_stmt.where(
                 or_(
-                    models.User.role.ilike("%client%"),
-                    models.User.role.ilike("%tenant%"),
-                    models.User.role.ilike("%resident%")
+                    models.User.organization_id == org_id,
+                    models.User.organization_id.is_(None)
                 )
             )
-        ).all())
+
+        db_users = list(db.scalars(user_stmt).all())
 
         for u in db_users:
             u_id = str(getattr(u, "id", "") or "")
@@ -511,11 +518,9 @@ def delete_tenant(
         )
 
     try:
-        # Delete row from tenants table
         if db_tenant:
             db.delete(db_tenant)
 
-        # Revoke the client role from the User row
         if target_user and any(k in (target_user.role or "").lower() for k in ["client", "tenant", "resident"]):
             target_user.role = "inactive"
 
