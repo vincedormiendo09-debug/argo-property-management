@@ -888,14 +888,18 @@
             ? 'https://argo-management-2026.onrender.com/api'
             : '/api';
 
-    const MAINTENANCE_API_URL = `${API_BASE_URL}/maintenance`;
-    const UNITS_API_URL = `${API_BASE_URL}/units`;
-    const LEASES_API_URL = `${API_BASE_URL}/leases`;
-    const PROPERTIES_API_URL = `${API_BASE_URL}/properties`;
-    const TRANSACTIONS_API_URL = `${API_BASE_URL}/transactions`;
-    const NOTIFICATIONS_API_URL = `${API_BASE_URL}/notifications`;
+    const MAINTENANCE_API_URL = `${API_BASE_URL}/maintenance/`;
+    const UNITS_API_URL = `${API_BASE_URL}/units/`;
+    const LEASES_API_URL = `${API_BASE_URL}/leases/`;
+    const PROPERTIES_API_URL = `${API_BASE_URL}/properties/`;
+    const TRANSACTIONS_API_URL = `${API_BASE_URL}/transactions/`;
+    const NOTIFICATIONS_API_URL = `${API_BASE_URL}/notifications/`;
 
     let currentEditingTicketId = null;
+
+    function getOrgId() {
+        return localStorage.getItem('organization_id') || localStorage.getItem('argo_org_id') || DEFAULT_ORG_ID;
+    }
 
     function parseCurrency(val) {
         if (val === undefined || val === null || val === '') return 0;
@@ -1037,7 +1041,8 @@
     // Direct Database Fetchers
     async function getTickets() {
         try {
-            const response = await fetch(MAINTENANCE_API_URL, { 
+            const orgId = getOrgId();
+            const response = await fetch(`${MAINTENANCE_API_URL}?organization_id=${orgId}`, { 
                 headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
                 cache: 'no-store'
             });
@@ -1053,7 +1058,8 @@
 
     async function getUnits() {
         try {
-            const res = await fetch(UNITS_API_URL, { 
+            const orgId = getOrgId();
+            const res = await fetch(`${UNITS_API_URL}?organization_id=${orgId}`, { 
                 headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
                 cache: 'no-store'
             });
@@ -1069,7 +1075,8 @@
 
     async function getProperties() {
         try {
-            const res = await fetch(PROPERTIES_API_URL, { 
+            const orgId = getOrgId();
+            const res = await fetch(`${PROPERTIES_API_URL}?organization_id=${orgId}`, { 
                 headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
                 cache: 'no-store'
             });
@@ -1085,7 +1092,8 @@
 
     async function getLeases() {
         try {
-            const res = await fetch(LEASES_API_URL, { 
+            const orgId = getOrgId();
+            const res = await fetch(`${LEASES_API_URL}?organization_id=${orgId}`, { 
                 headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
                 cache: 'no-store'
             });
@@ -1101,7 +1109,8 @@
 
     async function getNotifications() {
         try {
-            const res = await fetch(NOTIFICATIONS_API_URL, { 
+            const orgId = getOrgId();
+            const res = await fetch(`${NOTIFICATIONS_API_URL}?organization_id=${orgId}`, { 
                 headers: getAuthHeaders(),
                 cache: 'no-store'
             });
@@ -1170,6 +1179,8 @@
             });
             locationSelect.appendChild(propGroup);
         }
+
+        locationSelect.onchange = autoFillTenantFromLocation;
     }
 
     async function autoFillTenantFromLocation() {
@@ -1199,6 +1210,9 @@
 
         if (matchedLease && matchedLease.tenant_name) {
             tenantInput.value = matchedLease.tenant_name;
+            if (matchedLease.tenant_email) {
+                tenantInput.dataset.tenantEmail = matchedLease.tenant_email;
+            }
         } else {
             tenantInput.value = '';
         }
@@ -1345,7 +1359,7 @@
         if (modal) modal.classList.add("show");
     }
 
-    // LIVE CREATE TICKET (POST /api/maintenance)
+    // LIVE CREATE TICKET (POST /api/maintenance/)
     async function saveNewTicket() {
         const titleInput = document.getElementById('modalTicketTitle');
         const locationSelect = document.getElementById('modalTicketLocation');
@@ -1355,13 +1369,14 @@
         const costInput = document.getElementById('modalTicketCost');
         const contractorSelect = document.getElementById('modalTicketContractor');
         const descInput = document.getElementById('modalTicketDesc');
-        const orgId = localStorage.getItem('organization_id') || DEFAULT_ORG_ID;
+        const orgId = getOrgId();
 
         const title = titleInput ? titleInput.value.trim() : '';
         const selectedOpt = locationSelect && locationSelect.selectedIndex >= 0 ? locationSelect.options[locationSelect.selectedIndex] : null;
         const unitId = selectedOpt ? (selectedOpt.dataset.unitId || (selectedOpt.value.length === 36 ? selectedOpt.value : null)) : null;
         const locationTag = selectedOpt ? (selectedOpt.dataset.location || selectedOpt.text) : 'Managed Asset';
         const tenant = tenantInput ? tenantInput.value.trim() : 'Occupant';
+        const tenantEmail = tenantInput?.dataset?.tenantEmail || '';
         const category = categorySelect ? categorySelect.value : 'General Maintenance';
         const priority = prioritySelect ? prioritySelect.value : 'Medium';
         const cost = parseFloat(costInput ? costInput.value : 0) || 0;
@@ -1384,6 +1399,7 @@
             category: category,
             description: description || 'Issue logged via Property Operations Desk.',
             tenant_name: tenant || 'Occupant',
+            tenant_email: tenantEmail,
             property_location: locationTag,
             priority: priority,
             status: isAssigned ? 'In Progress' : 'Open',
@@ -1392,7 +1408,7 @@
         };
 
         try {
-            const res = await fetch(MAINTENANCE_API_URL, {
+            const res = await fetch(`${MAINTENANCE_API_URL}?organization_id=${orgId}`, {
                 method: 'POST',
                 headers: getAuthHeaders(),
                 body: JSON.stringify(payload)
@@ -1464,7 +1480,7 @@
         if (modalId === 'dispatchModal') currentEditingTicketId = null;
     }
 
-    // LIVE UPDATE STATUS, DISPATCH & AUTO-ALERT TENANT (PUT/PATCH /api/maintenance/{id} + NOTIFICATIONS + LEDGER)
+    // LIVE UPDATE STATUS, DISPATCH & AUTO-ALERT TENANT (PATCH /api/maintenance/{id})
     async function saveDispatch() {
         if (!currentEditingTicketId) return;
 
@@ -1480,7 +1496,7 @@
         const status = statusInput ? statusInput.value : 'In Progress';
         const cost = parseFloat(costInput ? costInput.value : 0) || 0;
         const scheduledTime = scheduleInput ? scheduleInput.value : null;
-        const orgId = localStorage.getItem('organization_id') || DEFAULT_ORG_ID;
+        const orgId = getOrgId();
 
         const updatePayload = {
             technician: contractor,
@@ -1490,14 +1506,14 @@
         };
 
         try {
-            const res = await fetch(`${MAINTENANCE_API_URL}/${encodeURIComponent(currentEditingTicketId)}`, {
+            const res = await fetch(`${MAINTENANCE_API_URL}${encodeURIComponent(currentEditingTicketId)}?organization_id=${orgId}`, {
                 method: 'PATCH',
                 headers: getAuthHeaders(),
                 body: JSON.stringify(updatePayload)
             });
 
             if (!res.ok) {
-                await fetch(`${MAINTENANCE_API_URL}/${encodeURIComponent(currentEditingTicketId)}`, {
+                await fetch(`${MAINTENANCE_API_URL}${encodeURIComponent(currentEditingTicketId)}?organization_id=${orgId}`, {
                     method: 'PUT',
                     headers: getAuthHeaders(),
                     body: JSON.stringify(updatePayload)
@@ -1514,7 +1530,7 @@
             const isResolved = status.toUpperCase() === 'RESOLVED' || status.toUpperCase() === 'COMPLETED';
 
             try {
-                await fetch(NOTIFICATIONS_API_URL, {
+                await fetch(`${NOTIFICATIONS_API_URL}?organization_id=${orgId}`, {
                     method: 'POST',
                     headers: getAuthHeaders(),
                     body: JSON.stringify({
@@ -1541,7 +1557,7 @@
             const ticketLocation = activeTicket ? (activeTicket.property_location || 'Managed Unit / Facility') : 'Managed Facility';
 
             try {
-                await fetch(TRANSACTIONS_API_URL, {
+                await fetch(`${TRANSACTIONS_API_URL}?organization_id=${orgId}`, {
                     method: 'POST',
                     headers: getAuthHeaders(),
                     body: JSON.stringify({
@@ -1570,8 +1586,9 @@
         const name = displayCode || id;
         if (!confirm(`Are you sure you want to permanently delete ticket "${name}" from the database?`)) return;
         
+        const orgId = getOrgId();
         try {
-            const res = await fetch(`${MAINTENANCE_API_URL}/${encodeURIComponent(id)}`, {
+            const res = await fetch(`${MAINTENANCE_API_URL}${encodeURIComponent(id)}?organization_id=${orgId}`, {
                 method: 'DELETE',
                 headers: getAuthHeaders()
             });
@@ -1633,9 +1650,13 @@
     }
 
     function resetFilters() {
-        document.getElementById("searchInput").value = "";
-        document.getElementById("statusFilter").value = "";
-        document.getElementById("priorityFilter").value = "";
+        const searchInput = document.getElementById("searchInput");
+        const statusFilter = document.getElementById("statusFilter");
+        const priorityFilter = document.getElementById("priorityFilter");
+
+        if (searchInput) searchInput.value = "";
+        if (statusFilter) statusFilter.value = "";
+        if (priorityFilter) priorityFilter.value = "";
         filterTable();
     }
 
@@ -1663,4 +1684,3 @@
         });
     }
 </script>
-</body>

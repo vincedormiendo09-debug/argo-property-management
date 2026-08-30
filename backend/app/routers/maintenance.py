@@ -1,24 +1,35 @@
 import uuid
-from datetime import date, datetime
-from typing import List, Optional
+import logging
+from datetime import datetime
+from typing import List, Optional, Any, Dict
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select, or_
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from .. import models, schemas
+from .. import models
 
 router = APIRouter()
+logger = logging.getLogger("uvicorn.error")
 
-# Default Organization UUID matching schema.sql and seed.py
 DEFAULT_ORG_ID = uuid.UUID("a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11")
 
-# Model resolver to support both MaintenanceTicket and MaintenanceRequest models
-MaintenanceModel = getattr(models, "MaintenanceTicket", getattr(models, "MaintenanceRequest", None))
+
+def parse_org_id(org_id_raw: Optional[str]) -> uuid.UUID:
+    """Safely converts string, null, or undefined organization IDs to valid UUIDs."""
+    if not org_id_raw:
+        return DEFAULT_ORG_ID
+    clean = str(org_id_raw).strip().lower()
+    if clean in ("undefined", "null", ""):
+        return DEFAULT_ORG_ID
+    try:
+        return uuid.UUID(clean)
+    except Exception:
+        return DEFAULT_ORG_ID
 
 
 def ensure_sandbox_organization(db: Session, org_id: uuid.UUID):
-    """Ensures a stub Organization exists in local DB to satisfy FK constraints."""
+    """Ensures a stub Organization exists in DB to satisfy FK constraints."""
     org = db.scalar(select(models.Organization).where(models.Organization.id == org_id))
     if not org:
         sandbox_org = models.Organization(id=org_id, name="ARGO Property Management Corp.")
@@ -26,184 +37,182 @@ def ensure_sandbox_organization(db: Session, org_id: uuid.UUID):
         db.commit()
 
 
-def ensure_sandbox_unit(db: Session, org_id: uuid.UUID) -> models.Unit:
-    """Ensures a Property, Building, and Unit exist to attach default maintenance tickets."""
-    ensure_sandbox_organization(db, org_id)
+def serialize_ticket(item: Any, db: Session) -> Dict[str, Any]:
+    """Standardizes ticket representation across frontend views."""
+    t_id = str(getattr(item, "id", "") or "")
+    code = getattr(item, "ticket_id", None) or f"TKT-{t_id[:6].upper()}"
 
-    # 1. Parent Property
-    prop = db.scalar(select(models.Property).where(models.Property.organization_id == org_id))
-    if not prop:
-        prop = models.Property(
-            id=uuid.uuid4(),
-            organization_id=org_id,
-            code="PROP-001",
-            name="Sunrise Residences",
-            type="Residential",
-            location="Parañaque, Metro Manila",
-            units_count=2,
-            status="Active"
-        )
-        db.add(prop)
-        db.commit()
-        db.refresh(prop)
+    created_dt = getattr(item, "created_at", None)
+    created_str = str(created_dt) if created_dt else datetime.now().isoformat()
 
-    # 2. Parent Building
-    bldg = db.scalar(select(models.Building).where(models.Building.organization_id == org_id))
-    if not bldg:
-        bldg = models.Building(
-            id=uuid.uuid4(),
-            organization_id=org_id,
-            property_id=prop.id,
-            code="BLDG-A",
-            name="Tower A",
-            floors=10,
-            total_units=50,
-            status="ACTIVE"
-        )
-        db.add(bldg)
-        db.commit()
-        db.refresh(bldg)
-
-    # 3. Parent Unit
-    unit = db.scalar(select(models.Unit).where(models.Unit.organization_id == org_id))
-    if not unit:
-        unit = models.Unit(
-            id=uuid.uuid4(),
-            organization_id=org_id,
-            property_id=prop.id,
-            building_id=bldg.id,
-            unit_no="Unit 101",
-            type="1BR",
-            floor="1st Floor",
-            rent=15000.0,
-            status="OCCUPIED",
-            subtitle="Sunrise Residences • Tower A • Unit 101"
-        )
-        db.add(unit)
-        db.commit()
-        db.refresh(unit)
-
-    return unit
+    return {
+        "id": t_id,
+        "ticket_id": code,
+        "organization_id": str(getattr(item, "organization_id", "") or ""),
+        "unit_id": str(getattr(item, "unit_id", "") or ""),
+        "tenant_name": getattr(item, "tenant_name", None) or "Resident Occupant",
+        "tenant_email": getattr(item, "tenant_email", None) or "",
+        "property_location": getattr(item, "property_location", None) or "Property / Unit",
+        "category": getattr(item, "category", "General") or "General",
+        "title": getattr(item, "title", "Maintenance Request") or "Maintenance Request",
+        "description": getattr(item, "description", "") or "",
+        "priority": getattr(item, "priority", "Normal") or "Normal",
+        "status": getattr(item, "status", "Open") or "Open",
+        "technician": getattr(item, "technician", "Unassigned") or "Unassigned",
+        "scheduled_time": getattr(item, "scheduled_time", None) or "Pending Dispatch",
+        "cost": float(getattr(item, "cost", 0.0) or 0.0),
+        "created_at": created_str
+    }
 
 
-# 1. GET /api/maintenance/ - Fetch all maintenance tickets with filter and search capabilities
-@router.get("/", response_model=List[schemas.MaintenanceSchema])
+def find_ticket_record(db: Session, ticket_id: str, org_id: uuid.UUID):
+    """Locates a maintenance ticket by UUID or alphanumeric ticket_id code."""
+    clean_id = ticket_id.strip()
+
+    if hasattr(models, "MaintenanceTicket"):
+        try:
+            parsed_uuid = uuid.UUID(clean_id)
+            record = db.scalar(
+                select(models.MaintenanceTicket).where(
+                    models.MaintenanceTicket.id == parsed_uuid,
+                    or_(
+                        models.MaintenanceTicket.organization_id == org_id,
+                        models.MaintenanceTicket.organization_id.is_(None)
+                    )
+                )
+            )
+            if record:
+                return record
+        except ValueError:
+            pass
+
+        if hasattr(models.MaintenanceTicket, "ticket_id"):
+            record = db.scalar(
+                select(models.MaintenanceTicket).where(
+                    models.MaintenanceTicket.ticket_id.ilike(clean_id),
+                    or_(
+                        models.MaintenanceTicket.organization_id == org_id,
+                        models.MaintenanceTicket.organization_id.is_(None)
+                    )
+                )
+            )
+            if record:
+                return record
+
+    return None
+
+
+# ---------------------------------------------------------------------
+# 1. GET MAINTENANCE TICKETS (Dual Route)
+# ---------------------------------------------------------------------
+@router.get("")
+@router.get("/")
 def read_maintenance_tickets(
-    organization_id: uuid.UUID = Query(default=DEFAULT_ORG_ID),
-    unit_id: Optional[uuid.UUID] = Query(default=None),
+    organization_id: Optional[str] = Query(default=None),
     status_filter: Optional[str] = Query(default=None, alias="status"),
-    priority: Optional[str] = Query(default=None),
+    priority_filter: Optional[str] = Query(default=None, alias="priority"),
     category: Optional[str] = Query(default=None),
     search: Optional[str] = Query(default=None),
     db: Session = Depends(get_db)
 ):
-    ensure_sandbox_organization(db, organization_id)
-
-    if not MaintenanceModel:
-        raise HTTPException(status_code=500, detail="Maintenance model not found in database models.")
-
-    stmt = select(MaintenanceModel).where(
-        MaintenanceModel.organization_id == organization_id
-    )
-
-    if unit_id:
-        stmt = stmt.where(MaintenanceModel.unit_id == unit_id)
-    if status_filter:
-        stmt = stmt.where(MaintenanceModel.status.ilike(f"%{status_filter}%"))
-    if priority:
-        stmt = stmt.where(MaintenanceModel.priority.ilike(f"%{priority}%"))
-    if category and hasattr(MaintenanceModel, "category"):
-        stmt = stmt.where(MaintenanceModel.category.ilike(f"%{category}%"))
-
-    if search:
-        search_terms = []
-        if hasattr(MaintenanceModel, "ticket_id"):
-            search_terms.append(MaintenanceModel.ticket_id.ilike(f"%{search}%"))
-        if hasattr(MaintenanceModel, "title"):
-            search_terms.append(MaintenanceModel.title.ilike(f"%{search}%"))
-        if hasattr(MaintenanceModel, "description"):
-            search_terms.append(MaintenanceModel.description.ilike(f"%{search}%"))
-        if hasattr(MaintenanceModel, "tenant_name"):
-            search_terms.append(MaintenanceModel.tenant_name.ilike(f"%{search}%"))
-        if hasattr(MaintenanceModel, "technician"):
-            search_terms.append(MaintenanceModel.technician.ilike(f"%{search}%"))
-        if search_terms:
-            stmt = stmt.where(or_(*search_terms))
-
-    tickets = list(db.scalars(stmt).all())
-
-    # Seed default sandbox ticket if DB is empty for this organization
-    if not tickets and not unit_id and not search:
-        parent_unit = ensure_sandbox_unit(db, organization_id)
-        default_ticket_data = {
-            "id": uuid.uuid4(),
-            "organization_id": organization_id,
-            "unit_id": parent_unit.id,
-            "description": "Master bedroom AC unit is dripping water onto floor.",
-            "priority": "High",
-            "status": "In Progress"
-        }
-
-        if hasattr(MaintenanceModel, "ticket_id"):
-            default_ticket_data["ticket_id"] = "TCK-2026-001"
-        if hasattr(MaintenanceModel, "title"):
-            default_ticket_data["title"] = "AC Unit Leaking Water"
-        if hasattr(MaintenanceModel, "category"):
-            default_ticket_data["category"] = "HVAC / Aircon"
-        if hasattr(MaintenanceModel, "tenant_name"):
-            default_ticket_data["tenant_name"] = "Maria Santos"
-        if hasattr(MaintenanceModel, "technician"):
-            default_ticket_data["technician"] = "Roldan HVAC Services"
-        if hasattr(MaintenanceModel, "cost"):
-            default_ticket_data["cost"] = 1500.00
-
-        default_tickets = [MaintenanceModel(**default_ticket_data)]
-        db.add_all(default_tickets)
-        db.commit()
-        tickets = list(db.scalars(stmt).all())
-
-    return tickets
-
-
-# 2. POST /api/maintenance/ - Submit a new repair ticket with FK validation & activity feed event
-@router.post("/", response_model=schemas.MaintenanceSchema, status_code=status.HTTP_201_CREATED)
-def create_maintenance_ticket(
-    ticket_in: schemas.MaintenanceCreate,
-    db: Session = Depends(get_db)
-):
-    org_id = getattr(ticket_in, "organization_id", DEFAULT_ORG_ID) or DEFAULT_ORG_ID
+    """Fetch all logged operations and maintenance tickets."""
+    org_id = parse_org_id(organization_id)
     ensure_sandbox_organization(db, org_id)
 
-    if not MaintenanceModel:
-        raise HTTPException(status_code=500, detail="Maintenance model not found.")
-
-    # Verify unit exists under this organization if unit_id is provided
-    if ticket_in.unit_id:
-        unit_stmt = select(models.Unit).where(
-            models.Unit.id == ticket_in.unit_id,
-            models.Unit.organization_id == org_id
+    stmt = select(models.MaintenanceTicket).where(
+        or_(
+            models.MaintenanceTicket.organization_id == org_id,
+            models.MaintenanceTicket.organization_id.is_(None)
         )
-        unit = db.scalar(unit_stmt)
-        if not unit:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Unit with ID '{ticket_in.unit_id}' not found in this organization."
-            )
+    )
 
-    ticket_data = ticket_in.model_dump(exclude_unset=True) if hasattr(ticket_in, "model_dump") else ticket_in.dict(exclude_unset=True)
-    if "id" not in ticket_data or not ticket_data["id"]:
-        ticket_data["id"] = uuid.uuid4()
-    if "organization_id" not in ticket_data or not ticket_data["organization_id"]:
-        ticket_data["organization_id"] = org_id
-    if "ticket_id" not in ticket_data and hasattr(MaintenanceModel, "ticket_id"):
-        ticket_data["ticket_id"] = f"TCK-{datetime.now().year}-{str(uuid.uuid4())[:6].upper()}"
+    if status_filter:
+        stmt = stmt.where(models.MaintenanceTicket.status.ilike(f"%{status_filter.strip()}%"))
+    if priority_filter:
+        stmt = stmt.where(models.MaintenanceTicket.priority.ilike(f"%{priority_filter.strip()}%"))
+    if category:
+        stmt = stmt.where(models.MaintenanceTicket.category.ilike(f"%{category.strip()}%"))
 
-    db_ticket = MaintenanceModel(**ticket_data)
+    tickets = list(db.scalars(stmt).all())
+    serialized = [serialize_ticket(t, db) for t in tickets]
+
+    if search:
+        s = search.strip().lower()
+        serialized = [
+            t for t in serialized
+            if s in str(t.get("ticket_id", "")).lower()
+            or s in str(t.get("title", "")).lower()
+            or s in str(t.get("tenant_name", "")).lower()
+            or s in str(t.get("property_location", "")).lower()
+            or s in str(t.get("technician", "")).lower()
+            or s in str(t.get("category", "")).lower()
+        ]
+
+    return serialized
+
+
+# ---------------------------------------------------------------------
+# 2. CREATE MAINTENANCE TICKET (Dual Route: Resolves HTTP 405)
+# ---------------------------------------------------------------------
+@router.post("", status_code=status.HTTP_201_CREATED)
+@router.post("/", status_code=status.HTTP_201_CREATED)
+def create_maintenance_ticket(
+    ticket_in: Dict[str, Any],
+    organization_id: Optional[str] = Query(default=None),
+    db: Session = Depends(get_db)
+):
+    """Creates a new maintenance/operations ticket."""
+    org_id = parse_org_id(ticket_in.get("organization_id") or organization_id)
+    ensure_sandbox_organization(db, org_id)
+
+    title = str(ticket_in.get("title") or ticket_in.get("issue_title") or "").strip()
+    if not title:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Issue title / short summary is required."
+        )
+
+    # Safe Foreign Key Unit Resolution
+    unit_id_val = None
+    if ticket_in.get("unit_id"):
+        try:
+            parsed_u = uuid.UUID(str(ticket_in["unit_id"]).strip())
+            if db.scalar(select(models.Unit).where(models.Unit.id == parsed_u)):
+                unit_id_val = parsed_u
+        except ValueError:
+            pass
+
+    cost_val = float(ticket_in.get("cost") or ticket_in.get("estimated_cost") or 0.0)
+    ticket_code = (
+        ticket_in.get("ticket_id") 
+        or f"TKT-{datetime.now().year}-{str(uuid.uuid4())[:4].upper()}"
+    )
+
+    record_data = {
+        "id": uuid.uuid4(),
+        "organization_id": org_id,
+        "unit_id": unit_id_val,
+        "ticket_id": ticket_code,
+        "title": title,
+        "tenant_name": ticket_in.get("tenant_name") or "Resident Occupant",
+        "tenant_email": ticket_in.get("tenant_email") or "",
+        "property_location": ticket_in.get("property_location") or ticket_in.get("location") or "Property / Unit",
+        "category": ticket_in.get("category") or "General Maintenance",
+        "priority": ticket_in.get("priority") or "Normal",
+        "status": ticket_in.get("status") or "Open",
+        "technician": ticket_in.get("technician") or ticket_in.get("contractor") or "Unassigned",
+        "scheduled_time": ticket_in.get("scheduled_time") or "Pending Dispatch",
+        "description": ticket_in.get("description") or "",
+        "cost": cost_val
+    }
+
+    filtered_kwargs = {k: v for k, v in record_data.items() if hasattr(models.MaintenanceTicket, k)}
+    db_ticket = models.MaintenanceTicket(**filtered_kwargs)
     db.add(db_ticket)
 
-    # Automatically notify admins and log activity feed event
+    # Automatically notify admins
     if hasattr(models, "Notification"):
-        prio_str = str(ticket_data.get("priority", "")).lower()
+        prio_str = str(record_data.get("priority", "")).lower()
         is_urgent = prio_str in ["high", "urgent", "emergency"]
         notif = models.Notification(
             id=uuid.uuid4(),
@@ -212,163 +221,121 @@ def create_maintenance_ticket(
             category="maintenance",
             status="unread",
             is_read=False,
-            title=f"New Maintenance Ticket Logged ({ticket_data.get('ticket_id', 'TCK')})",
-            description=f"Repair request: '{ticket_data.get('title', ticket_data.get('description', 'Maintenance Request'))}' assigned to {ticket_data.get('technician', 'Unassigned')}.",
-            property="Sunrise Residences",
-            tag=f"Priority: {ticket_data.get('priority', 'Medium')}",
+            title=f"New Maintenance Ticket ({ticket_code})",
+            description=f"Repair request: '{title}' assigned to {record_data['technician']}.",
+            property=record_data["property_location"],
+            tag=f"Priority: {record_data['priority']}",
             urgent=is_urgent
         )
         db.add(notif)
 
-    db.commit()
-    db.refresh(db_ticket)
-    return db_ticket
+    try:
+        db.commit()
+        db.refresh(db_ticket)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Database error creating ticket: {str(e)}"
+        )
+
+    return serialize_ticket(db_ticket, db)
 
 
-# 3. GET /api/maintenance/{ticket_id} - Fetch single ticket by UUID or Ticket Code
-@router.get("/{ticket_id}", response_model=schemas.MaintenanceSchema)
+# ---------------------------------------------------------------------
+# 3. GET SINGLE MAINTENANCE TICKET
+# ---------------------------------------------------------------------
+@router.get("/{ticket_id}")
+@router.get("/{ticket_id}/")
 def get_maintenance_ticket(
     ticket_id: str,
-    organization_id: uuid.UUID = Query(default=DEFAULT_ORG_ID),
+    organization_id: Optional[str] = Query(default=None),
     db: Session = Depends(get_db)
 ):
-    if not MaintenanceModel:
-        raise HTTPException(status_code=500, detail="Maintenance model not found.")
-
-    try:
-        parsed_uuid = uuid.UUID(ticket_id)
-        stmt = select(MaintenanceModel).where(
-            MaintenanceModel.id == parsed_uuid,
-            MaintenanceModel.organization_id == organization_id
-        )
-    except ValueError:
-        if hasattr(MaintenanceModel, "ticket_id"):
-            stmt = select(MaintenanceModel).where(
-                MaintenanceModel.ticket_id == ticket_id,
-                MaintenanceModel.organization_id == organization_id
-            )
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid maintenance ticket identifier format."
-            )
-
-    ticket = db.scalar(stmt)
-    if not ticket:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Maintenance ticket not found."
-        )
-
-    return ticket
+    """Retrieve single ticket by UUID or alphanumeric code."""
+    org_id = parse_org_id(organization_id)
+    record = find_ticket_record(db, ticket_id, org_id)
+    if not record:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Maintenance ticket not found.")
+    return serialize_ticket(record, db)
 
 
-# 4. PATCH & PUT /api/maintenance/{ticket_id} - Update status, technician dispatch, repair cost
-@router.patch("/{ticket_id}", response_model=schemas.MaintenanceSchema)
-@router.put("/{ticket_id}", response_model=schemas.MaintenanceSchema)
+# ---------------------------------------------------------------------
+# 4. UPDATE MAINTENANCE TICKET (PUT / PATCH)
+# ---------------------------------------------------------------------
+@router.put("/{ticket_id}")
+@router.put("/{ticket_id}/")
+@router.patch("/{ticket_id}")
+@router.patch("/{ticket_id}/")
 def update_maintenance_ticket(
     ticket_id: str,
-    update_data: schemas.MaintenanceUpdate,
-    organization_id: uuid.UUID = Query(default=DEFAULT_ORG_ID),
+    ticket_update: Dict[str, Any],
+    organization_id: Optional[str] = Query(default=None),
     db: Session = Depends(get_db)
 ):
-    if not MaintenanceModel:
-        raise HTTPException(status_code=500, detail="Maintenance model not found.")
+    """Update ticket status, technician assignment, priority, or cost."""
+    org_id = parse_org_id(organization_id)
+    record = find_ticket_record(db, ticket_id, org_id)
+    if not record:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Maintenance ticket not found.")
 
-    try:
-        parsed_uuid = uuid.UUID(ticket_id)
-        stmt = select(MaintenanceModel).where(
-            MaintenanceModel.id == parsed_uuid,
-            MaintenanceModel.organization_id == organization_id
-        )
-    except ValueError:
-        if hasattr(MaintenanceModel, "ticket_id"):
-            stmt = select(MaintenanceModel).where(
-                MaintenanceModel.ticket_id == ticket_id,
-                MaintenanceModel.organization_id == organization_id
-            )
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid maintenance ticket identifier format."
-            )
+    old_status = getattr(record, "status", "")
+    old_tech = getattr(record, "technician", "")
 
-    db_ticket = db.scalar(stmt)
-    if not db_ticket:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Maintenance ticket not found."
-        )
+    for field, val in ticket_update.items():
+        if hasattr(record, field):
+            setattr(record, field, val)
 
-    old_status = getattr(db_ticket, "status", "")
-    old_tech = getattr(db_ticket, "technician", "")
+    new_status = getattr(record, "status", old_status)
+    new_tech = getattr(record, "technician", old_tech)
 
-    update_dict = update_data.model_dump(exclude_unset=True) if hasattr(update_data, "model_dump") else update_data.dict(exclude_unset=True)
-    for field, value in update_dict.items():
-        if hasattr(db_ticket, field):
-            setattr(db_ticket, field, value)
-
-    new_status = getattr(db_ticket, "status", old_status)
-    new_tech = getattr(db_ticket, "technician", old_tech)
-
-    # Trigger notification upon status update or technician dispatch
+    # Trigger notification on status change or tech assignment
     if hasattr(models, "Notification") and (old_status != new_status or old_tech != new_tech):
-        t_id = getattr(db_ticket, "ticket_id", "TCK")
+        t_id = getattr(record, "ticket_id", "TCK")
         notif = models.Notification(
             id=uuid.uuid4(),
-            organization_id=organization_id,
+            organization_id=org_id,
             pov="admin",
             category="maintenance",
             status="unread",
             is_read=False,
             title=f"Maintenance Update ({t_id}): {new_status}",
             description=f"Ticket status changed to '{new_status}'. Assigned technician: {new_tech}.",
-            property="Sunrise Residences",
+            property=getattr(record, "property_location", "Property Location"),
             tag=f"Status: {new_status}",
-            urgent=new_status.lower() in ["urgent", "escalated"]
+            urgent=str(new_status).lower() in ["urgent", "escalated"]
         )
         db.add(notif)
 
     db.commit()
-    db.refresh(db_ticket)
-    return db_ticket
+    db.refresh(record)
+    return serialize_ticket(record, db)
 
 
-# 5. DELETE /api/maintenance/{ticket_id} - Delete or archive maintenance ticket
+# ---------------------------------------------------------------------
+# 5. DELETE MAINTENANCE TICKET
+# ---------------------------------------------------------------------
 @router.delete("/{ticket_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{ticket_id}/", status_code=status.HTTP_204_NO_CONTENT)
 def delete_maintenance_ticket(
     ticket_id: str,
-    organization_id: uuid.UUID = Query(default=DEFAULT_ORG_ID),
+    organization_id: Optional[str] = Query(default=None),
     db: Session = Depends(get_db)
 ):
-    if not MaintenanceModel:
-        raise HTTPException(status_code=500, detail="Maintenance model not found.")
+    """Permanently delete a maintenance ticket."""
+    org_id = parse_org_id(organization_id)
+    record = find_ticket_record(db, ticket_id, org_id)
+    if not record:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Maintenance ticket not found.")
 
     try:
-        parsed_uuid = uuid.UUID(ticket_id)
-        stmt = select(MaintenanceModel).where(
-            MaintenanceModel.id == parsed_uuid,
-            MaintenanceModel.organization_id == organization_id
-        )
-    except ValueError:
-        if hasattr(MaintenanceModel, "ticket_id"):
-            stmt = select(MaintenanceModel).where(
-                MaintenanceModel.ticket_id == ticket_id,
-                MaintenanceModel.organization_id == organization_id
-            )
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid maintenance ticket identifier format."
-            )
-
-    db_ticket = db.scalar(stmt)
-    if not db_ticket:
+        db.delete(record)
+        db.commit()
+    except Exception as e:
+        db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Maintenance ticket not found."
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error deleting maintenance ticket: {str(e)}"
         )
 
-    db.delete(db_ticket)
-    db.commit()
     return None
