@@ -14,6 +14,18 @@ router = APIRouter()
 DEFAULT_ORG_ID = uuid.UUID("a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11")
 
 
+def ensure_organization_exists(db: Session, org_id: uuid.UUID) -> None:
+    """Guarantees the organization row exists to prevent foreign key violations."""
+    org = db.scalar(select(models.Organization).where(models.Organization.id == org_id))
+    if not org:
+        sandbox_org = models.Organization(
+            id=org_id,
+            name="ARGO Property Management Corp."
+        )
+        db.add(sandbox_org)
+        db.commit()
+
+
 # =====================================================================
 # REQUEST & RESPONSE SCHEMAS
 # =====================================================================
@@ -97,7 +109,7 @@ SEED_ACCOUNTS = {
 def login(credentials: LoginRequest, db: Session = Depends(get_db)):
     """
     Authenticates users against PostgreSQL. If a configured seed account is used for
-    the first time, it auto-provisions both the user account and operational records.
+    the first time, it auto-provisions the organization, user, and operational records.
     """
     search_email = (credentials.email or credentials.username or "").lower().strip()
     if not search_email:
@@ -106,17 +118,22 @@ def login(credentials: LoginRequest, db: Session = Depends(get_db)):
             detail="Email or username is required."
         )
 
-    # 1. Look up existing user
+    # 1. Search for user by email
     stmt = select(models.User).where(models.User.email == search_email)
     user = db.scalar(stmt)
 
-    # 2. Auto-provision seed test accounts if they don't exist yet
+    # 2. Auto-provision seed test accounts if they do not exist yet
     if not user:
         if search_email in SEED_ACCOUNTS:
             acc_data = SEED_ACCOUNTS[search_email]
+            org_id = DEFAULT_ORG_ID
+
+            # Ensure parent organization exists before inserting dependent rows
+            ensure_organization_exists(db, org_id)
+
             user = models.User(
                 id=uuid.uuid4(),
-                organization_id=DEFAULT_ORG_ID,
+                organization_id=org_id,
                 name=acc_data["name"],
                 full_name=acc_data["name"],
                 email=search_email,
@@ -133,7 +150,7 @@ def login(credentials: LoginRequest, db: Session = Depends(get_db)):
                 if not tenant_exists:
                     db.add(models.Tenant(
                         id=uuid.uuid4(),
-                        organization_id=DEFAULT_ORG_ID,
+                        organization_id=org_id,
                         user_id=user.id,
                         name=acc_data["name"],
                         email=search_email,
@@ -147,7 +164,7 @@ def login(credentials: LoginRequest, db: Session = Depends(get_db)):
                 if not owner_exists:
                     db.add(models.Owner(
                         id=uuid.uuid4(),
-                        organization_id=DEFAULT_ORG_ID,
+                        organization_id=org_id,
                         user_id=user.id,
                         name=acc_data["name"],
                         email=search_email,
@@ -191,7 +208,7 @@ def login(credentials: LoginRequest, db: Session = Depends(get_db)):
 @router.post("/register/", response_model=LoginResponse, status_code=status.HTTP_201_CREATED)
 def register(payload: RegisterRequest, db: Session = Depends(get_db)):
     """
-    Registers a new user and automatically creates their matching tenant or owner profile.
+    Registers a new user, ensuring organization existence and creating linked operational records.
     """
     clean_email = payload.email.lower().strip()
 
@@ -215,7 +232,10 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
     initials = "".join([n[0] for n in payload.name.split() if n])[:2].upper() if payload.name else "US"
     org_id = payload.organization_id or DEFAULT_ORG_ID
 
-    # 3. Create user record
+    # 3. Ensure parent organization exists before inserting dependent rows
+    ensure_organization_exists(db, org_id)
+
+    # 4. Create user record
     new_user = models.User(
         id=uuid.uuid4(),
         organization_id=org_id,
@@ -229,7 +249,7 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
     )
     db.add(new_user)
 
-    # 4. Auto-bridge operational tenant or owner profile
+    # 5. Auto-bridge operational tenant or owner profile
     if normalized_role == "client":
         existing_tenant = db.scalar(select(models.Tenant).where(models.Tenant.email == clean_email))
         if not existing_tenant:
