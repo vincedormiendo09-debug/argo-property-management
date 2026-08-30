@@ -39,7 +39,7 @@ def ensure_sandbox_organization(db: Session, org_id: uuid.UUID):
 
 
 def find_tenant_by_identifier(db: Session, tenant_id: str, organization_id: uuid.UUID):
-    """Robustly locates a tenant by UUID, user_id, custom TNT code, email, or User record."""
+    """Robustly locates a tenant by UUID, user_id, custom TNT code, or email."""
     clean_id = tenant_id.strip()
 
     # 1. Search Tenant table by UUID (id or user_id)
@@ -102,7 +102,7 @@ def find_tenant_by_identifier(db: Session, tenant_id: str, organization_id: uuid
     if tenant:
         return tenant
 
-    # 4. Fallback: Search User table directly if role is client/tenant
+    # 4. Fallback: Search User table directly if role is client/tenant/resident
     user = None
     try:
         user_uuid = uuid.UUID(clean_id)
@@ -436,12 +436,63 @@ def update_tenant(
     db: Session = Depends(get_db)
 ):
     org_id = parse_org_id(organization_id)
-    db_tenant = find_tenant_by_identifier(db, tenant_id, org_id)
-    if not db_tenant:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Tenant not found."
+    clean_id = tenant_id.strip()
+
+    # Look for persistent tenant row
+    db_tenant = None
+    try:
+        parsed_uuid = uuid.UUID(clean_id)
+        db_tenant = db.scalar(
+            select(models.Tenant).where(
+                or_(
+                    models.Tenant.id == parsed_uuid,
+                    models.Tenant.user_id == parsed_uuid
+                )
+            )
         )
+    except ValueError:
+        pass
+
+    if not db_tenant and hasattr(models.Tenant, "tenant_id"):
+        db_tenant = db.scalar(select(models.Tenant).where(models.Tenant.tenant_id.ilike(clean_id)))
+    if not db_tenant and hasattr(models.Tenant, "tnt_id"):
+        db_tenant = db.scalar(select(models.Tenant).where(models.Tenant.tnt_id.ilike(clean_id)))
+    if not db_tenant:
+        db_tenant = db.scalar(select(models.Tenant).where(models.Tenant.email.ilike(clean_id)))
+
+    # If updating an uncommitted client user profile, materialize a Tenant row
+    if not db_tenant:
+        target_user = None
+        try:
+            target_user = db.scalar(select(models.User).where(models.User.id == uuid.UUID(clean_id)))
+        except ValueError:
+            pass
+        if not target_user:
+            target_user = db.scalar(select(models.User).where(models.User.email.ilike(clean_id)))
+
+        if target_user:
+            code = f"TNT-{str(target_user.id)[:6].upper()}"
+            db_tenant = models.Tenant(
+                id=target_user.id,
+                organization_id=org_id,
+                name=target_user.name or getattr(target_user, "full_name", None) or "Resident Tenant",
+                email=target_user.email,
+                phone=getattr(target_user, "phone", "") or "",
+                type="Individual",
+                status="Active"
+            )
+            if hasattr(db_tenant, "user_id"):
+                db_tenant.user_id = target_user.id
+            if hasattr(db_tenant, "tenant_id"):
+                db_tenant.tenant_id = code
+            if hasattr(db_tenant, "tnt_id"):
+                db_tenant.tnt_id = code
+            db.add(db_tenant)
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Tenant not found."
+            )
 
     for field, value in tenant_update.items():
         if hasattr(db_tenant, field):
