@@ -283,9 +283,7 @@ class Utility(Base):
 
     utility_id: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     utility_type: Mapped[str] = mapped_column(String(100), nullable=False, default="Electricity Sub-Meter")
-    type: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     billing_period: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
-    period: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     amount: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False, default=0.0)
 
     reading_prev: Mapped[Optional[float]] = mapped_column(Numeric(12, 2), nullable=True, default=0.0)
@@ -300,13 +298,10 @@ class Utility(Base):
     tenant_email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     property_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     unit_number: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
-    unit_no: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
-    breakdown: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
-
 
 class Invoice(Base):
     __tablename__ = "invoices"
